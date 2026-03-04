@@ -70,6 +70,6 @@ EXPOSE 4000
 
 # Health check - API health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:4000/smart-cabinet-cu/api/v1/health || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:4000/api/smart-cabinet-cu/v1/health || exit 1
 
 CMD ["node", "dist/src/main.js"]

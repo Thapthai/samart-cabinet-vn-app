@@ -5,7 +5,7 @@ import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('smart-cabinet-cu/api/v1');
+  app.setGlobalPrefix('api/smart-cabinet-cu/v1');
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -23,7 +23,9 @@ async function bootstrap() {
         'http://localhost:4100',
         'http://127.0.0.1:4100',
         'http://10.11.9.84:3100',
-        'http://10.11.9.84:4100',       ];
+        'http://10.11.9.84:4100',  
+        'https://phc.dyndns.biz/smart-cabinet-cu',
+      ];
   app.enableCors({
     origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
