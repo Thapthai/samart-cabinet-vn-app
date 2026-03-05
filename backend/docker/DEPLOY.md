@@ -21,50 +21,63 @@ cd /path/to/samart-cabinet-cu-app/backend
 
 - `DATABASE_URL` (หรือ DATABASE_USER, PASSWORD, NAME, HOST, PORT)
 - `JWT_SECRET`
+- `BACKEND_HOST_PORT` — พอร์ตบน host ที่จะ map เข้า container (ค่าเริ่มต้น 3000) ถ้ารันหลายแอปให้ตั้งคนละค่า เช่น 3000, 3001
 - อื่นๆ ตาม `.env.example`
 
 ### 3. Build และรัน
 
+**รันแอปเดียว (default):**
 ```bash
-# จากโฟลเดอร์ backend (ใช้ --env-file .env เพื่อให้ Compose อ่านตัวแปรจาก .env)
+# จากโฟลเดอร์ backend
 docker compose -f docker/docker-compose.yml --env-file .env up -d --build
 ```
 
-- `--build` = build image ใหม่
-- `-d` = รันแบบแยกพื้นหลัง (detached)
+**รันหลายแอปบนเครื่องเดียวกัน (ให้แต่ละแอปเป็นคนละ container):** ใช้ `-p` ระบุ project name และใน .env ของแต่ละแอปใส่พอร์ตคนละค่า
+
+```bash
+# แอปที่ 1 (เช่น VN) — ใน backend/.env ใส่ BACKEND_HOST_PORT=3000
+docker compose -p smart-cabinet-vn -f docker/docker-compose.yml --env-file .env up -d --build
+
+# แอปที่ 2 (เช่น CU) — ใช้โฟลเดอร์หรือ .env อีกชุด ใส่ BACKEND_HOST_PORT=3001
+docker compose -p smart-cabinet-cu -f docker/docker-compose.yml --env-file .env.cu up -d --build
+```
+
+- `-p` หรือ `--project-name` = ชื่อ project แยกแต่ละแอป (container จะได้ชื่อเช่น smart-cabinet-vn-backend-1, smart-cabinet-cu-backend-1)
+- ใน `.env` ใส่ `BACKEND_HOST_PORT=3000` (หรือ 3001, 3002 ฯลฯ) เพื่อไม่ให้พอร์ตชนกัน
+- `--build` = build image ใหม่, `-d` = รันแบบแยกพื้นหลัง
 
 ### 4. ตรวจสอบ
 
 ```bash
-# ดูสถานะ container
-docker compose -f docker/docker-compose.yml ps
+# ดูสถานะ container (ถ้ารันด้วย -p ให้ใส่ -p เดียวกัน)
+docker compose -p smart-cabinet-vn -f docker/docker-compose.yml ps
 ```
 
 **หมายเหตุ:** ถ้าโฟลเดอร์ `fonts/` ไม่มีอยู่ ให้สร้างก่อน build (ดูหัวข้อ "ตัวหนังสือในรายงาน PDF ผิดเพี้ยน" ด้านล่าง)
 
 ```bash
-# ดู log
-docker compose -f docker/docker-compose.yml logs -f backend
+# ดู log (ถ้ารันด้วย -p ให้ใส่ -p เดียวกัน)
+docker compose -p smart-cabinet-vn -f docker/docker-compose.yml logs -f backend
 
-# ทดสอบ health
-curl http://localhost:4000/smart-cabinet-cu/api/v1/health
+# ทดสอบ health (ใช้พอร์ตตาม BACKEND_HOST_PORT ใน .env)
+curl http://localhost:3000/api/smart-cabinet-vn/v1/health
 ```
 
-Backend จะ listen ที่ **port 4000**
+Backend จะ listen ตาม `PORT` ใน container (3000) ส่วนพอร์ตที่เปิดออกนอก host ใช้ค่าจาก **BACKEND_HOST_PORT** ใน .env (ค่าเริ่มต้น 3000)
 
 ---
 
 ## คำสั่งอื่นที่ใช้บ่อย
 
 ```bash
-# หยุด
-docker compose -f docker/docker-compose.yml down
+# หยุด (ใส่ -p ให้ตรงกับตอน up)
+docker compose -p smart-cabinet-vn -f docker/docker-compose.yml down
 
 # Build ใหม่แล้วรันใหม่ (หลัง pull code)
-docker compose -f docker/docker-compose.yml --env-file .env up -d --build
+docker compose -p smart-cabinet-vn -f docker/docker-compose.yml --env-file .env up -d --build
 
 # ดู log แบบ realtime
-docker compose -f docker/docker-compose.yml logs -f backend
+docker compose -p smart-cabinet-vn -f docker/docker-compose.yml logs -f backend
 ```
 
 ---

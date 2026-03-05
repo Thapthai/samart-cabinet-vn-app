@@ -20,8 +20,9 @@ cd /path/to/samart-cabinet-cu-app/frontend
 ให้มีไฟล์ `frontend/.env` และมีตัวแปรอย่างน้อย:
 
 - **`NEXTAUTH_SECRET`** — **ต้องมีค่า** (ถ้าไม่ตั้ง Compose จะแจ้ง WARN และ session อาจผิดพลาด) ใช้ string ยาวๆ หรือ `openssl rand -base64 32`
-- `NEXTAUTH_URL` — URL หน้าแอปที่ใช้เข้าถึง (รวม basePath) เช่น `http://localhost:4100/smart-cabinet-cu` หรือ `http://10.11.9.84:4100/smart-cabinet-cu`
-- `NEXT_PUBLIC_BASE_PATH` — basePath ของ Next.js (เช่น `/smart-cabinet-cu`)
+- `FRONTEND_HOST_PORT` — พอร์ตบน host ที่จะ map เข้า container (ค่าเริ่มต้น 3100) ถ้ารันหลายแอปให้ตั้งคนละค่า เช่น 3100, 3101
+- `NEXTAUTH_URL` — URL หน้าแอปที่ใช้เข้าถึง (รวม basePath) เช่น `http://localhost:3100/medical-supplies` หรือ `http://10.11.9.84:3100/medical-supplies`
+- `NEXT_PUBLIC_BASE_PATH` — basePath ของ Next.js (เช่น `/medical-supplies`)
 - **`NEXT_PUBLIC_API_URL`** — **เมื่อรันใน Docker อย่าใช้ `localhost`** เพราะจากใน container แล้ว localhost คือตัว container เอง ใช้ **IP โฮสต์** (เช่น `http://10.11.9.84:4000/smart-cabinet-cu/api/v1`) หรือถ้า Backend อยู่คนละเครื่องใช้ IP เครื่อง Backend
 - `NEXT_PUBLIC_FIREBASE_*` — ถ้าใช้ Firebase (ดูใน `.env.example`)
 
@@ -33,29 +34,41 @@ cd /path/to/samart-cabinet-cu-app/frontend
 
 ### 3. Build และรัน
 
+**รันแอปเดียว (default):**
 ```bash
-# จากโฟลเดอร์ frontend (ใช้ --env-file .env เพื่อให้ Compose อ่านตัวแปรจาก .env)
+# จากโฟลเดอร์ frontend
 docker compose -f docker/docker-compose.yml --env-file .env up -d --build
 ```
 
-- `--build` = build image ใหม่
-- `-d` = รันแบบแยกพื้นหลัง (detached)
+**รันหลายแอปบนเครื่องเดียวกัน (ให้แต่ละแอปเป็นคนละ container):** ใช้ `-p` ระบุ project name และใน .env ของแต่ละแอปใส่พอร์ตคนละค่า
+
+```bash
+# แอปที่ 1 (เช่น VN) — ใน frontend/.env ใส่ FRONTEND_HOST_PORT=3100
+docker compose -p smart-cabinet-vn -f docker/docker-compose.yml --env-file .env up -d --build
+
+# แอปที่ 2 (เช่น CU) — ใช้ .env อีกชุด ใส่ FRONTEND_HOST_PORT=3101
+docker compose -p smart-cabinet-cu -f docker/docker-compose.yml --env-file .env.cu up -d --build
+```
+
+- `-p` หรือ `--project-name` = ชื่อ project แยกแต่ละแอป (container จะได้ชื่อเช่น smart-cabinet-vn-frontend-1, smart-cabinet-cu-frontend-1)
+- ใน `.env` ใส่ `FRONTEND_HOST_PORT=3100` (หรือ 3101, 3102 ฯลฯ) เพื่อไม่ให้พอร์ตชนกัน
+- `--build` = build image ใหม่, `-d` = รันแบบแยกพื้นหลัง
 
 ### 4. ตรวจสอบ
 
 ```bash
-# ดูสถานะ container
-docker compose -f docker/docker-compose.yml ps
+# ดูสถานะ container (ถ้ารันด้วย -p ให้ใส่ -p เดียวกัน)
+docker compose -p smart-cabinet-vn -f docker/docker-compose.yml ps
 
 # ดู log
-docker compose -f docker/docker-compose.yml logs -f frontend
+docker compose -p smart-cabinet-vn -f docker/docker-compose.yml logs -f frontend
 
-# ทดสอบ health / เปิดแอป
-curl -I http://localhost:4100/smart-cabinet-cu
+# ทดสอบ health / เปิดแอป (ใช้พอร์ตตาม FRONTEND_HOST_PORT ใน .env)
+curl -I http://localhost:3100/medical-supplies
 ```
 
-Frontend จะ listen ที่ **port 4100**  
-เข้าใช้แอป: **http://localhost:4100/smart-cabinet-cu** (หรือตาม host ที่ deploy เช่น `http://10.11.9.84:4100/smart-cabinet-cu`)
+Frontend จะ listen ตาม `PORT` ใน container (3100) ส่วนพอร์ตที่เปิดออกนอก host ใช้ค่าจาก **FRONTEND_HOST_PORT** ใน .env (ค่าเริ่มต้น 3100)  
+เข้าใช้แอปตาม NEXTAUTH_URL / basePath (เช่น `http://localhost:3100/medical-supplies`)
 
 ---
 

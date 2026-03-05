@@ -1,9 +1,11 @@
 # ================================
 # Backend (NestJS Monolith) - Production
 # ================================
-# ใช้จากโฟลเดอร์ backend: docker compose -f docker/docker-compose.yml up -d
-# ต้องมี .env ใน backend/ (DATABASE_URL, JWT_SECRET ฯลฯ)
-# Frontend เรียก Backend ผ่าน IP โฮสต์ หรือ host.docker.internal
+# รันแยกแต่ละแอปด้วย -p (project name) เพื่อไม่ให้แอปหนึ่งไปแทนอีกแอป:
+#   แอป VN: docker compose -p smart-cabinet-vn -f docker/docker-compose.yml --env-file .env up -d --build
+#   แอป CU: docker compose -p smart-cabinet-cu -f docker/docker-compose.yml --env-file .env up -d --build
+# แต่ละแอปต้องใช้พอร์ตคนละค่าใน .env (BACKEND_HOST_PORT=3000 กับ 3001 ฯลฯ)
+# ไม่ใส่ container_name เพื่อให้ Compose ตั้งชื่อจาก project (-p) เช่น smart-cabinet-vn-backend-1
 
 services:
   backend:
@@ -13,11 +15,10 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       target: production
-    image: backend-smart-cabinet-vn:latest
-    container_name: smart-cabinet-backend-vn  
+    image: backend-smart-cabinet:latest
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${BACKEND_HOST_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -31,15 +32,9 @@ services:
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-${JWT_SECRET}}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
       - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
-    networks:
-      - smart-cabinet-vn-network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/smart-cabinet-vn/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-networks:
-  smart-cabinet-vn-network:
-    driver: bridge
-    name: smart-cabinet-vn-production-network
