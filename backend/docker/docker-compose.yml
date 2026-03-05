@@ -6,40 +6,50 @@
 # ต้องมี .env ใน backend/ (DATABASE_URL, JWT_SECRET ฯลฯ)
 # ไม่ใช้ shared network — Frontend เรียก Backend ผ่าน IP โฮสต์ (เช่น http://10.11.9.84:4000/...)
 
+version: "3.9"
+
 services:
-  backend:
+  backend-vn:
     env_file:
       - ../.env
+
     build:
       context: ..
       dockerfile: docker/Dockerfile
       target: production
+
     image: backend-smart-cabinet-vn:latest
     container_name: smart-cabinet-backend-vn
+
     restart: unless-stopped
+
     ports:
       - "3000:3000"
+
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DATABASE_URL=${DATABASE_URL}
-      - DATABASE_USER=${DATABASE_USER:-}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-}
-      - DATABASE_NAME=${DATABASE_NAME:-}
-      - DATABASE_HOST=${DATABASE_HOST:-}
-      - DATABASE_PORT=${DATABASE_PORT:-}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-${JWT_SECRET}}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
-      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_USER: ${DATABASE_USER:-}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-}
+      DATABASE_NAME: ${DATABASE_NAME:-}
+      DATABASE_HOST: ${DATABASE_HOST:-}
+      DATABASE_PORT: ${DATABASE_PORT:-}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-${JWT_SECRET}}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+
     networks:
       - smart-cabinet-network-vn
+
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/smart-cabinet-vn/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
 networks:
   smart-cabinet-network-vn:
     driver: bridge
