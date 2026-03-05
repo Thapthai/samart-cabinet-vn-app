@@ -12,20 +12,15 @@ services:
   backend-vn:
     env_file:
       - ../.env
-
     build:
       context: ..
       dockerfile: docker/Dockerfile
       target: production
-
     image: backend-smart-cabinet-vn:latest
     container_name: smart-cabinet-backend-vn
-
     restart: unless-stopped
-
     ports:
       - "3000:3000"
-
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -39,10 +34,8 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-${JWT_SECRET}}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
-
     networks:
       - smart-cabinet-network-vn
-
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/smart-cabinet-vn/v1/health"]
       interval: 30s
@@ -53,4 +46,3 @@ services:
 networks:
   smart-cabinet-network-vn:
     driver: bridge
-    name: smart-cabinet-production-vn-network
