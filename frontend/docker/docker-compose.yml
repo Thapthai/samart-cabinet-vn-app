@@ -6,7 +6,7 @@
 #   NEXTAUTH_URL + NEXT_PUBLIC_API_URL + BACKEND_API_URL = URL ภายนอก (โดเมนที่ชี้ไป sv map)
 
 services:
-  frontend:
+  frontend-vn:
     build:
       context: ..
       dockerfile: docker/Dockerfile

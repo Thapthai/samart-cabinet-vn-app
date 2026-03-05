@@ -48,4 +48,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.30.0.0/16
+        - subnet: 172.30.0.0/16 # เพื่อไม่ให้ network ชน/เข้า sv ไม่ได้
