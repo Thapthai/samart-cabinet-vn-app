@@ -1,11 +1,10 @@
 # ================================
 # Backend (NestJS Monolith) - Production
 # ================================
-# รันแยกแต่ละแอปด้วย -p (project name) เพื่อไม่ให้แอปหนึ่งไปแทนอีกแอป:
-#   แอป VN: docker compose -p smart-cabinet-vn -f docker/docker-compose.yml --env-file .env up -d --build
-#   แอป CU: docker compose -p smart-cabinet-cu -f docker/docker-compose.yml --env-file .env up -d --build
-# แต่ละแอปต้องใช้พอร์ตคนละค่าใน .env (BACKEND_HOST_PORT=3000 กับ 3001 ฯลฯ)
-# ไม่ใส่ container_name เพื่อให้ Compose ตั้งชื่อจาก project (-p) เช่น smart-cabinet-vn-backend-1
+# ไม่ใส่ container_name — จะได้ไม่ไปแทนที่ container อื่นที่รันอยู่ (เช่น smart-cabinet-backend)
+# ถ้ามี container เดิมอยู่แล้ว (เช่น smart-cabinet-backend บน port 4000) อยากรันอีก instance:
+#   ใช้ -p ตั้ง project name ใหม่ → instance ใหม่จะได้ port 3000 (ค่าเริ่มต้น)
+#   ตัวอย่าง: docker compose -p smart-cabinet-vn -f docker/docker-compose.yml --env-file .env up -d --build
 
 services:
   backend:
@@ -18,7 +17,7 @@ services:
     image: backend-smart-cabinet:latest
     restart: unless-stopped
     ports:
-      - "${BACKEND_HOST_PORT:-3000}:3000"
+      - "3000:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000

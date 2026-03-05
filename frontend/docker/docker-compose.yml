@@ -1,11 +1,9 @@
 # ================================
-# Frontend (Next.js) - Production
+# Frontend (Next.js) - Production — Smart Cabinet CU
 # ================================
-# รันแยกแต่ละแอปด้วย -p (project name) เพื่อไม่ให้แอปหนึ่งไปแทนอีกแอป:
-#   แอป VN: docker compose -p smart-cabinet-vn -f docker/docker-compose.yml --env-file .env up -d --build
-#   แอป CU: docker compose -p smart-cabinet-cu -f docker/docker-compose.yml --env-file .env up -d --build
-# แต่ละแอปต้องใช้พอร์ตคนละค่าใน .env (FRONTEND_HOST_PORT=3100 กับ 3101 ฯลฯ)
-# ไม่ใส่ container_name เพื่อให้ Compose ตั้งชื่อจาก project (-p) เช่น smart-cabinet-vn-frontend-1
+# ใช้จากโฟลเดอร์ frontend: docker compose -f docker/docker-compose.yml --env-file .env up -d --build
+# ถ้า deploy คนละเครื่องกับ sv map (ออกนอก): ใส่ใน .env ตาม frontend/.env.server.example
+#   NEXTAUTH_URL + NEXT_PUBLIC_API_URL + BACKEND_API_URL = URL ภายนอก (โดเมนที่ชี้ไป sv map)
 
 services:
   frontend:
@@ -16,10 +14,11 @@ services:
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000/api/smart-cabinet-vn/v1}
         - NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH:-/medical-supplies}
-    image: frontend-smart-cabinet:latest
+    image: frontend-smart-cabinet-vn:latest
+    container_name: smart-cabinet-frontend-vn
     restart: unless-stopped
     ports:
-      - "${FRONTEND_HOST_PORT:-3100}:3100"
+      - "3100:3100"
     environment:
       - NODE_ENV=production
       - PORT=3100
@@ -30,8 +29,12 @@ services:
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3100/medical-supplies}
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3100/medical-supplies', (r)=>{process.exit(r.statusCode===200?0:1)})"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/medical-supplies"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+networks:
+  default:
+    name: smart-cabinet-vn-frontend-network
