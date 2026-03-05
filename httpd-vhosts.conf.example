@@ -10,9 +10,11 @@
 </LocationMatch>
 
 # API → Backend
-<Location "/api/smart-cabinet-cu/v1/">
-    ProxyPass "http://10.11.9.84:4000/api/smart-cabinet-cu/v1/"
-    ProxyPassReverse "http://10.11.9.84:4000/api/smart-cabinet-cu/v1/"
+<Location "/medical-supplies-api/v1/" >
+    ProxyPreserveHost On
+    ProxyPass "http://10.11.9.84:3000/api/smart-cabinet-vn/v1/"
+    ProxyPassReverse "http://10.11.9.84:3000/api/smart-cabinet-vn/v1/"
+
 </Location>
 
 # Frontend: RewriteRule [P] จัดการทั้ง /smart-cabinet-cu และ /smart-cabinet-cu/...

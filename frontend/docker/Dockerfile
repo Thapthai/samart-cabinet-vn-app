@@ -44,8 +44,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
 # Build args — ตรงกับ .env.example (Smart Cabinet CU), API path: /api/smart-cabinet-cu/v1
-ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api/smart-cabinet-cu/v1
-ARG NEXT_PUBLIC_BASE_PATH=/smart-cabinet-cu
+ARG NEXT_PUBLIC_API_URL=http://localhost:3000/api/smart-cabinet-vn/v1
+ARG NEXT_PUBLIC_BASE_PATH=/smart-cabinet-vn
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
 
@@ -67,12 +67,12 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Set environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=4100
+ENV PORT=3100
 ENV HOSTNAME=0.0.0.0
 
 # Runtime env (ต้องตรงกับ build time สำหรับ Next.js public vars)
-ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api/smart-cabinet-cu/v1
-ARG NEXT_PUBLIC_BASE_PATH=/smart-cabinet-cu
+ARG NEXT_PUBLIC_API_URL=http://localhost:3000/api/smart-cabinet-vn/v1
+ARG NEXT_PUBLIC_BASE_PATH=/smart-cabinet-vn
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
 
@@ -92,11 +92,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs
 
 # Expose port
-EXPOSE 4100
+EXPOSE 3100
 
 # Health check — ตรงกับ NEXT_PUBLIC_BASE_PATH (/smart-cabinet-cu)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:4100/smart-cabinet-cu', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD node -e "require('http').get('http://localhost:3100/smart-cabinet-vn', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start application — ใช้ 0.0.0.0 เพื่อให้รับ connection จากนอก container
 CMD ["sh", "-c", "HOSTNAME=0.0.0.0 node server.js"]

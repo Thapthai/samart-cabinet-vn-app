@@ -6,7 +6,7 @@ import type { Item, CreateItemDto, UpdateItemDto, GetItemsQuery } from '@/types/
 
 // Server-side ใช้ BACKEND_API_URL (เช่น host.docker.internal:4000 ใน Docker), client ใช้ NEXT_PUBLIC_API_URL (localhost:4000)
 function getApiBaseUrl(): string {
-  const fallback = 'http://localhost:3000/smart-cabinet-cu/api/v1';
+  const fallback = 'http://localhost:3000/api/smart-cabinet-vn/v1';
   if (typeof window !== 'undefined') {
     return process.env.NEXT_PUBLIC_API_URL || fallback;
   }

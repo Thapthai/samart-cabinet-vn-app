@@ -1,6 +1,6 @@
-# Smart Cabinet CU App
+# Smart Cabinet VN App
 
-แอปพลิเคชันจัดการตู้ Smart Cabinet และเวชภัณฑ์ (Medical Supplies) สำหรับหน่วยงาน CU — ประกอบด้วย Backend (NestJS) และ Frontend (Next.js)
+แอปพลิเคชันจัดการตู้ Smart Cabinet และเวชภัณฑ์ (Medical Supplies) สำหรับหน่วยงาน VN — ประกอบด้วย Backend (NestJS) และ Frontend (Next.js)
 
 ---
 

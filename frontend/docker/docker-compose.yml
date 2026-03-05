@@ -12,24 +12,24 @@ services:
       dockerfile: docker/Dockerfile
       target: production
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:4000/api/smart-cabinet-cu/v1}
-        - NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH:-/smart-cabinet-cu}
-    image: frontend-smart-cabinet:latest
-    container_name: smart-cabinet-frontend
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000/api/smart-cabinet-vn/v1}
+        - NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH:-/medical-supplies}
+    image: frontend-smart-cabinet-vn:latest
+    container_name: smart-cabinet-frontend-vn
     restart: unless-stopped
     ports:
-      - "4100:4100"
+      - "3100:3100"
     environment:
       - NODE_ENV=production
-      - PORT=4100
+      - PORT=3100
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:4000/api/smart-cabinet-cu/v1}
-      - NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH:-/smart-cabinet-cu}
-      - BACKEND_API_URL=${BACKEND_API_URL:-http://host.docker.internal:4000/api/smart-cabinet-cu/v1}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000/api/smart-cabinet-vn/v1}
+      - NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH:-/medical-supplies}
+      - BACKEND_API_URL=${BACKEND_API_URL:-http://host.docker.internal:3000/api/smart-cabinet-vn/v1}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:4100/smart-cabinet-cu}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3100/medical-supplies}
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4100/smart-cabinet-cu"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/medical-supplies"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -37,4 +37,4 @@ services:
 
 networks:
   default:
-    name: frontend-network
+    name: smart-cabinet-vn-frontend-network

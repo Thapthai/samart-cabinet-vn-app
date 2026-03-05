@@ -5,7 +5,7 @@ import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('api/smart-cabinet-cu/v1');
+  app.setGlobalPrefix('api/smart-cabinet-vn/v1');
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -14,6 +14,7 @@ async function bootstrap() {
     }),
   );
 
+// </Location>
   // CORS: อนุญาตให้ frontend (origin จาก env หรือ default ด้านล่าง) เรียก API ได้
   const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
@@ -24,7 +25,7 @@ async function bootstrap() {
         'http://127.0.0.1:4100',
         'http://10.11.9.84:3100',
         'http://10.11.9.84:4100',  
-        'https://phc.dyndns.biz/smart-cabinet-cu',
+        'https://phc.dyndns.biz/medical-supplies',
       ];
   app.enableCors({
     origin: allowedOrigins,

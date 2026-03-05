@@ -110,7 +110,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
           variant="outline"
           size="icon"
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="bg-white shadow-lg hover:bg-pink-50 border-pink-200 h-9 w-9"
+          className="bg-white shadow-lg hover:bg-sky-50 border-sky-200 h-9 w-9"
         >
           {isMobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </Button>
@@ -127,26 +127,26 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed lg:sticky top-0 left-0 z-40 h-screen bg-gradient-to-b from-pink-100 via-pink-50 to-rose-100 text-gray-800 transition-all duration-300 ease-in-out shadow-2xl border-r border-pink-200/60',
+          'fixed lg:sticky top-0 left-0 z-40 h-screen bg-gradient-to-b from-sky-50 via-blue-50/80 to-indigo-50 text-slate-800 transition-all duration-300 ease-in-out shadow-xl border-r border-sky-200/80',
           isCollapsed ? 'w-16 lg:w-16' : 'w-72 lg:w-72',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-pink-200/80">
+          <div className="flex items-center justify-between p-4 border-b border-sky-200/80">
             {!isCollapsed && (
               <div className="flex items-center space-x-3 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-400 flex items-center justify-center shadow-lg flex-shrink-0 text-white">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-400 flex items-center justify-center shadow-md shadow-sky-300/30 flex-shrink-0 text-white">
                   <LayoutDashboard className="h-6 w-6" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-bold truncate text-gray-800">Staff Portal</h2>
+                  <h2 className="text-lg font-bold truncate text-slate-800">Staff Portal</h2>
                 </div>
               </div>
             )}
             {isCollapsed && (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-400 flex items-center justify-center mx-auto shadow-lg text-white">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-400 flex items-center justify-center mx-auto shadow-md text-white">
                 <LayoutDashboard className="h-6 w-6" />
               </div>
             )}
@@ -154,7 +154,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
               variant="ghost"
               size="icon"
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="hidden lg:flex text-gray-600 hover:text-gray-800 hover:bg-pink-200/50 flex-shrink-0"
+              className="hidden lg:flex text-slate-500 hover:text-slate-800 hover:bg-sky-100 flex-shrink-0"
             >
               {isCollapsed ? (
                 <ChevronRight className="h-4 w-4" />
@@ -166,8 +166,8 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
 
           {/* User Avatar when collapsed */}
           {staffUser && isCollapsed && (
-<div className="px-2 py-4 border-b border-pink-200/80 flex justify-center">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm shadow-lg ring-2 ring-pink-200">
+<div className="px-2 py-4 border-b border-sky-200/80 flex justify-center">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-blue-400 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-sky-300/50">
                 {isAdmin
                   ? (staffUser.name?.charAt(0) || staffUser.email?.charAt(0) || 'A').toUpperCase()
                   : (staffUser.fname?.charAt(0) || 'S').toUpperCase()
@@ -177,7 +177,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
           )}
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto scrollbar-thin">
+          <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto overflow-x-hidden scrollbar-sidebar">
             {/* Admin - Back to Admin Panel Link */}
             {isAdmin && (
               <Link
@@ -185,7 +185,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                 onClick={() => setIsMobileOpen(false)}
                 className={cn(
                   'group relative flex items-center w-full px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200 mb-4',
-                  'bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-lg shadow-pink-500/30 hover:from-pink-500 hover:to-rose-600',
+                  'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30 hover:from-sky-500 hover:to-blue-500',
                   isCollapsed && 'lg:justify-center lg:px-2'
                 )}
                 title={isCollapsed ? 'กลับไปหน้า Admin' : undefined}
@@ -212,8 +212,8 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                       className={cn(
                         'group relative flex items-center w-full rounded-xl transition-all duration-200',
                         isActive
-                          ? 'bg-gradient-to-r from-pink-500 to-rose-400 text-white shadow-lg shadow-pink-500/30'
-                          : 'text-gray-700 hover:bg-pink-200/60 hover:text-gray-900',
+                          ? 'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30'
+                          : 'text-slate-700 hover:bg-sky-100/90 hover:text-slate-900',
                         isCollapsed && 'lg:justify-center lg:px-2'
                       )}
                     >
@@ -232,7 +232,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                           title={isCollapsed ? item.name : undefined}
                         >
                           {isActive && !isCollapsed && (
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-pink-500 rounded-r-full" />
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
                           )}
                           <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-3')} />
                           {!isCollapsed && <span className="flex-1 truncate text-left">{item.name}</span>}
@@ -249,7 +249,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                           title={isCollapsed ? item.name : undefined}
                         >
                           {isActive && !isCollapsed && (
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-pink-500 rounded-r-full" />
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
                           )}
                           <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-3')} />
                           {!isCollapsed && <span className="flex-1 truncate text-left">{item.name}</span>}
@@ -263,10 +263,10 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                             e.stopPropagation();
                             setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
                           }}
-                          className={cn(
-                            'flex-shrink-0 p-2 rounded-lg text-inherit hover:bg-pink-100 transition-colors',
-                            isActive && 'text-white'
-                          )}
+                            className={cn(
+                              'flex-shrink-0 p-2 rounded-lg text-inherit hover:bg-sky-100/80 transition-colors',
+                              isActive && 'text-white'
+                            )}
                           aria-expanded={open}
                           aria-label={open ? 'ปิดเมนูย่อย' : 'เปิดเมนูย่อย'}
                         >
@@ -277,7 +277,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
 
                     {/* Submenu */}
                     {hasSubmenu && open && !isCollapsed && (
-                      <div className="ml-4 mt-2 space-y-1 border-l-2 border-pink-300/70 pl-4">
+                      <div className="ml-4 mt-2 space-y-1 border-l-2 border-sky-300/70 pl-4">
                         {item.submenu!.map((subItem) => {
                           const SubIcon = subItem.icon;
                           const isSubActive = isPathActive(pathname, subItem.href);
@@ -289,11 +289,11 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                               className={cn(
                                 'flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200',
                                 isSubActive
-                                  ? 'bg-pink-200/70 text-gray-900 border-l-2 border-pink-500 font-medium'
-                                  : 'text-gray-600 hover:bg-pink-200/50 hover:text-gray-900'
+                                  ? 'bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium'
+                                  : 'text-slate-600 hover:bg-sky-50 hover:text-slate-800'
                               )}
                             >
-                              {SubIcon ? <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-pink-400 mr-2" />}
+                              {SubIcon ? <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />}
                               <span>{subItem.name}</span>
                             </Link>
                           );
@@ -306,7 +306,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-pink-200/80">
+          <div className="p-4 border-t border-sky-200/80">
             {onLogout && (
               <Button
                 variant="ghost"
@@ -315,7 +315,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                   setIsMobileOpen(false);
                 }}
                 className={cn(
-                  'w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-red-100/70',
+                  'w-full justify-start text-slate-600 hover:text-slate-900 hover:bg-red-50',
                   isCollapsed && 'lg:justify-center lg:px-2'
                 )}
                 title={isCollapsed ? 'ออกจากระบบ' : undefined}

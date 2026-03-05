@@ -3,8 +3,7 @@
 # ================================
 # ใช้จากโฟลเดอร์ backend: docker compose -f docker/docker-compose.yml up -d
 # ต้องมี .env ใน backend/ (DATABASE_URL, JWT_SECRET ฯลฯ)
-# ต้องมี .env ใน backend/ (DATABASE_URL, JWT_SECRET ฯลฯ)
-# ไม่ใช้ shared network — Frontend เรียก Backend ผ่าน IP โฮสต์ (เช่น http://10.11.9.84:4000/...)
+# Frontend เรียก Backend ผ่าน IP โฮสต์ หรือ host.docker.internal
 
 services:
   backend:
@@ -14,14 +13,14 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       target: production
-    image: backend-smart-cabinet:latest
-    container_name: smart-cabinet-backend
+    image: backend-smart-cabinet-vn:latest
+    container_name: smart-cabinet-backend-vn  
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - PORT=4000
+      - PORT=3000
       - DATABASE_URL=${DATABASE_URL}
       - DATABASE_USER=${DATABASE_USER:-}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD:-}
@@ -33,14 +32,14 @@ services:
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
       - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
     networks:
-      - smart-cabinet-network
+      - smart-cabinet-vn-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4000/api/smart-cabinet-cu/v1/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/smart-cabinet-vn/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 networks:
-  smart-cabinet-network:
+  smart-cabinet-vn-network:
     driver: bridge
-    name: smart-cabinet-production-network
+    name: smart-cabinet-vn-production-network
