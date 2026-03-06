@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2, Search, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -82,7 +81,8 @@ export default function SearchableSelect({
     }, 300);
     
     return () => clearTimeout(debounce);
-  }, [searchTerm, isOpen]); // ลบ onSearch ออกจาก dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onSearch intentionally omitted to avoid refetch on parent re-render
+  }, [searchTerm, isOpen]);
 
   // Filter options locally if no onSearch provided
   const filteredOptions = onSearch

@@ -64,7 +64,7 @@ export default function EditCabinetDialog({
 
     try {
       setLoading(true);
-      const data: any = {
+      const data: { cabinet_name?: string; cabinet_code?: string; stock_id?: number } = {
         cabinet_name: formData.cabinet_name || undefined,
         cabinet_code: formData.cabinet_code || undefined,
       };
@@ -82,8 +82,9 @@ export default function EditCabinetDialog({
       } else {
         toast.error(response.message || 'ไม่สามารถแก้ไขตู้ได้');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการแก้ไขตู้');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาดในการแก้ไขตู้');
     } finally {
       setLoading(false);
     }

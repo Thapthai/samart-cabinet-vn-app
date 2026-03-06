@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
-import { Loader2, Plus, Network } from "lucide-react";
+import { Loader2, Network } from "lucide-react";
 import { toast } from "sonner";
 import FilterSection from "./components/FilterSection";
 import MappingTable from "./components/MappingTable";
@@ -31,7 +30,6 @@ interface CabinetDepartment {
 }
 
 export default function ItemStockDepartmentsPage() {
-  const router = useRouter();
   const [mappings, setMappings] = useState<CabinetDepartment[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,9 +82,9 @@ export default function ItemStockDepartmentsPage() {
       if (mappingsRes.success && mappingsRes.data) {
         setMappings(mappingsRes.data as CabinetDepartment[]);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Load data error:", error);
-      toast.error(error.message || "ไม่สามารถโหลดข้อมูลได้");
+      toast.error(error instanceof Error ? error.message : "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
@@ -154,8 +152,8 @@ export default function ItemStockDepartmentsPage() {
       } else {
         toast.error(response.message || "ไม่สามารถสร้างการเชื่อมโยงได้");
       }
-    } catch (error: any) {
-      toast.error(error.message || "เกิดข้อผิดพลาด");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "เกิดข้อผิดพลาด");
     } finally {
       setSaving(false);
     }
@@ -212,8 +210,8 @@ export default function ItemStockDepartmentsPage() {
       } else {
         toast.error(response.message || "ไม่สามารถลบการเชื่อมโยงได้");
       }
-    } catch (error: any) {
-      toast.error(error.message || "เกิดข้อผิดพลาด");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "เกิดข้อผิดพลาด");
     } finally {
       setSaving(false);
     }

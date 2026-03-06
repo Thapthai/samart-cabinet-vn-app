@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 export interface CabinetDepartment {
   id: number;

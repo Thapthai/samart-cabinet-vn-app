@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Package, Plus, ArrowRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Package, Plus, ArrowRight } from 'lucide-react';
 import { SkeletonTable } from '@/components/Skeleton';
 import Pagination from '@/components/Pagination';
 import type { Item } from '@/types/item';
@@ -109,9 +109,9 @@ function EmptyState() {
 
 function ItemsTable({
   items,
-  sortBy,
-  sortOrder,
-  onSortChange,
+  sortBy: _sortBy,
+  sortOrder: _sortOrder,
+  onSortChange: _onSortChange,
   currentPage,
 }: {
   items: Item[];

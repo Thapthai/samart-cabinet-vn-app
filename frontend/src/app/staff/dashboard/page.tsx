@@ -5,7 +5,6 @@ import { staffItemsApi } from '@/lib/staffApi/itemsApi';
 import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
 import { staffCabinetDepartmentApi } from '@/lib/staffApi/cabinetApi';
 import type { ItemWithExpiry } from './components/ItemsWithExpirySidebar';
-import StatsCards from './components/StatsCards';
 import DashboardMappingsTable, { type CabinetDepartment } from './components/DashboardMappingsTable';
 import DispensedVsUsageChartCard from './components/DispensedVsUsageChartCard';
 import ItemsWithExpirySidebar from './components/ItemsWithExpirySidebar';
@@ -38,7 +37,16 @@ export default function DashboardPage() {
         const response = await staffItemsApi.getStats();
 
         if (response.success && response.data) {
-          const data = response.data as any;
+          const data = response.data as {
+            details?: { total_item_types?: number; total_items?: number; item_types_with_stock?: number; active_items?: number; inactive_items?: number; low_stock_items?: number };
+            total_item_types?: number;
+            total_items?: number;
+            item_types_with_stock?: number;
+            active_items?: number;
+            inactive_items?: number;
+            low_stock_items?: number;
+            item_stock?: { expire?: { expired_count?: number; near_expire_7_days?: number }; items_with_expiry?: ItemWithExpiry[] };
+          };
           const d = data.details ?? data;
           setStats({
             totalItems: d.total_item_types ?? d.total_items ?? 0,
@@ -106,8 +114,13 @@ export default function DashboardPage() {
     fetchMappings();
   }, []);
 
+  // Reserved for StatsCards when uncommented: stats, dispensedVsUsageSummary, loadingDispensedVsUsage
+  void stats;
+  void dispensedVsUsageSummary;
+  void loadingDispensedVsUsage;
+
   return (
-    < >
+    <>
       {/* <DashboardHeader userName={user?.name} /> */}
 
       {/* <StatsCards

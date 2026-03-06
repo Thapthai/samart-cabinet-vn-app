@@ -53,8 +53,9 @@ export default function DeleteCabinetDialog({
       } else {
         toast.error(response.message || 'ไม่สามารถลบตู้ได้');
       }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || 'เกิดข้อผิดพลาดในการลบตู้';
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = err.response?.data?.message || err.message || 'เกิดข้อผิดพลาดในการลบตู้';
       
       // Check if error is about cabinet being used
       if (errorMessage.includes('mapping') || errorMessage.includes('ใช้') || errorMessage.includes('department')) {

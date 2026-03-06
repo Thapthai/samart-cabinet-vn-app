@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
 import { staffCabinetApi } from "@/lib/staffApi/cabinetApi";
@@ -57,8 +55,9 @@ export default function CreateMappingDialog({
   // สถานะเริ่มต้นเป็น ACTIVE ตอนเปิด dialog
   useEffect(() => {
     if (open) {
-      setFormData({ ...formData, status: "ACTIVE" });
+      setFormData({ ...formData, status: "ACTIVE" } as FormData);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when open toggles
   }, [open]);
 
   // Load departments with search

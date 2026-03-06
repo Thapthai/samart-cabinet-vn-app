@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarClock, Package, AlertCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarClock, Package, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface ItemWithExpiry {
   RowID: number;

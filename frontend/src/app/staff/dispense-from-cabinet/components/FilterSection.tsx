@@ -147,6 +147,7 @@ export default function FilterSection({
 
   useEffect(() => {
     loadCabinetsByDepartment(filters.departmentId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- departmentId is the trigger
   }, [filters.departmentId]);
 
   return (

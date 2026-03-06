@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, RotateCcw, Filter } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
 import { staffCabinetApi, staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
@@ -143,6 +141,7 @@ export default function FilterSection({ onSearch, initialDepartmentId, departmen
   // Load cabinets when department changes
   useEffect(() => {
     loadCabinetsByDepartment(formFilters.departmentId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadCabinetsByDepartment is stable, departmentId is the trigger
   }, [formFilters.departmentId]);
 
   const handleSearch = () => {

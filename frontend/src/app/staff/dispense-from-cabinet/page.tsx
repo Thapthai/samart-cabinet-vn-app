@@ -58,13 +58,14 @@ export default function DispenseFromCabinetPage() {
 
   useEffect(() => {
     fetchDispensedList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
   const fetchDispensedList = async (page: number = 1, customFilters?: FilterState) => {
     try {
       setLoadingList(true);
       const activeFilters = customFilters || filters;
-      const params: any = {
+      const params: Record<string, string | number> = {
         page,
         limit: itemsPerPage,
       };

@@ -76,7 +76,7 @@ export default function DashboardItemsTable({
                     </TableRow>
                   ) : (
                     items.map((item, index) => {
-                      const countItemStock = (item as any).count_itemstock ?? 0;
+                      const countItemStock = (item as { count_itemstock?: number }).count_itemstock ?? 0;
                       const stockMin = item.stock_min ?? 0;
                       const isLowStock = stockMin > 0 && countItemStock < stockMin;
 

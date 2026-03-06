@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,11 +53,7 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
   const [totalItems, setTotalItems] = useState(0);
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    loadItemStocks(1);
-  }, [selectedRow.cabinet_id]);
-
-  const loadItemStocks = async (page: number) => {
+  const loadItemStocks = useCallback(async (page: number) => {
     try {
       setLoading(true);
       const response = await staffCabinetDepartmentApi.getItemStocksByCabinet(selectedRow.cabinet_id, {
@@ -68,20 +64,23 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
       if (response.success && response.data) {
         const stocks = Array.isArray(response.data) ? response.data : [];
         setItemStocks(stocks);
-        // Get total from response or estimate from data
-        const total = (response as any).total || stocks.length;
+        const total = (response as { total?: number }).total ?? stocks.length;
         setTotalItems(total);
         setCurrentPage(page);
       } else {
         toast.error("ไม่สามารถโหลดข้อมูล ItemStock ได้");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading item stocks:", error);
-      toast.error(error.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+      toast.error(error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการโหลดข้อมูล");
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedRow.cabinet_id]);
+
+  useEffect(() => {
+    loadItemStocks(1);
+  }, [loadItemStocks]);
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 

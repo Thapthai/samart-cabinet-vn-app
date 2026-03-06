@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
@@ -74,21 +73,6 @@ export default function EditMappingDialog({
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
 
-  // Load initial data when dialog opens (only once per open)
-  useEffect(() => {
-    if (open) {
-      loadInitialData();
-    }
-  }, [open]);
-
-  const loadInitialData = async () => {
-    // Load initial data with enough items to include current selections
-    await Promise.all([
-      loadCabinets(""),
-      loadDepartments(""),
-    ]);
-  };
-
   // Load departments with search
   const loadDepartments = async (keyword?: string) => {
     try {
@@ -118,6 +102,13 @@ export default function EditMappingDialog({
       setLoadingCabinets(false);
     }
   };
+
+  // Load initial data when dialog opens
+  useEffect(() => {
+    if (open) {
+      Promise.all([loadCabinets(""), loadDepartments("")]);
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

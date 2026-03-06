@@ -42,6 +42,14 @@ interface ItemStock {
   };
 }
 
+interface ItemGroupDisplay {
+  itemcode: string;
+  itemname: string;
+  inStockCount: number;
+  dispensedCount: number;
+  totalQty: number;
+}
+
 interface MappingTableProps {
   mappings: CabinetDepartment[];
   onEdit: (mapping: CabinetDepartment) => void;
@@ -161,7 +169,7 @@ export default function MappingTable({ mappings, onEdit, onDelete }: MappingTabl
           รายการอุปกรณ์ในตู้ ({groupedArray.length} รายการ, รวม {stocks.length} ชิ้น)
         </h4>
         <div className="space-y-2">
-          {displayedItems.map((group: any, groupIndex: number) => (
+          {displayedItems.map((group: ItemGroupDisplay, groupIndex: number) => (
             <div
               key={`mapping-${mappingId}-group-${group.itemcode}-${groupIndex}`}
               className="border rounded-lg p-3 bg-white hover:shadow-sm transition-shadow"

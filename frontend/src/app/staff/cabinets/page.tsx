@@ -41,10 +41,12 @@ export default function CabinetsPage() {
 
   useEffect(() => {
     fetchCabinets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run on page/search change only
   }, [currentPage, searchTerm]);
 
   useEffect(() => {
     filterCabinets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run when cabinets or search change
   }, [cabinets, searchTerm]);
 
   const fetchCabinets = async () => {

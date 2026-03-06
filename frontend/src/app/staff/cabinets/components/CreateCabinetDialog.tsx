@@ -38,7 +38,7 @@ export default function CreateCabinetDialog({
     
     try {
       setLoading(true);
-      const data: any = {
+      const data: { cabinet_name?: string; stock_id?: number } = {
         cabinet_name: formData.cabinet_name || undefined,
       };
       if (formData.stock_id.trim()) {
@@ -55,8 +55,9 @@ export default function CreateCabinetDialog({
       } else {
         toast.error(response.message || 'ไม่สามารถเพิ่มตู้ได้');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการเพิ่มตู้');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาดในการเพิ่มตู้');
     } finally {
       setLoading(false);
     }

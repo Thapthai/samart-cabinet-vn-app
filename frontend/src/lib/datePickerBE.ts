@@ -35,7 +35,7 @@ export function parseBEDMYToCE(input: string): string | null {
   const [d, m, y] = parts;
   const day = parseInt(d!, 10);
   const month = parseInt(m!, 10);
-  let year = parseInt(y!, 10);
+  const year = parseInt(y!, 10);
   if (Number.isNaN(day) || Number.isNaN(month) || Number.isNaN(year)) return null;
   const yearBE = year <= 99 ? 2500 + year : year;
   const yearCE = yearBE >= 2400 ? yearBE - BE_OFFSET : yearBE;
