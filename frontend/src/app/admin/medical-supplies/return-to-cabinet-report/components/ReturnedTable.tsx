@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import DispensedPagination from '../../dispense-from-cabinet/components/DispensedPagination';
-import type { DispensedItem } from '../../dispense-from-cabinet/types';
+import DispensedPagination from './DispensedPagination';
+import type { DispensedItem } from '../types';
 import { formatThaiDateTime } from '@/lib/formatThaiDateTime';
 
 
