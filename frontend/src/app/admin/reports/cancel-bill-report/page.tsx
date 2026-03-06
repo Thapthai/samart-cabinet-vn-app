@@ -8,6 +8,7 @@ import { Receipt, Search, RefreshCw, Download, FileSpreadsheet, FileText } from 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -107,20 +108,20 @@ export default function CancelBillReportPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="start-date">วันที่เริ่มต้น</Label>
-                  <Input
+                  <DatePickerBE
                     id="start-date"
-                    type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={setStartDate}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="end-date">วันที่สิ้นสุด</Label>
-                  <Input
+                  <DatePickerBE
                     id="end-date"
-                    type="date"
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={setEndDate}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
                   />
                 </div>
               </div>

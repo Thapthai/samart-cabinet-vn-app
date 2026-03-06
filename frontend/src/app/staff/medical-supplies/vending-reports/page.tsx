@@ -6,6 +6,7 @@ import { FileBarChart, Download, RefreshCw, TrendingUp, AlertCircle, XCircle, Se
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -247,42 +248,41 @@ export default function VendingReportsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="mapping-print-date">วันที่ Print Receipt/Invoice</Label>
-                    <Input
+                    <DatePickerBE
                       id="mapping-print-date"
-                      type="date"
                       value={mappingPrintDate}
-                      onChange={(e) => {
-                        setMappingPrintDate(e.target.value);
+                      onChange={(value) => {
+                        setMappingPrintDate(value);
                         setMappingStartDate('');
                         setMappingEndDate('');
                       }}
-                      placeholder="เลือกวันที่ Print"
+                      placeholder="วว/ดด/ปปปป (พ.ศ.)"
                     />
                     <p className="text-xs text-gray-500">หรือระบุช่วงวันที่ด้านล่าง</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="mapping-start-date">วันที่เริ่มต้น</Label>
-                    <Input
+                    <DatePickerBE
                       id="mapping-start-date"
-                      type="date"
                       value={mappingStartDate}
-                      onChange={(e) => {
-                        setMappingStartDate(e.target.value);
+                      onChange={(value) => {
+                        setMappingStartDate(value);
                         setMappingPrintDate('');
                       }}
+                      placeholder="วว/ดด/ปปปป (พ.ศ.)"
                       disabled={!!mappingPrintDate}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="mapping-end-date">วันที่สิ้นสุด</Label>
-                    <Input
+                    <DatePickerBE
                       id="mapping-end-date"
-                      type="date"
                       value={mappingEndDate}
-                      onChange={(e) => {
-                        setMappingEndDate(e.target.value);
+                      onChange={(value) => {
+                        setMappingEndDate(value);
                         setMappingPrintDate('');
                       }}
+                      placeholder="วว/ดด/ปปปป (พ.ศ.)"
                       disabled={!!mappingPrintDate}
                     />
                   </div>
@@ -462,20 +462,20 @@ export default function VendingReportsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="unmapped-start-date">วันที่เริ่มต้น</Label>
-                    <Input
+                    <DatePickerBE
                       id="unmapped-start-date"
-                      type="date"
                       value={unmappedStartDate}
-                      onChange={(e) => setUnmappedStartDate(e.target.value)}
+                      onChange={setUnmappedStartDate}
+                      placeholder="วว/ดด/ปปปป (พ.ศ.)"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="unmapped-end-date">วันที่สิ้นสุด</Label>
-                    <Input
+                    <DatePickerBE
                       id="unmapped-end-date"
-                      type="date"
                       value={unmappedEndDate}
-                      onChange={(e) => setUnmappedEndDate(e.target.value)}
+                      onChange={setUnmappedEndDate}
+                      placeholder="วว/ดด/ปปปป (พ.ศ.)"
                     />
                   </div>
                   <div className="space-y-2">
@@ -626,12 +626,11 @@ export default function VendingReportsPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="unused-date">วันที่ที่ต้องการตรวจสอบ</Label>
-                  <Input
+                  <DatePickerBE
                     id="unused-date"
-                    type="date"
                     value={unusedDate}
-                    onChange={(e) => setUnusedDate(e.target.value)}
-                    placeholder="ถ้าไม่ระบุจะใช้วันปัจจุบัน"
+                    onChange={setUnusedDate}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
                   />
                   <p className="text-xs text-gray-500">ถ้าไม่ระบุจะใช้วันปัจจุบัน</p>
                 </div>

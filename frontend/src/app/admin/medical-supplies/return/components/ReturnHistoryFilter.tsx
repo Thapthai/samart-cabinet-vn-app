@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu,
@@ -73,11 +74,11 @@ export default function ReturnHistoryFilter({
             <Label htmlFor="history-date-from" className="text-slate-600 font-medium">
               วันที่เริ่มต้น
             </Label>
-            <Input
+            <DatePickerBE
               id="history-date-from"
-              type="date"
               value={dateFrom}
-              onChange={(e) => onDateFromChange(e.target.value)}
+              onChange={onDateFromChange}
+              placeholder="วว/ดด/ปปปป (พ.ศ.)"
               className="rounded-lg border-slate-200"
             />
           </div>
@@ -85,11 +86,11 @@ export default function ReturnHistoryFilter({
             <Label htmlFor="history-date-to" className="text-slate-600 font-medium">
               วันที่สิ้นสุด
             </Label>
-            <Input
+            <DatePickerBE
               id="history-date-to"
-              type="date"
               value={dateTo}
-              onChange={(e) => onDateToChange(e.target.value)}
+              onChange={onDateToChange}
+              placeholder="วว/ดด/ปปปป (พ.ศ.)"
               className="rounded-lg border-slate-200"
             />
           </div>

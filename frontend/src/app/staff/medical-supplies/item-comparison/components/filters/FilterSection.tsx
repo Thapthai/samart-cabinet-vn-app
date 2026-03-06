@@ -1,6 +1,7 @@
 import { Search, RefreshCw, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useRef, useEffect } from 'react';
@@ -145,18 +146,16 @@ export function FilterSection({
           </div>
         </div>
 
-        {/* Row 2: Single Date */}
+        {/* Row 2: วันที่ (รูปแบบ วว/ดด/ปปปป พ.ศ.) */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">วันที่</label>
-          <Input
-            type="date"
+          <DatePickerBE
             value={filters.startDate}
-            onChange={(e) => {
-              const selectedDate = e.target.value;
-              // Set both startDate and endDate to the same value
+            onChange={(selectedDate) => {
               onFilterChange('startDate', selectedDate);
               onFilterChange('endDate', selectedDate);
             }}
+            placeholder="วว/ดด/ปปปป (พ.ศ.)"
           />
         </div>
 

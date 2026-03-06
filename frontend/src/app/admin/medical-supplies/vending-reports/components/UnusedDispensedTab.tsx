@@ -3,6 +3,7 @@ import { Download, RefreshCw, XCircle, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
 import { TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -131,12 +132,11 @@ export function UnusedDispensedTab() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="unused-date">วันที่ที่ต้องการตรวจสอบ</Label>
-            <Input
+            <DatePickerBE
               id="unused-date"
-              type="date"
               value={unusedDate}
-              onChange={(e) => setUnusedDate(e.target.value)}
-              placeholder="ถ้าไม่ระบุจะใช้วันปัจจุบัน"
+              onChange={setUnusedDate}
+              placeholder="วว/ดด/ปปปป (พ.ศ.)"
             />
             <p className="text-xs text-gray-500">ถ้าไม่ระบุจะใช้วันปัจจุบัน</p>
           </div>

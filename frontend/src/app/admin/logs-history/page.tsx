@@ -10,6 +10,7 @@ import { FileText, Search, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -243,19 +244,19 @@ export default function LogsPage() {
                 </div>
                 <div>
                   <Label>วันที่เริ่ม</Label>
-                  <Input
-                    type="date"
+                  <DatePickerBE
                     value={formFilters.startDate}
-                    onChange={(e) => setFormFilters((p) => ({ ...p, startDate: e.target.value }))}
+                    onChange={(v) => setFormFilters((p) => ({ ...p, startDate: v }))}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
                     className="mt-1"
                   />
                 </div>
                 <div>
                   <Label>วันที่สิ้นสุด</Label>
-                  <Input
-                    type="date"
+                  <DatePickerBE
                     value={formFilters.endDate}
-                    onChange={(e) => setFormFilters((p) => ({ ...p, endDate: e.target.value }))}
+                    onChange={(v) => setFormFilters((p) => ({ ...p, endDate: v }))}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
                     className="mt-1"
                   />
                 </div>

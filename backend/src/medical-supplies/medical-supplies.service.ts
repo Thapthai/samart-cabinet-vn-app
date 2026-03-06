@@ -75,6 +75,28 @@ export class MedicalSuppliesService {
     return null;
   }
 
+  /** วันนี้ในรูปแบบ YYYY-MM-DD (ตามเวลาเซิร์ฟเวอร์) */
+  private getTodayYyyyMmDd(): string {
+    const now = new Date();
+    return [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+  }
+
+  /** วันที่ created_at ของ item (supply_items) เป็น YYYY-MM-DD สำหรับเทียบกับวันนี้ */
+  private getItemCreatedAtYyyyMmDd(item: { created_at?: Date | string | null }): string | null {
+    const d = item?.created_at;
+    if (!d) return null;
+    const dt = typeof d === 'string' ? new Date(d) : d;
+    if (Number.isNaN(dt.getTime())) return null;
+    return [
+      dt.getFullYear(),
+      String(dt.getMonth() + 1).padStart(2, '0'),
+      String(dt.getDate()).padStart(2, '0'),
+    ].join('-');
+  }
 
   // Validate single ItemCode - ตรวจสอบว่า ItemCode มีในระบบหรือไม่
   async validateItemCode(itemCode: string): Promise<{ exists: boolean; item?: any }> {
@@ -322,13 +344,17 @@ export class MedicalSuppliesService {
                   not: 'Discontinue', // Only update items that are not already discontinued
                 },
               },
-              include: {
-                usage: true,
-              },
             });
 
-            // Update all items with the same AssessionNo to Discontinue
-            for (const item of allItemsWithSameAssessionNo) {
+            // รายการที่ created_at น้อยกว่าวันปัจจุบัน ไม่ทำการบันทึก Discontinue (ข้ามไป)
+            const today = this.getTodayYyyyMmDd();
+            const itemsToDiscontinueNow = allItemsWithSameAssessionNo.filter((it) => {
+              const itemDate = this.getItemCreatedAtYyyyMmDd(it);
+              return !itemDate || itemDate >= today;
+            });
+
+            // Update all items with the same AssessionNo to Discontinue (เฉพาะรายการที่ผ่านเงื่อนไขวันที่)
+            for (const item of itemsToDiscontinueNow) {
               discontinueAffectedUsageIds.add(item.medical_supply_usage_id);
               await this.prisma.supplyUsageItem.update({
                 where: { id: item.id },
@@ -349,19 +375,15 @@ export class MedicalSuppliesService {
                 reason: 'ItemStatus updated to Discontinue - all items with same AssessionNo are discontinued',
               });
             }
-            // Store for later processing in discontinue section if needed
-            discontinueItemsInOrder.push(orderItem);
-            // Continue to create new item even if AssessionNo matches (don't skip creation)
-            // The item will be created with Discontinue status as specified in JSON
+            // ถ้ามีการอัปเดตเป็น Discontinue จริง (ผ่านเงื่อนไขวันที่) จึง push เพื่อสร้างรายการใหม่; ถ้าเปลี่ยนไม่ได้ก็ไม่สร้างเพิ่ม
+            if (itemsToDiscontinueNow.length > 0) {
+              discontinueItemsInOrder.push(orderItem);
+              itemsToCreate.push(orderItem);
+            }
           }
 
           // Find existing item with same AssessionNo in current usage
-          // Skip if this is a Discontinue item (already processed above, but still need to create)
-          if (isDiscontinue && orderItem.AssessionNo) {
-            // For Discontinue items, always create new item even if AssessionNo matches
-            // (existing items with same AssessionNo were already updated to Discontinue above)
-            itemsToCreate.push(orderItem);
-          } else {
+          if (!isDiscontinue || !orderItem.AssessionNo) {
             // For non-Discontinue items: match by AssessionNo + ItemCode (หนึ่งบิลมีหลาย line ได้)
             const existingItem = existingUsage.supply_items.find(
               (item) => item.assession_no === orderItem.AssessionNo &&
@@ -516,6 +538,9 @@ export class MedicalSuppliesService {
           return (statusLower === 'discontinue' || statusLower === 'discontinued') && item.AssessionNo;
         });
 
+      /** AssessionNo ที่มีการอัปเดตเป็น Discontinue จริง (ใช้กรองไม่สร้างรายการที่เปลี่ยนไม่ได้) */
+      let discontinueAssessionNosUpdated = new Set<string>();
+
       if (discontinueItems.length > 0 && episodeNumber) {
         // First, find all medical supply usages for this episode
         const episodeUsages = await this.prisma.medicalSupplyUsage.findMany({
@@ -546,18 +571,25 @@ export class MedicalSuppliesService {
                 not: 'Discontinue', // Only update items that are not already discontinued
               },
             },
-            include: {
-              usage: true,
-            },
+          });
+
+          // รายการที่ created_at น้อยกว่าวันปัจจุบัน ไม่ทำการบันทึก Discontinue (ข้ามไป)
+          const today = this.getTodayYyyyMmDd();
+          const itemsToDiscontinueNow = allItemsWithSameAssessionNo.filter((it) => {
+            const itemDate = this.getItemCreatedAtYyyyMmDd(it);
+            return !itemDate || itemDate >= today;
           });
 
           // Track which usage records are affected
-          for (const item of allItemsWithSameAssessionNo) {
+          for (const item of itemsToDiscontinueNow) {
             updatedUsageIds.add(item.medical_supply_usage_id);
           }
 
-          // Cancel/Discontinue ALL items with the same AssessionNo
-          for (const existingItem of allItemsWithSameAssessionNo) {
+          // Cancel/Discontinue items (เฉพาะรายการที่ผ่านเงื่อนไขวันที่)
+          if (itemsToDiscontinueNow.length > 0) {
+            discontinueAssessionNosUpdated.add(discontinueItem.AssessionNo);
+          }
+          for (const existingItem of itemsToDiscontinueNow) {
             await this.prisma.supplyUsageItem.update({
               where: { id: existingItem.id },
               data: {
@@ -600,9 +632,19 @@ export class MedicalSuppliesService {
         }
       }
 
-      // Include all items for creation, including Discontinue items
-      // (Discontinue items will create new records with Discontinue status)
-      const itemsToCreate = orderItems;
+      // รายการสำหรับสร้าง: ถ้าเป็น Discontinue ที่เปลี่ยนไม่ได้ (ไม่มี AssessionNo ที่อัปเดตได้) ไม่นำมาสร้าง
+      const itemsToCreate =
+        discontinueAssessionNosUpdated.size > 0
+          ? orderItems.filter((item) => {
+              const isDisc =
+                item.ItemStatus?.toLowerCase() === 'discontinue' ||
+                item.ItemStatus?.toLowerCase() === 'discontinued';
+              if (isDisc && item.AssessionNo) {
+                return discontinueAssessionNosUpdated.has(item.AssessionNo);
+              }
+              return true;
+            })
+          : orderItems;
 
       // Validate ItemCodes ก่อนสร้าง usage (only for items to be created, not Discontinue)
       const allItemCodes = [
@@ -1325,6 +1367,7 @@ export class MedicalSuppliesService {
       );
 
       if (discontinueItems.length > 0) {
+        const today = this.getTodayYyyyMmDd();
         // Update existing items with Discontinue status
         for (const discontinueItem of discontinueItems) {
           if (discontinueItem.AssessionNo) {
@@ -1334,8 +1377,14 @@ export class MedicalSuppliesService {
               item.order_item_status?.toLowerCase() !== 'discontinue'
             );
 
-            // Update items to Discontinue
-            for (const item of itemsToDiscontinue) {
+            // รายการที่ created_at น้อยกว่าวันปัจจุบัน ไม่ทำการบันทึก Discontinue (ข้ามไป)
+            const itemsToDiscontinueNow = itemsToDiscontinue.filter((it) => {
+              const itemDate = this.getItemCreatedAtYyyyMmDd(it);
+              return !itemDate || itemDate >= today;
+            });
+
+            // Update items to Discontinue (เฉพาะรายการที่ผ่านเงื่อนไขวันที่)
+            for (const item of itemsToDiscontinueNow) {
               await this.prisma.supplyUsageItem.update({
                 where: { id: item.id },
                 data: {
@@ -1357,26 +1406,31 @@ export class MedicalSuppliesService {
               });
             }
           } else {
-            // If no AssessionNo, discontinue all items in this usage
-            for (const item of existing.supply_items) {
-              if (item.order_item_status?.toLowerCase() !== 'discontinue') {
-                await this.prisma.supplyUsageItem.update({
-                  where: { id: item.id },
-                  data: {
-                    order_item_status: 'Discontinue', // Always use 'Discontinue' (not 'Discontinued')
-                    qty_used_with_patient: 0,
-                  },
-                });
+            // If no AssessionNo, discontinue all items in this usage (เฉพาะรายการที่ created_at >= วันนี้)
+            const itemsToDiscontinueAll = existing.supply_items.filter(
+              (item) => item.order_item_status?.toLowerCase() !== 'discontinue',
+            );
+            const itemsToDiscontinueNow = itemsToDiscontinueAll.filter((it) => {
+              const itemDate = this.getItemCreatedAtYyyyMmDd(it);
+              return !itemDate || itemDate >= today;
+            });
+            for (const item of itemsToDiscontinueNow) {
+              await this.prisma.supplyUsageItem.update({
+                where: { id: item.id },
+                data: {
+                  order_item_status: 'Discontinue', // Always use 'Discontinue' (not 'Discontinued')
+                  qty_used_with_patient: 0,
+                },
+              });
 
-                await this.createLog(id, {
-                  type: 'UPDATE',
-                  status: 'SUCCESS',
-                  action: 'discontinue_item',
-                  item_code: item.order_item_code,
-                  reason: 'Bill cancelled - Discontinue status received via PATCH (all items)',
-                  cancelled_qty: item.qty,
-                });
-              }
+              await this.createLog(id, {
+                type: 'UPDATE',
+                status: 'SUCCESS',
+                action: 'discontinue_item',
+                item_code: item.order_item_code,
+                reason: 'Bill cancelled - Discontinue status received via PATCH (all items)',
+                cancelled_qty: item.qty,
+              });
             }
           }
         }

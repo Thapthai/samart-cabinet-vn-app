@@ -3,6 +3,7 @@ import { FileBarChart, Download, RefreshCw, TrendingUp, Search } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
 import { TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -145,42 +146,41 @@ export function MappingVendingTab() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="mapping-print-date">วันที่ Print Receipt/Invoice</Label>
-              <Input
+              <DatePickerBE
                 id="mapping-print-date"
-                type="date"
                 value={mappingPrintDate}
-                onChange={(e) => {
-                  setMappingPrintDate(e.target.value);
+                onChange={(value) => {
+                  setMappingPrintDate(value);
                   setMappingStartDate('');
                   setMappingEndDate('');
                 }}
-                placeholder="เลือกวันที่ Print"
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
               />
               <p className="text-xs text-gray-500">หรือระบุช่วงวันที่ด้านล่าง</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="mapping-start-date">วันที่เริ่มต้น</Label>
-              <Input
+              <DatePickerBE
                 id="mapping-start-date"
-                type="date"
                 value={mappingStartDate}
-                onChange={(e) => {
-                  setMappingStartDate(e.target.value);
+                onChange={(value) => {
+                  setMappingStartDate(value);
                   setMappingPrintDate('');
                 }}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
                 disabled={!!mappingPrintDate}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="mapping-end-date">วันที่สิ้นสุด</Label>
-              <Input
+              <DatePickerBE
                 id="mapping-end-date"
-                type="date"
                 value={mappingEndDate}
-                onChange={(e) => {
-                  setMappingEndDate(e.target.value);
+                onChange={(value) => {
+                  setMappingEndDate(value);
                   setMappingPrintDate('');
                 }}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
                 disabled={!!mappingPrintDate}
               />
             </div>

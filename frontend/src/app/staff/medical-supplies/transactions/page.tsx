@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { FileText, Search, RefreshCw, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
 import TransactionsTable from './components/TransactionsTable';
 
@@ -188,11 +189,11 @@ export default function TransactionsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="visitDate">วันที่คนไข้เข้ารับบริการ</Label>
-                <Input
+                <DatePickerBE
                   id="visitDate"
-                  type="date"
                   value={filters.visitDate}
-                  onChange={(e) => setFilters({ ...filters, visitDate: e.target.value })}
+                  onChange={(value) => setFilters({ ...filters, visitDate: value })}
+                  placeholder="วว/ดด/ปปปป (พ.ศ.)"
                 />
               </div>
 

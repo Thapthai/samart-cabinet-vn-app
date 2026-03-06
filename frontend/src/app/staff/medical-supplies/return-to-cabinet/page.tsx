@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { medicalSuppliesApi } from '@/lib/api';
@@ -177,20 +178,20 @@ export default function ReturnToCabinetPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startDate">วันที่เริ่มต้น</Label>
-                <Input
+                <DatePickerBE
                   id="startDate"
-                  type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={setStartDate}
+                  placeholder="วว/ดด/ปปปป (พ.ศ.)"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
-                <Input
+                <DatePickerBE
                   id="endDate"
-                  type="date"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={setEndDate}
+                  placeholder="วว/ดด/ปปปป (พ.ศ.)"
                 />
               </div>
             </div>

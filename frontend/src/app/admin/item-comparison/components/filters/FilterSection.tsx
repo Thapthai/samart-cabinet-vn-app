@@ -2,6 +2,7 @@ import { Search, RefreshCw, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   DropdownMenu,
@@ -142,17 +143,16 @@ export function FilterSection({
           </div>
         </div>
 
-        {/* Row 2: Single Date */}
+        {/* Row 2: วันที่ (รูปแบบ วว/ดด/ปปปป พ.ศ.) */}
         <div className="space-y-2">
           <Label>วันที่</Label>
-          <Input
-            type="date"
+          <DatePickerBE
             value={filters.startDate}
-            onChange={(e) => {
-              const selectedDate = e.target.value;
+            onChange={(selectedDate) => {
               onFilterChange('startDate', selectedDate);
               onFilterChange('endDate', selectedDate);
             }}
+            placeholder="วว/ดด/ปปปป (พ.ศ.)"
           />
         </div>
 

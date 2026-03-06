@@ -1,6 +1,7 @@
 import { Search, RefreshCw, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useRef, useEffect } from 'react';
@@ -85,25 +86,22 @@ export default function FilterSection({
       <CardContent>
         <div className="space-y-6">
 
-          {/* Row 1: Date Range */}
+          {/* Row 1: Date Range (รูปแบบ วว/ดด/ปปปป พ.ศ.) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Start Date */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">วันที่เริ่มต้น</label>
-              <Input
-                type="date"
+              <DatePickerBE
                 value={filters.startDate}
-                onChange={(e) => onFilterChange('startDate', e.target.value)}
+                onChange={(v) => onFilterChange('startDate', v)}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
               />
             </div>
-
-            {/* End Date */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">วันที่สิ้นสุด</label>
-              <Input
-                type="date"
+              <DatePickerBE
                 value={filters.endDate}
-                onChange={(e) => onFilterChange('endDate', e.target.value)}
+                onChange={(v) => onFilterChange('endDate', v)}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
               />
             </div>
           </div>

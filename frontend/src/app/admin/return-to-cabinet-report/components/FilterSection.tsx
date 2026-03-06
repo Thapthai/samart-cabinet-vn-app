@@ -5,6 +5,7 @@ import { Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePickerBE } from "@/components/ui/date-picker-be";
 import type { FilterState } from "../types.ts";
 import SearchableSelect from "@/app/admin/items/components/SearchableSelect";
 import { cabinetApi, departmentApi, cabinetDepartmentApi } from "@/lib/api";
@@ -168,22 +169,22 @@ export default function FilterSection({
           />
         </div>
 
-        {/* ช่วงวันที่ */}
+        {/* ช่วงวันที่ (รูปแบบ วว/ดด/ปปปป พ.ศ.) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">วันที่เริ่มต้น</label>
-            <Input
-              type="date"
+            <DatePickerBE
               value={filters.startDate}
-              onChange={(e) => onFilterChange("startDate", e.target.value)}
+              onChange={(v) => onFilterChange("startDate", v)}
+              placeholder="วว/ดด/ปปปป (พ.ศ.)"
             />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">วันที่สิ้นสุด</label>
-            <Input
-              type="date"
+            <DatePickerBE
               value={filters.endDate}
-              onChange={(e) => onFilterChange("endDate", e.target.value)}
+              onChange={(v) => onFilterChange("endDate", v)}
+              placeholder="วว/ดด/ปปปป (พ.ศ.)"
             />
           </div>
         </div>

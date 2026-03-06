@@ -281,6 +281,7 @@ export default function MedicalSuppliesTable({
                   <TableHead>แผนก</TableHead>
                   <TableHead>ประเภท</TableHead>
                   <TableHead>เวลาที่เบิก</TableHead>
+                  <TableHead>วันเวลา</TableHead>
                   <TableHead>วันที่ และเวลาที่พิมพ์บิล</TableHead>
                   <TableHead className="text-center">จำนวนรายการ</TableHead>
                   <TableHead className="text-center">จำนวนอุปกรณ์ที่ถูกใช้งาน</TableHead>
@@ -325,6 +326,16 @@ export default function MedicalSuppliesTable({
                     )
                   ) as string[];
 
+                  // วันเวลาล่าสุดที่ยิงหรืออัปเดต (ใช้ค่าล่าสุดระหว่าง usage กับ supply_items)
+                  const usageUpdated = supplyData.updated_at || supply.updated_at;
+                  const itemUpdatedDates = (supplyItems || [])
+                    .map((item: any) => item.updated_at)
+                    .filter(Boolean);
+                  const allDates = [usageUpdated, ...itemUpdatedDates].filter(Boolean);
+                  const latestDateTime = allDates.length
+                    ? allDates.reduce((a: string, b: string) => (new Date(a) > new Date(b) ? a : b))
+                    : null;
+
                   const isSelected = selectedSupplyId === id;
 
                   return (
@@ -366,6 +377,9 @@ export default function MedicalSuppliesTable({
                       </TableCell>
                       <TableCell>
                         {formatDate(supply.created_at || supplyData.created_at || supplyData.usage_datetime)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {latestDateTime ? formatDate(latestDateTime) : '-'}
                       </TableCell>
                       <TableCell>
                         {formatPrintDateTime(supplyData.print_date, supplyData.time_print_date)}

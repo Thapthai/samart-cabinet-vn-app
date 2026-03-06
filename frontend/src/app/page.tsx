@@ -60,37 +60,28 @@ export default function HomePage() {
                   </p>
 
                   {/* Action Buttons */}
-                  <div className="mt-10 max-w-2xl mx-auto">
-                    <div className="flex justify-center">
-                      <Link href="/auth/login">
+                  <div className="mt-10 max-w-2xl mx-auto px-4">
+                    <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                      <Link href="/auth/login" className="w-full sm:w-auto sm:min-w-[200px]">
                         <Button
                           size="lg"
-                          className="min-w-[200px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300"
+                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300"
                         >
                           <User className="mr-2 h-5 w-5" />
                           เข้าสู่ระบบ เพื่อใช้งานระบบ
                         </Button>
                       </Link>
-
-                      {/* <Link href="/auth/staff/login">
-                      <Button 
-                        size="lg" 
-                        variant="outline"
-                        className="w-full border-2 border-green-600 text-green-600 hover:bg-green-50 hover:border-green-700 shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        <User className="mr-2 h-5 w-5" />
-                        เข้าสู่ระบบ Staff
-                      </Button>
-                    </Link> */}
+                      <Link href="/auth/staff/login" className="w-full sm:w-auto sm:min-w-[200px]">
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="w-full border-2 border-green-600 text-green-600 hover:bg-green-50 hover:border-green-700 shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <User className="mr-2 h-5 w-5" />
+                          เข้าสู่ระบบ Staff
+                        </Button>
+                      </Link>
                     </div>
-
-                    {/* <div className="flex justify-center">
-                    <Link href="/auth/register">
-                      <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
-                        ยังไม่มีบัญชี? สมัครเลย →
-                      </Button>
-                    </Link>
-                  </div> */}
                   </div>
 
                 </div>

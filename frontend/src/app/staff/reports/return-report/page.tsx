@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -132,20 +133,20 @@ export default function ReturnReportPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="history-date-from">วันที่เริ่มต้น</Label>
-                  <Input
+                  <DatePickerBE
                     id="history-date-from"
-                    type="date"
                     value={returnHistoryDateFrom}
-                    onChange={(e) => setReturnHistoryDateFrom(e.target.value)}
+                    onChange={setReturnHistoryDateFrom}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="history-date-to">วันที่สิ้นสุด</Label>
-                  <Input
+                  <DatePickerBE
                     id="history-date-to"
-                    type="date"
                     value={returnHistoryDateTo}
-                    onChange={(e) => setReturnHistoryDateTo(e.target.value)}
+                    onChange={setReturnHistoryDateTo}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
                   />
                 </div>
                 <div className="space-y-2">

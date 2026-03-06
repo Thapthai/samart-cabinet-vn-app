@@ -5,6 +5,7 @@ import { XCircle, Plus, Trash2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
 import { medicalSuppliesApi } from '@/lib/api';
 import { toast } from 'sonner';
@@ -201,20 +202,20 @@ export default function CancelBillDialog({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="old-print-date">วันที่ Print เดิม *</Label>
-                <Input
+                <DatePickerBE
                   id="old-print-date"
-                  type="date"
                   value={oldPrintDate}
-                  onChange={(e) => setOldPrintDate(e.target.value)}
+                  onChange={setOldPrintDate}
+                  placeholder="วว/ดด/ปปปป (พ.ศ.)"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="new-print-date">วันที่ Print ใหม่ *</Label>
-                <Input
+                <DatePickerBE
                   id="new-print-date"
-                  type="date"
                   value={newPrintDate}
-                  onChange={(e) => setNewPrintDate(e.target.value)}
+                  onChange={setNewPrintDate}
+                  placeholder="วว/ดด/ปปปป (พ.ศ.)"
                 />
               </div>
             </div>

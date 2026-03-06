@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import {
   Select,
   SelectContent,
@@ -257,19 +258,19 @@ export default function WeighingRefillPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">วันที่เริ่มต้น</label>
-                  <Input
-                    type="date"
+                  <DatePickerBE
                     value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
+                    onChange={setDateFrom}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
                     className="w-full bg-white border-gray-200"
                   />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">วันที่สิ้นสุด</label>
-                  <Input
-                    type="date"
+                  <DatePickerBE
                     value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
+                    onChange={setDateTo}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
                     className="w-full bg-white border-gray-200"
                   />
                 </div>

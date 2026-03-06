@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { medicalSuppliesApi } from '@/lib/api';
@@ -436,20 +437,20 @@ export default function CancelBillPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="old-print-date">วันที่ Print เดิม *</Label>
-                      <Input
+                      <DatePickerBE
                         id="old-print-date"
-                        type="date"
                         value={oldPrintDate}
-                        onChange={(e) => setOldPrintDate(e.target.value)}
+                        onChange={setOldPrintDate}
+                        placeholder="วว/ดด/ปปปป (พ.ศ.)"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="new-print-date">วันที่ Print ใหม่ *</Label>
-                      <Input
+                      <DatePickerBE
                         id="new-print-date"
-                        type="date"
                         value={newPrintDate}
-                        onChange={(e) => setNewPrintDate(e.target.value)}
+                        onChange={setNewPrintDate}
+                        placeholder="วว/ดด/ปปปป (พ.ศ.)"
                       />
                     </div>
                   </div>

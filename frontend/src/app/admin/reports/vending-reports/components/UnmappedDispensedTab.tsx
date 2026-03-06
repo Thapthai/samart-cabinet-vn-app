@@ -3,6 +3,7 @@ import { Download, RefreshCw, AlertCircle, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TabsContent } from '@/components/ui/tabs';
@@ -138,20 +139,20 @@ export function UnmappedDispensedTab() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="unmapped-start-date">วันที่เริ่มต้น</Label>
-              <Input
+              <DatePickerBE
                 id="unmapped-start-date"
-                type="date"
                 value={unmappedStartDate}
-                onChange={(e) => setUnmappedStartDate(e.target.value)}
+                onChange={setUnmappedStartDate}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="unmapped-end-date">วันที่สิ้นสุด</Label>
-              <Input
+              <DatePickerBE
                 id="unmapped-end-date"
-                type="date"
                 value={unmappedEndDate}
-                onChange={(e) => setUnmappedEndDate(e.target.value)}
+                onChange={setUnmappedEndDate}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
               />
             </div>
             <div className="space-y-2">

@@ -10,6 +10,7 @@ import { History, Search, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,7 @@ export default function MedicalSuppliesPage() {
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     patientHN: '',
+    patientEN: '',
     keyword: '',
     userName: '',
     firstName: '',
@@ -68,6 +70,7 @@ export default function MedicalSuppliesPage() {
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     patientHN: '',
+    patientEN: '',
     keyword: '',
     userName: '',
     firstName: '',
@@ -103,6 +106,7 @@ export default function MedicalSuppliesPage() {
       if (filtersToUse.userName) params.user_name = filtersToUse.userName;
       if (filtersToUse.itemName) params.keyword = filtersToUse.itemName;
       if (filtersToUse.patientHN?.trim()) params.patient_hn = filtersToUse.patientHN.trim();
+      if (filtersToUse.patientEN?.trim()) params.EN = filtersToUse.patientEN.trim();
       if (filtersToUse.firstName?.trim()) params.first_name = filtersToUse.firstName.trim();
       if (filtersToUse.lastName?.trim()) params.lastname = filtersToUse.lastName.trim();
       if (filtersToUse.assessionNo?.trim()) params.assession_no = filtersToUse.assessionNo.trim();
@@ -190,6 +194,7 @@ export default function MedicalSuppliesPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       patientHN: '',
+      patientEN: '',
       keyword: '',
       userName: '',
       firstName: '',
@@ -283,6 +288,7 @@ export default function MedicalSuppliesPage() {
         startDate: activeFilters.startDate || undefined,
         endDate: activeFilters.endDate || undefined,
         patientHn: activeFilters.patientHN || undefined,
+        EN: activeFilters.patientEN || undefined,
         departmentCode: activeFilters.departmentCode || undefined,
         usageType: activeFilters.usageType || undefined,
       };
@@ -328,40 +334,43 @@ export default function MedicalSuppliesPage() {
             <div className="flex items-center space-x-2 font-bold text-lg mb-4">
               วันที่เบิกอุปกรณ์ใช้กับคนไข้
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startDate">วันที่เริ่มต้น</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={formFilters.startDate}
-                  onChange={(e) => setFormFilters({ ...formFilters, startDate: e.target.value })}
-                />
+            <div className="space-y-4">
+              {/* บรรทัดที่ 1: วันที่เริ่มต้น | วันที่สิ้นสุด */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">วันที่เริ่มต้น</Label>
+                  <DatePickerBE
+                    id="startDate"
+                    value={formFilters.startDate}
+                    onChange={(v) => setFormFilters({ ...formFilters, startDate: v })}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
+                  <DatePickerBE
+                    id="endDate"
+                    value={formFilters.endDate}
+                    onChange={(v) => setFormFilters({ ...formFilters, endDate: v })}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={formFilters.endDate}
-                  onChange={(e) => setFormFilters({ ...formFilters, endDate: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="itemName">ค้นหารายการ (ชื่ออุปกรณ์)</Label>
-                <Input
-                  id="itemName"
-                  placeholder="กรอกชื่ออุปกรณ์..."
-                  value={formFilters.itemName}
-                  onChange={(e) => setFormFilters({ ...formFilters, itemName: e.target.value })}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>แผนก</Label>
+              {/* บรรทัดที่ 2: ค้นหาชื่ออุปกรณ์ | แผนก */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="itemName">ค้นหาชื่ออุปกรณ์</Label>
+                  <Input
+                    id="itemName"
+                    placeholder="กรอกชื่ออุปกรณ์..."
+                    value={formFilters.itemName}
+                    onChange={(e) => setFormFilters({ ...formFilters, itemName: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>แผนก</Label>
                 <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -425,39 +434,43 @@ export default function MedicalSuppliesPage() {
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>ประเภทผู้ป่วย</Label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  value={formFilters.usageType}
-                  onChange={(e) => setFormFilters({ ...formFilters, usageType: e.target.value })}
-                >
-                  <option value="">-- ทั้งหมด --</option>
-                  <option value="OPD">ผู้ป่วยนอก (OPD)</option>
-                  <option value="IPD">ผู้ป่วยใน (IPD)</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="printDate">วันที่พิมพ์บิล</Label>
-                <Input
-                  id="printDate"
-                  type="date"
-                  value={formFilters.printDate}
-                  onChange={(e) => setFormFilters({ ...formFilters, printDate: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="timePrintDate">เวลาที่พิมพ์บิล</Label>
-                <Input
-                  id="timePrintDate"
-                  type="time"
-                  value={formFilters.timePrintDate}
-                  onChange={(e) => setFormFilters({ ...formFilters, timePrintDate: e.target.value })}
-                />
+              {/* บรรทัดที่ 3: ประเภทผู้ป่วย | HN | EN */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>ประเภทผู้ป่วย</Label>
+                  <select
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={formFilters.usageType}
+                    onChange={(e) => setFormFilters({ ...formFilters, usageType: e.target.value })}
+                  >
+                    <option value="">-- ทั้งหมด --</option>
+                    <option value="OPD">ผู้ป่วยนอก (OPD)</option>
+                    <option value="IPD">ผู้ป่วยใน (IPD)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="patientHN">HN</Label>
+                  <Input
+                    id="patientHN"
+                    placeholder="กรอกเลข HN..."
+                    value={formFilters.patientHN}
+                    onChange={(e) => setFormFilters({ ...formFilters, patientHN: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="patientEN">EN</Label>
+                  <Input
+                    id="patientEN"
+                    placeholder="กรอกเลข EN..."
+                    value={formFilters.patientEN}
+                    onChange={(e) => setFormFilters({ ...formFilters, patientEN: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  />
+                </div>
               </div>
             </div>
 
@@ -677,6 +690,7 @@ export default function MedicalSuppliesPage() {
                           <TableHead className="text-center">จำนวน</TableHead>
                           <TableHead>หน่วย</TableHead>
                           <TableHead>Assession No</TableHead>
+                          <TableHead>วันที่สร้าง</TableHead>
                           <TableHead>สถานะ</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -711,6 +725,7 @@ export default function MedicalSuppliesPage() {
                                 <TableCell className="font-mono text-sm">
                                   {item.assession_no || '-'}
                                 </TableCell>
+                                <TableCell>{item.created_at ? formatDate(item.created_at) : '-'}</TableCell>
                                 <TableCell>
                                   {(() => {
                                     const status = item.order_item_status || '-';

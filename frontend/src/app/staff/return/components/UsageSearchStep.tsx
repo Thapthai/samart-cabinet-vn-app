@@ -4,6 +4,7 @@ import { Search, ChevronLeft, ChevronRight, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import {
   Table,
   TableBody,
@@ -67,21 +68,21 @@ export default function UsageSearchStep({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
           <Label htmlFor="start-date" className="text-slate-600 font-medium">วันที่เริ่มต้น</Label>
-          <Input
+          <DatePickerBE
             id="start-date"
-            type="date"
             value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
+            onChange={onStartDateChange}
+            placeholder="วว/ดด/ปปปป (พ.ศ.)"
             className="rounded-lg border-slate-200"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="end-date" className="text-slate-600 font-medium">วันที่สิ้นสุด</Label>
-          <Input
+          <DatePickerBE
             id="end-date"
-            type="date"
             value={endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
+            onChange={onEndDateChange}
+            placeholder="วว/ดด/ปปปป (พ.ศ.)"
             className="rounded-lg border-slate-200"
           />
         </div>

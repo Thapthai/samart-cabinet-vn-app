@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { History, Search, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -239,21 +240,21 @@ export default function MedicalSuppliesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="startDate">วันที่เริ่มต้น</Label>
-              <Input
+              <DatePickerBE
                 id="startDate"
-                type="date"
                 value={formFilters.startDate}
-                onChange={(e) => setFormFilters({ ...formFilters, startDate: e.target.value })}
+                onChange={(value) => setFormFilters({ ...formFilters, startDate: value })}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
-              <Input
+              <DatePickerBE
                 id="endDate"
-                type="date"
                 value={formFilters.endDate}
-                onChange={(e) => setFormFilters({ ...formFilters, endDate: e.target.value })}
+                onChange={(value) => setFormFilters({ ...formFilters, endDate: value })}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
               />
             </div>
 
