@@ -1,10 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
-import * as path from 'path';
 import { DispensedItemsForPatientsReportData } from './dispensed-items-for-patients-excel.service';
-import { ReportConfig } from '../config/report.config';
-import { resolveReportLogoPath } from '../config/report.config';
+import { ReportConfig, resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
 
 function formatReportDateTime(value?: string) {
   if (!value) return '-';
@@ -28,25 +26,10 @@ function getStatusLabel(status?: string): string {
 export class DispensedItemsForPatientsPdfService {
   private async registerThaiFont(doc: PDFKit.PDFDocument): Promise<boolean> {
     try {
-      const possiblePaths = [
-        path.join(__dirname, '../../assets/fonts'),
-        path.join(__dirname, '../../../apps/report-service/assets/fonts'),
-        path.join(__dirname, '../../apps/report-service/assets/fonts'),
-        path.join(process.cwd(), 'apps/report-service/assets/fonts'),
-      ];
-      let basePath: string | null = null;
-      for (const testPath of possiblePaths) {
-        const testFile = path.join(testPath, 'THSarabunNew.ttf');
-        if (fs.existsSync(testFile)) {
-          basePath = testPath;
-          break;
-        }
-      }
-      if (!basePath) return false;
-      const regularFont = path.join(basePath, 'THSarabunNew.ttf');
-      const boldFont = path.join(basePath, 'THSarabunNew Bold.ttf');
-      doc.registerFont('ThaiFont', regularFont);
-      doc.registerFont('ThaiFontBold', fs.existsSync(boldFont) ? boldFont : regularFont);
+      const fonts = getReportThaiFontPaths();
+      if (!fonts || !fs.existsSync(fonts.regular)) return false;
+      doc.registerFont('ThaiFont', fonts.regular);
+      doc.registerFont('ThaiFontBold', fonts.bold);
       return true;
     } catch {
       return false;

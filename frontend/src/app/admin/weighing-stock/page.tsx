@@ -164,32 +164,35 @@ export default function WeighingPage() {
   return (
     <ProtectedRoute>
       <AppLayout fullWidth>
-        <div className="space-y-6 pb-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-xl shadow-sm">
-              <Package className="h-7 w-7 text-blue-600" />
+        <div className="space-y-4 sm:space-y-6 pb-4 sm:pb-6 px-3 sm:px-0">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 bg-blue-100 rounded-xl shadow-sm w-fit">
+              <Package className="h-6 w-6 sm:h-7 sm:w-7 text-blue-600" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">สต๊อกอุปกรณ์ในตู้ Weighing</h1>
-              <p className="text-sm text-gray-500 mt-0.5">เมนูสต๊อกอุปกรณ์ที่มีในตู้ Weighing</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-blue-50/80 border border-blue-100 p-5 rounded-xl shadow-sm">
-              <p className="text-sm text-blue-600 font-medium">รายการทั้งหมด</p>
-              <p className="text-2xl font-bold text-blue-900 mt-0.5">{totalItems}</p>
-            </div>
-            <div className="bg-slate-50/80 border border-slate-200 p-5 rounded-xl shadow-sm">
-              <p className="text-sm text-slate-600 font-medium">จำนวนรวม (Qty)</p>
-              <p className="text-2xl font-bold text-slate-900 mt-0.5">{items.reduce((sum, row) => sum + (row.Qty ?? 0), 0)}</p>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight truncate">สต๊อกอุปกรณ์ในตู้ Weighing</h1>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">เมนูสต๊อกอุปกรณ์ที่มีในตู้ Weighing</p>
             </div>
           </div>
 
+          {/* Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="bg-blue-50/80 border border-blue-100 p-4 sm:p-5 rounded-xl shadow-sm">
+              <p className="text-xs sm:text-sm text-blue-600 font-medium">รายการทั้งหมด</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-900 mt-0.5 tabular-nums">{totalItems}</p>
+            </div>
+            <div className="bg-slate-50/80 border border-slate-200 p-4 sm:p-5 rounded-xl shadow-sm">
+              <p className="text-xs sm:text-sm text-slate-600 font-medium">จำนวนรวม (Qty)</p>
+              <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tabular-nums">{items.reduce((sum, row) => sum + (row.Qty ?? 0), 0)}</p>
+            </div>
+          </div>
+
+          {/* Filters */}
           <Card className="border-blue-100/80 bg-gradient-to-br from-slate-50 to-blue-50/40 shadow-sm overflow-hidden">
-            <CardContent className="pt-6 pb-6">
+            <CardContent className="pt-4 pb-4 sm:pt-6 sm:pb-6 px-4 sm:px-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 min-w-0">
                   <label className="text-sm font-medium text-gray-700">
                     ชื่ออุปกรณ์
                   </label>
@@ -201,7 +204,7 @@ export default function WeighingPage() {
                     className="w-full bg-white border-gray-200"
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 min-w-0">
                   <label className="text-sm font-medium text-gray-700">
                     ตู้ (Cabinet)
                   </label>
@@ -224,42 +227,43 @@ export default function WeighingPage() {
                   </Select>
                 </div>
               </div>
-              <div className="flex gap-2 mt-4">
-                <Button onClick={handleSearch} disabled={loading} className="shadow-sm">
-                  <Search className="h-4 w-4 mr-2" />
+              <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                <Button onClick={handleSearch} disabled={loading} className="shadow-sm w-full sm:w-auto">
+                  <Search className="h-4 w-4 mr-2 shrink-0" />
                   ค้นหา
                 </Button>
                 <Button
                   variant="outline"
                   onClick={handleClear}
-                  className="border-gray-300"
+                  className="border-gray-300 w-full sm:w-auto"
                   disabled={!hasActiveFilters}
                 >
-                  <X className="h-4 w-4 mr-2" />
+                  <X className="h-4 w-4 mr-2 shrink-0" />
                   ล้าง
                 </Button>
               </div>
             </CardContent>
           </Card>
 
+          {/* Table Card */}
           <Card className="shadow-sm border-gray-200/80 overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-slate-50/50">
-              <CardTitle className="text-lg">รายการสต๊อกในตู้ Weighing</CardTitle>
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm text-muted-foreground">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between space-y-0 border-b bg-slate-50/50 px-4 py-3 sm:px-6 sm:py-4">
+              <CardTitle className="text-base sm:text-lg truncate">รายการสต๊อกในตู้ Weighing</CardTitle>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 flex-wrap">
+                <span className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
                   ทั้งหมด {totalItems} รายการ
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 order-1 sm:order-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={handleDownloadWeighingStockExcel}
                     disabled={exportLoading !== null}
-                    className="shadow-sm"
+                    className="shadow-sm flex-1 sm:flex-initial"
                   >
-                    <Download className="h-4 w-4 mr-1.5" />
-                    {exportLoading === 'excel' ? 'กำลังโหลด...' : 'Excel'}
+                    <Download className="h-4 w-4 sm:mr-1.5" />
+                    <span className="hidden sm:inline">{exportLoading === 'excel' ? 'กำลังโหลด...' : 'Excel'}</span>
                   </Button>
                   <Button
                     type="button"
@@ -267,57 +271,57 @@ export default function WeighingPage() {
                     size="sm"
                     onClick={handleDownloadWeighingStockPdf}
                     disabled={exportLoading !== null}
-                    className="shadow-sm"
+                    className="shadow-sm flex-1 sm:flex-initial"
                   >
-                    <Download className="h-4 w-4 mr-1.5" />
-                    {exportLoading === 'pdf' ? 'กำลังโหลด...' : 'PDF'}
+                    <Download className="h-4 w-4 sm:mr-1.5" />
+                    <span className="hidden sm:inline">{exportLoading === 'pdf' ? 'กำลังโหลด...' : 'PDF'}</span>
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-4 sm:p-5">
+            <CardContent className="p-3 sm:p-5">
               {loading ? (
-                <div className="py-12 text-center text-muted-foreground">กำลังโหลด...</div>
+                <div className="py-8 sm:py-12 text-center text-sm text-muted-foreground">กำลังโหลด...</div>
               ) : items.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground">ไม่พบข้อมูล</div>
+                <div className="py-8 sm:py-12 text-center text-sm text-muted-foreground">ไม่พบข้อมูล</div>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto -mx-3 sm:mx-0">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-slate-100/80 hover:bg-slate-100/80 border-b">
-                          <TableHead className="w-14 text-center font-semibold">ลำดับ</TableHead>
-                          <TableHead className="min-w-[200px] font-semibold">ชื่อสินค้า</TableHead>
-                          <TableHead className="min-w-[120px] text-center font-semibold">ตู้</TableHead>
-                          <TableHead className="w-20 text-center font-semibold">ช่อง</TableHead>
-                          <TableHead className="w-20 text-center font-semibold">สล็อต</TableHead>
-                          <TableHead className="w-24 text-right font-semibold">จำนวน</TableHead>
+                          <TableHead className="w-12 sm:w-14 text-center font-semibold text-xs sm:text-sm whitespace-nowrap">ลำดับ</TableHead>
+                          <TableHead className="min-w-[140px] sm:min-w-[200px] font-semibold text-xs sm:text-sm">ชื่อสินค้า</TableHead>
+                          <TableHead className="min-w-[80px] sm:min-w-[120px] text-center font-semibold text-xs sm:text-sm whitespace-nowrap">ตู้</TableHead>
+                          <TableHead className="w-14 sm:w-20 text-center font-semibold text-xs sm:text-sm whitespace-nowrap">ช่อง</TableHead>
+                          <TableHead className="w-14 sm:w-20 text-center font-semibold text-xs sm:text-sm whitespace-nowrap">สล็อต</TableHead>
+                          <TableHead className="w-16 sm:w-24 text-right font-semibold text-xs sm:text-sm whitespace-nowrap">จำนวน</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {items.map((row, index) => (
                           <TableRow key={row.id} className="hover:bg-slate-50/80">
-                            <TableCell className="text-center text-muted-foreground tabular-nums">
+                            <TableCell className="text-center text-muted-foreground tabular-nums text-xs sm:text-sm py-2 sm:py-3">
                               {(currentPage - 1) * itemsPerPage + index + 1}
                             </TableCell>
-                            <TableCell className="max-w-[220px] truncate font-medium" title={row.item?.itemname ?? undefined}>
+                            <TableCell className="min-w-[140px] sm:max-w-[220px] max-w-[180px] truncate font-medium text-xs sm:text-sm py-2 sm:py-3" title={row.item?.itemname ?? undefined}>
                               {row.item?.itemname || row.item?.Alternatename || '-'}
                             </TableCell>
-                            <TableCell className="text-center text-gray-700">
+                            <TableCell className="text-center text-gray-700 text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">
                               {row.cabinet
                                 ? row.cabinet.cabinet_name || row.cabinet.cabinet_code || row.StockID
                                 : row.StockID}
                             </TableCell>
-                            <TableCell className="text-center">{row.SlotNo ?? '-'}</TableCell>
-                            <TableCell className="text-center">{formatSlotDisplay(row.Sensor)}</TableCell>
-                            <TableCell className="text-right tabular-nums font-medium">{row.Qty}</TableCell>
+                            <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-3">{row.SlotNo ?? '-'}</TableCell>
+                            <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-3">{formatSlotDisplay(row.Sensor)}</TableCell>
+                            <TableCell className="text-right tabular-nums font-medium text-xs sm:text-sm py-2 sm:py-3">{row.Qty}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
                   {totalPages > 1 && (
-                    <div className="pt-4">
+                    <div className="pt-3 sm:pt-4">
                       <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}

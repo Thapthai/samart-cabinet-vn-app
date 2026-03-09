@@ -311,18 +311,18 @@ export default function MedicalSuppliesPage() {
   return (
     <ProtectedRoute>
       <AppLayout fullWidth>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6 w-full max-w-full min-w-0 pb-4 sm:pb-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <History className="h-6 w-6 text-white" />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <History className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white truncate">
                   รายการเบิกอุปกรณ์ใช้กับคนไข้
                 </h1>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                   ประวัติการเบิกอุปกรณ์จากตู้ SmartCabinet
                 </p>
               </div>
@@ -330,14 +330,14 @@ export default function MedicalSuppliesPage() {
           </div>
 
           {/* Search Filters */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-            <div className="flex items-center space-x-2 font-bold text-lg mb-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-6 shadow-sm w-full min-w-0">
+            <div className="font-bold text-base sm:text-lg mb-4">
               วันที่เบิกอุปกรณ์ใช้กับคนไข้
             </div>
             <div className="space-y-4">
               {/* บรรทัดที่ 1: วันที่เริ่มต้น | วันที่สิ้นสุด */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="startDate">วันที่เริ่มต้น</Label>
                   <DatePickerBE
                     id="startDate"
@@ -346,7 +346,7 @@ export default function MedicalSuppliesPage() {
                     placeholder="วว/ดด/ปปปป (พ.ศ.)"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
                   <DatePickerBE
                     id="endDate"
@@ -359,7 +359,7 @@ export default function MedicalSuppliesPage() {
 
               {/* บรรทัดที่ 2: ค้นหาชื่ออุปกรณ์ | แผนก */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="itemName">ค้นหาชื่ออุปกรณ์</Label>
                   <Input
                     id="itemName"
@@ -369,7 +369,7 @@ export default function MedicalSuppliesPage() {
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label>แผนก</Label>
                 <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
                   <DropdownMenuTrigger asChild>
@@ -438,8 +438,8 @@ export default function MedicalSuppliesPage() {
               </div>
 
               {/* บรรทัดที่ 3: ประเภทผู้ป่วย | HN | EN */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-2 min-w-0">
                   <Label>ประเภทผู้ป่วย</Label>
                   <select
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -451,7 +451,7 @@ export default function MedicalSuppliesPage() {
                     <option value="IPD">ผู้ป่วยใน (IPD)</option>
                   </select>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="patientHN">HN</Label>
                   <Input
                     id="patientHN"
@@ -461,7 +461,7 @@ export default function MedicalSuppliesPage() {
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="patientEN">EN</Label>
                   <Input
                     id="patientEN"
@@ -474,17 +474,17 @@ export default function MedicalSuppliesPage() {
               </div>
             </div>
 
-            <div className="flex gap-2 mt-4">
-              <Button onClick={handleSearch} disabled={loading}>
-                <Search className="h-4 w-4 mr-2" />
+            <div className="flex flex-col sm:flex-row gap-2 mt-4">
+              <Button onClick={handleSearch} disabled={loading} className="w-full sm:w-auto">
+                <Search className="h-4 w-4 mr-2 shrink-0" />
                 ค้นหา
               </Button>
-              <Button onClick={handleReset} variant="outline" disabled={loading}>
-                <RefreshCw className="h-4 w-4 mr-2" />
+              <Button onClick={handleReset} variant="outline" disabled={loading} className="w-full sm:w-auto">
+                <RefreshCw className="h-4 w-4 mr-2 shrink-0" />
                 รีเซ็ต
               </Button>
-              <Button onClick={() => fetchSupplies()} variant="outline" disabled={loading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <Button onClick={() => fetchSupplies()} variant="outline" disabled={loading} className="w-full sm:w-auto">
+                <RefreshCw className={`h-4 w-4 mr-2 shrink-0 ${loading ? 'animate-spin' : ''}`} />
                 โหลดใหม่
               </Button>
             </div>
@@ -510,11 +510,11 @@ export default function MedicalSuppliesPage() {
 
           {/* Detail Section */}
           {selectedSupply && selectedSupplyId && (
-            <div id="supply-details" className="space-y-6">
+            <div id="supply-details" className="space-y-4 sm:space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>รายละเอียดการเบิกอุปกรณ์</CardTitle>
-                  <CardDescription>
+                <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                  <CardTitle className="text-base sm:text-lg truncate">รายละเอียดการเบิกอุปกรณ์</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm break-words">
                     HN: {selectedSupply.data?.patient_hn || selectedSupply.patient_hn || '-'} |
                     Assession No: {(() => {
                       const supplyItems = selectedSupply.data?.supply_items || selectedSupply.supply_items || [];
@@ -527,10 +527,10 @@ export default function MedicalSuppliesPage() {
                     })()}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-5">
+                <CardContent className="px-4 py-3 sm:px-6 sm:py-4">
+                  <div className="space-y-4 sm:space-y-5">
                     {/* ข้อมูลผู้ป่วยและผู้เบิก */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
                       <div>
                         <p className="text-sm text-gray-500">ชื่อคนไข้</p>
                         <p className="font-semibold">
@@ -635,7 +635,7 @@ export default function MedicalSuppliesPage() {
                     {/* วันเวลา — อยู่ด้านล่าง */}
                     <div className="pt-3 border-t border-gray-100">
                       <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">วันเวลา</p>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                         <div>
                           <p className="text-sm text-gray-500">เวลาที่เบิก</p>
                           <p className="font-semibold">
@@ -675,30 +675,31 @@ export default function MedicalSuppliesPage() {
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle>รายการอุปกรณ์ที่เบิก</CardTitle>
-                  <CardDescription>
+                <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                  <CardTitle className="text-base sm:text-lg">รายการอุปกรณ์ที่เบิก</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     รายละเอียดอุปกรณ์ทั้งหมดที่เบิกในครั้งนี้
                     {activeFilters.startDate || activeFilters.endDate ? (
-                      <span className="block mt-2 text-foreground/80 font-medium">
+                      <span className="block mt-2 text-foreground/80 font-medium break-words">
                         แสดงตามวันที่เลือก: {activeFilters.startDate || '–'} ถึง {activeFilters.endDate || '–'}
                       </span>
                     ) : null}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="px-4 py-4">
-                  <div className="overflow-x-auto">
-                    <Table>
+                <CardContent className="px-3 py-3 sm:px-6 sm:py-4 overflow-hidden">
+                  <p className="text-xs text-gray-500 mb-2 md:hidden">เลื่อนแนวนอนเพื่อดูคอลัมน์ทั้งหมด</p>
+                  <div className="overflow-x-auto -mx-3 sm:mx-0 max-w-full">
+                    <Table className="min-w-[600px]">
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[80px]">ลำดับ</TableHead>
-                          <TableHead>รหัสอุปกรณ์</TableHead>
-                          <TableHead>ชื่ออุปกรณ์</TableHead>
-                          <TableHead className="text-center">จำนวน</TableHead>
-                          <TableHead>หน่วย</TableHead>
-                          <TableHead>Assession No</TableHead>
-                          <TableHead>วันที่สร้าง</TableHead>
-                          <TableHead>สถานะ</TableHead>
+                          <TableHead className="w-12 sm:w-[80px] text-xs sm:text-sm whitespace-nowrap">ลำดับ</TableHead>
+                          <TableHead className="min-w-[80px] text-xs sm:text-sm">รหัสอุปกรณ์</TableHead>
+                          <TableHead className="min-w-[120px] text-xs sm:text-sm">ชื่ออุปกรณ์</TableHead>
+                          <TableHead className="text-center w-14 text-xs sm:text-sm whitespace-nowrap">จำนวน</TableHead>
+                          <TableHead className="min-w-[60px] text-xs sm:text-sm">หน่วย</TableHead>
+                          <TableHead className="min-w-[90px] text-xs sm:text-sm">Assession No</TableHead>
+                          <TableHead className="min-w-[100px] text-xs sm:text-sm whitespace-nowrap">วันที่สร้าง</TableHead>
+                          <TableHead className="min-w-[80px] text-xs sm:text-sm">สถานะ</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -732,7 +733,7 @@ export default function MedicalSuppliesPage() {
                           if (filteredByDate.length === 0) {
                             return (
                               <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                                <TableCell colSpan={8} className="text-center py-6 sm:py-8 text-gray-500 text-sm">
                                   {supplyItems.length === 0
                                     ? 'ไม่มีรายการอุปกรณ์'
                                     : 'ไม่มีรายการอุปกรณ์ที่สร้างหรือแก้ไขในช่วงวันที่ที่กรอง'}
@@ -744,45 +745,37 @@ export default function MedicalSuppliesPage() {
                           return filteredByDate
                             .map((item: any, index: number) => (
                               <TableRow key={index}>
-                                <TableCell className="text-center">{index + 1}</TableCell>
-                                <TableCell className="font-mono text-sm">
-                                  {item.order_item_code || item.supply_code || '-'}
-                                </TableCell>
-                                <TableCell>
-                                  {item.order_item_description || item.supply_name || '-'}
-                                </TableCell>
-                                <TableCell className="text-center font-semibold">
-                                  {item.qty || item.quantity || 0}
-                                </TableCell>
-                                <TableCell>{item.uom || item.unit || '-'}</TableCell>
-                                <TableCell className="font-mono text-sm">
-                                  {item.assession_no || '-'}
-                                </TableCell>
-                                <TableCell>{item.created_at ? formatDate(item.created_at) : '-'}</TableCell>
-                                <TableCell>
+                                <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-3">{index + 1}</TableCell>
+                                <TableCell className="font-mono text-xs sm:text-sm py-2 sm:py-3">{item.order_item_code || item.supply_code || '-'}</TableCell>
+                                <TableCell className="text-xs sm:text-sm py-2 sm:py-3 max-w-[140px] sm:max-w-none truncate" title={item.order_item_description || item.supply_name}>{item.order_item_description || item.supply_name || '-'}</TableCell>
+                                <TableCell className="text-center font-semibold text-xs sm:text-sm py-2 sm:py-3">{item.qty || item.quantity || 0}</TableCell>
+                                <TableCell className="text-xs sm:text-sm py-2 sm:py-3">{item.uom || item.unit || '-'}</TableCell>
+                                <TableCell className="font-mono text-xs sm:text-sm py-2 sm:py-3">{item.assession_no || '-'}</TableCell>
+                                <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">{item.created_at ? formatDate(item.created_at) : '-'}</TableCell>
+                                <TableCell className="py-2 sm:py-3">
                                   {(() => {
                                     const status = item.order_item_status || '-';
                                     const statusLower = status.toLowerCase();
 
                                     if (statusLower === 'discontinue' || statusLower === 'discontinued') {
                                       return (
-                                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
                                           <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-red-500"></span>
                                           ยกเลิก
                                         </Badge>
                                       );
                                     } else if (statusLower === 'verified') {
                                       return (
-                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                                           <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-green-500"></span>
                                           ยืนยันแล้ว
                                         </Badge>
                                       );
                                     } else if (status === '-') {
-                                      return <span className="text-gray-400">-</span>;
+                                      return <span className="text-gray-400 text-xs sm:text-sm">-</span>;
                                     } else {
                                       return (
-                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                                           <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500"></span>
                                           {status}
                                         </Badge>

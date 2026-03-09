@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
-import * as path from 'path';
 import { CancelBillReportData } from './cancel-bill-report-excel.service';
+import { getReportThaiFontPaths } from '../config/report.config';
 
 export type { CancelBillReportData };
 
@@ -17,43 +17,12 @@ export class CancelBillReportPdfService {
 
   private async registerThaiFont(doc: PDFKit.PDFDocument): Promise<boolean> {
     try {
-      const possiblePaths = [
-        path.join(process.cwd(), 'assets/fonts'),
-        path.join(process.cwd(), 'src/assets/fonts'),
-        path.join(process.cwd(), 'apps/report-service/assets/fonts'),
-      ];
-
-      let basePath: string | null = null;
-      
-      // Find the correct path
-      for (const testPath of possiblePaths) {
-        const testFile = path.join(testPath, 'THSarabunNew.ttf');
-        if (fs.existsSync(testFile)) {
-          basePath = testPath;
-          break;
-        }
-      }
-
-      if (!basePath) {
-        console.error(`[PDF Service] Thai font not found in project assets`);
-        return false;
-      }
-
-      const regularFont = path.join(basePath, 'THSarabunNew.ttf');
-      const boldFont = path.join(basePath, 'THSarabunNew Bold.ttf');
-
-      // Register fonts
-      doc.registerFont('ThaiFont', regularFont);
-      
-      if (fs.existsSync(boldFont)) {
-        doc.registerFont('ThaiFontBold', boldFont);
-      } else {
-        doc.registerFont('ThaiFontBold', regularFont);
-      }
-
+      const fonts = getReportThaiFontPaths();
+      if (!fonts || !fs.existsSync(fonts.regular)) return false;
+      doc.registerFont('ThaiFont', fonts.regular);
+      doc.registerFont('ThaiFontBold', fonts.bold);
       return true;
-    } catch (error) {
-      console.error('[PDF Service] ❌ Error registering Thai font:', error);
+    } catch {
       return false;
     }
   }

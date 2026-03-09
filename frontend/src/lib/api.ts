@@ -771,7 +771,7 @@ export const vendingReportsApi = {
     const response = await api.get(`/reports/cancel-bill/data?${queryParams.toString()}`);
     return response.data;
   },
-  /** ดาวน์โหลดรายงานเบิกใช้กับคนไข้ (Excel/PDF) โดยไม่เปิดแท็บใหม่ */
+  /** ดาวน์โหลดรายงานเบิกใช้กับคนไข้ (Excel/PDF) — Backend POST /reports/dispensed-items-for-patients/excel|pdf returns JSON { success, data: { buffer (base64), filename, contentType } } */
   downloadDispensedItemsForPatientsExcel: async (params?: {
     keyword?: string;
     startDate?: string;
@@ -780,21 +780,25 @@ export const vendingReportsApi = {
     departmentCode?: string;
     usageType?: string;
   }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.keyword) queryParams.append('keyword', params.keyword);
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    if (params?.patientHn) queryParams.append('patientHn', params.patientHn);
-    if (params?.departmentCode) queryParams.append('departmentCode', params.departmentCode);
-    if (params?.usageType) queryParams.append('usageType', params.usageType);
-    const response = await api.get(
-      `/reports/dispensed-items-for-patients/export/excel?${queryParams.toString()}`,
-      { responseType: 'blob' },
-    );
-    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const body = {
+      keyword: params?.keyword || undefined,
+      startDate: params?.startDate || undefined,
+      endDate: params?.endDate || undefined,
+      patientHn: params?.patientHn || undefined,
+      departmentCode: params?.departmentCode || undefined,
+      usageType: params?.usageType || undefined,
+    };
+    const response = await api.post('/reports/dispensed-items-for-patients/excel', body);
+    const res = response.data as { success?: boolean; data?: { buffer?: string; filename?: string; contentType?: string } };
+    if (!res?.success || !res?.data?.buffer) throw new Error((res as any)?.error || 'ไม่สามารถสร้างไฟล์ได้');
+    const binary = atob(res.data.buffer);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: res.data.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `dispensed_items_for_patients_${new Date().toISOString().split('T')[0]}.xlsx`);
+    link.setAttribute('download', res.data.filename || `dispensed_items_for_patients_${new Date().toISOString().split('T')[0]}.xlsx`);
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -808,21 +812,25 @@ export const vendingReportsApi = {
     departmentCode?: string;
     usageType?: string;
   }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.keyword) queryParams.append('keyword', params.keyword);
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    if (params?.patientHn) queryParams.append('patientHn', params.patientHn);
-    if (params?.departmentCode) queryParams.append('departmentCode', params.departmentCode);
-    if (params?.usageType) queryParams.append('usageType', params.usageType);
-    const response = await api.get(
-      `/reports/dispensed-items-for-patients/export/pdf?${queryParams.toString()}`,
-      { responseType: 'blob' },
-    );
-    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const body = {
+      keyword: params?.keyword || undefined,
+      startDate: params?.startDate || undefined,
+      endDate: params?.endDate || undefined,
+      patientHn: params?.patientHn || undefined,
+      departmentCode: params?.departmentCode || undefined,
+      usageType: params?.usageType || undefined,
+    };
+    const response = await api.post('/reports/dispensed-items-for-patients/pdf', body);
+    const res = response.data as { success?: boolean; data?: { buffer?: string; filename?: string; contentType?: string } };
+    if (!res?.success || !res?.data?.buffer) throw new Error((res as any)?.error || 'ไม่สามารถสร้างไฟล์ได้');
+    const binary = atob(res.data.buffer);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: res.data.contentType || 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `dispensed_items_for_patients_${new Date().toISOString().split('T')[0]}.pdf`);
+    link.setAttribute('download', res.data.filename || `dispensed_items_for_patients_${new Date().toISOString().split('T')[0]}.pdf`);
     document.body.appendChild(link);
     link.click();
     link.remove();

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
-import * as path from 'path';
 import { EquipmentUsageReportData } from '../types/equipment-usage-report.types';
+import { getReportThaiFontPaths } from '../config/report.config';
 
 export type { EquipmentUsageReportData };
 
@@ -15,51 +15,14 @@ export class EquipmentUsagePdfService {
     return false;
   }
 
-  /**
-   * Register Thai font from project assets only
-   * Ensures consistent rendering across all environments
-   */
   private async registerThaiFont(doc: PDFKit.PDFDocument): Promise<boolean> {
     try {
-      // Try multiple paths for dev and production
-      const possiblePaths = [
-        path.join(__dirname, '../../assets/fonts'),
-        path.join(__dirname, '../../../apps/report-service/assets/fonts'),
-        path.join(__dirname, '../../apps/report-service/assets/fonts'),
-        path.join(process.cwd(), 'apps/report-service/assets/fonts'),
-      ];
-
-      let basePath: string | null = null;
-      
-      // Find the correct path
-      for (const testPath of possiblePaths) {
-        const testFile = path.join(testPath, 'THSarabunNew.ttf');
-        if (fs.existsSync(testFile)) {
-          basePath = testPath;
-          break;
-        }
-      }
-
-      if (!basePath) {
-        console.error(`[PDF Service] Thai font not found in project assets`);
-        return false;
-      }
-
-      const regularFont = path.join(basePath, 'THSarabunNew.ttf');
-      const boldFont = path.join(basePath, 'THSarabunNew Bold.ttf');
-
-      // Register fonts
-      doc.registerFont('ThaiFont', regularFont);
-      
-      if (fs.existsSync(boldFont)) {
-        doc.registerFont('ThaiFontBold', boldFont);
-      } else {
-        doc.registerFont('ThaiFontBold', regularFont);
-      }
-
+      const fonts = getReportThaiFontPaths();
+      if (!fonts || !fs.existsSync(fonts.regular)) return false;
+      doc.registerFont('ThaiFont', fonts.regular);
+      doc.registerFont('ThaiFontBold', fonts.bold);
       return true;
-    } catch (error) {
-      console.error('[PDF Service] ❌ Error registering Thai font:', error);
+    } catch {
       return false;
     }
   }
