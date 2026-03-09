@@ -677,7 +677,14 @@ export default function MedicalSuppliesPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>รายการอุปกรณ์ที่เบิก</CardTitle>
-                  <CardDescription>รายละเอียดอุปกรณ์ทั้งหมดที่เบิกในครั้งนี้</CardDescription>
+                  <CardDescription>
+                    รายละเอียดอุปกรณ์ทั้งหมดที่เบิกในครั้งนี้
+                    {activeFilters.startDate || activeFilters.endDate ? (
+                      <span className="block mt-2 text-foreground/80 font-medium">
+                        แสดงตามวันที่เลือก: {activeFilters.startDate || '–'} ถึง {activeFilters.endDate || '–'}
+                      </span>
+                    ) : null}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="px-4 py-4">
                   <div className="overflow-x-auto">
@@ -697,18 +704,44 @@ export default function MedicalSuppliesPage() {
                       <TableBody>
                         {(() => {
                           const supplyItems = selectedSupply.data?.supply_items || selectedSupply.supply_items || [];
+                          const startDate = activeFilters.startDate || '';
+                          const endDate = activeFilters.endDate || '';
 
-                          if (supplyItems.length === 0) {
+                          // ใช้วันที่ในโซนเวลาท้องถิ่น (ตามที่ user เห็น) เพื่อให้ตรงกับ "แสดงตามวันที่เลือก"
+                          const toLocalDateStr = (d: string | Date | null | undefined): string => {
+                            if (!d) return '';
+                            const dt = new Date(d);
+                            const y = dt.getFullYear();
+                            const m = String(dt.getMonth() + 1).padStart(2, '0');
+                            const day = String(dt.getDate()).padStart(2, '0');
+                            return `${y}-${m}-${day}`;
+                          };
+                          const inRange = (dateStr: string) => {
+                            if (!dateStr) return false;
+                            if (!startDate && !endDate) return true;
+                            if (startDate && dateStr < startDate) return false;
+                            if (endDate && dateStr > endDate) return false;
+                            return true;
+                          };
+                          // กรองเฉพาะรายการที่ "วันที่สร้าง" อยู่ในช่วง (ไม่ใช้ updated_at) เพื่อไม่ให้แสดงแถวที่มี วันที่สร้าง นอกช่วง
+                          const filteredByDate = supplyItems.filter((item: any) => {
+                            const createdStr = toLocalDateStr(item.created_at);
+                            return inRange(createdStr);
+                          });
+
+                          if (filteredByDate.length === 0) {
                             return (
                               <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                                  ไม่มีรายการอุปกรณ์
+                                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                                  {supplyItems.length === 0
+                                    ? 'ไม่มีรายการอุปกรณ์'
+                                    : 'ไม่มีรายการอุปกรณ์ที่สร้างหรือแก้ไขในช่วงวันที่ที่กรอง'}
                                 </TableCell>
                               </TableRow>
                             );
                           }
 
-                          return supplyItems
+                          return filteredByDate
                             .map((item: any, index: number) => (
                               <TableRow key={index}>
                                 <TableCell className="text-center">{index + 1}</TableCell>

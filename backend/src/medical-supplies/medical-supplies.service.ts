@@ -883,18 +883,6 @@ export class MedicalSuppliesService {
         baseWhere.usage_type = query.usage_type;
       }
 
-      // Date range filter - use created_at instead of usage_datetime
-      if (query.startDate || query.endDate) {
-        baseWhere.created_at = {};
-        if (query.startDate) {
-          baseWhere.created_at.gte = new Date(query.startDate + 'T00:00:00.000Z');
-        }
-        if (query.endDate) {
-          const endDate = new Date(query.endDate + 'T23:59:59.999Z');
-          baseWhere.created_at.lte = endDate;
-        }
-      }
-
       // Keyword filter (search in patient name, EN, and item names)
       const keywordConditions: any[] = [];
       if (query.keyword) {
@@ -983,6 +971,43 @@ export class MedicalSuppliesService {
         };
       }
 
+      // วันที่เลือก: กรองให้แสดงเฉพาะ usage ที่มี supply_item อย่างน้อย 1 รายการที่ created_at หรือ updated_at อยู่ในช่วง
+      const filterItemDateStart = query.startDate ? new Date(query.startDate + 'T00:00:00.000Z') : null;
+      const filterItemDateEnd = query.endDate ? new Date(query.endDate + 'T23:59:59.999Z') : null;
+      const itemDateRange =
+        filterItemDateStart || filterItemDateEnd
+          ? {
+              OR: [
+                {
+                  created_at: {
+                    ...(filterItemDateStart && { gte: filterItemDateStart }),
+                    ...(filterItemDateEnd && { lte: filterItemDateEnd }),
+                  },
+                },
+                {
+                  updated_at: {
+                    ...(filterItemDateStart && { gte: filterItemDateStart }),
+                    ...(filterItemDateEnd && { lte: filterItemDateEnd }),
+                  },
+                },
+              ],
+            }
+          : null;
+
+      if (itemDateRange) {
+        const hasItemInDateRange = { some: itemDateRange };
+        if (baseWhere.supply_items && typeof baseWhere.supply_items === 'object' && baseWhere.supply_items.some) {
+          const existingSome = baseWhere.supply_items.some as Record<string, unknown>;
+          baseWhere.supply_items = {
+            some: {
+              AND: [existingSome, itemDateRange],
+            },
+          };
+        } else {
+          baseWhere.supply_items = hasItemInDateRange;
+        }
+      }
+
       // Combine all conditions properly
       const where: any = { ...baseWhere };
 
@@ -1005,13 +1030,36 @@ export class MedicalSuppliesService {
         }
       }
 
-      // Debug: Log where clause for troubleshooting
+      // กรอง supply_items (app_microservice_supply_usage_items) ตาม startDate/endDate: อ้างอิง created_at และ updated_at
+      const itemDateStart = query.startDate ? new Date(query.startDate + 'T00:00:00.000Z') : null;
+      const itemDateEnd = query.endDate ? new Date(query.endDate + 'T23:59:59.999Z') : null;
+      const supplyItemsInclude: true | { where: { OR: Array<{ created_at?: { gte?: Date; lte?: Date }; updated_at?: { gte?: Date; lte?: Date } }> } } =
+        itemDateStart || itemDateEnd
+          ? {
+              where: {
+                OR: [
+                  {
+                    created_at: {
+                      ...(itemDateStart && { gte: itemDateStart }),
+                      ...(itemDateEnd && { lte: itemDateEnd }),
+                    },
+                  },
+                  {
+                    updated_at: {
+                      ...(itemDateStart && { gte: itemDateStart }),
+                      ...(itemDateEnd && { lte: itemDateEnd }),
+                    },
+                  },
+                ],
+              },
+            }
+          : true;
 
       const [data, total] = await Promise.all([
         this.prisma.medicalSupplyUsage.findMany({
           where,
           include: {
-            supply_items: true,
+            supply_items: supplyItemsInclude,
           },
           skip,
           take: limit,
