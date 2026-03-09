@@ -875,6 +875,7 @@ export const vendingReportsApi = {
     });
     return response.data;
   },
+  /** Backend POST /reports/return/excel returns JSON { success, buffer (base64), contentType, filename } */
   downloadReturnReportExcel: async (params?: {
     date_from?: string;
     date_to?: string;
@@ -882,23 +883,30 @@ export const vendingReportsApi = {
     department_code?: string;
     patient_hn?: string;
   }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.date_from) queryParams.append('date_from', params.date_from);
-    if (params?.date_to) queryParams.append('date_to', params.date_to);
-    if (params?.return_reason) queryParams.append('return_reason', params.return_reason);
-    if (params?.department_code) queryParams.append('department_code', params.department_code);
-    if (params?.patient_hn) queryParams.append('patient_hn', params.patient_hn);
-    const response = await api.get(`/reports/return/excel?${queryParams.toString()}`, {
-      responseType: 'blob',
-    });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const body = {
+      date_from: params?.date_from,
+      date_to: params?.date_to,
+      return_reason: params?.return_reason,
+      department_code: params?.department_code,
+      patient_hn: params?.patient_hn,
+    };
+    const response = await api.post('/reports/return/excel', body);
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string };
+    if (!res?.success || !res?.buffer) throw new Error((res as any)?.error || 'ไม่สามารถสร้างไฟล์ได้');
+    const binary = atob(res.buffer);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: res.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `return_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    link.setAttribute('download', res.filename || `return_report_${new Date().toISOString().split('T')[0]}.xlsx`);
     document.body.appendChild(link);
     link.click();
     link.remove();
+    window.URL.revokeObjectURL(url);
   },
+  /** Backend POST /reports/return/pdf returns JSON { success, buffer (base64), contentType, filename } */
   downloadReturnReportPdf: async (params?: {
     date_from?: string;
     date_to?: string;
@@ -906,22 +914,28 @@ export const vendingReportsApi = {
     department_code?: string;
     patient_hn?: string;
   }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.date_from) queryParams.append('date_from', params.date_from);
-    if (params?.date_to) queryParams.append('date_to', params.date_to);
-    if (params?.return_reason) queryParams.append('return_reason', params.return_reason);
-    if (params?.department_code) queryParams.append('department_code', params.department_code);
-    if (params?.patient_hn) queryParams.append('patient_hn', params.patient_hn);
-    const response = await api.get(`/reports/return/pdf?${queryParams.toString()}`, {
-      responseType: 'blob',
-    });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const body = {
+      date_from: params?.date_from,
+      date_to: params?.date_to,
+      return_reason: params?.return_reason,
+      department_code: params?.department_code,
+      patient_hn: params?.patient_hn,
+    };
+    const response = await api.post('/reports/return/pdf', body);
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string };
+    if (!res?.success || !res?.buffer) throw new Error((res as any)?.error || 'ไม่สามารถสร้างไฟล์ได้');
+    const binary = atob(res.buffer);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: res.contentType || 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `return_report_${new Date().toISOString().split('T')[0]}.pdf`);
+    link.setAttribute('download', res.filename || `return_report_${new Date().toISOString().split('T')[0]}.pdf`);
     document.body.appendChild(link);
     link.click();
     link.remove();
+    window.URL.revokeObjectURL(url);
   },
   downloadCancelBillReportExcel: async (params?: {
     startDate?: string;

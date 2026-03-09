@@ -54,7 +54,7 @@ export default function ReturnHistoryFilter({
   });
 
   return (
-    <Card className="border-0 shadow-sm bg-white rounded-xl overflow-hidden">
+    <Card className="relative z-10 border-0 shadow-sm bg-white rounded-xl overflow-visible">
       <CardHeader className="border-b bg-slate-50/50 pb-4">
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-lg bg-emerald-100">

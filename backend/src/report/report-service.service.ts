@@ -1995,42 +1995,68 @@ export class ReportServiceService {
     if (!hasCab && !hasDept) return {};
 
     try {
+      let cabinetName: string | undefined;
+      let departmentName: string | undefined;
+
       if (hasCab && hasDept) {
         const cabId = parseInt(String(cabinetId).trim(), 10);
         const deptId = parseInt(String(departmentId).trim(), 10);
         if (Number.isNaN(cabId) || Number.isNaN(deptId)) return {};
+        // ไม่ใช้ include เพื่อหลีกเลี่ยง error กับคอลัมน์ IsCancel ใน Department
         const cd = await this.prisma.cabinetDepartment.findFirst({
           where: { cabinet_id: cabId, department_id: deptId },
-          include: { cabinet: true, department: true },
+          select: { cabinet_id: true, department_id: true },
         });
-        return {
-          cabinetName: cd?.cabinet?.cabinet_name ?? undefined,
-          departmentName: cd?.department?.DepName ?? undefined,
-        };
-      }
-      if (hasCab) {
+        if (cd?.cabinet_id != null && cd?.department_id != null) {
+          const [cabinet, department] = await Promise.all([
+            this.prisma.cabinet.findUnique({ where: { id: cd.cabinet_id }, select: { cabinet_name: true } }),
+            this.prisma.department.findUnique({ where: { ID: cd.department_id }, select: { DepName: true } }),
+          ]);
+          cabinetName = cabinet?.cabinet_name ?? undefined;
+          departmentName = department?.DepName ?? undefined;
+        }
+      } else if (hasCab) {
         const cabId = parseInt(String(cabinetId).trim(), 10);
         if (Number.isNaN(cabId)) return {};
         const cabinet = await this.prisma.cabinet.findUnique({
           where: { id: cabId },
           select: { cabinet_name: true },
         });
-        return {
-          cabinetName: cabinet?.cabinet_name ?? undefined,
-          departmentName: undefined,
-        };
+        cabinetName = cabinet?.cabinet_name ?? undefined;
+      } else {
+        // only departmentId
+        const deptId = parseInt(String(departmentId).trim(), 10);
+        if (Number.isNaN(deptId)) return {};
+        const department = await this.prisma.department.findUnique({
+          where: { ID: deptId },
+          select: { DepName: true },
+        });
+        departmentName = department?.DepName ?? undefined;
       }
-      // !cabinetId && departmentId → แผนกที่เลือก, ตู้ = ทั้งหมด
-      const deptId = parseInt(String(departmentId).trim(), 10);
-      if (Number.isNaN(deptId)) return {};
-      const department = await this.prisma.department.findUnique({
-        where: { ID: deptId },
-        select: { DepName: true },
-      });
-      return {
-        cabinetName: undefined,
-        departmentName: department?.DepName ?? undefined,
-      };
+
+      // Fallback: ถ้ามี departmentId แต่ยังไม่มีชื่อแผนก ให้ดึงจากตาราง Department โดยตรง
+      if (hasDept && departmentName == null) {
+        const deptId = parseInt(String(departmentId).trim(), 10);
+        if (!Number.isNaN(deptId)) {
+          const department = await this.prisma.department.findUnique({
+            where: { ID: deptId },
+            select: { DepName: true },
+          });
+          departmentName = department?.DepName ?? undefined;
+        }
+      }
+      if (hasCab && cabinetName == null) {
+        const cabId = parseInt(String(cabinetId).trim(), 10);
+        if (!Number.isNaN(cabId)) {
+          const cabinet = await this.prisma.cabinet.findUnique({
+            where: { id: cabId },
+            select: { cabinet_name: true },
+          });
+          cabinetName = cabinet?.cabinet_name ?? undefined;
+        }
+      }
+
+      return { cabinetName, departmentName };
     } catch {
       return {};
     }
