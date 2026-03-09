@@ -131,30 +131,30 @@ export class DispensedItemsPdfService {
         doc.y += 6;
 
         // ---- ตาราง Filter Summary (1 แถว 4 ช่อง) ----
-        const filters = data.filters ?? {};
-        const filterRowHeight = 34;
-        const filterY = doc.y;
-        const filterCells = [
-          { label: 'แผนก', value: filters.departmentName ?? (filters.departmentId ? filters.departmentId : 'ทั้งหมด') },
-          { label: 'ตู้ Cabinet', value: filters.cabinetName ?? (filters.cabinetId ? filters.cabinetId : 'ทั้งหมด') },
-          { label: 'วันที่เริ่ม', value: filters.startDate ?? 'ทั้งหมด' },
-          { label: 'วันที่สิ้นสุด', value: filters.endDate ?? 'ทั้งหมด' },
-        ];
-        const filterColWidth = Math.floor(contentWidth / filterCells.length);
-        let fx = margin;
-        filterCells.forEach((fc, i) => {
-          const cw = i === filterCells.length - 1
-            ? contentWidth - filterColWidth * (filterCells.length - 1)
-            : filterColWidth;
-          doc.rect(fx, filterY, cw, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
-          doc.fontSize(11).font(finalFontBoldName).fillColor('#444444');
-          doc.text(fc.label, fx + 3, filterY + 4, { width: cw - 6, align: 'center' });
-          doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
-          doc.text(fc.value, fx + 3, filterY + 16, { width: cw - 6, align: 'center' });
-          fx += cw;
-        });
-        doc.fillColor('#000000');
-        doc.y = filterY + filterRowHeight + 8;
+        // const filters = data.filters ?? {};
+        // const filterRowHeight = 34;
+        // const filterY = doc.y;
+        // const filterCells = [
+        //   { label: 'แผนก', value: filters.departmentName ?? (filters.departmentId ? filters.departmentId : 'ทั้งหมด') },
+        //   { label: 'ตู้ Cabinet', value: filters.cabinetName ?? (filters.cabinetId ? filters.cabinetId : 'ทั้งหมด') },
+        //   { label: 'วันที่เริ่ม', value: filters.startDate ?? 'ทั้งหมด' },
+        //   { label: 'วันที่สิ้นสุด', value: filters.endDate ?? 'ทั้งหมด' },
+        // ];
+        // const filterColWidth = Math.floor(contentWidth / filterCells.length);
+        // let fx = margin;
+        // filterCells.forEach((fc, i) => {
+        //   const cw = i === filterCells.length - 1
+        //     ? contentWidth - filterColWidth * (filterCells.length - 1)
+        //     : filterColWidth;
+        //   doc.rect(fx, filterY, cw, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
+        //   doc.fontSize(11).font(finalFontBoldName).fillColor('#444444');
+        //   doc.text(fc.label, fx + 3, filterY + 4, { width: cw - 6, align: 'center' });
+        //   doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
+        //   doc.text(fc.value, fx + 3, filterY + 16, { width: cw - 6, align: 'center' });
+        //   fx += cw;
+        // });
+        // doc.fillColor('#000000');
+        // doc.y = filterY + filterRowHeight + 8;
 
         // ---- ตารางข้อมูล ----
         const itemHeight = 28;
