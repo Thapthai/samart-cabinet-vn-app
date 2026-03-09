@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Users, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { signInWithGoogle } from '@/lib/firebase';
 import TwoFactorModal from '@/components/TwoFactorModal';
@@ -377,16 +377,27 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                {/* <Link href="/auth/staff/login">
-                  <Button variant="outline" className="w-full border-2 hover:bg-green-50 hover:border-green-600 transition-all">
-                    เข้าสู่ระบบ Staff
+              <div className="space-y-3">
+                <Link href="/auth/staff/login" className="block">
+                  <Button
+                    variant="outline"
+                    className="w-full h-12 rounded-xl border-2 border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-500 text-emerald-800 font-medium transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <Users className="h-5 w-5" />
+                      เข้าสู่ระบบ Staff
+                    </span>
                   </Button>
-                </Link> */}
-                
-                <Link href="/">
-                  <Button variant="ghost" className="w-full text-gray-600 hover:text-gray-900">
-                    ← กลับหน้าหลัก
+                </Link>
+                <Link href="/" className="block">
+                  <Button
+                    variant="ghost"
+                    className="w-full h-11 rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all duration-200"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <ArrowLeft className="h-4 w-4" />
+                      กลับหน้าหลัก
+                    </span>
                   </Button>
                 </Link>
               </div>

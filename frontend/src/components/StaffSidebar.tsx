@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { staffRolePermissionApi } from '@/lib/api';
 import {
-  LayoutDashboard,
   Menu,
   X,
   ChevronLeft,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import { staffMenuItems, filterMenuByPermissions } from '@/app/staff/menus';
 import { Button } from '@/components/ui/button';
+import { ASSETS } from '@/lib/assets';
 
 interface StaffSidebarProps {
   staffUser?: {
@@ -133,28 +133,49 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-sky-200/80">
+          {/* Header with Logo */}
+          <div
+            className={cn(
+              'flex items-center justify-between border-b border-sky-200/80 transition-[padding] duration-300',
+              isCollapsed ? 'lg:px-2 lg:py-3 p-4' : 'p-4'
+            )}
+          >
             {!isCollapsed && (
-              <div className="flex items-center space-x-3 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-400 flex items-center justify-center shadow-md shadow-sky-300/30 flex-shrink-0 text-white">
-                  <LayoutDashboard className="h-6 w-6" />
+              <Link
+                href="/staff/dashboard"
+                className="flex items-center gap-3 flex-1 min-w-0 no-underline"
+              >
+                <div className="w-11 h-11 rounded-xl bg-white/90 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md ring-1 ring-sky-200/60">
+                  <img
+                    src={ASSETS.LOGO}
+                    alt="Logo"
+                    className="w-8 h-8 object-contain"
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-bold truncate text-slate-800">Staff Portal</h2>
+                  <h2 className="text-base font-bold truncate text-slate-800">Staff Portal</h2>
+                  <p className="text-xs text-slate-500 truncate">Smart Cabinet</p>
                 </div>
-              </div>
+              </Link>
             )}
             {isCollapsed && (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-blue-400 flex items-center justify-center mx-auto shadow-md text-white">
-                <LayoutDashboard className="h-6 w-6" />
-              </div>
+              <Link
+                href="/staff/dashboard"
+                className="lg:mx-auto flex items-center justify-center w-11 h-11 rounded-xl bg-white/90 overflow-hidden shadow-md ring-1 ring-sky-200/60 flex-shrink-0"
+                title="Staff Portal"
+              >
+                <img
+                  src={ASSETS.LOGO}
+                  alt="Logo"
+                  className="w-7 h-7 object-contain"
+                />
+              </Link>
             )}
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="hidden lg:flex text-slate-500 hover:text-slate-800 hover:bg-sky-100 flex-shrink-0"
+              className="hidden lg:flex w-9 h-9 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-sky-100 flex-shrink-0 transition-colors duration-200"
             >
               {isCollapsed ? (
                 <ChevronRight className="h-4 w-4" />
