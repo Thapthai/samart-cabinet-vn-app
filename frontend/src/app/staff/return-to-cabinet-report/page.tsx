@@ -21,6 +21,8 @@ export default function ReturnToCabinetReportPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [returnedList, setReturnedList] = useState<DispensedItem[]>([]);
   const [staffDepartmentId, setStaffDepartmentId] = useState<string>('');
+  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
+  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
   // Filters (ค่าเริ่มต้นแผนก/ตู้ = 29 / 1 ตามที่ตั้งไว้)
   const [filters, setFilters] = useState<FilterState>({
@@ -225,7 +227,7 @@ export default function ReturnToCabinetReportPage() {
           onRefresh={() => fetchReturnedList(currentPage)}
           itemTypes={getItemTypes()}
           loading={loadingList}
-          departmentDisabled={!!staffDepartmentId}
+          departmentDisabled={!!staffDepartmentId && !canSelectDepartment}
         />
 
         {/* Returned Items Table */}

@@ -298,11 +298,13 @@ export default function MedicalSuppliesTable({
                 const latestDateTime = allDates.length ? allDates.reduce((a: string, b: string) => (new Date(a) > new Date(b) ? a : b)) : null;
                 const isSelected = selectedSupplyId === id;
                 return (
-                  <button
+                  <div
                     key={id ?? index}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectSupply?.(supply)}
-                    className={`w-full text-left rounded-lg border-2 p-4 transition-colors ${isSelected ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}`}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectSupply?.(supply); } }}
+                    className={`w-full text-left rounded-lg border-2 p-4 transition-colors cursor-pointer ${isSelected ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1 space-y-2">
@@ -350,7 +352,7 @@ export default function MedicalSuppliesTable({
                         <ChevronRight className="h-5 w-5 text-gray-400" />
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>

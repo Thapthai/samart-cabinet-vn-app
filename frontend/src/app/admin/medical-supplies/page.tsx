@@ -186,6 +186,9 @@ export default function MedicalSuppliesPage() {
     // Copy formFilters to activeFilters to trigger search
     setActiveFilters(formFilters);
     setCurrentPage(1);
+    // ปิดการ์ดรายละเอียด "รายการอุปกรณ์ที่เบิก" เมื่อมีการกรอง/ค้นหาใหม่ (จะโหลดใหม่เมื่อเลือกแถวอีกครั้ง)
+    setSelectedSupply(null);
+    setSelectedSupplyId(null);
     // useEffect will trigger fetchSupplies when activeFilters and currentPage change
   };
 

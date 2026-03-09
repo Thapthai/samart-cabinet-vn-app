@@ -40,6 +40,8 @@ export default function ItemStockDepartmentsPage() {
   const [selectedMapping, setSelectedMapping] = useState<CabinetDepartment | null>(null);
   const [filterVersion, setFilterVersion] = useState(0);
   const [staffDepartmentId, setStaffDepartmentId] = useState<string>("");
+  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
+  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
   // Active filters (applied after search button click)
   const [activeFilters, setActiveFilters] = useState({
@@ -58,12 +60,14 @@ export default function ItemStockDepartmentsPage() {
 
   useEffect(() => {
     loadData();
-    // โหลด department_id จาก localStorage
+    // โหลด staff_user จาก localStorage: department_id และ role (warehouse = เลือกแผนกได้)
     if (typeof window !== 'undefined') {
       try {
         const raw = localStorage.getItem('staff_user');
         if (raw) {
           const staffUser = JSON.parse(raw.trim());
+          const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
+          if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
           if (staffUser?.department_id) {
             const deptId = String(staffUser.department_id);
             setStaffDepartmentId(deptId);
@@ -278,7 +282,7 @@ export default function ItemStockDepartmentsPage() {
         onSearch={handleSearch}
         key={filterVersion}
         initialDepartmentId={staffDepartmentId}
-        departmentDisabled={!!staffDepartmentId}
+        departmentDisabled={!!staffDepartmentId && !canSelectDepartment}
       />
 
       <MappingTable

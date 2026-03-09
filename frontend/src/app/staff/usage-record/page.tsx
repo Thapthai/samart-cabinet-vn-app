@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
+import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
 import { toast } from 'sonner';
 import { History, Search, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import MedicalSuppliesTable from './components/MedicalSuppliesTable';
 import CancelBillDialog from './components/CancelBillDialog';
 
@@ -29,6 +37,9 @@ export default function MedicalSuppliesPage() {
     department_id: null,
     department_name: null,
   });
+  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
+  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
+  const [departments, setDepartments] = useState<{ ID: number; DepName: string }[]>([]);
   // โหลด staff_user ก่อนแล้วค่อย fetch เพื่อให้ส่ง department_code ตั้งแต่ครั้งแรก (ข้อมูลอิงแผนกของ staff)
   const [staffUserLoaded, setStaffUserLoaded] = useState(false);
 
@@ -46,12 +57,14 @@ export default function MedicalSuppliesPage() {
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     patientHN: '',
+    patientEN: '',
     keyword: '',
     userName: '',
     firstName: '',
     lastName: '',
     assessionNo: '',
-    itemName: '', // ช่องค้นหาชื่ออุปกรณ์
+    itemName: '',
+    usageType: '',
   });
 
   // Active filters (for actual search, triggers fetchSupplies)
@@ -59,12 +72,14 @@ export default function MedicalSuppliesPage() {
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     patientHN: '',
+    patientEN: '',
     keyword: '',
     userName: '',
     firstName: '',
     lastName: '',
     assessionNo: '',
     itemName: '',
+    usageType: '',
   });
 
   // Pagination
@@ -89,8 +104,10 @@ export default function MedicalSuppliesPage() {
       if (filtersToUse.startDate) params.startDate = filtersToUse.startDate;
       if (filtersToUse.endDate) params.endDate = filtersToUse.endDate;
       if (filtersToUse.userName) params.user_name = filtersToUse.userName;
-      if (filtersToUse.itemName) params.keyword = filtersToUse.itemName; // ใช้ keyword สำหรับค้นหาชื่ออุปกรณ์
-      // Filter by staff's department (read-only, no selector) — ข้อมูลอิงแผนกของ staff
+      if (filtersToUse.itemName) params.keyword = filtersToUse.itemName;
+      if (filtersToUse.patientHN?.trim()) params.patient_hn = filtersToUse.patientHN.trim();
+      if (filtersToUse.patientEN?.trim()) params.EN = filtersToUse.patientEN.trim();
+      if (filtersToUse.usageType?.trim()) params.usage_type = filtersToUse.usageType.trim();
       if (staffDepartment.department_id != null) params.department_code = String(staffDepartment.department_id);
 
       const response: any = await staffMedicalSuppliesApi.getAll(params);
@@ -130,7 +147,7 @@ export default function MedicalSuppliesPage() {
     }
   };
 
-  // Load staff user from localStorage (client-side) for department filter — ทำก่อน fetch เสมอ
+  // Load staff_user จาก localStorage: department_id, department_name และ role (warehouse = เลือกแผนกได้)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -139,6 +156,8 @@ export default function MedicalSuppliesPage() {
       if (trimmed) {
         const staffUser = JSON.parse(trimmed);
         if (staffUser && typeof staffUser === 'object') {
+          const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
+          if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
           setStaffDepartment({
             department_id: staffUser.department_id ?? null,
             department_name: staffUser.department_name ?? null,
@@ -150,6 +169,16 @@ export default function MedicalSuppliesPage() {
     }
     setStaffUserLoaded(true);
   }, []);
+
+  // โหลดรายการแผนกเมื่อ warehouse (ให้เลือกแผนกได้)
+  useEffect(() => {
+    if (!canSelectDepartment) return;
+    staffDepartmentApi.getAll({ limit: 1000 }).then((res) => {
+      if (res?.success && Array.isArray(res.data)) {
+        setDepartments(res.data.map((d: any) => ({ ID: d.ID, DepName: d.DepName || d.DepName2 || String(d.ID) })));
+      }
+    }).catch(() => {});
+  }, [canSelectDepartment]);
 
   // Fetch หลังโหลด staff_user แล้วเท่านั้น เพื่อให้ข้อมูลอิงแผนกของ staff ตั้งแต่ครั้งแรก
   useEffect(() => {
@@ -167,6 +196,9 @@ export default function MedicalSuppliesPage() {
     // Copy formFilters to activeFilters to trigger search
     setActiveFilters(formFilters);
     setCurrentPage(1);
+    // ปิดการ์ดรายละเอียดเมื่อมีการกรอง/ค้นหาใหม่ (จะโหลดใหม่เมื่อเลือกแถวอีกครั้ง)
+    setSelectedSupply(null);
+    setSelectedSupplyId(null);
     // useEffect will trigger fetchSupplies when activeFilters and currentPage change
   };
 
@@ -175,12 +207,14 @@ export default function MedicalSuppliesPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       patientHN: '',
+      patientEN: '',
       keyword: '',
       userName: '',
       firstName: '',
       lastName: '',
       assessionNo: '',
       itemName: '',
+      usageType: '',
     };
     setFormFilters(resetFilters);
     setActiveFilters(resetFilters);
@@ -273,60 +307,127 @@ export default function MedicalSuppliesPage() {
           </div>
         </div>
 
-        {/* Search Filters */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startDate">วันที่เริ่มต้น</Label>
-              <DatePickerBE
-                id="startDate"
-                value={formFilters.startDate}
-                onChange={(value) => setFormFilters({ ...formFilters, startDate: value })}
-                placeholder="วว/ดด/ปปปป (พ.ศ.)"
-              />
+        {/* Search Filters - รูปแบบเดียวกับ admin/medical-supplies */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-6 shadow-sm w-full min-w-0">
+          <div className="font-bold text-base sm:text-lg mb-4">
+            วันที่เบิกอุปกรณ์ใช้กับคนไข้
+          </div>
+          <div className="space-y-4">
+            {/* บรรทัดที่ 1: วันที่เริ่มต้น | วันที่สิ้นสุด */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2 min-w-0">
+                <Label htmlFor="startDate">วันที่เริ่มต้น</Label>
+                <DatePickerBE
+                  id="startDate"
+                  value={formFilters.startDate}
+                  onChange={(value) => setFormFilters({ ...formFilters, startDate: value })}
+                  placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                />
+              </div>
+              <div className="space-y-2 min-w-0">
+                <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
+                <DatePickerBE
+                  id="endDate"
+                  value={formFilters.endDate}
+                  onChange={(value) => setFormFilters({ ...formFilters, endDate: value })}
+                  placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
-              <DatePickerBE
-                id="endDate"
-                value={formFilters.endDate}
-                onChange={(value) => setFormFilters({ ...formFilters, endDate: value })}
-                placeholder="วว/ดด/ปปปป (พ.ศ.)"
-              />
+            {/* บรรทัดที่ 2: ค้นหาชื่ออุปกรณ์ | แผนก */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2 min-w-0">
+                <Label htmlFor="itemName">ค้นหาชื่ออุปกรณ์</Label>
+                <Input
+                  id="itemName"
+                  placeholder="กรอกชื่ออุปกรณ์..."
+                  value={formFilters.itemName}
+                  onChange={(e) => setFormFilters({ ...formFilters, itemName: e.target.value })}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+              </div>
+              <div className="space-y-2 min-w-0">
+                <Label>แผนก</Label>
+                {canSelectDepartment ? (
+                  <Select
+                    value={staffDepartment.department_id != null ? String(staffDepartment.department_id) : ''}
+                    onValueChange={(value) => {
+                      const id = value ? parseInt(value, 10) : null;
+                      const dept = departments.find((d) => d.ID === id);
+                      setStaffDepartment({
+                        department_id: id,
+                        department_name: dept?.DepName ?? null,
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="เลือกแผนก" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.ID} value={String(d.ID)}>
+                          {d.DepName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-slate-600 dark:text-slate-400 py-2 px-3 rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                    {staffDepartment.department_name ?? '-'}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="itemName">ค้นหารายการ (ชื่ออุปกรณ์)</Label>
-              <Input
-                id="itemName"
-                placeholder="กรอกชื่ออุปกรณ์..."
-                value={formFilters.itemName}
-                onChange={(e) => setFormFilters({ ...formFilters, itemName: e.target.value })}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-            </div>
-
-            {/* แผนกของ staff (แสดงอย่างเดียว ไม่ให้เลือก) */}
-            <div className="space-y-2">
-              <Label>แผนก</Label>
-              <p className="text-sm text-slate-600 dark:text-slate-400 py-2 px-3 rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                {staffDepartment.department_name ?? '-'}
-              </p>
+            {/* บรรทัดที่ 3: ประเภทผู้ป่วย | HN | EN */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="space-y-2 min-w-0">
+                <Label>ประเภทผู้ป่วย</Label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={formFilters.usageType}
+                  onChange={(e) => setFormFilters({ ...formFilters, usageType: e.target.value })}
+                >
+                  <option value="">-- ทั้งหมด --</option>
+                  <option value="OPD">ผู้ป่วยนอก (OPD)</option>
+                  <option value="IPD">ผู้ป่วยใน (IPD)</option>
+                </select>
+              </div>
+              <div className="space-y-2 min-w-0">
+                <Label htmlFor="patientHN">HN</Label>
+                <Input
+                  id="patientHN"
+                  placeholder="กรอกเลข HN..."
+                  value={formFilters.patientHN}
+                  onChange={(e) => setFormFilters({ ...formFilters, patientHN: e.target.value })}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+              </div>
+              <div className="space-y-2 min-w-0">
+                <Label htmlFor="patientEN">EN</Label>
+                <Input
+                  id="patientEN"
+                  placeholder="กรอกเลข EN..."
+                  value={formFilters.patientEN}
+                  onChange={(e) => setFormFilters({ ...formFilters, patientEN: e.target.value })}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+              </div>
             </div>
           </div>
 
-          <div className="flex gap-2 mt-4">
-            <Button onClick={handleSearch} disabled={loading}>
-              <Search className="h-4 w-4 mr-2" />
+          <div className="flex flex-col sm:flex-row gap-2 mt-4">
+            <Button onClick={handleSearch} disabled={loading} className="w-full sm:w-auto">
+              <Search className="h-4 w-4 mr-2 shrink-0" />
               ค้นหา
             </Button>
-            <Button onClick={handleReset} variant="outline" disabled={loading}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+            <Button onClick={handleReset} variant="outline" disabled={loading} className="w-full sm:w-auto">
+              <RefreshCw className="h-4 w-4 mr-2 shrink-0" />
               รีเซ็ต
             </Button>
-            <Button onClick={() => fetchSupplies()} variant="outline" disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <Button onClick={() => fetchSupplies()} variant="outline" disabled={loading} className="w-full sm:w-auto">
+              <RefreshCw className={`h-4 w-4 mr-2 shrink-0 ${loading ? 'animate-spin' : ''}`} />
               โหลดใหม่
             </Button>
           </div>

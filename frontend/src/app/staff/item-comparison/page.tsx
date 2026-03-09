@@ -32,6 +32,8 @@ export default function ItemComparisonPage() {
   const [filteredList, setFilteredList] = useState<ComparisonItem[]>([]);
   const [departments, setDepartments] = useState<{ ID: number; DepName: string }[]>([]);
   const [staffDepartmentCode, setStaffDepartmentCode] = useState<string>('');
+  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
+  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
   // Filters - default to today's date
   const [filters, setFilters] = useState<FilterState>({
@@ -48,7 +50,7 @@ export default function ItemComparisonPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  // Load staff department from localStorage, then fetch
+  // โหลด staff_user จาก localStorage: department_id และ role (warehouse = เลือกแผนกได้)
   useEffect(() => {
     let deptCode = '';
     if (typeof window !== 'undefined') {
@@ -56,6 +58,8 @@ export default function ItemComparisonPage() {
         const raw = localStorage.getItem('staff_user');
         if (raw) {
           const staffUser = JSON.parse(raw.trim());
+          const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
+          if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
           if (staffUser?.department_id) {
             deptCode = String(staffUser.department_id);
             setStaffDepartmentCode(deptCode);
@@ -268,7 +272,7 @@ export default function ItemComparisonPage() {
           departments={departments}
           loading={loadingList}
           items={comparisonList}
-          departmentDisabled={!!staffDepartmentCode}
+          departmentDisabled={!!staffDepartmentCode && !canSelectDepartment}
         />
 
         {/* Comparison List Table */}

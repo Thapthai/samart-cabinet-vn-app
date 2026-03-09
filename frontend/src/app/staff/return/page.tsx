@@ -51,6 +51,8 @@ export default function ReturnMedicalSuppliesPage() {
   // Departments for filter (ต้องอยู่ก่อน filteredItems useMemo)
   const [departments, setDepartments] = useState<{ ID: number; DepName: string }[]>([]);
   const [staffDepartmentCode, setStaffDepartmentCode] = useState<string>('');
+  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
+  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
   // รายการจาก /item-stocks/will-return (สรุปตาม ItemCode: max_available_qty)
   const [willReturnItems, setWillReturnItems] = useState<WillReturnItem[]>([]);
@@ -172,12 +174,14 @@ export default function ReturnMedicalSuppliesPage() {
 
   useEffect(() => {
     loadWillReturnItems();
-    // Load staff department from localStorage and fetch departments
+    // Load staff_user จาก localStorage: department_id และ role (warehouse = เลือกแผนกได้)
     if (typeof window !== 'undefined') {
       try {
         const raw = localStorage.getItem('staff_user');
         if (raw) {
           const staffUser = JSON.parse(raw.trim());
+          const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
+          if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
           if (staffUser?.department_id) {
             const deptCode = String(staffUser.department_id);
             setStaffDepartmentCode(deptCode);
@@ -649,7 +653,7 @@ export default function ReturnMedicalSuppliesPage() {
               reason={returnHistoryReason}
               departmentCode={returnHistoryDepartmentCode}
               departments={departments}
-              departmentDisabled={!!staffDepartmentCode}
+              departmentDisabled={!!staffDepartmentCode && !canSelectDepartment}
               loading={historyLoading}
               onDateFromChange={setReturnHistoryDateFrom}
               onDateToChange={setReturnHistoryDateTo}

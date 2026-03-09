@@ -25,6 +25,8 @@ export default function ItemsPage() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [reportLoading, setReportLoading] = useState<'excel' | 'pdf' | null>(null);
   const [staffDepartmentId, setStaffDepartmentId] = useState<string>('');
+  /** ถ้า role (app_microservice_staff_roles.code) มีคำว่า warehouse ให้เลือกแผนกได้ */
+  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
   // Active filters (after search button clicked)
   const [activeFilters, setActiveFilters] = useState({
@@ -41,13 +43,17 @@ export default function ItemsPage() {
   const [totalItems, setTotalItems] = useState(0);
   const itemsPerPage = 10; // Table layout
 
-  // โหลด department_id จาก localStorage
+  // โหลด staff_user จาก localStorage: department_id และ role (code)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const raw = localStorage.getItem('staff_user');
       if (raw) {
         const staffUser = JSON.parse(raw.trim());
+        const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
+        if (roleCode.includes('warehouse')) {
+          setCanSelectDepartment(true);
+        }
         if (staffUser?.department_id) {
           const deptId = String(staffUser.department_id);
           setStaffDepartmentId(deptId);
@@ -222,7 +228,7 @@ export default function ItemsPage() {
           onSearch={handleSearch}
           onBeforeSearch={() => setCurrentPage(1)}
           initialDepartmentId={staffDepartmentId}
-          departmentDisabled={!!staffDepartmentId}
+          departmentDisabled={!!staffDepartmentId && !canSelectDepartment}
         />
 
         {/* Table Section */}

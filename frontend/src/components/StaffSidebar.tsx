@@ -166,8 +166,8 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
 
           {/* User Avatar when collapsed */}
           {staffUser && isCollapsed && (
-<div className="px-2 py-4 border-b border-sky-200/80 flex justify-center">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-blue-400 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-sky-300/50">
+            <div className="px-2 py-4 border-b border-sky-200/80 flex justify-center">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-blue-400 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-sky-300/50">
                 {isAdmin
                   ? (staffUser.name?.charAt(0) || staffUser.email?.charAt(0) || 'A').toUpperCase()
                   : (staffUser.fname?.charAt(0) || 'S').toUpperCase()
@@ -263,10 +263,10 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                             e.stopPropagation();
                             setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
                           }}
-                            className={cn(
-                              'flex-shrink-0 p-2 rounded-lg text-inherit hover:bg-sky-100/80 transition-colors',
-                              isActive && 'text-white'
-                            )}
+                          className={cn(
+                            'flex-shrink-0 p-2 rounded-lg text-inherit hover:bg-sky-100/80 transition-colors',
+                            isActive && 'text-white'
+                          )}
                           aria-expanded={open}
                           aria-label={open ? 'ปิดเมนูย่อย' : 'เปิดเมนูย่อย'}
                         >

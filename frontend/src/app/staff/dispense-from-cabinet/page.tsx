@@ -22,6 +22,8 @@ export default function DispenseFromCabinetPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [dispensedList, setDispensedList] = useState<DispensedItem[]>([]);
   const [staffDepartmentId, setStaffDepartmentId] = useState<string>('');
+  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
+  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState<FilterState>({
@@ -40,13 +42,15 @@ export default function DispenseFromCabinetPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  // โหลด department_id จาก localStorage
+  // โหลด staff_user จาก localStorage: department_id และ role (warehouse = เลือกแผนกได้)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const raw = localStorage.getItem('staff_user');
       if (raw) {
         const staffUser = JSON.parse(raw.trim());
+        const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
+        if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
         if (staffUser?.department_id) {
           const deptId = String(staffUser.department_id);
           setStaffDepartmentId(deptId);
@@ -215,7 +219,7 @@ export default function DispenseFromCabinetPage() {
           onClear={handleClearSearch}
           onRefresh={() => fetchDispensedList(currentPage)}
           loading={loadingList}
-          departmentDisabled={!!staffDepartmentId}
+          departmentDisabled={!!staffDepartmentId && !canSelectDepartment}
         />
 
         {/* Dispensed Items Table */}
