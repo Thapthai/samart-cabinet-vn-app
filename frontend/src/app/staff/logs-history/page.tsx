@@ -28,16 +28,14 @@ export default function LogsPage() {
   };
 
   const [formFilters, setFormFilters] = useState({
-    usage_id: '',
-    method: '',
-    status: '',
+    patient_hn: '',
+    en: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
   });
   const [activeFilters, setActiveFilters] = useState({
-    usage_id: '',
-    method: '',
-    status: '',
+    patient_hn: '',
+    en: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
   });
@@ -46,12 +44,11 @@ export default function LogsPage() {
     try {
       setLoading(true);
       const f = customFilters ?? activeFilters;
-      const params: any = { page: page ?? currentPage, limit };
-      if (f.usage_id?.trim()) params.usage_id = parseInt(f.usage_id, 10);
-      if (f.method?.trim()) params.method = f.method;
-      if (f.status?.trim()) params.status = f.status;
+      const params: Record<string, string | number> = { page: page ?? currentPage, limit };
       if (f.startDate) params.startDate = f.startDate;
       if (f.endDate) params.endDate = f.endDate;
+      if (f.patient_hn?.trim()) params.patient_hn = f.patient_hn.trim();
+      if (f.en?.trim()) params.en = f.en.trim();
 
       const res = await staffMedicalSuppliesApi.getLogs(params);
       const data = res?.data ?? [];
@@ -79,20 +76,20 @@ export default function LogsPage() {
   };
 
   const handleReset = () => {
-    const reset = { usage_id: '', method: '', status: '', startDate: getTodayDate(), endDate: getTodayDate() };
+    const reset = { patient_hn: '', en: '', startDate: getTodayDate(), endDate: getTodayDate() };
     setFormFilters(reset);
     setActiveFilters(reset);
     setCurrentPage(1);
   };
 
-  const METHOD_OPTIONS = [
-    { value: '', label: 'ทั้งหมด' },
-    { value: 'GET', label: 'QUERY (อ่าน)' },
-    { value: 'POST', label: 'CREATE (สร้าง)' },
-    { value: 'PUT', label: 'UPDATE (แก้ไข)' },
-    { value: 'DELETE', label: 'DELETE (ลบ)' },
-    { value: 'OTHER', label: 'อื่นๆ' },
-  ];
+  const getHnEnFromAction = (action: any): string => {
+    if (!action || typeof action !== 'object') return '-';
+    const a = action as Record<string, unknown>;
+    const hn = typeof a.patient_hn === 'string' ? a.patient_hn : '';
+    const enVal = typeof a.en === 'string' ? a.en : '';
+    if (!hn && !enVal) return '-';
+    return [hn, enVal].filter(Boolean).join(' / ');
+  };
 
   const getMethodFromAction = (action: any): string => {
     if (!action || typeof action !== 'object') return '-';
@@ -198,43 +195,27 @@ export default function LogsPage() {
         <Card>
           <CardHeader>
             <CardTitle>ตัวกรอง</CardTitle>
-            <CardDescription>กรองตาม Usage ID, ประเภท (CREATE / QUERY), สถานะ (SUCCESS / ERROR) หรือช่วงวันที่</CardDescription>
+            <CardDescription>กรองตามเลข HN, EN หรือช่วงวันที่</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
-                <Label>Usage ID</Label>
+                <Label>HN</Label>
                 <Input
-                  type="number"
-                  placeholder="เช่น 123"
-                  value={formFilters.usage_id}
-                  onChange={(e) => setFormFilters((p) => ({ ...p, usage_id: e.target.value }))}
+                  placeholder="เลข HN"
+                  value={formFilters.patient_hn}
+                  onChange={(e) => setFormFilters((p) => ({ ...p, patient_hn: e.target.value }))}
                   className="mt-1"
                 />
               </div>
               <div>
-                <Label>ประเภท (CREATE / QUERY)</Label>
-                <select
-                  value={formFilters.method}
-                  onChange={(e) => setFormFilters((p) => ({ ...p, method: e.target.value }))}
-                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
-                >
-                  {METHOD_OPTIONS.map((opt) => (
-                    <option key={opt.value || 'all'} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label>สถานะ</Label>
-                <select
-                  value={formFilters.status}
-                  onChange={(e) => setFormFilters((p) => ({ ...p, status: e.target.value }))}
-                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
-                >
-                  <option value="">ทั้งหมด</option>
-                  <option value="SUCCESS">SUCCESS</option>
-                  <option value="ERROR">ERROR</option>
-                </select>
+                <Label>EN</Label>
+                <Input
+                  placeholder="เลข EN"
+                  value={formFilters.en}
+                  onChange={(e) => setFormFilters((p) => ({ ...p, en: e.target.value }))}
+                  className="mt-1"
+                />
               </div>
               <div>
                 <Label>วันที่เริ่ม</Label>
@@ -285,9 +266,8 @@ export default function LogsPage() {
                 <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[60px]">ID</TableHead>
                       <TableHead className="w-[180px]">วันเวลา</TableHead>
-                      <TableHead className="w-[100px]">Usage ID</TableHead>
+                      <TableHead className="w-[140px]">เลข HN/EN</TableHead>
                       <TableHead className="w-[200px]">ประเภท (CREATE / QUERY / UPDATE)</TableHead>
                       <TableHead className="w-[100px]">สถานะ</TableHead>
                       <TableHead className="min-w-[300px]">รายละเอียด</TableHead>
@@ -296,12 +276,11 @@ export default function LogsPage() {
                   <TableBody>
                     {logs.map((row) => (
                       <TableRow key={row.id}>
-                        <TableCell className="font-mono text-sm w-[60px]">{row.id}</TableCell>
                         <TableCell className="text-sm whitespace-nowrap w-[180px]">
                           {formatDate(row.created_at)}
                         </TableCell>
-                        <TableCell className="font-mono text-sm w-[100px]">
-                          {row.usage_id ?? '-'}
+                        <TableCell className="font-mono text-sm w-[140px]">
+                          {getHnEnFromAction(row.action)}
                         </TableCell>
                         <TableCell className="text-sm w-[200px]">
                           {getMethodBadge(row.action)}

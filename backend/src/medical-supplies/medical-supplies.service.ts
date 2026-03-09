@@ -436,6 +436,8 @@ export class MedicalSuppliesService {
                 type: 'CREATE',
                 status: 'ERROR',
                 action: 'create_medical_supply_usage',
+                patient_hn: data.HN || data.patient_hn || '',
+                en: data.EN || '',
                 error_message: `Invalid ItemCodes found: ${validation.invalid.join(', ')}`,
                 invalid_item_codes: validation.invalid,
                 input_data: data,
@@ -661,6 +663,8 @@ export class MedicalSuppliesService {
             type: 'CREATE',
             status: 'ERROR',
             action: 'create_medical_supply_usage',
+            patient_hn: data.HN || data.patient_hn || '',
+            en: data.EN || '',
             error_message: `Invalid ItemCodes found: ${validation.invalid.join(', ')}`,
             invalid_item_codes: validation.invalid,
             input_data: data,
@@ -752,7 +756,34 @@ export class MedicalSuppliesService {
         },
       });
 
-      // Create success log
+      // Create success log (เก็บ raw payload ที่ส่งมาไว้ใน input_payload)
+      const inputPayload = (() => {
+        try {
+          return JSON.parse(JSON.stringify({
+            EN: data.EN,
+            HN: data.HN,
+            FirstName: data.FirstName,
+            Lastname: data.Lastname,
+            Hospital: data.Hospital,
+            Order: data.Order,
+            DateBillPrinted: data.DateBillPrinted,
+            TimeBillPrinted: data.TimeBillPrinted,
+            supplies: data.supplies,
+            usage_datetime: data.usage_datetime,
+            usage_type: data.usage_type,
+            purpose: data.purpose,
+            department_code: data.department_code,
+            recorded_by_user_id: data.recorded_by_user_id,
+            billing_status: data.billing_status,
+            billing_subtotal: data.billing_subtotal,
+            billing_tax: data.billing_tax,
+            billing_total: data.billing_total,
+            billing_currency: data.billing_currency,
+          }));
+        } catch {
+          return { _note: 'payload serialize skipped' };
+        }
+      })();
       await this.createLog(usage.id, {
         type: 'CREATE',
         status: 'SUCCESS',
@@ -766,6 +797,7 @@ export class MedicalSuppliesService {
         discontinue_items_count: discontinueItems.length,
         supplies_count: legacySupplies.length,
         total_amount: data.billing_total,
+        input_payload: inputPayload,
       });
 
       return usage as unknown as MedicalSupplyUsageResponse;
@@ -1109,17 +1141,17 @@ export class MedicalSuppliesService {
         return result;
       }));
 
-      // Create query log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'findAll',
-        filters: where,
-        results_count: dataWithPending.length,
-        total: total,
-        page: page,
-        limit: limit,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'findAll',
+      //   filters: where,
+      //   results_count: dataWithPending.length,
+      //   total: total,
+      //   page: page,
+      //   limit: limit,
+      // });
 
       return {
         data: dataWithPending as unknown as MedicalSupplyUsageResponse[],
@@ -1129,15 +1161,15 @@ export class MedicalSuppliesService {
         lastPage: Math.ceil(total / limit),
       };
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'findAll',
-        filters: query,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'findAll',
+      //   filters: query,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -1165,31 +1197,30 @@ export class MedicalSuppliesService {
         })),
       };
 
-      // Create query log
-      await this.createLog(usage.id, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'findOne',
-        usage_id: id,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(usage.id, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'findOne',
+      //   usage_id: id,
+      // });
 
       return usageWithPending as unknown as MedicalSupplyUsageResponse;
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'findOne',
-        usage_id: id,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'findOne',
+      //   usage_id: id,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
 
-  // Get Logs (MedicalSupplyUsageLog) with pagination and filters
-  // action JSON shape: { "type": "CREATE" | "QUERY" | "UPDATE" | "UPDATE_PRINT_INFO" | "DELETE", ... }
+  // Get Logs (MedicalSupplyUsageLog) with pagination and filters (HN/EN from action JSON)
   async findAllLogs(query: GetMedicalSupplyUsageLogsQueryDto): Promise<{
     data: Array<{ id: number; usage_id: number | null; action: any; created_at: Date }>;
     total: number;
@@ -1201,101 +1232,50 @@ export class MedicalSuppliesService {
     const limit = Math.min(100, Math.max(1, query.limit || 20));
     const skip = (page - 1) * limit;
 
-    const method = (query as any).method?.toString?.()?.trim?.()?.toUpperCase?.();
-    const typeFilter: string[] = []; // action.type values to allow (from method: GET->QUERY, POST->CREATE, etc.)
-    if (method === 'GET') typeFilter.push('QUERY');
-    else if (method === 'POST') typeFilter.push('CREATE');
-    else if (method === 'PUT') typeFilter.push('UPDATE', 'UPDATE_PRINT_INFO');
-    else if (method === 'DELETE') typeFilter.push('DELETE');
-    else if (method === 'OTHER') typeFilter.push(''); // will use NOT IN known types
-
     const table = 'app_microservice_medical_supply_usages_logs';
-    const hasTypeFilter = typeFilter.length > 0 && (method === 'OTHER' || typeFilter.some((t) => t.length > 0));
-    const statusVal = (query as any).status?.toString?.()?.trim?.()?.toUpperCase?.();
-    const hasStatusFilter = statusVal === 'SUCCESS' || statusVal === 'ERROR';
+    const conditions: string[] = ['1=1'];
+    const params: (string | number | Date)[] = [];
 
-    if (hasTypeFilter || hasStatusFilter) {
-      // Use raw SQL so JSON filter on action.type / action.status works reliably in MySQL
-      const conditions: string[] = ['1=1'];
-      const params: (string | number | Date)[] = [];
-
-      if (query.usage_id != null) {
-        conditions.push(`usage_id = ?`);
-        params.push(query.usage_id);
-      }
-      if (query.startDate) {
-        conditions.push(`created_at >= ?`);
-        params.push(new Date(query.startDate + 'T00:00:00.000Z'));
-      }
-      if (query.endDate) {
-        conditions.push(`created_at <= ?`);
-        params.push(new Date(query.endDate + 'T23:59:59.999Z'));
-      }
-
-      if (hasTypeFilter) {
-        if (method === 'OTHER') {
-          conditions.push(`(JSON_UNQUOTE(JSON_EXTRACT(action, '$.type')) NOT IN ('QUERY','CREATE','UPDATE','UPDATE_PRINT_INFO','DELETE') OR JSON_EXTRACT(action, '$.type') IS NULL)`);
-        } else {
-          const placeholders = typeFilter.map(() => '?').join(',');
-          conditions.push(`JSON_UNQUOTE(JSON_EXTRACT(action, '$.type')) IN (${placeholders})`);
-          params.push(...typeFilter);
-        }
-      }
-
-      if (hasStatusFilter) {
-        conditions.push(`JSON_UNQUOTE(JSON_EXTRACT(action, '$.status')) = ?`);
-        params.push(statusVal);
-      }
-
-      const whereSql = conditions.join(' AND ');
-      const countResult = await this.prisma.$queryRawUnsafe<[{ cnt: bigint }]>(
-        `SELECT COUNT(*) as cnt FROM \`${table}\` WHERE ${whereSql}`,
-        ...params,
-      );
-      const total = Number(countResult[0]?.cnt ?? 0);
-      const rows = await this.prisma.$queryRawUnsafe<any[]>(
-        `SELECT id, usage_id, action, created_at FROM \`${table}\` WHERE ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-        ...params,
-        limit,
-        skip,
-      );
-      const data = rows.map((r) => ({
-        id: r.id,
-        usage_id: r.usage_id,
-        action: typeof r.action === 'string' ? JSON.parse(r.action) : r.action,
-        created_at: r.created_at,
-      }));
-
-      return {
-        data,
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      };
+    if (query.startDate) {
+      conditions.push(`created_at >= ?`);
+      params.push(new Date(query.startDate + 'T00:00:00.000Z'));
+    }
+    if (query.endDate) {
+      conditions.push(`created_at <= ?`);
+      params.push(new Date(query.endDate + 'T23:59:59.999Z'));
+    }
+    const hnTrim = query.patient_hn?.trim();
+    if (hnTrim) {
+      conditions.push(`JSON_UNQUOTE(JSON_EXTRACT(action, '$.patient_hn')) = ?`);
+      params.push(hnTrim);
+    }
+    const enTrim = query.en?.trim();
+    if (enTrim) {
+      conditions.push(`JSON_UNQUOTE(JSON_EXTRACT(action, '$.en')) = ?`);
+      params.push(enTrim);
     }
 
-    // No type filter: use Prisma findMany
-    const where: any = {};
-    if (query.usage_id != null) where.usage_id = query.usage_id;
-    if (query.startDate || query.endDate) {
-      where.created_at = {};
-      if (query.startDate) where.created_at.gte = new Date(query.startDate + 'T00:00:00.000Z');
-      if (query.endDate) where.created_at.lte = new Date(query.endDate + 'T23:59:59.999Z');
-    }
-
-    const [logs, total] = await Promise.all([
-      this.prisma.medicalSupplyUsageLog.findMany({
-        where,
-        orderBy: { created_at: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.medicalSupplyUsageLog.count({ where }),
-    ]);
+    const whereSql = conditions.join(' AND ');
+    const countResult = await this.prisma.$queryRawUnsafe<[{ cnt: bigint }]>(
+      `SELECT COUNT(*) as cnt FROM \`${table}\` WHERE ${whereSql}`,
+      ...params,
+    );
+    const total = Number(countResult[0]?.cnt ?? 0);
+    const rows = await this.prisma.$queryRawUnsafe<any[]>(
+      `SELECT id, usage_id, action, created_at FROM \`${table}\` WHERE ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      ...params,
+      limit,
+      skip,
+    );
+    const data = rows.map((r) => ({
+      id: r.id,
+      usage_id: r.usage_id,
+      action: typeof r.action === 'string' ? JSON.parse(r.action) : r.action,
+      created_at: r.created_at,
+    }));
 
     return {
-      data: logs,
+      data,
       total,
       page,
       limit,
@@ -1318,26 +1298,26 @@ export class MedicalSuppliesService {
         },
       });
 
-      // Create query log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'findByHN',
-        patient_hn: hn,
-        results_count: usages.length,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'findByHN',
+      //   patient_hn: hn,
+      //   results_count: usages.length,
+      // });
 
       return usages as unknown as MedicalSupplyUsageResponse[];
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'findByHN',
-        patient_hn: hn,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'findByHN',
+      //   patient_hn: hn,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -1728,26 +1708,26 @@ export class MedicalSuppliesService {
         },
       });
 
-      // Create query log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'findByDepartment',
-        department_code: departmentCode,
-        results_count: usages.length,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'findByDepartment',
+      //   department_code: departmentCode,
+      //   results_count: usages.length,
+      // });
 
       return usages as unknown as MedicalSupplyUsageResponse[];
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'findByDepartment',
-        department_code: departmentCode,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'findByDepartment',
+      //   department_code: departmentCode,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -1773,24 +1753,24 @@ export class MedicalSuppliesService {
         by_usage_type: totalByType,
       };
 
-      // Create query log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getStatistics',
-        stats: stats,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getStatistics',
+      //   stats: stats,
+      // });
 
       return stats;
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getStatistics',
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getStatistics',
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -1869,25 +1849,25 @@ export class MedicalSuppliesService {
         qty_pending,
       };
 
-      // Create log
-      await this.createLog(item.medical_supply_usage_id, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getSupplyItemById',
-        item_id: itemId,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(item.medical_supply_usage_id, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getSupplyItemById',
+      //   item_id: itemId,
+      // });
 
       return result;
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getSupplyItemById',
-        item_id: itemId,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getSupplyItemById',
+      //   item_id: itemId,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -1908,26 +1888,26 @@ export class MedicalSuppliesService {
         qty_pending: (item.qty || 0) - (item.qty_used_with_patient || 0) - (item.qty_returned_to_cabinet || 0),
       }));
 
-      // Create log
-      await this.createLog(usageId, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getSupplyItemsByUsageId',
-        usage_id: usageId,
-        items_count: items.length,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(usageId, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getSupplyItemsByUsageId',
+      //   usage_id: usageId,
+      //   items_count: items.length,
+      // });
 
       return itemsWithPending;
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getSupplyItemsByUsageId',
-        usage_id: usageId,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getSupplyItemsByUsageId',
+      //   usage_id: usageId,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -2180,15 +2160,15 @@ export class MedicalSuppliesService {
         qty_pending: (item.qty || 0) - (item.qty_used_with_patient || 0) - (item.qty_returned_to_cabinet || 0),
       }));
 
-      // Create log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getPendingItems',
-        filters: query,
-        results_count: data.length,
-        total: total,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getPendingItems',
+      //   filters: query,
+      //   results_count: data.length,
+      //   total: total,
+      // });
 
       return {
         data: dataWithPending,
@@ -2197,15 +2177,15 @@ export class MedicalSuppliesService {
         limit,
       };
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getPendingItems',
-        filters: query,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getPendingItems',
+      //   filters: query,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -2372,15 +2352,15 @@ export class MedicalSuppliesService {
         };
       }));
 
-      // Create log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getReturnHistory',
-        filters: query,
-        results_count: data.length,
-        total: total,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getReturnHistory',
+      //   filters: query,
+      //   results_count: data.length,
+      //   total: total,
+      // });
 
       return {
         data,
@@ -2389,15 +2369,15 @@ export class MedicalSuppliesService {
         limit,
       };
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getReturnHistory',
-        filters: query,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getReturnHistory',
+      //   filters: query,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -2471,26 +2451,26 @@ export class MedicalSuppliesService {
         by_return_reason: returnReasonCounts,
       };
 
-      // Create log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getQuantityStatistics',
-        department_code: departmentCode,
-        stats: stats,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getQuantityStatistics',
+      //   department_code: departmentCode,
+      //   stats: stats,
+      // });
 
       return stats;
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getQuantityStatistics',
-        department_code: departmentCode,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getQuantityStatistics',
+      //   department_code: departmentCode,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -2613,14 +2593,14 @@ export class MedicalSuppliesService {
 
       const totalPages = Math.ceil(totalCount / limit);
 
-      // Create success log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getDispensedItems',
-        filters: filters || {},
-        result_count: result.length,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getDispensedItems',
+      //   filters: filters || {},
+      //   result_count: result.length,
+      // });
 
       return {
         success: true,
@@ -2632,15 +2612,15 @@ export class MedicalSuppliesService {
         filters: filters || {},
       };
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getDispensedItems',
-        filters: filters || {},
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getDispensedItems',
+      //   filters: filters || {},
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -2764,14 +2744,14 @@ export class MedicalSuppliesService {
 
       const totalPages = Math.ceil(totalCount / limit);
 
-      // Create success log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getReturnedItems',
-        filters: filters || {},
-        result_count: result.length,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getReturnedItems',
+      //   filters: filters || {},
+      //   result_count: result.length,
+      // });
 
       return {
         success: true,
@@ -2783,15 +2763,15 @@ export class MedicalSuppliesService {
         filters: filters || {},
       };
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getReturnedItems',
-        filters: filters || {},
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getReturnedItems',
+      //   filters: filters || {},
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -3574,15 +3554,15 @@ export class MedicalSuppliesService {
 
 
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'compareDispensedVsUsage',
-        filters: filters || {},
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'compareDispensedVsUsage',
+      //   filters: filters || {},
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -3991,14 +3971,14 @@ export class MedicalSuppliesService {
 
       const totalPages = Math.ceil(totalCount / limit);
 
-      // Create success log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getItemStocksForReturnToCabinet',
-        filters: filters || {},
-        result_count: result.length,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getItemStocksForReturnToCabinet',
+      //   filters: filters || {},
+      //   result_count: result.length,
+      // });
 
       return {
         success: true,
@@ -4010,15 +3990,15 @@ export class MedicalSuppliesService {
         filters: filters || {},
       };
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getItemStocksForReturnToCabinet',
-        filters: filters || {},
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getItemStocksForReturnToCabinet',
+      //   filters: filters || {},
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -4249,14 +4229,14 @@ export class MedicalSuppliesService {
 
       const totalPages = Math.ceil(totalCount / limit);
 
-      // Create success log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'SUCCESS',
-        action: 'getItemStocksForDispenseFromCabinet',
-        filters: filters || {},
-        result_count: result.length,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'SUCCESS',
+      //   action: 'getItemStocksForDispenseFromCabinet',
+      //   filters: filters || {},
+      //   result_count: result.length,
+      // });
 
       return {
         success: true,
@@ -4268,15 +4248,15 @@ export class MedicalSuppliesService {
         filters: filters || {},
       };
     } catch (error) {
-      // Create error log
-      await this.createLog(null, {
-        type: 'QUERY',
-        status: 'ERROR',
-        action: 'getItemStocksForDispenseFromCabinet',
-        filters: filters || {},
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
+      // await this.createLog(null, {
+      //   type: 'QUERY',
+      //   status: 'ERROR',
+      //   action: 'getItemStocksForDispenseFromCabinet',
+      //   filters: filters || {},
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }

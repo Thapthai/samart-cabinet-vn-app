@@ -351,23 +351,12 @@ export class GetMedicalSupplyUsagesQueryDto {
 // Query DTO for Medical Supply Usage Logs
 export class GetMedicalSupplyUsageLogsQueryDto {
   @IsOptional()
-  @IsInt()
-  @Type(() => Number)
-  usage_id?: number;
+  @IsString()
+  patient_hn?: string;
 
   @IsOptional()
   @IsString()
-  action?: string;
-
-  /** Filter by method category: GET (QUERY), POST (CREATE), PUT (UPDATE), DELETE, OTHER */
-  @IsOptional()
-  @IsString()
-  method?: string;
-
-  /** Filter by action.status: SUCCESS, ERROR */
-  @IsOptional()
-  @IsString()
-  status?: string;
+  en?: string;
 
   @IsOptional()
   @IsString()

@@ -325,10 +325,8 @@ export const medicalSuppliesApi = {
   getLogs: async (query?: {
     page?: number;
     limit?: number;
-    usage_id?: number;
-    action?: string;
-    method?: string;
-    status?: string;
+    patient_hn?: string;
+    en?: string;
     startDate?: string;
     endDate?: string;
   }): Promise<{ success: boolean; data: any[]; total: number; page: number; limit: number; totalPages: number }> => {
