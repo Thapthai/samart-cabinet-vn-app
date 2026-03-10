@@ -2349,7 +2349,7 @@ export class ReportServiceService {
             AND sui.order_item_code IS NOT NULL
             AND sui.order_item_code != ''
             AND DATE(sui.created_at) = CURDATE()
-            AND (sui.order_item_status IS NULL OR sui.order_item_status NOT IN ('Discontinue', 'discontinue', 'Discontinued', 'discontinued'))
+            AND (sui.order_item_status IS NULL OR sui.order_item_status != 'Discontinue')
             ${deptCondition}
           GROUP BY sui.order_item_code
         `;
@@ -2459,10 +2459,10 @@ export class ReportServiceService {
       let totalRefillQty = 0;
       for (const row of rows) {
         const balanceQty = Number(row.balance_qty ?? 0);
-        // Min/Max จาก CabinetItemSetting เท่านั้น (เหมือนหน้าเว็บ)
+        // Min/Max: ใช้ CabinetItemSetting เมื่อมี cabinet; ไม่มีแล้วใช้ค่าจาก Item (row) ให้ตรงกับหน้าเว็บ
         const override = overrideMap.get(row.item_code);
-        const stockMin = override?.stock_min ?? null;
-        const stockMax = override?.stock_max ?? 0;
+        const stockMin = override?.stock_min ?? row.stock_min ?? null;
+        const stockMax = override?.stock_max ?? row.stock_max ?? 0;
         const qtyInUse = qtyInUseMap.get(row.item_code) ?? 0;
         const damagedQty =
           params?.cabinetId != null || params?.cabinetCode || params?.departmentId != null
@@ -2483,18 +2483,14 @@ export class ReportServiceService {
         const X = M - A; // จำนวนที่ต้องเติมในตู้
         const Y = B + C; // จำนวนที่ถูกใช้งาน + ชำรุด
 
-        // ถ้า X < Y แสดงว่าต้องเติมน้อยกว่าที่ใช้ + ชำรุด ให้เติม X
-        // ถ้า X > Y แสดงว่าต้องเติมมากกว่า ให้เติม X - Y
-        // ถ้า X == Y ให้เติม Y
+        // สมการให้ตรงกับหน้าเว็บ (item.service): Y = B+C; ถ้า X < Y ให้เติม X; ถ้า X > Y ให้เติม X-Y; ไม่ติดลบ
         let refillQty = Y;
         if (X < Y) {
           refillQty = X;
+        } else if (X > Y) {
+          refillQty = X - Y;
         }
-        else if (X > Y && Y == 0) {
-          // refillQty = X - Y;
-          refillQty = Y;
-
-        }
+        refillQty = Math.max(0, refillQty);
 
         // สมการที่ 3
         // let refillQty = stockMax - balanceQty;
