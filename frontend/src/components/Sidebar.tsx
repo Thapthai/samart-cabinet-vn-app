@@ -248,7 +248,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
         className={cn(
           "fixed top-0 left-0 z-40 h-screen bg-gradient-to-b from-sky-50 via-blue-50/80 to-indigo-50 text-slate-800 shadow-xl overflow-x-hidden border-r border-sky-200/80",
           "transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-          isCollapsed ? "lg:w-16" : "w-64 lg:w-64",
+          isCollapsed ? "lg:w-16" : "w-72 lg:w-72",
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
@@ -324,7 +324,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                           setIsMobileOpen(false);
                         }}
                         className={cn(
-                          "flex items-center flex-1 min-w-0 px-3 py-3 text-sm font-medium rounded-xl text-left cursor-pointer",
+                          "flex items-center flex-1 min-w-0 px-3 py-3 text-lg font-medium rounded-xl text-left cursor-pointer",
                           isActive ? "text-white" : "text-inherit",
                           isCollapsed && "lg:justify-center lg:px-2"
                         )}
@@ -337,7 +337,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                         href={item.href}
                         onClick={() => setIsMobileOpen(false)}
                         className={cn(
-                          "flex items-center flex-1 min-w-0 px-3 py-3 text-sm font-medium rounded-xl",
+                          "flex items-center flex-1 min-w-0 px-3 py-3 text-lg font-medium rounded-xl",
                           isActive ? "text-white" : "text-inherit",
                           isCollapsed && "lg:justify-center lg:px-2"
                         )}
@@ -387,7 +387,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                                 <Link
                                   href={sub.href}
                                   onClick={() => setIsMobileOpen(false)}
-                                  className="flex flex-1 min-w-0 items-center px-3 py-2 text-sm rounded-lg text-inherit"
+                                  className="flex flex-1 min-w-0 items-center px-3 py-2 text-lg rounded-lg text-inherit"
                                 >
                                   {SubIcon ? <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />}
                                   <span className="truncate">{sub.name}</span>
@@ -417,7 +417,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                                         href={inner.href}
                                         onClick={() => setIsMobileOpen(false)}
                                         className={cn(
-                                          "flex items-center px-3 py-2 text-sm rounded-lg",
+                                          "flex items-center px-3 py-2 text-lg rounded-lg",
                                           innerActive ? "bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium" : "text-slate-600 hover:bg-sky-50 hover:text-slate-800"
                                         )}
                                       >
@@ -438,7 +438,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                             href={sub.href}
                             onClick={() => setIsMobileOpen(false)}
                             className={cn(
-                              "flex items-center px-3 py-2 text-sm rounded-lg",
+                              "flex items-center px-3 py-2 text-lg rounded-lg",
                               subActive ? "bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium" : "text-slate-600 hover:bg-sky-50 hover:text-slate-800"
                             )}
                           >
@@ -457,7 +457,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
           <div className={cn("p-4 border-t border-sky-200/80 transition-all duration-300", isCollapsed && "lg:px-2")}>
             <div className={cn("flex items-center gap-2 text-slate-500 overflow-hidden", isCollapsed && "lg:justify-center")}>
               <img src={ASSETS.LOGO} alt="POSE" width={20} height={20} className="object-contain flex-shrink-0 opacity-90" />
-              <span className={cn("text-[10px] font-medium whitespace-nowrap transition-opacity duration-200", isCollapsed && "lg:opacity-0 lg:w-0 lg:min-w-0 lg:overflow-hidden")}>© 2026 POSE Intelligence</span>
+              <span className={cn("text-sm font-medium whitespace-nowrap transition-opacity duration-200", isCollapsed && "lg:opacity-0 lg:w-0 lg:min-w-0 lg:overflow-hidden")}>© 2026 POSE Intelligence</span>
             </div>
           </div>
         </div>

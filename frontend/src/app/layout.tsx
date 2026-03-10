@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Kanit } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import { Toaster } from "@/components/ui/sonner";
 
-const inter = Inter({ subsets: ["latin"] });
+const kanit = Kanit({
+  weight: ["300", "400", "500", "600", "700"],
+  subsets: ["latin", "thai"],
+  display: "swap",
+  variable: "--font-kanit",
+});
 
 export const metadata: Metadata = {
   title: "ระบบจัดการเวชภัณฑ์",
@@ -17,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
+    <html lang="th" suppressHydrationWarning className={kanit.variable}>
+      <body className={kanit.className} suppressHydrationWarning>
         <SessionProvider>
           {children}
           <Toaster />

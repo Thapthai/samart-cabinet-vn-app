@@ -153,8 +153,8 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-bold truncate text-slate-800">Staff Portal</h2>
-                  <p className="text-xs text-slate-500 truncate">Smart Cabinet</p>
+                  <h2 className="text-xl font-bold truncate text-slate-800">Staff Portal</h2>
+                  <p className="text-base text-slate-500 truncate">Smart Cabinet</p>
                 </div>
               </Link>
             )}
@@ -188,7 +188,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
           {/* User Avatar when collapsed */}
           {staffUser && isCollapsed && (
             <div className="px-2 py-4 border-b border-sky-200/80 flex justify-center">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-blue-400 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-sky-300/50">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-blue-400 flex items-center justify-center text-white font-bold text-lg shadow-md ring-2 ring-sky-300/50">
                 {isAdmin
                   ? (staffUser.name?.charAt(0) || staffUser.email?.charAt(0) || 'A').toUpperCase()
                   : (staffUser.fname?.charAt(0) || 'S').toUpperCase()
@@ -205,7 +205,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                 href="/admin/items"
                 onClick={() => setIsMobileOpen(false)}
                 className={cn(
-                  'group relative flex items-center w-full px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200 mb-4',
+                  'group relative flex items-center w-full px-3 py-3 text-lg font-medium rounded-xl transition-all duration-200 mb-4',
                   'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30 hover:from-sky-500 hover:to-blue-500',
                   isCollapsed && 'lg:justify-center lg:px-2'
                 )}
@@ -246,7 +246,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                             setIsMobileOpen(false);
                           }}
                           className={cn(
-                            'flex flex-1 min-w-0 items-center px-3 py-3 text-sm font-medium rounded-xl text-inherit text-left cursor-pointer',
+                            'flex flex-1 min-w-0 items-center px-3 py-3 text-lg font-medium rounded-xl text-inherit text-left cursor-pointer',
                             isActive && 'text-white',
                             isCollapsed && 'lg:justify-center lg:px-2'
                           )}
@@ -263,7 +263,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                           href={item.href}
                           onClick={() => setIsMobileOpen(false)}
                           className={cn(
-                            'flex flex-1 min-w-0 items-center px-3 py-3 text-sm font-medium rounded-xl text-inherit',
+                            'flex flex-1 min-w-0 items-center px-3 py-3 text-lg font-medium rounded-xl text-inherit',
                             isActive && 'text-white',
                             isCollapsed && 'lg:justify-center lg:px-2'
                           )}
@@ -308,7 +308,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                               href={subItem.href}
                               onClick={() => setIsMobileOpen(false)}
                               className={cn(
-                                'flex items-center px-3 py-2 text-sm rounded-lg transition-all duration-200',
+                                'flex items-center px-3 py-2 text-lg rounded-lg transition-all duration-200',
                                 isSubActive
                                   ? 'bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium'
                                   : 'text-slate-600 hover:bg-sky-50 hover:text-slate-800'
@@ -336,7 +336,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                   setIsMobileOpen(false);
                 }}
                 className={cn(
-                  'w-full justify-start text-slate-600 hover:text-slate-900 hover:bg-red-50',
+                  'w-full justify-start text-lg text-slate-600 hover:text-slate-900 hover:bg-red-50',
                   isCollapsed && 'lg:justify-center lg:px-2'
                 )}
                 title={isCollapsed ? 'ออกจากระบบ' : undefined}

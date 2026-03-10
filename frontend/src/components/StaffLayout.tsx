@@ -187,7 +187,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
       <div className="min-h-screen flex items-center justify-center bg-rose-50/50">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">กำลังโหลด...</p>
+          <p className="mt-4 text-lg text-gray-600">กำลังโหลด...</p>
         </div>
       </div>
     );
@@ -208,7 +208,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
           <div className="h-14 flex items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center flex-1 min-w-0">
               <div className="lg:hidden w-14 flex-shrink-0"></div>
-              <h1 className="text-lg font-semibold text-gray-900">
+              <h1 className="text-2xl font-semibold text-gray-900">
                 {getPageTitle()}
               </h1>
             </div>
@@ -227,7 +227,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs min-w-[50px]"
+                className="h-7 px-2 text-base min-w-[50px]"
                 onClick={handleResetZoom}
                 title={`Reset Zoom: ${zoomLevel}%`}
               >
@@ -252,21 +252,21 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
                     variant="ghost"
                     className="flex items-center space-x-2 h-9 px-2 sm:px-3 hover:bg-pink-50"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-xs shadow-md ring-2 ring-white flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-base shadow-md ring-2 ring-white flex-shrink-0">
                       {isAdmin 
                         ? (staffUser.name?.charAt(0) || staffUser.email?.charAt(0) || 'A').toUpperCase()
                         : staffUser.fname?.charAt(0).toUpperCase()
                       }
                     </div>
                     <div className="hidden sm:block text-left">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-lg font-medium text-gray-900">
                         {isAdmin 
                           ? staffUser.name || staffUser.email
                           : `${staffUser.fname} ${staffUser.lname}`
                         }
-                        {isAdmin && <span className="ml-2 text-xs text-blue-600 font-bold">(Admin)</span>}
+                        {isAdmin && <span className="ml-2 text-base text-blue-600 font-bold">(Admin)</span>}
                       </div>
-                      <div className="text-xs text-gray-500 truncate max-w-[120px]">
+                      <div className="text-base text-gray-500 truncate max-w-[120px]">
                         {staffUser.email}
                       </div>
                     </div>
@@ -276,14 +276,14 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
+                      <p className="text-lg font-medium leading-none">
                         {isAdmin 
                           ? staffUser.name || staffUser.email
                           : `${staffUser.fname} ${staffUser.lname}`
                         }
-                        {isAdmin && <span className="ml-2 text-xs text-blue-600 font-bold">(Admin)</span>}
+                        {isAdmin && <span className="ml-2 text-base text-blue-600 font-bold">(Admin)</span>}
                       </p>
-                      <p className="text-xs leading-none text-muted-foreground">
+                      <p className="text-base leading-none text-muted-foreground">
                         {staffUser.email}
                       </p>
                     </div>
@@ -295,7 +295,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
                         // Next.js automatically handles basePath, so we don't need to include it
                         router.push('/staff/settings');
                       }}
-                      className="w-full flex items-center cursor-pointer"
+                      className="w-full flex items-center cursor-pointer text-lg"
                     >
                       <Settings className="mr-2 h-4 w-4" />
                       <span>ตั้งค่าบัญชี</span>
@@ -305,7 +305,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
                   <DropdownMenuItem
                     onClick={handleLogout}
                     variant="destructive"
-                    className="cursor-pointer"
+                    className="cursor-pointer text-lg"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>ออกจากระบบ</span>

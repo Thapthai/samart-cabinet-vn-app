@@ -36,10 +36,10 @@ export default function AppLayout({ children, fullWidth }: AppLayoutProps) {
     <div className="flex h-screen bg-rose-50/30">
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
       
-      {/* Main Content - ขยายตามขนาด Sidebar */}
+      {/* Main Content - margin-left ให้ตรงกับความกว้าง Sidebar (w-16 เมื่อ collapse, w-72 เมื่อกาง) */}
       <div 
         className={`flex-1 flex flex-col transition-all duration-300 ${
-          isCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+          isCollapsed ? 'lg:ml-16' : 'lg:ml-72'
         }`}
       >
         <Navbar />

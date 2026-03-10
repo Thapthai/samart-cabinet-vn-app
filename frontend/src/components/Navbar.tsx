@@ -87,7 +87,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           {/* Left side - Title (Hidden on mobile with sidebar) */}
           <div className="hidden lg:flex items-center">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-2xl font-semibold text-gray-900">
               ระบบจัดการเวชภัณฑ์
             </h2>
           </div>
@@ -108,7 +108,7 @@ export default function Navbar() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs min-w-[50px]"
+                className="h-7 px-2 text-base min-w-[50px]"
                 onClick={handleResetZoom}
                 title={`Reset Zoom: ${zoomLevel}%`}
               >
@@ -131,14 +131,14 @@ export default function Navbar() {
                     variant="ghost"
                     className="flex items-center space-x-2 h-9 px-2 sm:px-3 hover:bg-pink-50"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-xs shadow-md ring-2 ring-white flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-base shadow-md ring-2 ring-white flex-shrink-0">
                       {(user?.name?.charAt(0) || user?.email?.charAt(0) || 'U').toUpperCase()}
                     </div>
                     <div className="hidden sm:block text-left">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-lg font-medium text-gray-900">
                         {user?.name || user?.email || 'User'}
                       </div>
-                      <div className="text-xs text-gray-500 truncate max-w-[120px]">
+                      <div className="text-base text-gray-500 truncate max-w-[120px]">
                         {user?.email || ''}
                       </div>
                     </div>
@@ -148,23 +148,23 @@ export default function Navbar() {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
+                      <p className="text-lg font-medium leading-none">
                         {user?.name || user?.email || 'User'}
                       </p>
-                      <p className="text-xs leading-none text-muted-foreground">
+                      <p className="text-base leading-none text-muted-foreground">
                         {user?.email || ''}
                       </p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="flex items-center cursor-pointer">
+                    <Link href="/profile" className="flex items-center cursor-pointer text-lg">
                       <Settings className="mr-2 h-4 w-4" />
                       <span>ตั้งค่าบัญชี</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="text-red-600 cursor-pointer">
+                  <DropdownMenuItem onClick={logout} className="text-red-600 cursor-pointer text-lg">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>ออกจากระบบ</span>
                   </DropdownMenuItem>
