@@ -153,8 +153,8 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-bold truncate text-slate-800">Staff Portal</h2>
-                  <p className="text-base text-slate-500 truncate">Smart Cabinet</p>
+                  <h2 className="text-xl font-bold break-words leading-tight text-slate-800">Staff Portal</h2>
+                  <p className="text-base text-slate-500 break-words leading-tight">Smart Cabinet</p>
                 </div>
               </Link>
             )}
@@ -198,20 +198,20 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
           )}
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto overflow-x-hidden scrollbar-sidebar">
+          <nav className="flex-1 pl-2 pr-2 py-6 space-y-2 overflow-y-auto overflow-x-hidden scrollbar-sidebar">
             {/* Admin - Back to Admin Panel Link */}
             {isAdmin && (
               <Link
                 href="/admin/items"
                 onClick={() => setIsMobileOpen(false)}
                 className={cn(
-                  'group relative flex items-center w-full px-3 py-3 text-lg font-medium rounded-xl transition-all duration-200 mb-4',
+                  'group relative flex items-center w-full pl-2 pr-2 py-3 text-lg font-medium rounded-xl transition-all duration-200 mb-4',
                   'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30 hover:from-sky-500 hover:to-blue-500',
                   isCollapsed && 'lg:justify-center lg:px-2'
                 )}
                 title={isCollapsed ? 'กลับไปหน้า Admin' : undefined}
               >
-                <Shield className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-3')} />
+                <Shield className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
                 {!isCollapsed && (
                   <span className="flex-1 font-semibold">กลับไปหน้า Admin</span>
                 )}
@@ -246,7 +246,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                             setIsMobileOpen(false);
                           }}
                           className={cn(
-                            'flex flex-1 min-w-0 items-center px-3 py-3 text-lg font-medium rounded-xl text-inherit text-left cursor-pointer',
+                            'flex flex-1 min-w-0 items-center pl-2 pr-2 py-3 text-lg font-medium rounded-xl text-inherit text-left cursor-pointer',
                             isActive && 'text-white',
                             isCollapsed && 'lg:justify-center lg:px-2'
                           )}
@@ -255,15 +255,15 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                           {isActive && !isCollapsed && (
                             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
                           )}
-                          <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-3')} />
-                          {!isCollapsed && <span className="flex-1 truncate text-left">{item.name}</span>}
+                          <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
+                          {!isCollapsed && <span className="flex-1 min-w-0 break-words leading-tight text-left">{item.name}</span>}
                         </button>
                       ) : (
                         <Link
                           href={item.href}
                           onClick={() => setIsMobileOpen(false)}
                           className={cn(
-                            'flex flex-1 min-w-0 items-center px-3 py-3 text-lg font-medium rounded-xl text-inherit',
+                            'flex flex-1 min-w-0 items-center pl-2 pr-2 py-3 text-lg font-medium rounded-xl text-inherit',
                             isActive && 'text-white',
                             isCollapsed && 'lg:justify-center lg:px-2'
                           )}
@@ -272,8 +272,8 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                           {isActive && !isCollapsed && (
                             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
                           )}
-                          <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-3')} />
-                          {!isCollapsed && <span className="flex-1 truncate text-left">{item.name}</span>}
+                          <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
+                          {!isCollapsed && <span className="flex-1 min-w-0 break-words leading-tight text-left">{item.name}</span>}
                         </Link>
                       )}
                       {hasSubmenu && !isCollapsed && (
@@ -308,14 +308,14 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                               href={subItem.href}
                               onClick={() => setIsMobileOpen(false)}
                               className={cn(
-                                'flex items-center px-3 py-2 text-lg rounded-lg transition-all duration-200',
+                                'flex items-center pl-2 pr-2 py-2 text-lg rounded-lg transition-all duration-200',
                                 isSubActive
                                   ? 'bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium'
                                   : 'text-slate-600 hover:bg-sky-50 hover:text-slate-800'
                               )}
                             >
                               {SubIcon ? <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />}
-                              <span>{subItem.name}</span>
+                              <span className="break-words leading-tight">{subItem.name}</span>
                             </Link>
                           );
                         })}
@@ -341,7 +341,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                 )}
                 title={isCollapsed ? 'ออกจากระบบ' : undefined}
               >
-                <LogOut className={cn('h-5 w-5', isCollapsed ? 'lg:mx-auto' : 'mr-3')} />
+                <LogOut className={cn('h-5 w-5', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
                 {!isCollapsed && <span>ออกจากระบบ</span>}
               </Button>
             )}

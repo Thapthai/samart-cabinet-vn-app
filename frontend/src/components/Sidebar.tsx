@@ -296,7 +296,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
             </button>
           </div>
 
-          <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto overflow-x-hidden scrollbar-sidebar">
+          <nav className="flex-1 pl-2 pr-2 py-6 space-y-2 overflow-y-auto overflow-x-hidden scrollbar-sidebar">
             {mainMenuItems.map((item) => {
               const Icon = item.icon;
               const hasSubmenu = item.submenu?.length;
@@ -329,8 +329,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                           isCollapsed && "lg:justify-center lg:px-2"
                         )}
                       >
-                        <Icon className={cn("h-5 w-5 flex-shrink-0 transition-all duration-200", isActive ? "text-white" : "text-slate-600", isCollapsed ? "lg:mx-auto" : "mr-3")} />
-                        <span className={cn("flex-1 text-left truncate transition-opacity duration-200", isCollapsed && "lg:opacity-0 lg:w-0 lg:min-w-0 lg:overflow-hidden")}>{item.name}</span>
+                        <Icon className={cn("h-5 w-5 flex-shrink-0 transition-all duration-200", isActive ? "text-white" : "text-slate-600", isCollapsed ? "lg:mx-auto" : "mr-2")} />
+                        <span className={cn("flex-1 min-w-0 text-left break-words leading-tight transition-opacity duration-200", isCollapsed && "lg:opacity-0 lg:w-0 lg:min-w-0 lg:overflow-hidden")}>{item.name}</span>
                       </button>
                     ) : (
                       <Link
@@ -342,8 +342,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                           isCollapsed && "lg:justify-center lg:px-2"
                         )}
                       >
-                        <Icon className={cn("h-5 w-5 flex-shrink-0 transition-all duration-200", isActive ? "text-white" : "text-slate-600", isCollapsed ? "lg:mx-auto" : "mr-3")} />
-                        <span className={cn("flex-1 text-left truncate transition-opacity duration-200", isCollapsed && "lg:opacity-0 lg:w-0 lg:min-w-0 lg:overflow-hidden")}>{item.name}</span>
+                        <Icon className={cn("h-5 w-5 flex-shrink-0 transition-all duration-200", isActive ? "text-white" : "text-slate-600", isCollapsed ? "lg:mx-auto" : "mr-2")} />
+                        <span className={cn("flex-1 min-w-0 text-left break-words leading-tight transition-opacity duration-200", isCollapsed && "lg:opacity-0 lg:w-0 lg:min-w-0 lg:overflow-hidden")}>{item.name}</span>
                       </Link>
                     )}
                     {hasSubmenu && !isCollapsed && (
@@ -390,7 +390,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                                   className="flex flex-1 min-w-0 items-center px-3 py-2 text-lg rounded-lg text-inherit"
                                 >
                                   {SubIcon ? <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />}
-                                  <span className="truncate">{sub.name}</span>
+                                  <span className="break-words leading-tight">{sub.name}</span>
                                 </Link>
                                 <button
                                   type="button"
