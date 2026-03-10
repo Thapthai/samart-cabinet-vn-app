@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,7 @@ export default function EditMappingDialog({
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
+  const dialogContentRef = useRef<HTMLDivElement>(null);
 
   // Load initial data when dialog opens (only once per open)
   useEffect(() => {
@@ -125,8 +126,9 @@ export default function EditMappingDialog({
           <DialogTitle>แก้ไขการเชื่อมโยง</DialogTitle>
           <DialogDescription>แก้ไขข้อมูลการเชื่อมโยงตู้ Cabinet กับแผนก</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div ref={dialogContentRef} className="relative overflow-visible grid gap-4 py-4">
           <SearchableSelect
+            portalTargetRef={dialogContentRef}
             label="ตู้ Cabinet"
             placeholder="เลือกตู้"
             value={formData.cabinet_id}
@@ -153,6 +155,7 @@ export default function EditMappingDialog({
           />
 
           <SearchableSelect
+            portalTargetRef={dialogContentRef}
             label="แผนก"
             placeholder="เลือกแผนก"
             value={formData.department_id}

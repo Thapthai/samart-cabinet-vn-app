@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Search, ChevronDown } from "lucide-react";
@@ -24,7 +25,17 @@ interface SearchableSelectProps {
   searchPlaceholder?: string;
   initialDisplay?: { label: string; subLabel?: string }; // For showing current value before options load
   disabled?: boolean;
+  /** ส่ง ref ของ container ใน modal เพื่อให้ dropdown ไปโผล่ด้านใน (กดเลือกได้ไม่ให้ dialog ปิด) */
+  portalTargetRef?: React.RefObject<HTMLElement | null>;
 }
+
+type PositionState = {
+  top?: number;
+  bottom?: number;
+  left: number;
+  width: number;
+  isFixed?: boolean;
+};
 
 export default function SearchableSelect({
   label,
@@ -38,18 +49,73 @@ export default function SearchableSelect({
   searchPlaceholder = "ค้นหา...",
   initialDisplay,
   disabled = false,
+  portalTargetRef,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [position, setPosition] = useState<PositionState | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
   const initialLoadDone = useRef(false);
 
-  // Close dropdown when clicking outside
+  const updatePosition = () => {
+    if (!triggerRef.current) return;
+    const tr = triggerRef.current.getBoundingClientRect();
+    if (portalTargetRef?.current) {
+      const cr = portalTargetRef.current.getBoundingClientRect();
+      setPosition({
+        top: tr.bottom - cr.top + 4,
+        left: tr.left - cr.left,
+        width: tr.width,
+      });
+      return;
+    }
+    const spaceAbove = tr.top;
+    const spaceBelow = window.innerHeight - tr.bottom;
+    const openAbove = spaceAbove >= spaceBelow;
+    const gap = 4;
+    if (openAbove) {
+      setPosition({
+        bottom: window.innerHeight - tr.top + gap,
+        left: tr.left,
+        width: tr.width,
+        isFixed: true,
+      });
+    } else {
+      setPosition({
+        top: tr.bottom + gap,
+        left: tr.left,
+        width: tr.width,
+        isFixed: true,
+      });
+    }
+  };
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setPosition(null);
+      return;
+    }
+    updatePosition();
+    const onScrollOrResize = () => updatePosition();
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [isOpen]);
+
+  // Close dropdown when clicking outside (trigger or portal content)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inTrigger = dropdownRef.current?.contains(target);
+      const inPortal = portalRef.current?.contains(target);
+      if (!inTrigger && !inPortal) {
         setIsOpen(false);
-        setSearchTerm(""); // Clear search when closing
+        setSearchTerm("");
       }
     };
 
@@ -98,21 +164,84 @@ export default function SearchableSelect({
   // Use initialDisplay if value exists but not found in options yet
   const displayValue = selectedOption || (value && initialDisplay ? initialDisplay : null);
 
+  const dropdownContent = position ? (
+    <div
+      ref={portalRef}
+      className="z-[9999] bg-white border border-slate-200 rounded-lg shadow-lg max-h-[300px] overflow-hidden"
+      style={{
+        position: position.isFixed ? "fixed" : "absolute",
+        left: position.left,
+        width: position.width,
+        minWidth: 200,
+        ...(position.isFixed && position.bottom != null
+          ? { bottom: position.bottom }
+          : { top: position.top ?? 0 }),
+      }}
+    >
+      <div className="p-2 border-b border-slate-100 bg-slate-50/50 shrink-0">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder={searchPlaceholder}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-9 pl-8 border-slate-200 bg-white text-sm"
+            autoFocus
+          />
+        </div>
+      </div>
+      <div className="overflow-y-auto max-h-[240px] overscroll-contain">
+        {loading ? (
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+            <span className="ml-2 text-sm text-slate-500">กำลังโหลด...</span>
+          </div>
+        ) : filteredOptions.length === 0 ? (
+          <div className="py-6 text-center text-sm text-slate-500">ไม่พบข้อมูล</div>
+        ) : (
+          filteredOptions.map((option, idx) => (
+            <button
+              key={`opt-${option.value}-${idx}`}
+              type="button"
+              onClick={() => {
+                onValueChange(option.value);
+                setIsOpen(false);
+                setSearchTerm("");
+              }}
+              className={cn(
+                "w-full text-left px-3 py-2.5 text-sm transition-colors border-b border-slate-50 last:border-0",
+                "hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
+                option.value === value && "bg-blue-50 text-blue-700 font-medium"
+              )}
+            >
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium">{option.label || "—"}</span>
+                {option.subLabel != null && option.subLabel !== "" && (
+                  <span className="text-xs text-slate-500">{option.subLabel}</span>
+                )}
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  ) : null;
+
+  const usePortal = !!portalTargetRef;
+  const showInlineDropdown = isOpen && !usePortal;
+
   return (
     <div className="space-y-2" ref={dropdownRef}>
       <Label>
         {label} {required && <span className="text-red-500">*</span>}
       </Label>
-      <div className="relative">
-        {/* Trigger Button */}
+      <div className="relative" ref={triggerRef}>
         <button
           type="button"
           onClick={() => {
             if (disabled) return;
             setIsOpen(!isOpen);
-            if (!isOpen) {
-              setSearchTerm(""); // Reset search when opening
-            }
+            if (!isOpen) setSearchTerm("");
           }}
           disabled={disabled}
           className={cn(
@@ -138,10 +267,14 @@ export default function SearchableSelect({
           <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "transform rotate-180")} />
         </button>
 
-        {/* Dropdown - render with high z-index so it isn't clipped */}
-        {isOpen && (
+        {usePortal && dropdownContent && typeof document !== "undefined" &&
+          (() => {
+            const target = position?.isFixed ? document.body : portalTargetRef?.current;
+            return target ? createPortal(dropdownContent, target) : null;
+          })()}
+
+        {showInlineDropdown && (
           <div className="absolute left-0 right-0 top-full z-[100] mt-1 min-w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-[300px] overflow-hidden">
-            {/* Search Input */}
             <div className="p-2 border-b border-slate-100 bg-slate-50/50 sticky top-0 shrink-0">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -154,8 +287,6 @@ export default function SearchableSelect({
                 />
               </div>
             </div>
-
-            {/* Options List */}
             <div className="overflow-y-auto max-h-[240px] overscroll-contain">
               {loading ? (
                 <div className="flex items-center justify-center py-6">
