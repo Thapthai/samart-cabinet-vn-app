@@ -368,11 +368,14 @@ export class MedicalSuppliesService {
                 type: 'UPDATE',
                 status: 'SUCCESS',
                 action: 'discontinue_item',
+                patient_hn: data.HN || data.patient_hn || '',
+                en: data.EN || '',
                 assession_no: orderItem.AssessionNo,
                 item_code: item.order_item_code,
                 old_status: item.order_item_status,
                 new_status: 'Discontinue',
                 reason: 'ItemStatus updated to Discontinue - all items with same AssessionNo are discontinued',
+                input_data: data,
               });
             }
             // ถ้ามีการอัปเดตเป็น Discontinue จริง (ผ่านเงื่อนไขวันที่) จึง push เพื่อสร้างรายการใหม่; ถ้าเปลี่ยนไม่ได้ก็ไม่สร้างเพิ่ม
@@ -417,11 +420,14 @@ export class MedicalSuppliesService {
             type: 'UPDATE',
             status: 'SUCCESS',
             action: 'update_item_status',
+            patient_hn: existingUsage.patient_hn ?? '',
+            en: existingUsage.en ?? '',
             assession_no: item.assession_no,
             item_code: item.order_item_code,
             old_status: item.order_item_status,
             new_status: newStatus,
             reason: 'ItemStatus updated based on AssessionNo match',
+            input_data: data,
           });
         }
 
@@ -483,6 +489,7 @@ export class MedicalSuppliesService {
             lastname: lastname,
             new_items_count: itemsToCreate.length,
             reason: 'New items added based on new AssessionNo',
+            input_data: data,
           });
         }
 
@@ -1426,11 +1433,14 @@ export class MedicalSuppliesService {
                 type: 'UPDATE',
                 status: 'SUCCESS',
                 action: 'discontinue_item',
+                patient_hn: existing.patient_hn ?? '',
+                en: existing.en ?? '',
                 assession_no: discontinueItem.AssessionNo,
                 item_code: item.order_item_code,
                 reason: 'Bill cancelled - Discontinue status received via PATCH',
                 cancelled_qty: item.qty,
                 original_qty: item.qty,
+                input_data: data,
               });
             }
           } else {
@@ -1455,9 +1465,12 @@ export class MedicalSuppliesService {
                 type: 'UPDATE',
                 status: 'SUCCESS',
                 action: 'discontinue_item',
+                patient_hn: existing.patient_hn ?? '',
+                en: existing.en ?? '',
                 item_code: item.order_item_code,
                 reason: 'Bill cancelled - Discontinue status received via PATCH (all items)',
                 cancelled_qty: item.qty,
+                input_data: data,
               });
             }
           }
@@ -1514,6 +1527,7 @@ export class MedicalSuppliesService {
           action: 'patch_medical_supply_usage',
           discontinue_items_count: discontinueItems.length,
           billing_status: updateData.billing_status,
+          input_data: data,
         });
 
         return updated as unknown as MedicalSupplyUsageResponse;
@@ -1607,6 +1621,7 @@ export class MedicalSuppliesService {
         updated_fields: Object.keys(data),
         order_items_count: data.Order?.length || 0,
         supplies_count: data.supplies?.length || 0,
+        input_data: data,
       });
 
       return updated as unknown as MedicalSupplyUsageResponse;
