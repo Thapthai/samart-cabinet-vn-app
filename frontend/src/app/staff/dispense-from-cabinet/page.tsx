@@ -25,14 +25,14 @@ export default function DispenseFromCabinetPage() {
   /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
   const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
-  // Filters
+  // Filters (ตู้เริ่มต้น = ทั้งหมด จะดึงรายการตู้ตามแผนกของ staff หลังโหลด department_id)
   const [filters, setFilters] = useState<FilterState>({
     searchItemCode: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
-    departmentId: '29',
-    cabinetId: '1',
+    departmentId: '',
+    cabinetId: '',
   });
 
 
@@ -42,9 +42,10 @@ export default function DispenseFromCabinetPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  // โหลด staff_user จาก localStorage: department_id และ role (warehouse = เลือกแผนกได้)
+  // โหลด staff_user จาก localStorage: ตั้งแผนกตาม department_id ของ staff, ตู้ = ทั้งหมด, แล้วโหลดข้อมูลตามแผนก
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    let departmentId = '';
     try {
       const raw = localStorage.getItem('staff_user');
       if (raw) {
@@ -52,16 +53,21 @@ export default function DispenseFromCabinetPage() {
         const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
         if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
         if (staffUser?.department_id) {
-          const deptId = String(staffUser.department_id);
-          setStaffDepartmentId(deptId);
-          setFilters(prev => ({ ...prev, departmentId: deptId }));
+          departmentId = String(staffUser.department_id);
+          setStaffDepartmentId(departmentId);
+          setFilters(prev => ({ ...prev, departmentId, cabinetId: '' }));
         }
       }
     } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    fetchDispensedList();
+    const filtersToUse: FilterState = {
+      searchItemCode: '',
+      startDate: getTodayDate(),
+      endDate: getTodayDate(),
+      itemTypeFilter: 'all',
+      departmentId,
+      cabinetId: '',
+    };
+    fetchDispensedList(1, filtersToUse);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
@@ -122,8 +128,8 @@ export default function DispenseFromCabinetPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId: staffDepartmentId || '29',
-      cabinetId: '1',
+      departmentId: staffDepartmentId || '',
+      cabinetId: '',
     };
     setFilters(clearedFilters);
     setCurrentPage(1);

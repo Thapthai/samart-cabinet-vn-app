@@ -98,6 +98,24 @@ export class MedicalSuppliesService {
     ].join('-');
   }
 
+  /**
+   * เช็คว่า ItemStatus เป็นประเภท Discontinue หรือไม่ (รับได้หลายรูปแบบ)
+   * ค่าที่ถือว่าเป็น Discontinue: discontinue, discontinued, cancel, cancelled (ไม่สนใจตัวพิมพ์)
+   */
+  private isDiscontinueStatus(status: string | null | undefined): boolean {
+    const s = (status ?? '').toString().trim().toLowerCase();
+    return s === 'discontinue' || s === 'discontinued' || s === 'cancel' || s === 'cancelled';
+  }
+
+  /**
+   * Normalize ItemStatus: ถ้าเป็น Discontinue ให้บันทึกเป็น "Discontinue" เสมอ ไม่งั้นใช้ค่าที่ส่งมาหรือ default
+   */
+  private normalizeOrderItemStatus(status: string | null | undefined, defaultStatus = 'Verified'): string {
+    if (this.isDiscontinueStatus(status)) return 'Discontinue';
+    const s = (status ?? '').toString().trim();
+    return s || defaultStatus;
+  }
+
   // Validate single ItemCode - ตรวจสอบว่า ItemCode มีในระบบหรือไม่
   async validateItemCode(itemCode: string): Promise<{ exists: boolean; item?: any }> {
     try {
@@ -330,9 +348,8 @@ export class MedicalSuppliesService {
         const discontinueAffectedUsageIds = new Set<number>();
 
         for (const orderItem of orderItems) {
-          // Check if this is a discontinue item (both "discontinue" and "discontinued" are valid)
-          const itemStatusLower = orderItem.ItemStatus?.toLowerCase() || '';
-          const isDiscontinue = itemStatusLower === 'discontinue' || itemStatusLower === 'discontinued';
+          // Check if this is a discontinue item (รับได้หลายรูปแบบ: discontinue, discontinued, cancel, cancelled)
+          const isDiscontinue = this.isDiscontinueStatus(orderItem.ItemStatus);
 
           if (isDiscontinue && orderItem.AssessionNo) {
             // Handle discontinue items separately - find and update ALL existing items with same AssessionNo
@@ -391,14 +408,14 @@ export class MedicalSuppliesService {
             const existingItem = existingUsage.supply_items.find(
               (item) => item.assession_no === orderItem.AssessionNo &&
                 item.order_item_code === orderItem.ItemCode &&
-                item.order_item_status?.toLowerCase() !== 'discontinue'
+                !this.isDiscontinueStatus(item.order_item_status),
             );
 
             if (existingItem) {
-              // If same AssessionNo + ItemCode found, update ItemStatus only
+              // If same AssessionNo + ItemCode found, update ItemStatus only (ค่าที่บันทึกต้องเป็น "Discontinue" ถ้าเป็นประเภท discontinue)
               itemsToUpdate.push({
                 item: existingItem,
-                newStatus: orderItem.ItemStatus || existingItem.order_item_status || 'Verified',
+                newStatus: this.normalizeOrderItemStatus(orderItem.ItemStatus) || existingItem.order_item_status || 'Verified',
               });
             } else {
               // Different line (AssessionNo+ItemCode) → add new item
@@ -464,7 +481,7 @@ export class MedicalSuppliesService {
               order_item_code: item.ItemCode,
               order_item_description: item.ItemDescription,
               assession_no: item.AssessionNo,
-              order_item_status: item.ItemStatus || 'Verified',
+              order_item_status: this.normalizeOrderItemStatus(item.ItemStatus),
               qty: typeof item.QTY === 'string' ? parseInt(item.QTY) || 0 : item.QTY,
               uom: item.UOM,
               supply_code: item.ItemCode,
@@ -542,10 +559,7 @@ export class MedicalSuppliesService {
       // Only process discontinue items if we haven't already processed them above (when existingUsage was found)
       const discontinueItems = existingUsage
         ? [] // Already processed above, skip here
-        : orderItems.filter(item => {
-          const statusLower = item.ItemStatus?.toLowerCase() || '';
-          return (statusLower === 'discontinue' || statusLower === 'discontinued') && item.AssessionNo;
-        });
+        : orderItems.filter(item => this.isDiscontinueStatus(item.ItemStatus) && item.AssessionNo);
 
       /** AssessionNo ที่มีการอัปเดตเป็น Discontinue จริง (ใช้กรองไม่สร้างรายการที่เปลี่ยนไม่ได้) */
       let discontinueAssessionNosUpdated = new Set<string>();
@@ -645,9 +659,7 @@ export class MedicalSuppliesService {
       const itemsToCreate =
         discontinueAssessionNosUpdated.size > 0
           ? orderItems.filter((item) => {
-              const isDisc =
-                item.ItemStatus?.toLowerCase() === 'discontinue' ||
-                item.ItemStatus?.toLowerCase() === 'discontinued';
+              const isDisc = this.isDiscontinueStatus(item.ItemStatus);
               if (isDisc && item.AssessionNo) {
                 return discontinueAssessionNosUpdated.has(item.AssessionNo);
               }
@@ -724,7 +736,7 @@ export class MedicalSuppliesService {
                 order_item_code: item.ItemCode,
                 order_item_description: item.ItemDescription,
                 assession_no: item.AssessionNo,
-                order_item_status: item.ItemStatus || 'Verified', // Default to Verified if not specified
+                order_item_status: this.normalizeOrderItemStatus(item.ItemStatus),
                 qty: typeof item.QTY === 'string' ? parseInt(item.QTY) || 0 : item.QTY,
                 uom: item.UOM,
                 // Keep legacy fields as null for new format
@@ -1395,10 +1407,10 @@ export class MedicalSuppliesService {
         throw new NotFoundException(`Medical supply usage with ID ${id} not found`);
       }
 
-      // Handle Discontinue items if provided
+      // Handle Discontinue items if provided (รับได้หลายรูปแบบ: discontinue, discontinued, cancel, cancelled)
       const orderItems = data.Order || [];
       const discontinueItems = orderItems.filter(item =>
-        item.ItemStatus && item.ItemStatus.toLowerCase() === 'discontinue'
+        item.ItemStatus && this.isDiscontinueStatus(item.ItemStatus),
       );
 
       if (discontinueItems.length > 0) {
@@ -1409,7 +1421,7 @@ export class MedicalSuppliesService {
             // Find items with the same assession_no
             const itemsToDiscontinue = existing.supply_items.filter(item =>
               item.assession_no === discontinueItem.AssessionNo &&
-              item.order_item_status?.toLowerCase() !== 'discontinue'
+              !this.isDiscontinueStatus(item.order_item_status),
             );
 
             // รายการที่ created_at น้อยกว่าวันปัจจุบัน ไม่ทำการบันทึก Discontinue (ข้ามไป)
@@ -1441,12 +1453,12 @@ export class MedicalSuppliesService {
                 cancelled_qty: item.qty,
                 original_qty: item.qty,
                 input_data: data,
-              });
+              }); 
             }
           } else {
             // If no AssessionNo, discontinue all items in this usage (เฉพาะรายการที่ created_at >= วันนี้)
             const itemsToDiscontinueAll = existing.supply_items.filter(
-              (item) => item.order_item_status?.toLowerCase() !== 'discontinue',
+              (item) => !this.isDiscontinueStatus(item.order_item_status),
             );
             const itemsToDiscontinueNow = itemsToDiscontinueAll.filter((it) => {
               const itemDate = this.getItemCreatedAtYyyyMmDd(it);
@@ -1566,7 +1578,7 @@ export class MedicalSuppliesService {
             order_item_code: item.ItemCode,
             order_item_description: item.ItemDescription,
             assession_no: item.AssessionNo,
-            order_item_status: item.ItemStatus || '',
+            order_item_status: this.normalizeOrderItemStatus(item.ItemStatus, ''),
             qty: typeof item.QTY === 'string' ? parseInt(item.QTY) || 0 : item.QTY,
             uom: item.UOM,
             supply_code: item.ItemCode,

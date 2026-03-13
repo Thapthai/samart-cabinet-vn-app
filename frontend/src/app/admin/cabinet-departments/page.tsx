@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { cabinetDepartmentApi } from "@/lib/api";
-import { Loader2, Plus, Network } from "lucide-react";
+import { cabinetDepartmentApi, reportsApi } from "@/lib/api";
+import { Loader2, Network } from "lucide-react";
 import { toast } from "sonner";
 import FilterSection from "./components/FilterSection";
 import MappingTable from "./components/MappingTable";
@@ -206,6 +206,25 @@ export default function ItemStockDepartmentsPage() {
     }
   };
 
+  const handleExportReport = async (format: "excel" | "pdf") => {
+    try {
+      toast.info(`กำลังสร้างรายงาน ${format === "excel" ? "Excel" : "PDF"}...`);
+      const params = {
+        cabinetId: activeFilters.cabinetId ? parseInt(activeFilters.cabinetId, 10) : undefined,
+        departmentId: activeFilters.departmentId ? parseInt(activeFilters.departmentId, 10) : undefined,
+        status: activeFilters.status !== "ALL" ? activeFilters.status : undefined,
+      };
+      if (format === "excel") {
+        await reportsApi.downloadCabinetDepartmentsExcel(params);
+      } else {
+        await reportsApi.downloadCabinetDepartmentsPdf(params);
+      }
+      toast.success(`ดาวน์โหลดรายงาน ${format === "excel" ? "Excel" : "PDF"} สำเร็จ`);
+    } catch (error: any) {
+      toast.error(error?.message || `ไม่สามารถสร้างรายงานได้`);
+    }
+  };
+
   // Filter mappings based on active filters
   const filteredMappings = mappings.filter((mapping) => {
     // Filter by cabinet ID (exact match)
@@ -273,6 +292,8 @@ export default function ItemStockDepartmentsPage() {
             mappings={filteredMappings}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onExportExcel={() => handleExportReport("excel")}
+            onExportPdf={() => handleExportReport("pdf")}
           />
 
           <CreateMappingDialog

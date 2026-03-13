@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, ChevronDown, ChevronRight, Loader2, Package } from "lucide-react";
+import { Edit, Trash2, ChevronDown, ChevronRight, Loader2, Package, Download } from "lucide-react";
 import { toast } from "sonner";
 import CabinetDetailsCard from "./CabinetDetailsCard";
 import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
@@ -54,9 +54,11 @@ interface MappingTableProps {
   mappings: CabinetDepartment[];
   onEdit: (mapping: CabinetDepartment) => void;
   onDelete: (mapping: CabinetDepartment) => void;
+  onExportExcel?: () => void;
+  onExportPdf?: () => void;
 }
 
-export default function MappingTable({ mappings, onEdit, onDelete }: MappingTableProps) {
+export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel, onExportPdf }: MappingTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRow, setSelectedRow] = useState<CabinetDepartment | null>(null);
   const [expandedDropdown, setExpandedDropdown] = useState<number | null>(null);
@@ -224,11 +226,25 @@ export default function MappingTable({ mappings, onEdit, onDelete }: MappingTabl
   return (
     <>
       <Card className="border-slate-200/80 shadow-sm overflow-hidden rounded-xl">
-        <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4 border-b border-slate-100 bg-slate-50/50 pb-2">
           <CardTitle className="text-slate-800 flex items-center gap-2">
             <Package className="h-5 w-5 text-blue-600" />
             รายการเชื่อมโยง ({mappings.length})
           </CardTitle>
+          <div className="flex shrink-0 gap-2">
+            {onExportExcel && (
+              <Button onClick={onExportExcel} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Excel
+              </Button>
+            )}
+            {onExportPdf && (
+              <Button onClick={onExportPdf} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto rounded-b-xl">

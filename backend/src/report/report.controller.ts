@@ -429,6 +429,34 @@ export class ReportServiceController {
     }
   }
 
+  @Post('cabinet-departments/excel')
+  async generateCabinetDepartmentsExcel(@Body() data: {
+    cabinetId?: number;
+    departmentId?: number;
+    status?: string;
+  }) {
+    try {
+      const result = await this.reportServiceService.generateCabinetDepartmentsExcel(data);
+      return toFileResponse(result.buffer, result.filename, EXCEL_CONTENT);
+    } catch (error: any) {
+      return { success: false, error: error?.message };
+    }
+  }
+
+  @Post('cabinet-departments/pdf')
+  async generateCabinetDepartmentsPdf(@Body() data: {
+    cabinetId?: number;
+    departmentId?: number;
+    status?: string;
+  }) {
+    try {
+      const result = await this.reportServiceService.generateCabinetDepartmentsPdf(data);
+      return toFileResponse(result.buffer, result.filename, PDF_CONTENT);
+    } catch (error: any) {
+      return { success: false, error: error?.message };
+    }
+  }
+
   @Post('weighing-dispense/excel')
   async generateWeighingDispenseExcel(@Body() data: { stockId?: number; itemName?: string; itemcode?: string; dateFrom?: string; dateTo?: string }) {
     try {

@@ -17,5 +17,6 @@ export function getAssetPath(path: string): string {
  */
 export const ASSETS = {
   LOGO: getAssetPath('3_logo_p-1-fit.png'),
+  BackgroundLogo: getAssetPath('tappic.png'),
 } as const;
 

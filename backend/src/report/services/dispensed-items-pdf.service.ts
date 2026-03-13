@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
-import { DispensedItemsReportData } from './dispensed-items-excel.service';
+import { DispensedItemsReportData, DispensedItemsReportGroup } from './dispensed-items-excel.service';
 import { ReportConfig, resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
 
 function formatReportDate(value?: string) {
@@ -14,6 +14,24 @@ function formatReportDate(value?: string) {
   return corrected.toLocaleDateString(ReportConfig.locale, {
     timeZone: ReportConfig.timezone,
     ...ReportConfig.dateFormat.date,
+  });
+}
+
+/** วันที่ + เวลา (ชั่วโมง:นาที ไม่มีวินาที) สำหรับคอลัมน์วันที่เบิก */
+function formatReportDateTime(value?: string) {
+  if (!value) return '-';
+  const base = new Date(value);
+  const corrected =
+    typeof value === 'string' && value.endsWith('Z')
+      ? new Date(base.getTime() - 7 * 60 * 60 * 1000)
+      : base;
+  return corrected.toLocaleString(ReportConfig.locale, {
+    timeZone: ReportConfig.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
@@ -89,6 +107,7 @@ export class DispensedItemsPdfService {
         const pageHeight = doc.page.height;
         const contentWidth = pageWidth - margin * 2;
         const rows = data.data ?? [];
+        const useGroups = data.groups && data.groups.length > 0;
 
         // ---- Header block with logo ----
         const headerTop = 35;
@@ -156,16 +175,15 @@ export class DispensedItemsPdfService {
         // doc.fillColor('#000000');
         // doc.y = filterY + filterRowHeight + 8;
 
-        // ---- ตารางข้อมูล ----
+        // ---- ตารางข้อมูล (เพิ่ม จำนวนชิ้น) ----
         const itemHeight = 28;
         const cellPadding = 4;
         const totalTableWidth = contentWidth;
-        // ลำดับ, รหัสอุปกรณ์, ชื่ออุปกรณ์, วันที่เบิก, ชื่อผู้เบิก, แผนก, ตู้
-        const colPct = [0.06, 0.13, 0.20, 0.1, 0.19, 0.10, 0.08];
+        const colPct = [0.07, 0.13, 0.26, 0.10, 0.16, 0.12, 0.16];
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
         if (sumW < totalTableWidth) colWidths[2] += totalTableWidth - sumW;
-        const headers = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'วันที่เบิก', 'ชื่อผู้เบิก', 'แผนก', 'ตู้'];
+        const headers = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวนชิ้น', 'วันที่เบิก', 'แผนก', 'ชื่อผู้เบิก'];
 
         const drawTableHeader = (y: number) => {
           let x = margin;
@@ -193,7 +211,7 @@ export class DispensedItemsPdfService {
         doc.y = tableHeaderY + itemHeight;
 
         doc.fontSize(13).font(finalFontName).fillColor('#000000');
-        if (rows.length === 0) {
+        if (rows.length === 0 && !useGroups) {
           const rowY = doc.y;
           doc.rect(margin, rowY, totalTableWidth, itemHeight).fillAndStroke('#F8F9FA', '#DEE2E6');
           doc.text('ไม่มีข้อมูล', margin + cellPadding, rowY + 7, {
@@ -201,38 +219,119 @@ export class DispensedItemsPdfService {
             align: 'center',
           });
           doc.y = rowY + itemHeight;
+        } else if (useGroups && data.groups) {
+          const groups = data.groups as DispensedItemsReportGroup[];
+          let rowNum = 1;
+          for (const group of groups) {
+            const qtyDisplay = `${group.totalQty}`;
+            const groupCellTexts = [
+              String(rowNum),
+              group.itemcode ?? '-',
+              group.itemname ?? '-',
+              qtyDisplay,
+              formatReportDateTime(group.dispenseTime),
+              group.items[0]?.departmentName ?? '-',
+              (() => {
+                const n = group.items[0]?.cabinetUserName?.trim();
+                return n && n !== 'ไม่ระบุ' ? n : '-';
+              })(),
+            ];
+            doc.fontSize(12).font(finalFontBoldName);
+            const groupCellHeights = groupCellTexts.map((text, i) => {
+              const w = Math.max(4, colWidths[i] - cellPadding * 2);
+              return doc.heightOfString(text ?? '-', { width: w });
+            });
+            const groupRowHeight = Math.max(itemHeight, Math.max(...groupCellHeights) + cellPadding * 2);
+            if (doc.y + groupRowHeight > pageHeight - 35) {
+              doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+              doc.y = margin;
+              const newHeaderY = doc.y;
+              drawTableHeader(newHeaderY);
+              doc.y = newHeaderY + itemHeight;
+              doc.fontSize(13).font(finalFontName).fillColor('#000000');
+            }
+            const groupRowY = doc.y;
+            let xPos = margin;
+            for (let i = 0; i < 7; i++) {
+              const cw = colWidths[i];
+              const w = Math.max(4, cw - cellPadding * 2);
+              doc.rect(xPos, groupRowY, cw, groupRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
+              doc.fontSize(12).font(finalFontBoldName).fillColor('#1A365D');
+              doc.text(groupCellTexts[i] ?? '-', xPos + cellPadding, groupRowY + cellPadding, {
+                width: w,
+                align: i === 1 || i === 2 || i === 4 || i === 6 ? 'left' : 'center',
+              });
+              xPos += cw;
+            }
+            doc.y = groupRowY + groupRowHeight;
+            doc.fontSize(13).font(finalFontName).fillColor('#000000');
+
+            group.items.forEach((item, subIdx) => {
+              const cellTexts = [
+                `${rowNum}.${subIdx + 1}`,
+                item?.itemcode ?? '-',
+                item?.itemname ?? '-',
+                String(item?.qty ?? 1),
+                formatReportDateTime(item?.modifyDate as string),
+                item?.departmentName ?? '-',
+                item?.cabinetUserName ?? 'ไม่ระบุ',
+              ];
+              const cellHeights = cellTexts.map((text, i) => {
+                const w = Math.max(4, colWidths[i] - cellPadding * 2);
+                return doc.heightOfString(text ?? '-', { width: w });
+              });
+              const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
+              if (doc.y + rowHeight > pageHeight - 35) {
+                doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+                doc.y = margin;
+                const newHeaderY = doc.y;
+                drawTableHeader(newHeaderY);
+                doc.y = newHeaderY + itemHeight;
+                doc.fontSize(13).font(finalFontName).fillColor('#000000');
+              }
+              const rowY = doc.y;
+              let x = margin;
+              for (let i = 0; i < 7; i++) {
+                const cw = colWidths[i];
+                const w = Math.max(4, cw - cellPadding * 2);
+                doc.rect(x, rowY, cw, rowHeight).fillAndStroke('#FFFFFF', '#DEE2E6');
+                doc.fontSize(12).font(finalFontName).fillColor('#000000');
+                doc.text(cellTexts[i] ?? '-', x + cellPadding, rowY + cellPadding, {
+                  width: w,
+                  align: i === 1 || i === 2 || i === 4 || i === 6 ? 'left' : 'center',
+                });
+                x += cw;
+              }
+              doc.y = rowY + rowHeight;
+            });
+            rowNum++;
+          }
         } else {
           for (let idx = 0; idx < rows.length; idx++) {
             const item = rows[idx];
-
             const cellTexts = [
               String(idx + 1),
               item?.itemcode ?? '-',
               item?.itemname ?? '-',
-              formatReportDate(item?.modifyDate as string),
-              item?.cabinetUserName ?? 'ไม่ระบุ',
+              String(item?.qty ?? 1),
+              formatReportDateTime(item?.modifyDate as string),
               item?.departmentName ?? '-',
-              item?.cabinetName ?? item?.cabinetCode ?? '-',
+              item?.cabinetUserName ?? 'ไม่ระบุ',
             ];
-
-            // คำนวณความสูงแถวตามข้อความที่อาจขึ้นบรรทัดใหม่
             doc.fontSize(13).font(finalFontName);
             const cellHeights = cellTexts.map((text, i) => {
               const w = Math.max(4, colWidths[i] - cellPadding * 2);
               return doc.heightOfString(text ?? '-', { width: w });
             });
             const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
-
             if (doc.y + rowHeight > pageHeight - 35) {
               doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
               doc.y = margin;
               const newHeaderY = doc.y;
               drawTableHeader(newHeaderY);
               doc.y = newHeaderY + itemHeight;
-              // reset font กลับเป็น regular หลัง drawTableHeader
               doc.fontSize(13).font(finalFontName).fillColor('#000000');
             }
-
             const rowY = doc.y;
             const bg = idx % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
             let xPos = margin;
@@ -243,7 +342,7 @@ export class DispensedItemsPdfService {
               doc.fontSize(13).font(finalFontName).fillColor('#000000');
               doc.text(cellTexts[i] ?? '-', xPos + cellPadding, rowY + cellPadding, {
                 width: w,
-                align: i === 1 || i === 2 || i === 4 ? 'left' : 'center',
+                align: i === 1 || i === 2 || i === 4 || i === 6 ? 'left' : 'center',
               });
               xPos += cw;
             }

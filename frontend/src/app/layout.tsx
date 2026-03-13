@@ -3,6 +3,7 @@ import { Kanit } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { ASSETS } from "@/lib/assets";
 
 const kanit = Kanit({
   weight: ["300", "400", "500", "600", "700"],
@@ -14,6 +15,9 @@ const kanit = Kanit({
 export const metadata: Metadata = {
   title: "ระบบจัดการเวชภัณฑ์",
   description: "ระบบจัดการเวชภัณฑ์และอุปกรณ์ทางการแพทย์",
+  icons: {
+    icon: ASSETS.BackgroundLogo,
+  },
 };
 
 export default function RootLayout({

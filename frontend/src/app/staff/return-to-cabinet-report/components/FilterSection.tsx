@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DatePickerBE } from "@/components/ui/date-picker-be";
 import type { FilterState } from "../types.ts";
 import SearchableSelect from "@/app/admin/items/components/SearchableSelect";
-import { cabinetApi, departmentApi, cabinetDepartmentApi } from "@/lib/api";
 import { staffCabinetApi, staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
 import { staffDepartmentApi } from "@/lib/staffApi/departmentApi";
 
@@ -124,7 +123,7 @@ export default function FilterSection({
   const loadAllCabinets = async (keyword?: string) => {
     try {
       setLoadingCabinets(true);
-      const response = await cabinetApi.getAll({ page: 1, limit: 50, keyword });
+      const response = await staffCabinetApi.getAll({ page: 1, limit: 50, keyword });
       if (response.success && response.data) {
         const allCabinets = response.data as Cabinet[];
         const filteredCabinets = allCabinets.filter((cabinet) => {

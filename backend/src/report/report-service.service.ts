@@ -28,6 +28,12 @@ import {
 } from './services/cabinet-stock-report-excel.service';
 import { CabinetStockReportPdfService } from './services/cabinet-stock-report-pdf.service';
 import {
+  CabinetDepartmentsReportExcelService,
+  CabinetDepartmentsReportData,
+  CabinetDepartmentsSubRow,
+} from './services/cabinet-departments-report-excel.service';
+import { CabinetDepartmentsReportPdfService } from './services/cabinet-departments-report-pdf.service';
+import {
   WeighingDispenseReportExcelService,
   WeighingDispenseReportData,
 } from './services/weighing-dispense-report-excel.service';
@@ -77,6 +83,8 @@ export class ReportServiceService {
     private readonly dispensedItemsPdfService: DispensedItemsPdfService,
     private readonly cabinetStockReportExcelService: CabinetStockReportExcelService,
     private readonly cabinetStockReportPdfService: CabinetStockReportPdfService,
+    private readonly cabinetDepartmentsReportExcelService: CabinetDepartmentsReportExcelService,
+    private readonly cabinetDepartmentsReportPdfService: CabinetDepartmentsReportPdfService,
     private readonly weighingDispenseReportExcelService: WeighingDispenseReportExcelService,
     private readonly weighingDispenseReportPdfService: WeighingDispenseReportPdfService,
     private readonly weighingRefillReportExcelService: WeighingRefillReportExcelService,
@@ -1904,6 +1912,12 @@ export class ReportServiceService {
       });
 
       const labels = await this.getCabinetDepartmentLabels(params.cabinetId, params.departmentId);
+      const rawData = returnedData.data || [];
+      const builtGroups = this.buildReportGroups(rawData);
+      const groups =
+        builtGroups.length > 0
+          ? (builtGroups.map((g) => ({ ...g, returnTime: g.dispenseTime })) as unknown as ReturnToCabinetReportData['groups'])
+          : undefined;
 
       const reportData: ReturnToCabinetReportData = {
         filters: {
@@ -1917,13 +1931,11 @@ export class ReportServiceService {
           cabinetName: labels.cabinetName,
         },
         summary: {
-          total_records: returnedData.total || returnedData.data?.length || 0,
-          total_qty: returnedData.data?.reduce(
-            (sum: number, record: any) => sum + (record.qty || 0),
-            0
-          ) || 0,
+          total_records: returnedData.total || rawData.length,
+          total_qty: rawData.reduce((sum: number, record: any) => sum + (record.qty || 0), 0) || 0,
         },
-        data: returnedData.data || [],
+        data: rawData,
+        groups,
       };
 
       const buffer = await this.returnToCabinetReportExcelService.generateReport(reportData);
@@ -1953,6 +1965,12 @@ export class ReportServiceService {
       });
 
       const labels = await this.getCabinetDepartmentLabels(params.cabinetId, params.departmentId);
+      const rawData = returnedData.data || [];
+      const builtGroups = this.buildReportGroups(rawData);
+      const groups =
+        builtGroups.length > 0
+          ? (builtGroups.map((g) => ({ ...g, returnTime: g.dispenseTime })) as unknown as ReturnToCabinetReportData['groups'])
+          : undefined;
 
       const reportData: ReturnToCabinetReportData = {
         filters: {
@@ -1966,13 +1984,11 @@ export class ReportServiceService {
           cabinetName: labels.cabinetName,
         },
         summary: {
-          total_records: returnedData.total || returnedData.data?.length || 0,
-          total_qty: returnedData.data?.reduce(
-            (sum: number, record: any) => sum + (record.qty || 0),
-            0
-          ) || 0,
+          total_records: returnedData.total || rawData.length,
+          total_qty: rawData.reduce((sum: number, record: any) => sum + (record.qty || 0), 0) || 0,
         },
-        data: returnedData.data || [],
+        data: rawData,
+        groups,
       };
 
       const buffer = await this.returnToCabinetReportPdfService.generateReport(reportData);
@@ -1981,6 +1997,66 @@ export class ReportServiceService {
       const errorMessage = error?.message || error?.toString() || 'Unknown error';
       throw new Error(`Failed to generate Return To Cabinet Report PDF: ${errorMessage}`);
     }
+  }
+
+  /** ความคาดเคลื่อนกลุ่มตามเวลา (วินาที) - ตรงกับ frontend */
+  private static readonly REPORT_GROUP_TIME_TOLERANCE_MS = 3 * 1000;
+
+  /**
+   * จัดกลุ่มรายการตามรหัสอุปกรณ์และเวลาที่เบิก/คืน (±3 วินาที)
+   */
+  private buildReportGroups<T extends { itemcode?: string; itemname?: string; modifyDate?: string; qty?: number }>(
+    items: T[],
+  ): Array<{ itemcode: string; itemname: string; dispenseTime: string; totalQty: number; items: T[] }> {
+    if (!items || items.length === 0) return [];
+    const sorted = [...items].sort((a, b) => {
+      const ca = (a.itemcode ?? '').toString();
+      const cb = (b.itemcode ?? '').toString();
+      if (ca !== cb) return ca.localeCompare(cb);
+      return new Date(a.modifyDate || 0).getTime() - new Date(b.modifyDate || 0).getTime();
+    });
+    const groups: Array<{ itemcode: string; itemname: string; dispenseTime: string; totalQty: number; items: T[] }> = [];
+    let current: T[] = [];
+    let groupStartTime = 0;
+    for (const item of sorted) {
+      const t = new Date(item.modifyDate || 0).getTime();
+      if (current.length === 0) {
+        current = [item];
+        groupStartTime = t;
+      } else {
+        const sameItem = (item.itemcode ?? '') === (current[0].itemcode ?? '');
+        const within = t - groupStartTime <= ReportServiceService.REPORT_GROUP_TIME_TOLERANCE_MS;
+        if (sameItem && within) {
+          current.push(item);
+        } else {
+          if (current.length > 0) {
+            const totalQty = current.reduce((s, i) => s + (i.qty ?? 1), 0);
+            const first = current[0];
+            groups.push({
+              itemcode: (first as any).itemcode ?? '',
+              itemname: (first as any).itemname ?? (first as any).itemcode ?? '',
+              dispenseTime: (first as any).modifyDate ?? '',
+              totalQty,
+              items: current,
+            });
+          }
+          current = [item];
+          groupStartTime = t;
+        }
+      }
+    }
+    if (current.length > 0) {
+      const totalQty = current.reduce((s, i) => s + (i.qty ?? 1), 0);
+      const first = current[0];
+      groups.push({
+        itemcode: (first as any).itemcode ?? '',
+        itemname: (first as any).itemname ?? (first as any).itemcode ?? '',
+        dispenseTime: (first as any).modifyDate ?? '',
+        totalQty,
+        items: current,
+      });
+    }
+    return groups;
   }
 
   /**
@@ -2092,7 +2168,9 @@ export class ReportServiceService {
 
       const labels = await this.getCabinetDepartmentLabels(params.cabinetId, params.departmentId);
 
-      // Prepare report data
+      const summaryQty = dispensedItems.reduce((sum: number, item: any) => sum + (item.qty || 0), 0);
+      const groups = this.buildReportGroups(dispensedItems);
+
       const reportData: DispensedItemsReportData = {
         filters: {
           keyword: params.keyword,
@@ -2105,9 +2183,10 @@ export class ReportServiceService {
         } as DispensedItemsReportData['filters'],
         summary: {
           total_records: result?.total ?? dispensedItems.length,
-          total_qty: dispensedItems.reduce((sum: number, item: any) => sum + (item.qty || 0), 0),
+          total_qty: summaryQty,
         },
         data: dispensedItems,
+        groups: groups.length > 0 ? groups : undefined,
       };
 
       // Generate Excel report
@@ -2153,7 +2232,9 @@ export class ReportServiceService {
 
       const labels = await this.getCabinetDepartmentLabels(params.cabinetId, params.departmentId);
 
-      // Prepare report data
+      const summaryQty = dispensedItems.reduce((sum: number, item: any) => sum + (item.qty || 0), 0);
+      const groups = this.buildReportGroups(dispensedItems);
+
       const reportData: DispensedItemsReportData = {
         filters: {
           keyword: params.keyword,
@@ -2166,9 +2247,10 @@ export class ReportServiceService {
         } as DispensedItemsReportData['filters'],
         summary: {
           total_records: result?.total ?? dispensedItems.length,
-          total_qty: dispensedItems.reduce((sum: number, item: any) => sum + (item.qty || 0), 0),
+          total_qty: summaryQty,
         },
         data: dispensedItems,
+        groups: groups.length > 0 ? groups : undefined,
       };
 
       // Generate PDF report
@@ -2634,6 +2716,195 @@ export class ReportServiceService {
       console.error('[Report Service] Error generating Cabinet Stock PDF:', error);
       const errorMessage = error?.message || error?.toString() || 'Unknown error';
       throw new Error(`Failed to generate Cabinet Stock PDF report: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Get Cabinet Departments report data (จัดการตู้ Cabinet - แผนก) for Excel/PDF
+   */
+  async getCabinetDepartmentsReportData(params: {
+    cabinetId?: number;
+    departmentId?: number;
+    status?: string;
+  }): Promise<CabinetDepartmentsReportData> {
+    const where: any = {};
+    if (params?.cabinetId != null) where.cabinet_id = params.cabinetId;
+    if (params?.departmentId != null) where.department_id = params.departmentId;
+    if (params?.status != null && params.status !== '' && params.status !== 'ALL') where.status = params.status;
+
+    const mappings = await this.prisma.cabinetDepartment.findMany({
+      where,
+      include: {
+        department: { select: { ID: true, DepName: true } },
+        cabinet: { select: { id: true, cabinet_name: true, cabinet_code: true, stock_id: true } },
+      },
+      orderBy: { cabinet_id: 'asc' },
+    });
+
+    const mappingsWithCount = await Promise.all(
+      mappings.map(async (m) => {
+        const stockId = (m.cabinet as { stock_id?: number })?.stock_id;
+        let itemstock_count = 0;
+        let itemstock_dispensed_count = 0;
+        if (stockId) {
+          [itemstock_count, itemstock_dispensed_count] = await Promise.all([
+            this.prisma.itemStock.count({ where: { StockID: stockId, IsStock: true } }),
+            this.prisma.itemStock.count({ where: { StockID: stockId, IsStock: false } }),
+          ]);
+        }
+        return {
+          ...m,
+          itemstock_count,
+          itemstock_dispensed_count,
+        };
+      }),
+    );
+
+    const cabinetName =
+      params?.cabinetId != null
+        ? (mappingsWithCount[0]?.cabinet as { cabinet_name?: string })?.cabinet_name ?? undefined
+        : undefined;
+    const departmentName =
+      params?.departmentId != null
+        ? (mappingsWithCount[0]?.department as { DepName?: string })?.DepName ?? undefined
+        : undefined;
+    const statusLabel =
+      params?.status && params.status !== 'ALL' ? (params.status === 'ACTIVE' ? 'ใช้งาน' : 'ไม่ใช้งาน') : undefined;
+
+    const data = await Promise.all(
+      mappingsWithCount.map(async (m, idx) => {
+        const stockId = (m.cabinet as { stock_id?: number })?.stock_id;
+        let subRows: CabinetDepartmentsSubRow[] = [];
+        if (stockId) {
+          const stocks = await this.prisma.itemStock.findMany({
+            where: { StockID: stockId },
+            select: {
+              ItemCode: true,
+              Qty: true,
+              IsStock: true,
+              item: { select: { itemcode: true, itemname: true } },
+            },
+          });
+          const grouped = new Map<
+            string,
+            { itemcode: string; itemname: string; inStockCount: number; dispensedCount: number; totalQty: number }
+          >();
+          for (const s of stocks) {
+            const code = (s.item as { itemcode?: string })?.itemcode ?? s.ItemCode ?? '-';
+            const name = (s.item as { itemname?: string })?.itemname ?? '-';
+            if (!grouped.has(code)) {
+              grouped.set(code, { itemcode: code, itemname: name, inStockCount: 0, dispensedCount: 0, totalQty: 0 });
+            }
+            const g = grouped.get(code)!;
+            g.totalQty += Number(s.Qty) || 0;
+            const isStock = s.IsStock === true || (typeof s.IsStock === 'number' && s.IsStock === 1);
+            if (isStock) g.inStockCount += 1;
+            else g.dispensedCount += 1;
+          }
+          subRows = Array.from(grouped.values())
+            .sort((a, b) => a.itemcode.localeCompare(b.itemcode))
+            .map((g, i) => ({
+              seq: i + 1,
+              itemcode: g.itemcode,
+              itemname: g.itemname,
+              inStockCount: g.inStockCount,
+              dispensedCount: g.dispensedCount,
+              totalQty: g.totalQty,
+            }));
+
+          // Fallback: ถ้า ItemStock ว่าง แต่ตู้มี stock_id ให้ดึงจาก ItemSlotInCabinet (รายการในตู้แบบ slot)
+          if (subRows.length === 0) {
+            const slots = await this.prisma.itemSlotInCabinet.findMany({
+              where: { StockID: stockId },
+              select: { itemcode: true, Qty: true, item: { select: { itemcode: true, itemname: true } } },
+            });
+            const slotGrouped = new Map<
+              string,
+              { itemcode: string; itemname: string; inStockCount: number; dispensedCount: number; totalQty: number }
+            >();
+            for (const slot of slots) {
+              const code = (slot.item as { itemcode?: string })?.itemcode ?? slot.itemcode ?? '-';
+              const name = (slot.item as { itemname?: string })?.itemname ?? '-';
+              if (!slotGrouped.has(code)) {
+                slotGrouped.set(code, { itemcode: code, itemname: name, inStockCount: 0, dispensedCount: 0, totalQty: 0 });
+              }
+              const g = slotGrouped.get(code)!;
+              g.totalQty += Number(slot.Qty) || 0;
+            }
+            subRows = Array.from(slotGrouped.values())
+              .sort((a, b) => a.itemcode.localeCompare(b.itemcode))
+              .map((g, i) => ({
+                seq: i + 1,
+                itemcode: g.itemcode,
+                itemname: g.itemname,
+                inStockCount: g.inStockCount,
+                dispensedCount: g.dispensedCount,
+                totalQty: g.totalQty,
+              }));
+          }
+        }
+        return {
+          seq: idx + 1,
+          cabinet_name: (m.cabinet as { cabinet_name?: string })?.cabinet_name ?? '-',
+          department_name: (m.department as { DepName?: string })?.DepName ?? '-',
+          quantity_display: `${(m as { itemstock_dispensed_count?: number }).itemstock_dispensed_count ?? 0} / ${(m as { itemstock_count?: number }).itemstock_count ?? 0}`,
+          status: (m as { status?: string }).status === 'ACTIVE' ? 'ใช้งาน' : 'ไม่ใช้งาน',
+          description: (m as { description?: string })?.description ?? '-',
+          subRows,
+        };
+      }),
+    );
+
+    return {
+      filters: {
+        cabinetName: cabinetName ?? (params?.cabinetId != null ? String(params.cabinetId) : undefined),
+        departmentName: departmentName ?? (params?.departmentId != null ? String(params.departmentId) : undefined),
+        status: statusLabel ?? (params?.status && params.status !== 'ALL' ? params.status : undefined),
+      },
+      summary: { total_records: data.length },
+      data,
+    };
+  }
+
+  /**
+   * Generate Cabinet Departments Report (จัดการตู้ Cabinet - แผนก) - Excel
+   */
+  async generateCabinetDepartmentsExcel(params: {
+    cabinetId?: number;
+    departmentId?: number;
+    status?: string;
+  }): Promise<{ buffer: Buffer; filename: string }> {
+    try {
+      const reportData = await this.getCabinetDepartmentsReportData(params);
+      const buffer = await this.cabinetDepartmentsReportExcelService.generateReport(reportData);
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `cabinet_departments_report_${dateStr}.xlsx`;
+      return { buffer, filename };
+    } catch (error) {
+      console.error('[Report Service] Error generating Cabinet Departments Excel:', error);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      throw new Error(`Failed to generate Cabinet Departments Excel report: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Generate Cabinet Departments Report (จัดการตู้ Cabinet - แผนก) - PDF
+   */
+  async generateCabinetDepartmentsPdf(params: {
+    cabinetId?: number;
+    departmentId?: number;
+    status?: string;
+  }): Promise<{ buffer: Buffer; filename: string }> {
+    try {
+      const reportData = await this.getCabinetDepartmentsReportData(params);
+      const buffer = await this.cabinetDepartmentsReportPdfService.generateReport(reportData);
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `cabinet_departments_report_${dateStr}.pdf`;
+      return { buffer, filename };
+    } catch (error) {
+      console.error('[Report Service] Error generating Cabinet Departments PDF:', error);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      throw new Error(`Failed to generate Cabinet Departments PDF report: ${errorMessage}`);
     }
   }
 

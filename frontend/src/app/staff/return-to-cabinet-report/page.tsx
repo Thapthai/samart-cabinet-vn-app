@@ -24,14 +24,14 @@ export default function ReturnToCabinetReportPage() {
   /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
   const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
-  // Filters (ค่าเริ่มต้นแผนก/ตู้ = 29 / 1 ตามที่ตั้งไว้)
+  // Filters (ตู้เริ่มต้น = ทั้งหมด จะดึงรายการตู้ตามแผนกของ staff หลังโหลด department_id)
   const [filters, setFilters] = useState<FilterState>({
     searchItemCode: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
-    departmentId: '29',
-    cabinetId: '1',
+    departmentId: '',
+    cabinetId: '',
   });
 
   // Pagination
@@ -40,25 +40,33 @@ export default function ReturnToCabinetReportPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  // โหลด department_id จาก localStorage
+  // โหลด staff_user จาก localStorage: ตั้งแผนกตาม department_id ของ staff, ตู้ = ทั้งหมด, แล้วโหลดข้อมูลตามแผนก
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    let departmentId = '';
     try {
       const raw = localStorage.getItem('staff_user');
       if (raw) {
         const staffUser = JSON.parse(raw.trim());
+        const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
+        if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
         if (staffUser?.department_id) {
-          const deptId = String(staffUser.department_id);
-          setStaffDepartmentId(deptId);
-          setFilters(prev => ({ ...prev, departmentId: deptId }));
+          departmentId = String(staffUser.department_id);
+          setStaffDepartmentId(departmentId);
+          setFilters(prev => ({ ...prev, departmentId, cabinetId: '' }));
         }
       }
     } catch { /* ignore */ }
-  }, []);
-
-  // โหลดข้อมูลเมื่อมี user พร้อมค่าเริ่มต้นของแผนก/ตู้
-  useEffect(() => {
-    fetchReturnedList(1);
+    const filtersToUse: FilterState = {
+      searchItemCode: '',
+      startDate: getTodayDate(),
+      endDate: getTodayDate(),
+      itemTypeFilter: 'all',
+      departmentId,
+      cabinetId: '',
+    };
+    fetchReturnedList(1, filtersToUse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
   const fetchReturnedList = async (page: number = 1, overrideFilters?: FilterState) => {
@@ -122,8 +130,8 @@ export default function ReturnToCabinetReportPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId: staffDepartmentId || '29',
-      cabinetId: '1',
+      departmentId: staffDepartmentId || '',
+      cabinetId: '',
     };
     setFilters(resetFilters);
     setCurrentPage(1);

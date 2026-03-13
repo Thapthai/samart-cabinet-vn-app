@@ -26,6 +26,8 @@ import { DispensedItemsExcelService } from './services/dispensed-items-excel.ser
 import { DispensedItemsPdfService } from './services/dispensed-items-pdf.service';
 import { CabinetStockReportExcelService } from './services/cabinet-stock-report-excel.service';
 import { CabinetStockReportPdfService } from './services/cabinet-stock-report-pdf.service';
+import { CabinetDepartmentsReportExcelService } from './services/cabinet-departments-report-excel.service';
+import { CabinetDepartmentsReportPdfService } from './services/cabinet-departments-report-pdf.service';
 import { WeighingDispenseReportExcelService } from './services/weighing-dispense-report-excel.service';
 import { WeighingDispenseReportPdfService } from './services/weighing-dispense-report-pdf.service';
 import { WeighingRefillReportExcelService } from './services/weighing-refill-report-excel.service';
@@ -61,6 +63,8 @@ import { DispensedItemsForPatientsPdfService } from './services/dispensed-items-
     DispensedItemsPdfService,
     CabinetStockReportExcelService,
     CabinetStockReportPdfService,
+    CabinetDepartmentsReportExcelService,
+    CabinetDepartmentsReportPdfService,
     WeighingDispenseReportExcelService,
     WeighingDispenseReportPdfService,
     WeighingRefillReportExcelService,

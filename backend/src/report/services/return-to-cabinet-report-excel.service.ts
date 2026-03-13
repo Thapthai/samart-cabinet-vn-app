@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
-import { ReportConfig, resolveReportLogoPath } from '../config/report.config';
+import { resolveReportLogoPath } from '../config/report.config';
+import { ReportConfig } from '../config/report.config';
 
 function formatReportDate(value?: string) {
   if (!value) return '-';
@@ -14,6 +15,50 @@ function formatReportDate(value?: string) {
     timeZone: ReportConfig.timezone,
     ...ReportConfig.dateFormat.date,
   });
+}
+
+/** วันที่ + เวลา (ชั่วโมง:นาที ไม่มีวินาที) สำหรับคอลัมน์วันที่เติม */
+function formatReportDateTime(value?: string) {
+  if (!value) return '-';
+  const base = new Date(value);
+  const corrected =
+    typeof value === 'string' && value.endsWith('Z')
+      ? new Date(base.getTime() - 7 * 60 * 60 * 1000)
+      : base;
+  return corrected.toLocaleString(ReportConfig.locale, {
+    timeZone: ReportConfig.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export interface ReturnToCabinetItemRow {
+  RowID: number;
+  itemcode: string;
+  itemname: string;
+  modifyDate: string;
+  qty: number;
+  itemType?: string;
+  itemCategory?: string;
+  itemtypeID?: number;
+  RfidCode?: string;
+  StockID?: number;
+  Istatus_rfid?: number;
+  IsStock?: boolean | number;
+  cabinetUserName?: string;
+  departmentName?: string;
+  cabinetName?: string;
+}
+
+export interface ReturnToCabinetReportGroup {
+  itemcode: string;
+  itemname: string;
+  returnTime: string;
+  totalQty: number;
+  items: ReturnToCabinetItemRow[];
 }
 
 export interface ReturnToCabinetReportData {
@@ -31,21 +76,9 @@ export interface ReturnToCabinetReportData {
     total_records: number;
     total_qty: number;
   };
-  data: Array<{
-    RowID: number;
-    itemcode: string;
-    itemname: string;
-    modifyDate: string;
-    qty: number;
-    itemType: string;
-    itemCategory: string;
-    itemtypeID: number;
-    RfidCode: string;
-    StockID: number;
-    Istatus_rfid?: number;
-    /** true/1 = อยู่ในตู้, false/0 = ถูกเบิก */
-    IsStock?: boolean | number;
-  }>;
+  data: ReturnToCabinetItemRow[];
+  /** กลุ่มตามรหัสอุปกรณ์และเวลาที่เติม (±3 วินาที) */
+  groups?: ReturnToCabinetReportGroup[];
 }
 
 @Injectable()
@@ -140,9 +173,9 @@ export class ReturnToCabinetReportExcelService {
     });
     worksheet.getRow(4).height = 20;
 
-    // ---- แถว 5: Table header ----
+    // ---- แถว 5: Table header (ให้ตรงกับ DispensedTable: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ตู้, ชื่อผู้เติม) ----
     const tableStartRow = 5;
-    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'วันที่คืน', 'ชื่อผู้เบิก', 'แผนก', 'ตู้', 'สถานะ'];
+    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวนชิ้น', 'วันที่เติม', 'แผนก', 'ตู้', 'ชื่อผู้เติม'];
     const headerRow = worksheet.getRow(tableStartRow);
     tableHeaders.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
@@ -154,35 +187,94 @@ export class ReturnToCabinetReportExcelService {
     });
     headerRow.height = 26;
 
-    // ---- แถวข้อมูล ----
+    // ---- แถวข้อมูล (จัดกลุ่มหรือแบน) ----
     let dataRowIndex = tableStartRow + 1;
-    data.data.forEach((item, idx) => {
-      const excelRow = worksheet.getRow(dataRowIndex);
-      const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8F9FA';
-      const inCabinet = item.IsStock === true || item.IsStock === 1;
-      [
-        idx + 1,
-        item.itemcode ?? '-',
-        item.itemname ?? '-',
-        formatReportDate(item.modifyDate),
-        (item as any).cabinetUserName ?? 'ไม่ระบุ',
-        (item as any).departmentName ?? '-',
-        (item as any).cabinetName ?? '-',
-        inCabinet ? 'อยู่ในตู้' : 'ถูกเบิก',
-      ].forEach((val, colIndex) => {
-        const cell = excelRow.getCell(colIndex + 1);
-        cell.value = val as any;
-        cell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF212529' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
-        cell.alignment = {
-          horizontal: colIndex === 2 || colIndex === 4 ? 'left' : 'center',
-          vertical: 'middle',
-        };
-        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+    const useGroups = data.groups && data.groups.length > 0;
+
+    if (useGroups && data.groups) {
+      let rowNum = 1;
+      for (const group of data.groups) {
+        // แถวสรุปกลุ่ม (ตรงกับ dispensed: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ไม่แสดงตู้, ชื่อผู้เติม)
+        const groupRow = worksheet.getRow(dataRowIndex);
+        const qtyDisplay = `${group.totalQty.toLocaleString()} `;
+        const mainRowDispenser = (() => {
+          const n = group.items[0]?.cabinetUserName?.trim();
+          return n && n !== 'ไม่ระบุ' ? n : '-';
+        })();
+        [
+          rowNum,
+          group.itemcode,
+          group.itemname || '-',
+          qtyDisplay,
+          formatReportDateTime(group.returnTime),
+          group.items[0]?.departmentName ?? '-',
+          '-',
+          mainRowDispenser,
+        ].forEach((val, colIndex) => {
+          const cell = groupRow.getCell(colIndex + 1);
+          cell.value = val as any;
+          cell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FF1A365D' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
+          cell.alignment = { horizontal: colIndex === 2 || colIndex === 4 || colIndex === 7 ? 'left' : 'center', vertical: 'middle' };
+          cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        });
+        groupRow.height = 24;
+        dataRowIndex++;
+
+        // แถวรายการในกลุ่ม (ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ตู้, ชื่อผู้เติม)
+        group.items.forEach((item, subIdx) => {
+          const excelRow = worksheet.getRow(dataRowIndex);
+          const subLabel = `${rowNum}.${subIdx + 1}`;
+          [
+            subLabel,
+            item.itemcode ?? '-',
+            item.itemname ?? '-',
+            item.qty ?? 1,
+            formatReportDateTime(item.modifyDate),
+            item.departmentName ?? '-',
+            item.cabinetName ?? '-',
+            item.cabinetUserName ?? 'ไม่ระบุ',
+          ].forEach((val, colIndex) => {
+            const cell = excelRow.getCell(colIndex + 1);
+            cell.value = val as any;
+            cell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF212529' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+            cell.alignment = { horizontal: colIndex === 2 || colIndex === 4 || colIndex === 7 ? 'left' : 'center', vertical: 'middle' };
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+          });
+          excelRow.height = 22;
+          dataRowIndex++;
+        });
+        rowNum++;
+      }
+    } else {
+      data.data.forEach((item, idx) => {
+        const excelRow = worksheet.getRow(dataRowIndex);
+        const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8F9FA';
+        [
+          idx + 1,
+          item.itemcode ?? '-',
+          item.itemname ?? '-',
+          item.qty ?? 1,
+          formatReportDateTime(item.modifyDate),
+          item.departmentName ?? '-',
+          item.cabinetName ?? '-',
+          item.cabinetUserName ?? 'ไม่ระบุ',
+        ].forEach((val, colIndex) => {
+          const cell = excelRow.getCell(colIndex + 1);
+          cell.value = val as any;
+          cell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF212529' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+          cell.alignment = {
+            horizontal: colIndex === 2 || colIndex === 4 || colIndex === 7 ? 'left' : 'center',
+            vertical: 'middle',
+          };
+          cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        });
+        excelRow.height = 24;
+        dataRowIndex++;
       });
-      excelRow.height = 22;
-      dataRowIndex++;
-    });
+    }
 
     worksheet.addRow([]);
 
@@ -203,15 +295,15 @@ export class ReturnToCabinetReportExcelService {
     noteCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(noteRow).height = 16;
 
-    // ---- ความกว้างคอลัมน์ ----
-    worksheet.getColumn(1).width = 13;
-    worksheet.getColumn(2).width = 20;
-    worksheet.getColumn(3).width = 36;
-    worksheet.getColumn(4).width = 22;
-    worksheet.getColumn(5).width = 24;
-    worksheet.getColumn(6).width = 20;
-    worksheet.getColumn(7).width = 22;
-    worksheet.getColumn(8).width = 14;
+    // ---- ความกว้างคอลัมน์ (8 คอลัมน์ เหมือน dispensed) ----
+    worksheet.getColumn(1).width = 14;
+    worksheet.getColumn(2).width = 22;
+    worksheet.getColumn(3).width = 50;
+    worksheet.getColumn(4).width = 18;
+    worksheet.getColumn(5).width = 30;
+    worksheet.getColumn(6).width = 24;
+    worksheet.getColumn(7).width = 30;
+    worksheet.getColumn(8).width = 30;
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);

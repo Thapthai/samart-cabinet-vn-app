@@ -134,6 +134,25 @@ export default function ItemStockDepartmentsPage() {
     setShowDeleteDialog(true);
   };
 
+  const handleExportReport = async (format: "excel" | "pdf") => {
+    try {
+      toast.info(`กำลังสร้างรายงาน ${format === "excel" ? "Excel" : "PDF"}...`);
+      const params = {
+        cabinetId: activeFilters.cabinetId ? parseInt(activeFilters.cabinetId, 10) : undefined,
+        departmentId: activeFilters.departmentId ? parseInt(activeFilters.departmentId, 10) : undefined,
+        status: activeFilters.status !== "ALL" ? activeFilters.status : undefined,
+      };
+      if (format === "excel") {
+        await staffCabinetDepartmentApi.downloadCabinetDepartmentsExcel(params);
+      } else {
+        await staffCabinetDepartmentApi.downloadCabinetDepartmentsPdf(params);
+      }
+      toast.success(`ดาวน์โหลดรายงาน ${format === "excel" ? "Excel" : "PDF"} สำเร็จ`);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "ไม่สามารถสร้างรายงานได้");
+    }
+  };
+
   const submitCreate = async () => {
     if (!formData.cabinet_id || !formData.department_id) {
       toast.error("กรุณาเลือกอุปกรณ์และแผนก");
@@ -289,6 +308,8 @@ export default function ItemStockDepartmentsPage() {
         mappings={filteredMappings}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onExportExcel={() => handleExportReport("excel")}
+        onExportPdf={() => handleExportReport("pdf")}
       />
 
       <CreateMappingDialog
