@@ -42,6 +42,8 @@ COPY . .
 # Set build-time environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# เพิ่ม heap ให้ Next.js build (แก้ FATAL ERROR: JavaScript heap out of memory)
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Build args — ตรงกับ .env.example (Smart Cabinet CU), API path: /api/smart-cabinet-cu/v1
 ARG NEXT_PUBLIC_API_URL=http://localhost:3000/api/smart-cabinet-vn/v1
