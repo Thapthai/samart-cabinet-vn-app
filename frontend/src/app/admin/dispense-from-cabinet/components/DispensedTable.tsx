@@ -174,6 +174,7 @@ export default function DispensedTable({
                     <TableHead className="text-center">จำนวนชิ้น</TableHead>
                     <TableHead>วันที่เบิก</TableHead>
                     <TableHead>แผนก</TableHead>
+                    <TableHead>ชื่อผู้เบิก</TableHead>
 
                   </TableRow>
                 </TableHeader>
@@ -228,6 +229,9 @@ export default function DispensedTable({
                           <TableCell className="text-muted-foreground">
                             {group.items[0]?.departmentName ?? '-'}
                           </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {group.items[0]?.cabinetUserName ?? '-'}
+                          </TableCell>
                         </TableRow>
 
                         {isExpanded && (
@@ -249,7 +253,6 @@ export default function DispensedTable({
                                         <TableHead>วันที่เบิก</TableHead>
                                         <TableHead>แผนก</TableHead>
                                         <TableHead>RFID Code</TableHead>
-                                        <TableHead>ชื่อผู้เบิก</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -277,7 +280,7 @@ export default function DispensedTable({
                                           <TableCell className="text-muted-foreground text-sm font-mono">
                                             {item.RfidCode || '-'}
                                           </TableCell>
-                                          <TableCell className="text-sm">{item.cabinetUserName ?? 'ไม่ระบุ'}</TableCell>
+
                                         </TableRow>
                                       ))}
                                     </TableBody>

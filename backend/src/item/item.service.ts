@@ -1038,11 +1038,28 @@ export class ItemService {
    * สรุปตาม ItemCode: ถอนวันนี้ - ใช้วันนี้ - คืนวันนี้ = max_available_qty
    * ใช้ item_code จาก supply_item_return_records (อ้างอิงตามรหัสสินค้า)
    */
-  async findAllItemStockWillReturn() {
+  async findAllItemStockWillReturn(filters?: {
+    department_id?: number;
+    cabinet_id?: number;
+    item_code?: string;
+    start_date?: string;
+    end_date?: string;
+  }) {
     try {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      let dateCondition = 'DATE(ist.LastCabinetModify) = DATE(NOW())';
+      if (filters?.start_date && filters?.end_date && dateRegex.test(filters.start_date) && dateRegex.test(filters.end_date)) {
+        dateCondition = `DATE(ist.LastCabinetModify) BETWEEN '${filters.start_date}' AND '${filters.end_date}'`;
+      } else if (filters?.start_date && dateRegex.test(filters.start_date)) {
+        dateCondition = `DATE(ist.LastCabinetModify) >= '${filters.start_date}'`;
+      } else if (filters?.end_date && dateRegex.test(filters.end_date)) {
+        dateCondition = `DATE(ist.LastCabinetModify) <= '${filters.end_date}'`;
+      }
+
       type Row = {
         ItemCode: string;
         StockID: number;
+        cabinet_id: number | null;
         cabinet_name: string | null;
         cabinet_code: string | null;
         department_id: number | null;
@@ -1053,12 +1070,13 @@ export class ItemService {
         return_qty: number;
         max_available_qty: number;
       };
-      const result = await this.prisma.$queryRaw<Row[]>`
+      const result = await this.prisma.$queryRawUnsafe<Row[]>(`
     SELECT *
         FROM (
             SELECT
                 w.ItemCode,
                 w.StockID,
+                c.id AS cabinet_id,
                 c.cabinet_name,
                 c.cabinet_code,
                 cd.department_id,
@@ -1077,7 +1095,7 @@ export class ItemService {
                     ist.StockID
                 FROM itemstock ist
                 WHERE ist.IsStock = 0
-                  AND DATE(ist.LastCabinetModify) = DATE(NOW())
+                  AND ${dateCondition}
                 GROUP BY ist.StockID,
                 ist.ItemCode
             ) w
@@ -1112,12 +1130,14 @@ export class ItemService {
             LEFT JOIN item i ON i.itemcode = w.ItemCode
         ) x
         WHERE x.max_available_qty > 0
-        ORDER BY x.ItemCode; `;
+        ORDER BY x.ItemCode;
+      `);
 
       // แปลง BigInt เป็น Number เพื่อให้ serialize ผ่าน TCP ได้ (JSON.stringify ไม่รองรับ BigInt)
-      const data = result.map((row) => ({
+      let data = result.map((row) => ({
         ItemCode: row.ItemCode,
         StockID: Number(row.StockID),
+        cabinet_id: row.cabinet_id != null ? Number(row.cabinet_id) : null,
         cabinet_name: row.cabinet_name ?? null,
         cabinet_code: row.cabinet_code ?? null,
         department_id: row.department_id != null ? Number(row.department_id) : null,
@@ -1128,6 +1148,23 @@ export class ItemService {
         return_qty: Number(row.return_qty),
         max_available_qty: Number(row.max_available_qty),
       }));
+
+      if (filters) {
+        if (filters.department_id != null) {
+          data = data.filter((r) => r.department_id === filters!.department_id);
+        }
+        if (filters.cabinet_id != null) {
+          data = data.filter((r) => r.cabinet_id === filters!.cabinet_id);
+        }
+        if (filters.item_code != null && String(filters.item_code).trim() !== '') {
+          const code = String(filters.item_code).trim().toLowerCase();
+          data = data.filter(
+            (r) =>
+              (r.ItemCode ?? '').toLowerCase().includes(code) ||
+              (r.itemname ?? '').toLowerCase().includes(code),
+          );
+        }
+      }
 
       return {
         success: true,

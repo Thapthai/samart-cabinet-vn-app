@@ -12,7 +12,7 @@ import { formatThaiDateTime } from '@/lib/formatThaiDateTime';
 const GROUP_TIME_TOLERANCE_SEC = 3;
 const TOLERANCE_MS = GROUP_TIME_TOLERANCE_SEC * 1000;
 
-const COLUMN_COUNT = 8;
+const COLUMN_COUNT = 9;
 
 export interface DispensedGroup {
   key: string;
@@ -174,6 +174,7 @@ export default function DispensedTable({
                     <TableHead className="text-center">จำนวนชิ้น</TableHead>
                     <TableHead>วันที่เบิก</TableHead>
                     <TableHead>แผนก</TableHead>
+                    <TableHead>ชื่อผู้เบิก</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -227,6 +228,9 @@ export default function DispensedTable({
                           <TableCell className="text-muted-foreground">
                             {group.items[0]?.departmentName ?? '-'}
                           </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {group.items[0]?.cabinetUserName ?? '-'}
+                          </TableCell>
                         </TableRow>
 
                         {isExpanded && (
@@ -248,7 +252,6 @@ export default function DispensedTable({
                                         <TableHead>วันที่เบิก</TableHead>
                                         <TableHead>แผนก</TableHead>
                                         <TableHead>RFID Code</TableHead>
-                                        <TableHead>ชื่อผู้เบิก</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -276,7 +279,6 @@ export default function DispensedTable({
                                           <TableCell className="text-muted-foreground text-sm font-mono">
                                             {item.RfidCode || '-'}
                                           </TableCell>
-                                          <TableCell className="text-sm">{item.cabinetUserName ?? 'ไม่ระบุ'}</TableCell>
                                         </TableRow>
                                       ))}
                                     </TableBody>

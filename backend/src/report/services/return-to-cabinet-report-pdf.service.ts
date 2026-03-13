@@ -108,7 +108,6 @@ export class ReturnToCabinetReportPdfService {
         const contentWidth = pageWidth - margin * 2;
         const rows = data.data ?? [];
         const useGroups = data.groups && data.groups.length > 0;
-        const filters = data.filters ?? {};
 
         // ---- Header block with logo ----
         const headerTop = 35;
@@ -175,7 +174,7 @@ export class ReturnToCabinetReportPdfService {
         // doc.fillColor('#000000');
         // doc.y = filterY + filterRowHeight + 8;
 
-        // ---- ตารางข้อมูล (ให้ตรงกับ dispensed: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ชื่อผู้เติม ไม่มี RFID/สถานะ) ----
+        // ---- ตารางข้อมูล (รูปแบบเดียวกับ dispensed: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ชื่อผู้เติม) ----
         const itemHeight = 28;
         const cellPadding = 4;
         const totalTableWidth = contentWidth;
@@ -223,18 +222,18 @@ export class ReturnToCabinetReportPdfService {
           const groups = data.groups;
           let rowNum = 1;
           for (const group of groups) {
-            const mainRowDispenser = (() => {
-              const n = group.items[0]?.cabinetUserName?.trim();
-              return n && n !== 'ไม่ระบุ' ? n : '-';
-            })();
+            const qtyDisplay = `${group.totalQty}`;
             const groupCellTexts = [
               String(rowNum),
               group.itemcode ?? '-',
               group.itemname ?? '-',
-              String(group.totalQty),
+              qtyDisplay,
               formatReportDateTime(group.returnTime),
               group.items[0]?.departmentName ?? '-',
-              mainRowDispenser,
+              (() => {
+                const n = group.items[0]?.cabinetUserName?.trim();
+                return n && n !== 'ไม่ระบุ' ? n : '-';
+              })(),
             ];
             doc.fontSize(12).font(finalFontBoldName);
             const groupCellHeights = groupCellTexts.map((text, i) => {
@@ -265,15 +264,16 @@ export class ReturnToCabinetReportPdfService {
             }
             doc.y = groupRowY + groupRowHeight;
             doc.fontSize(13).font(finalFontName).fillColor('#000000');
+
             group.items.forEach((item, subIdx) => {
               const cellTexts = [
                 `${rowNum}.${subIdx + 1}`,
-                item.itemcode ?? '-',
-                item.itemname ?? '-',
-                String(item.qty ?? 1),
-                formatReportDateTime(item.modifyDate),
-                item.departmentName ?? '-',
-                item.cabinetUserName ?? 'ไม่ระบุ',
+                item?.itemcode ?? '-',
+                item?.itemname ?? '-',
+                String(item?.qty ?? 1),
+                formatReportDateTime(item?.modifyDate as string),
+                item?.departmentName ?? '-',
+                item?.RfidCode ?? '-',
               ];
               const cellHeights = cellTexts.map((text, i) => {
                 const w = Math.max(4, colWidths[i] - cellPadding * 2);
@@ -308,16 +308,14 @@ export class ReturnToCabinetReportPdfService {
         } else {
           for (let idx = 0; idx < rows.length; idx++) {
             const item = rows[idx];
-            const u = (item as any).cabinetUserName?.trim();
-            const dispenserDisplay = u && u !== 'ไม่ระบุ' ? u : '-';
             const cellTexts = [
               String(idx + 1),
-              item.itemcode ?? '-',
-              item.itemname ?? '-',
-              String(item.qty ?? 1),
-              formatReportDateTime(item.modifyDate),
-              (item as any).departmentName ?? '-',
-              dispenserDisplay,
+              item?.itemcode ?? '-',
+              item?.itemname ?? '-',
+              String(item?.qty ?? 1),
+              formatReportDateTime(item?.modifyDate as string),
+              (item as any)?.departmentName ?? '-',
+              (item as any)?.cabinetUserName ?? 'ไม่ระบุ',
             ];
             doc.fontSize(13).font(finalFontName);
             const cellHeights = cellTexts.map((text, i) => {

@@ -64,3 +64,18 @@ export interface ReturnHistoryData {
 }
 
 export type ReturnReason = 'UNWRAPPED_UNUSED' | 'EXPIRED' | 'CONTAMINATED' | 'DAMAGED';
+
+/** รายการจาก GET /item-stocks/will-return (แยกตามตู้ + ItemCode) */
+export interface WillReturnItem {
+  ItemCode: string;
+  StockID?: number;
+  cabinet_name?: string | null;
+  cabinet_code?: string | null;
+  department_id?: number | null;
+  department_name?: string | null;
+  itemname: string | null;
+  withdraw_qty: number;
+  used_qty: number;
+  return_qty: number;
+  max_available_qty: number;
+}

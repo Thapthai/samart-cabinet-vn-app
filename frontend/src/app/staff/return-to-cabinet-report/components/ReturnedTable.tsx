@@ -251,11 +251,9 @@ export default function ReturnedTable({
                                         <TableHead>รหัสอุปกรณ์</TableHead>
                                         <TableHead>ชื่ออุปกรณ์</TableHead>
                                         <TableHead className="text-center">จำนวนชิ้น</TableHead>
-                                        <TableHead>รหัส RFID</TableHead>
                                         <TableHead>วันที่เติม</TableHead>
-                                        <TableHead>ตู้</TableHead>
                                         <TableHead>แผนก</TableHead>
-                                        <TableHead>ชื่อผู้เติม</TableHead>
+                                        <TableHead>RFID Code</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -274,19 +272,15 @@ export default function ReturnedTable({
                                           <TableCell className="text-center font-medium text-slate-700">
                                             {(item.qty ?? 1).toLocaleString()}
                                           </TableCell>
-                                          <TableCell className="text-muted-foreground text-sm font-mono">
-                                            {item.RfidCode || '-'}
-                                          </TableCell>
                                           <TableCell className="text-muted-foreground text-sm">
                                             {formatThaiDateTime(item.modifyDate)}
                                           </TableCell>
                                           <TableCell className="text-muted-foreground text-sm">
-                                            {item.cabinetName || '-'}
-                                          </TableCell>
-                                          <TableCell className="text-muted-foreground text-sm">
                                             {item.departmentName || '-'}
                                           </TableCell>
-                                          <TableCell className="text-sm">{item.cabinetUserName ?? 'ไม่ระบุ'}</TableCell>
+                                          <TableCell className="text-muted-foreground text-sm font-mono">
+                                            {item.RfidCode || '-'}
+                                          </TableCell>
                                         </TableRow>
                                       ))}
                                     </TableBody>

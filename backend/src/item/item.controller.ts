@@ -180,7 +180,33 @@ export class ItemStockController {
   }
 
   @Get('will-return')
-  async findAllWillReturn() {
-    return this.itemService.findAllItemStockWillReturn();
+  async findAllWillReturn(
+    @Query('department_id') department_id?: string,
+    @Query('cabinet_id') cabinet_id?: string,
+    @Query('item_code') item_code?: string,
+    @Query('start_date') start_date?: string,
+    @Query('end_date') end_date?: string,
+  ) {
+    const filters: {
+      department_id?: number;
+      cabinet_id?: number;
+      item_code?: string;
+      start_date?: string;
+      end_date?: string;
+    } = {};
+    if (department_id != null && department_id !== '') {
+      const n = parseInt(department_id, 10);
+      if (!Number.isNaN(n)) filters.department_id = n;
+    }
+    if (cabinet_id != null && cabinet_id !== '') {
+      const n = parseInt(cabinet_id, 10);
+      if (!Number.isNaN(n)) filters.cabinet_id = n;
+    }
+    if (item_code != null && item_code.trim() !== '') filters.item_code = item_code.trim();
+    if (start_date != null && start_date.trim() !== '') filters.start_date = start_date.trim();
+    if (end_date != null && end_date.trim() !== '') filters.end_date = end_date.trim();
+    return this.itemService.findAllItemStockWillReturn(
+      Object.keys(filters).length > 0 ? filters : undefined,
+    );
   }
 }

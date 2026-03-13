@@ -126,7 +126,7 @@ export class DispensedItemsExcelService {
     worksheet.getRow(2).height = 20;
     worksheet.getColumn(1).width = 12;
 
-    worksheet.mergeCells('B1:H2');
+    worksheet.mergeCells('B1:G2');
     const headerCell = worksheet.getCell('B1');
     headerCell.value = 'รายงานการเบิกอุปกรณ์\nDispensed Items Report';
     headerCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FF1A365D' } };
@@ -139,7 +139,7 @@ export class DispensedItemsExcelService {
     };
 
     // ---- แถว 3: วันที่รายงาน ----
-    worksheet.mergeCells('A3:H3');
+    worksheet.mergeCells('A3:G3');
     const dateCell = worksheet.getCell('A3');
     dateCell.value = `วันที่รายงาน: ${reportDate}`;
     dateCell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF6C757D' } };
@@ -172,9 +172,9 @@ export class DispensedItemsExcelService {
     });
     worksheet.getRow(4).height = 20;
 
-    // ---- แถว 5: Table header (ให้ตรงกับ return-to-cabinet: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เบิก, แผนก, ตู้, ชื่อผู้เบิก) ----
+    // ---- แถว 5: Table header (ตรงกับหน้าเว็บ: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เบิก, แผนก, ชื่อผู้เบิก) ----
     const tableStartRow = 5;
-    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวนชิ้น', 'วันที่เบิก', 'แผนก', 'ตู้', 'ชื่อผู้เบิก'];
+    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวนชิ้น', 'วันที่เบิก', 'แผนก', 'ชื่อผู้เบิก'];
     const headerRow = worksheet.getRow(tableStartRow);
     tableHeaders.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
@@ -193,7 +193,7 @@ export class DispensedItemsExcelService {
     if (useGroups && data.groups) {
       let rowNum = 1;
       for (const group of data.groups) {
-        // แถวสรุปกลุ่ม (ตรงกับ return-to-cabinet: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เบิก, แผนก, ไม่แสดงตู้, ชื่อผู้เบิก)
+        // แถวสรุปกลุ่ม (ตรงหน้าเว็บ: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เบิก, แผนก, ชื่อผู้เบิก)
         const groupRow = worksheet.getRow(dataRowIndex);
         const qtyDisplay = `${group.totalQty.toLocaleString()} `;
         const mainRowDispenser = (() => {
@@ -207,20 +207,19 @@ export class DispensedItemsExcelService {
           qtyDisplay,
           formatReportDateTime(group.dispenseTime),
           group.items[0]?.departmentName ?? '-',
-          '-',
           mainRowDispenser,
         ].forEach((val, colIndex) => {
           const cell = groupRow.getCell(colIndex + 1);
           cell.value = val as any;
           cell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FF1A365D' } };
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
-          cell.alignment = { horizontal: colIndex === 2 || colIndex === 4 || colIndex === 7 ? 'left' : 'center', vertical: 'middle' };
+          cell.alignment = { horizontal: colIndex === 1 || colIndex === 2 || colIndex === 6 ? 'left' : 'center', vertical: 'middle' };
           cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
         });
         groupRow.height = 24;
         dataRowIndex++;
 
-        // แถวรายการในกลุ่ม (ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เบิก, แผนก, ตู้, ชื่อผู้เบิก)
+        // แถวรายการในกลุ่ม (ตรงหน้าเว็บ sub: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เบิก, แผนก, RFID Code)
         group.items.forEach((item, subIdx) => {
           const excelRow = worksheet.getRow(dataRowIndex);
           const subLabel = `${rowNum}.${subIdx + 1}`;
@@ -231,14 +230,13 @@ export class DispensedItemsExcelService {
             item.qty ?? 1,
             formatReportDateTime(item.modifyDate),
             item.departmentName ?? '-',
-            item.cabinetName ?? '-',
-            item.cabinetUserName ?? 'ไม่ระบุ',
+            item.RfidCode ?? '-',
           ].forEach((val, colIndex) => {
             const cell = excelRow.getCell(colIndex + 1);
             cell.value = val as any;
             cell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF212529' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
-            cell.alignment = { horizontal: colIndex === 2 || colIndex === 4 || colIndex === 7 ? 'left' : 'center', vertical: 'middle' };
+            cell.alignment = { horizontal: colIndex === 1 || colIndex === 2 || colIndex === 6 ? 'left' : 'center', vertical: 'middle' };
             cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
           });
           excelRow.height = 22;
@@ -257,7 +255,6 @@ export class DispensedItemsExcelService {
           item.qty ?? 1,
           formatReportDateTime(item.modifyDate),
           item.departmentName ?? '-',
-          item.cabinetName ?? '-',
           item.cabinetUserName ?? 'ไม่ระบุ',
         ].forEach((val, colIndex) => {
           const cell = excelRow.getCell(colIndex + 1);
@@ -265,7 +262,7 @@ export class DispensedItemsExcelService {
           cell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF212529' } };
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
           cell.alignment = {
-            horizontal: colIndex === 2 || colIndex === 4 || colIndex === 7 ? 'left' : 'center',
+            horizontal: colIndex === 1 || colIndex === 2 || colIndex === 6 ? 'left' : 'center',
             vertical: 'middle',
           };
           cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -279,7 +276,7 @@ export class DispensedItemsExcelService {
 
     // ---- Footer + หมายเหตุ ----
     const footerRow = dataRowIndex + 1;
-    worksheet.mergeCells(`A${footerRow}:H${footerRow}`);
+    worksheet.mergeCells(`A${footerRow}:G${footerRow}`);
     const footerCell = worksheet.getCell(`A${footerRow}`);
     footerCell.value = 'เอกสารนี้สร้างจากระบบรายงานอัตโนมัติ';
     footerCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FFADB5BD' } };
@@ -287,14 +284,14 @@ export class DispensedItemsExcelService {
     worksheet.getRow(footerRow).height = 18;
 
     const noteRow = footerRow + 1;
-    worksheet.mergeCells(`A${noteRow}:H${noteRow}`);
+    worksheet.mergeCells(`A${noteRow}:G${noteRow}`);
     const noteCell = worksheet.getCell(`A${noteRow}`);
     noteCell.value = `จำนวนรายการทั้งหมด: ${data.summary?.total_records ?? 0} รายการ`;
     noteCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF6C757D' } };
     noteCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(noteRow).height = 16;
 
-    // ---- ความกว้างคอลัมน์ (8 คอลัมน์ เหมือน return-to-cabinet) ----
+    // ---- ความกว้างคอลัมน์ (7 คอลัมน์ ตรงหน้าเว็บ) ----
     worksheet.getColumn(1).width = 14;
     worksheet.getColumn(2).width = 22;
     worksheet.getColumn(3).width = 50;
@@ -302,7 +299,6 @@ export class DispensedItemsExcelService {
     worksheet.getColumn(5).width = 30;
     worksheet.getColumn(6).width = 24;
     worksheet.getColumn(7).width = 30;
-    worksheet.getColumn(8).width = 30;
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);

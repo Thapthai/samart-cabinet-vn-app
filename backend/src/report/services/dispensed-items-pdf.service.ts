@@ -274,7 +274,7 @@ export class DispensedItemsPdfService {
                 String(item?.qty ?? 1),
                 formatReportDateTime(item?.modifyDate as string),
                 item?.departmentName ?? '-',
-                item?.cabinetUserName ?? 'ไม่ระบุ',
+                item?.RfidCode ?? '-',
               ];
               const cellHeights = cellTexts.map((text, i) => {
                 const w = Math.max(4, colWidths[i] - cellPadding * 2);

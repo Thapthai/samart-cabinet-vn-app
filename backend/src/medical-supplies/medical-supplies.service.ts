@@ -18,7 +18,7 @@ import {
 
 @Injectable()
 export class MedicalSuppliesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // Create Log - เก็บ log ทุกกรณี รวม error
   private async createLog(usageId: number | null, actionData: any) {
@@ -659,12 +659,12 @@ export class MedicalSuppliesService {
       const itemsToCreate =
         discontinueAssessionNosUpdated.size > 0
           ? orderItems.filter((item) => {
-              const isDisc = this.isDiscontinueStatus(item.ItemStatus);
-              if (isDisc && item.AssessionNo) {
-                return discontinueAssessionNosUpdated.has(item.AssessionNo);
-              }
-              return true;
-            })
+            const isDisc = this.isDiscontinueStatus(item.ItemStatus);
+            if (isDisc && item.AssessionNo) {
+              return discontinueAssessionNosUpdated.has(item.AssessionNo);
+            }
+            return true;
+          })
           : orderItems;
 
       // Validate ItemCodes ก่อนสร้าง usage (only for items to be created, not Discontinue)
@@ -996,21 +996,21 @@ export class MedicalSuppliesService {
       const itemDateRange =
         filterItemDateStart || filterItemDateEnd
           ? {
-              OR: [
-                {
-                  created_at: {
-                    ...(filterItemDateStart && { gte: filterItemDateStart }),
-                    ...(filterItemDateEnd && { lte: filterItemDateEnd }),
-                  },
+            OR: [
+              {
+                created_at: {
+                  ...(filterItemDateStart && { gte: filterItemDateStart }),
+                  ...(filterItemDateEnd && { lte: filterItemDateEnd }),
                 },
-                {
-                  updated_at: {
-                    ...(filterItemDateStart && { gte: filterItemDateStart }),
-                    ...(filterItemDateEnd && { lte: filterItemDateEnd }),
-                  },
+              },
+              {
+                updated_at: {
+                  ...(filterItemDateStart && { gte: filterItemDateStart }),
+                  ...(filterItemDateEnd && { lte: filterItemDateEnd }),
                 },
-              ],
-            }
+              },
+            ],
+          }
           : null;
 
       if (itemDateRange) {
@@ -1055,23 +1055,23 @@ export class MedicalSuppliesService {
       const supplyItemsInclude: true | { where: { OR: Array<{ created_at?: { gte?: Date; lte?: Date }; updated_at?: { gte?: Date; lte?: Date } }> } } =
         itemDateStart || itemDateEnd
           ? {
-              where: {
-                OR: [
-                  {
-                    created_at: {
-                      ...(itemDateStart && { gte: itemDateStart }),
-                      ...(itemDateEnd && { lte: itemDateEnd }),
-                    },
+            where: {
+              OR: [
+                {
+                  created_at: {
+                    ...(itemDateStart && { gte: itemDateStart }),
+                    ...(itemDateEnd && { lte: itemDateEnd }),
                   },
-                  {
-                    updated_at: {
-                      ...(itemDateStart && { gte: itemDateStart }),
-                      ...(itemDateEnd && { lte: itemDateEnd }),
-                    },
+                },
+                {
+                  updated_at: {
+                    ...(itemDateStart && { gte: itemDateStart }),
+                    ...(itemDateEnd && { lte: itemDateEnd }),
                   },
-                ],
-              },
-            }
+                },
+              ],
+            },
+          }
           : true;
 
       const [data, total] = await Promise.all([
@@ -1453,7 +1453,7 @@ export class MedicalSuppliesService {
                 cancelled_qty: item.qty,
                 original_qty: item.qty,
                 input_data: data,
-              }); 
+              });
             }
           } else {
             // If no AssessionNo, discontinue all items in this usage (เฉพาะรายการที่ created_at >= วันนี้)

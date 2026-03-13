@@ -203,8 +203,14 @@ export const itemsApi = {
     return response.data;
   },
 
-  getItemStocksWillReturn: async (): Promise<{ success: boolean; data: any[] }> => {
-    const response = await api.get('/item-stocks/will-return');
+  getItemStocksWillReturn: async (params?: {
+    department_id?: number;
+    cabinet_id?: number;
+    item_code?: string;
+    start_date?: string;
+    end_date?: string;
+  }): Promise<{ success: boolean; data: any[] }> => {
+    const response = await api.get('/item-stocks/will-return', { params });
     return response.data as { success: boolean; data: any[] };
   },
 
