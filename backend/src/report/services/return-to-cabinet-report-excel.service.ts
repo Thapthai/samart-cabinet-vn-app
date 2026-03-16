@@ -103,7 +103,7 @@ export class ReturnToCabinetReportExcelService {
       timeZone: 'Asia/Bangkok',
     });
 
-    // ---- แถว 1-2: โลโก้ (A1:A2) + ชื่อรายงาน (B1:H2) ----
+    // ---- แถว 1-2: โลโก้ (A1:A2) + ชื่อรายงาน (B1:G2) เหมือน dispensed ----
     worksheet.mergeCells('A1:A2');
     worksheet.getCell('A1').fill = {
       type: 'pattern',
@@ -127,7 +127,7 @@ export class ReturnToCabinetReportExcelService {
     worksheet.getRow(2).height = 20;
     worksheet.getColumn(1).width = 12;
 
-    worksheet.mergeCells('B1:H2');
+    worksheet.mergeCells('B1:G2');
     const headerCell = worksheet.getCell('B1');
     headerCell.value = 'รายงานคืนอุปกรณ์เข้าตู้\nReturn To Cabinet Report';
     headerCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FF1A365D' } };
@@ -140,14 +140,14 @@ export class ReturnToCabinetReportExcelService {
     };
 
     // ---- แถว 3: วันที่รายงาน ----
-    worksheet.mergeCells('A3:H3');
+    worksheet.mergeCells('A3:G3');
     const dateCell = worksheet.getCell('A3');
     dateCell.value = `วันที่รายงาน: ${reportDate}`;
     dateCell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF6C757D' } };
     dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
     worksheet.getRow(3).height = 20;
 
-    // ---- แถว 4: Filter summary (แผนก | ตู้ | วันที่เริ่ม | วันที่สิ้นสุด) ----
+    // ---- แถว 4: Filter summary (แผนก | ตู้ | วันที่เริ่ม | วันที่สิ้นสุด) เหมือน dispensed ----
     const filters = data.filters ?? {};
     const filterLabels = ['แผนก', 'ตู้ Cabinet', 'วันที่เริ่ม', 'วันที่สิ้นสุด'];
     const filterValues = [
@@ -156,12 +156,14 @@ export class ReturnToCabinetReportExcelService {
       filters.startDate ?? 'ทั้งหมด',
       filters.endDate ?? 'ทั้งหมด',
     ];
-    // 8 columns → 4 กลุ่ม กลุ่มละ 2 คอลัมน์ (A-H)
-    const filterColMap = [['A', 'B'], ['C', 'D'], ['E', 'F'], ['G', 'H']];
+    // แถว 4: 4 กลุ่ม (A-B, C-D, E-F, G) เหมือน dispensed — merge เฉพาะเมื่อ 2 คอลัมน์
+    const filterColMap: [string, string][] = [['A', 'B'], ['C', 'D'], ['E', 'F'], ['G', 'G']];
     filterLabels.forEach((lbl, gi) => {
-      const cols = filterColMap[gi];
-      worksheet.mergeCells(`${cols[0]}4:${cols[1]}4`);
-      const cell = worksheet.getCell(`${cols[0]}4`);
+      const [colStart, colEnd] = filterColMap[gi];
+      if (colStart !== colEnd) {
+        worksheet.mergeCells(`${colStart}4:${colEnd}4`);
+      }
+      const cell = worksheet.getCell(`${colStart}4`);
       cell.value = `${lbl}: ${filterValues[gi]}`;
       cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1A365D' } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
@@ -173,9 +175,9 @@ export class ReturnToCabinetReportExcelService {
     });
     worksheet.getRow(4).height = 20;
 
-    // ---- แถว 5: Table header (ตรงหน้าเว็บ: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, ตู้, แผนก, ชื่อผู้เติม) ----
+    // ---- แถว 5: Table header 7 คอลัมน์ (ตรง dispensed: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ชื่อผู้เติม) ----
     const tableStartRow = 5;
-    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวนชิ้น', 'วันที่เติม', 'ตู้', 'แผนก', 'ชื่อผู้เติม'];
+    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวนชิ้น', 'วันที่เติม', 'แผนก', 'ชื่อผู้เติม'];
     const headerRow = worksheet.getRow(tableStartRow);
     tableHeaders.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
@@ -194,7 +196,7 @@ export class ReturnToCabinetReportExcelService {
     if (useGroups && data.groups) {
       let rowNum = 1;
       for (const group of data.groups) {
-        // แถวสรุปกลุ่ม (ตรงหน้าเว็บ: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, ตู้, แผนก, ชื่อผู้เติม)
+        // แถวสรุปกลุ่ม 7 คอลัมน์ (ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ชื่อผู้เติม) เหมือน dispensed
         const groupRow = worksheet.getRow(dataRowIndex);
         const qtyDisplay = `${group.totalQty.toLocaleString()} `;
         const mainRowFiller = (() => {
@@ -207,7 +209,6 @@ export class ReturnToCabinetReportExcelService {
           group.itemname || '-',
           qtyDisplay,
           formatReportDateTime(group.returnTime),
-          group.items[0]?.cabinetName ?? '-',
           group.items[0]?.departmentName ?? '-',
           mainRowFiller,
         ].forEach((val, colIndex) => {
@@ -215,16 +216,16 @@ export class ReturnToCabinetReportExcelService {
           cell.value = val as any;
           cell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FF1A365D' } };
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
-          cell.alignment = { horizontal: colIndex === 1 || colIndex === 2 || colIndex === 7 ? 'left' : 'center', vertical: 'middle' };
+          cell.alignment = { horizontal: colIndex === 1 || colIndex === 2 || colIndex === 6 ? 'left' : 'center', vertical: 'middle' };
           cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
         });
         groupRow.height = 24;
         dataRowIndex++;
 
-        // แถวรายการในกลุ่ม (ตรง Dispensed: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, RFID Code)
-        group.items.forEach((item, subIdx) => {
+        // แถวรายการในกลุ่ม 7 คอลัมน์ (เหมือน dispensed: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, RFID Code)
+        group.items.forEach((item) => {
           const excelRow = worksheet.getRow(dataRowIndex);
-          const subLabel = `${rowNum}.${subIdx + 1}`;
+          const subLabel = '';
           [
             subLabel,
             item.itemcode ?? '-',
@@ -232,7 +233,8 @@ export class ReturnToCabinetReportExcelService {
             item.qty ?? 1,
             formatReportDateTime(item.modifyDate),
             item.departmentName ?? '-',
-            item.RfidCode ?? '-',
+            // item.RfidCode ?? '-',
+            '',
           ].forEach((val, colIndex) => {
             const cell = excelRow.getCell(colIndex + 1);
             cell.value = val as any;
@@ -256,7 +258,6 @@ export class ReturnToCabinetReportExcelService {
           item.itemname ?? '-',
           item.qty ?? 1,
           formatReportDateTime(item.modifyDate),
-          item.cabinetName ?? '-',
           item.departmentName ?? '-',
           item.cabinetUserName ?? 'ไม่ระบุ',
         ].forEach((val, colIndex) => {
@@ -265,7 +266,7 @@ export class ReturnToCabinetReportExcelService {
           cell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF212529' } };
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
           cell.alignment = {
-            horizontal: colIndex === 1 || colIndex === 2 || colIndex === 7 ? 'left' : 'center',
+            horizontal: colIndex === 1 || colIndex === 2 || colIndex === 6 ? 'left' : 'center',
             vertical: 'middle',
           };
           cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -277,9 +278,9 @@ export class ReturnToCabinetReportExcelService {
 
     worksheet.addRow([]);
 
-    // ---- Footer + หมายเหตุ ----
+    // ---- Footer + หมายเหตุ (merge A-G เหมือน dispensed) ----
     const footerRow = dataRowIndex + 1;
-    worksheet.mergeCells(`A${footerRow}:H${footerRow}`);
+    worksheet.mergeCells(`A${footerRow}:G${footerRow}`);
     const footerCell = worksheet.getCell(`A${footerRow}`);
     footerCell.value = 'เอกสารนี้สร้างจากระบบรายงานอัตโนมัติ';
     footerCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FFADB5BD' } };
@@ -287,14 +288,14 @@ export class ReturnToCabinetReportExcelService {
     worksheet.getRow(footerRow).height = 18;
 
     const noteRow = footerRow + 1;
-    worksheet.mergeCells(`A${noteRow}:H${noteRow}`);
+    worksheet.mergeCells(`A${noteRow}:G${noteRow}`);
     const noteCell = worksheet.getCell(`A${noteRow}`);
     noteCell.value = `จำนวนรายการทั้งหมด: ${data.summary?.total_records ?? 0} รายการ`;
     noteCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF6C757D' } };
     noteCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(noteRow).height = 16;
 
-    // ---- ความกว้างคอลัมน์ (8 คอลัมน์ เหมือน dispensed) ----
+    // ---- ความกว้างคอลัมน์ (7 คอลัมน์ เหมือน dispensed) ----
     worksheet.getColumn(1).width = 14;
     worksheet.getColumn(2).width = 22;
     worksheet.getColumn(3).width = 50;
@@ -302,7 +303,6 @@ export class ReturnToCabinetReportExcelService {
     worksheet.getColumn(5).width = 30;
     worksheet.getColumn(6).width = 24;
     worksheet.getColumn(7).width = 30;
-    worksheet.getColumn(8).width = 30;
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);

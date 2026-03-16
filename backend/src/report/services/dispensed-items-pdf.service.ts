@@ -268,13 +268,15 @@ export class DispensedItemsPdfService {
 
             group.items.forEach((item, subIdx) => {
               const cellTexts = [
-                `${rowNum}.${subIdx + 1}`,
+                // `${rowNum}.${subIdx + 1}`,
+                '',
                 item?.itemcode ?? '-',
                 item?.itemname ?? '-',
                 String(item?.qty ?? 1),
                 formatReportDateTime(item?.modifyDate as string),
                 item?.departmentName ?? '-',
-                item?.RfidCode ?? '-',
+                // item?.RfidCode ?? '-',
+                '',
               ];
               const cellHeights = cellTexts.map((text, i) => {
                 const w = Math.max(4, colWidths[i] - cellPadding * 2);

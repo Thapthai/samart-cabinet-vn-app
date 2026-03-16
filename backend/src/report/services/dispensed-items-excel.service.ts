@@ -155,12 +155,14 @@ export class DispensedItemsExcelService {
       filters.startDate ?? 'ทั้งหมด',
       filters.endDate ?? 'ทั้งหมด',
     ];
-    // 8 columns → 4 กลุ่ม กลุ่มละ 2 คอลัมน์ (A-H)
-    const filterColMap = [['A', 'B'], ['C', 'D'], ['E', 'F'], ['G', 'H']];
+    // แถว 4: 4 กลุ่ม (A-B, C-D, E-F, G เท่านั้น เพราะแถว 3 ใช้ถึง G)
+    const filterColMap: [string, string][] = [['A', 'B'], ['C', 'D'], ['E', 'F'], ['G', 'G']];
     filterLabels.forEach((lbl, gi) => {
-      const cols = filterColMap[gi];
-      worksheet.mergeCells(`${cols[0]}4:${cols[1]}4`);
-      const cell = worksheet.getCell(`${cols[0]}4`);
+      const [colStart, colEnd] = filterColMap[gi];
+      if (colStart !== colEnd) {
+        worksheet.mergeCells(`${colStart}4:${colEnd}4`);
+      }
+      const cell = worksheet.getCell(`${colStart}4`);
       cell.value = `${lbl}: ${filterValues[gi]}`;
       cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1A365D' } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
@@ -222,7 +224,8 @@ export class DispensedItemsExcelService {
         // แถวรายการในกลุ่ม (ตรงหน้าเว็บ sub: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เบิก, แผนก, RFID Code)
         group.items.forEach((item, subIdx) => {
           const excelRow = worksheet.getRow(dataRowIndex);
-          const subLabel = `${rowNum}.${subIdx + 1}`;
+          // const subLabel = `${rowNum}.${subIdx + 1}`;
+          const subLabel = '';
           [
             subLabel,
             item.itemcode,
