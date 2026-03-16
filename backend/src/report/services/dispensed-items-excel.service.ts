@@ -233,7 +233,8 @@ export class DispensedItemsExcelService {
             item.qty ?? 1,
             formatReportDateTime(item.modifyDate),
             item.departmentName ?? '-',
-            item.RfidCode ?? '-',
+            // item.RfidCode ?? '-',
+            '',
           ].forEach((val, colIndex) => {
             const cell = excelRow.getCell(colIndex + 1);
             cell.value = val as any;
