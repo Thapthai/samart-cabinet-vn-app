@@ -219,9 +219,9 @@ export default function DispensedTable({
                             <span className="font-semibold text-slate-700">
                               {group.totalQty.toLocaleString()}
                             </span>
-                            <span className="text-muted-foreground text-xs ml-1">
+                            {/* <span className="text-muted-foreground text-xs ml-1">
                               ({group.items.length} รายการ)
-                            </span>
+                            </span> */}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {formatThaiDateTime(group.dispenseTime)}

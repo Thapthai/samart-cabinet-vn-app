@@ -203,6 +203,7 @@ export default function ReturnFormTab({
   return (
     <div className="space-y-6">
       {/* การ์ดฟอร์มแบบเดิม (dropdown + จำนวน/สาเหตุ/หมายเหตุ + ปุ่มแจ้งอุปกรณ์) */}
+      {/*
       <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
         <CardHeader className="border-b bg-slate-50/50">
           <CardTitle className="text-lg font-semibold text-slate-800">
@@ -399,6 +400,7 @@ export default function ReturnFormTab({
           )}
         </CardContent>
       </Card>
+    */}
 
       {/* การ์ดตารางแบบแจ้งคืนในแถว */}
       <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
