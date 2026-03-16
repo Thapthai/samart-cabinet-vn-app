@@ -4,27 +4,30 @@ import * as fs from 'fs';
 import { ReturnToCabinetReportData } from './return-to-cabinet-report-excel.service';
 import { ReportConfig, resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
 
-function formatReportDate(value?: string) {
-  if (!value) return '-';
+/** ให้ตรงกับหน้าเว็บ: เวลาใน DB เป็น Bangkok แต่ส่งมาเป็น UTC → ลบ 7 ชม. แล้วแสดงใน Asia/Bangkok (รับได้ทั้ง string และ Date จาก Prisma) */
+const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+function toBangkokTime(base: Date, value: string | Date | null | undefined): Date {
+  if (value == null) return base;
+  const isDateTime =
+    typeof value === 'string' ? value.includes('T') : value instanceof Date;
+  return isDateTime ? new Date(base.getTime() - BANGKOK_UTC_OFFSET_MS) : base;
+}
+
+function formatReportDate(value?: string | Date) {
+  if (value == null) return '-';
   const base = new Date(value);
-  const corrected =
-    typeof value === 'string' && value.endsWith('Z')
-      ? new Date(base.getTime() - 7 * 60 * 60 * 1000)
-      : base;
+  const corrected = toBangkokTime(base, value);
   return corrected.toLocaleDateString(ReportConfig.locale, {
     timeZone: ReportConfig.timezone,
     ...ReportConfig.dateFormat.date,
   });
 }
 
-/** วันที่ + เวลา (ชั่วโมง:นาที ไม่มีวินาที) สำหรับคอลัมน์วันที่เติม */
-function formatReportDateTime(value?: string) {
-  if (!value) return '-';
+/** วันที่ + เวลา (ชั่วโมง:นาที ไม่มีวินาที) สำหรับคอลัมน์วันที่เติม — รับ string หรือ Date ให้ตรงกับหน้าเว็บ */
+function formatReportDateTime(value?: string | Date) {
+  if (value == null) return '-';
   const base = new Date(value);
-  const corrected =
-    typeof value === 'string' && value.endsWith('Z')
-      ? new Date(base.getTime() - 7 * 60 * 60 * 1000)
-      : base;
+  const corrected = toBangkokTime(base, value);
   return corrected.toLocaleString(ReportConfig.locale, {
     timeZone: ReportConfig.timezone,
     year: 'numeric',

@@ -4,10 +4,20 @@ import * as fs from 'fs';
 import { resolveReportLogoPath } from '../config/report.config';
 import { ReportConfig } from '../config/report.config';
 
-function formatReportDateTime(value?: string) {
-  if (!value) return '-';
+/** ให้ตรงกับหน้าเว็บ: เวลาใน DB เป็น Bangkok แต่ส่งมาเป็น UTC → ลบ 7 ชม. (รับได้ทั้ง string และ Date จาก Prisma) */
+const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+function toBangkokTime(base: Date, value: string | Date | null | undefined): Date {
+  if (value == null) return base;
+  const isDateTime =
+    typeof value === 'string' ? value.includes('T') : value instanceof Date;
+  return isDateTime ? new Date(base.getTime() - BANGKOK_UTC_OFFSET_MS) : base;
+}
+
+function formatReportDateTime(value?: string | Date) {
+  if (value == null) return '-';
   const base = new Date(value);
-  return base.toLocaleString(ReportConfig.locale, {
+  const corrected = toBangkokTime(base, value);
+  return corrected.toLocaleString(ReportConfig.locale, {
     timeZone: ReportConfig.timezone,
     ...ReportConfig.dateFormat.datetime,
   });

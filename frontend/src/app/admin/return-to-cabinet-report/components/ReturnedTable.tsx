@@ -25,11 +25,11 @@ export interface ReturnedGroup {
 
 function buildGroups(items: DispensedItem[]): ReturnedGroup[] {
   if (items.length === 0) return [];
+  // เรียงตามวันที่คืน ล่าสุดก่อน (ให้ตรงกับ backend ORDER BY DESC)
   const sorted = [...items].sort((a, b) => {
-    const codeA = a.itemcode ?? '';
-    const codeB = b.itemcode ?? '';
-    if (codeA !== codeB) return codeA.localeCompare(codeB);
-    return new Date(a.modifyDate).getTime() - new Date(b.modifyDate).getTime();
+    const tA = new Date(a.modifyDate).getTime();
+    const tB = new Date(b.modifyDate).getTime();
+    return tB - tA;
   });
 
   const groups: ReturnedGroup[] = [];
@@ -43,7 +43,8 @@ function buildGroups(items: DispensedItem[]): ReturnedGroup[] {
       groupStartTime = t;
     } else {
       const sameItem = (item.itemcode ?? '') === (current[0].itemcode ?? '');
-      const withinWindow = t - groupStartTime <= TOLERANCE_MS;
+      // เรียง DESC แล้ว groupStartTime = เวลาล่าสุดในกลุ่ม, t <= groupStartTime → อยู่ในกลุ่มถ้า groupStartTime - t <= 3 วินาที
+      const withinWindow = groupStartTime - t <= TOLERANCE_MS;
       if (sameItem && withinWindow) {
         current.push(item);
       } else {
