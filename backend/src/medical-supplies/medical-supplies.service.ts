@@ -85,6 +85,24 @@ export class MedicalSuppliesService {
     ].join('-');
   }
 
+  /** แปลง Date เป็นสตริงเวลาไทย (Asia/Bangkok) รูปแบบ ISO พร้อม offset สำหรับส่งใน API */
+  private toThailandDateTimeString(date: Date | string | null | undefined): string | null {
+    if (date == null) return null;
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (Number.isNaN(d.getTime())) return null;
+    const s = d.toLocaleString('sv-SE', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    return s.replace(' ', 'T') + '+07:00';
+  }
+
   /** วันที่ created_at ของ item (supply_items) เป็น YYYY-MM-DD สำหรับเทียบกับวันนี้ */
   private getItemCreatedAtYyyyMmDd(item: { created_at?: Date | string | null }): string | null {
     const d = item?.created_at;
@@ -1183,11 +1201,15 @@ export class MedicalSuppliesService {
         // Convert Prisma object to plain object first to ensure all properties are included
         const usagePlain = JSON.parse(JSON.stringify(usage));
 
-        // Convert supply_items to plain objects as well (รวมทั้ง Discontinue และอื่น ๆ)
+        // Convert supply_items to plain objects; แปลงวันที่เป็นเวลาประเทศไทย
         const supplyItemsPlain = usage.supply_items.map(item => {
           const itemPlain = JSON.parse(JSON.stringify(item));
+          const thCreated = this.toThailandDateTimeString(item.created_at);
+          const thUpdated = this.toThailandDateTimeString(item.updated_at);
           return {
             ...itemPlain,
+            ...(thCreated != null && { created_at: thCreated }),
+            ...(thUpdated != null && { updated_at: thUpdated }),
             qty_pending: (item.qty || 0) - (item.qty_used_with_patient || 0) - (item.qty_returned_to_cabinet || 0),
           };
         });
@@ -1196,8 +1218,15 @@ export class MedicalSuppliesService {
           ? departmentNameByCode.get(usage.department_code) ?? null
           : null;
 
+        const thCreatedAt = this.toThailandDateTimeString(usage.created_at);
+        const thUpdatedAt = this.toThailandDateTimeString(usage.updated_at);
+        const thUsageDatetime = this.toThailandDateTimeString((usage as any).usage_datetime);
+
         const result: any = {
           ...usagePlain,
+          ...(thCreatedAt != null && { created_at: thCreatedAt }),
+          ...(thUpdatedAt != null && { updated_at: thUpdatedAt }),
+          ...(thUsageDatetime != null && { usage_datetime: thUsageDatetime }),
           department_name: departmentName,
           recorded_by_user_id: recordedByUserId,
           recorded_by_name: recordedByName,
