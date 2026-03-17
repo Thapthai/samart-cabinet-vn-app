@@ -371,10 +371,11 @@ export class MedicalSuppliesService {
 
           if (isDiscontinue && orderItem.AssessionNo) {
             // Handle discontinue items separately - find and update ALL existing items with same AssessionNo
-            // Search across all usage records, not just the current one
+            // Search across all usage records, not just the current one (trim to match DB consistently)
+            const assessionNo = (orderItem.AssessionNo ?? '').toString().trim();
             const allItemsWithSameAssessionNo = await this.prisma.supplyUsageItem.findMany({
               where: {
-                assession_no: orderItem.AssessionNo,
+                assession_no: assessionNo,
                 order_item_status: {
                   not: 'Discontinue', // Only update items that are not already discontinued
                 },
@@ -405,7 +406,7 @@ export class MedicalSuppliesService {
                 action: 'discontinue_item',
                 patient_hn: data.HN || data.patient_hn || '',
                 en: data.EN || '',
-                assession_no: orderItem.AssessionNo,
+                assession_no: assessionNo,
                 item_code: item.order_item_code,
                 old_status: item.order_item_status,
                 new_status: 'Discontinue',
@@ -413,18 +414,19 @@ export class MedicalSuppliesService {
                 input_data: data,
               });
             }
-            // ถ้ามีการอัปเดตเป็น Discontinue จริง (ผ่านเงื่อนไขวันที่) จึง push เพื่อสร้างรายการใหม่; ถ้าเปลี่ยนไม่ได้ก็ไม่สร้างเพิ่ม
+            // บันทึกรายการ Discontinue เสมอ: ถ้ามีแถวเดิมที่อัปเดตได้ก็ push; ถ้าไม่มีแถวเดิมก็ push เพื่อสร้างรายการใหม่ใน usage ปัจจุบัน (ให้ทุก AssessionNo ที่เป็น Discontinue ถูกบันทึก)
             if (itemsToDiscontinueNow.length > 0) {
               discontinueItemsInOrder.push(orderItem);
-              itemsToCreate.push(orderItem);
             }
+            itemsToCreate.push(orderItem);
           }
 
           // Find existing item with same AssessionNo in current usage
           if (!isDiscontinue || !orderItem.AssessionNo) {
             // For non-Discontinue items: match by AssessionNo + ItemCode (หนึ่งบิลมีหลาย line ได้)
+            const orderAssessionNo = (orderItem.AssessionNo ?? '').toString().trim();
             const existingItem = existingUsage.supply_items.find(
-              (item) => item.assession_no === orderItem.AssessionNo &&
+              (item) => (item.assession_no ?? '').toString().trim() === orderAssessionNo &&
                 item.order_item_code === orderItem.ItemCode &&
                 !this.isDiscontinueStatus(item.order_item_status),
             );
@@ -498,7 +500,7 @@ export class MedicalSuppliesService {
               medical_supply_usage_id: existingUsage.id,
               order_item_code: item.ItemCode,
               order_item_description: item.ItemDescription,
-              assession_no: item.AssessionNo,
+              assession_no: (item.AssessionNo ?? '').toString().trim(),
               order_item_status: this.normalizeOrderItemStatus(item.ItemStatus),
               qty: typeof item.QTY === 'string' ? parseInt(item.QTY) || 0 : item.QTY,
               uom: item.UOM,

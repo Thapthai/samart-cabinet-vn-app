@@ -702,6 +702,7 @@ export default function MedicalSuppliesPage() {
                           <TableHead className="min-w-[60px] text-xs sm:text-sm">หน่วย</TableHead>
                           <TableHead className="min-w-[90px] text-xs sm:text-sm">Assession No</TableHead>
                           <TableHead className="min-w-[100px] text-xs sm:text-sm whitespace-nowrap">วันที่สร้าง</TableHead>
+                          <TableHead className="min-w-[100px] text-xs sm:text-sm whitespace-nowrap">วันที่แก้ไข</TableHead>   
                           <TableHead className="min-w-[80px] text-xs sm:text-sm">สถานะ</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -729,7 +730,7 @@ export default function MedicalSuppliesPage() {
                           };
                           // กรองเฉพาะรายการที่ "วันที่สร้าง" อยู่ในช่วง (ไม่ใช้ updated_at) เพื่อไม่ให้แสดงแถวที่มี วันที่สร้าง นอกช่วง
                           const filteredByDate = supplyItems.filter((item: any) => {
-                            const createdStr = toLocalDateStr(item.created_at);
+                            const createdStr = toLocalDateStr(item.updated_at);
                             return inRange(createdStr);
                           });
 
@@ -755,6 +756,7 @@ export default function MedicalSuppliesPage() {
                                 <TableCell className="text-xs sm:text-sm py-2 sm:py-3">{item.uom || item.unit || '-'}</TableCell>
                                 <TableCell className="font-mono text-xs sm:text-sm py-2 sm:py-3">{item.assession_no || '-'}</TableCell>
                                 <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">{item.created_at ? formatDate(item.created_at) : '-'}</TableCell>
+                                <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">{item.updated_at ? formatDate(item.updated_at) : '-'}</TableCell>
                                 <TableCell className="py-2 sm:py-3">
                                   {(() => {
                                     const status = item.order_item_status || '-';

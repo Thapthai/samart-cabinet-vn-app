@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import AppLayout from '@/components/AppLayout';
 import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
 import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
 import { toast } from 'sonner';
@@ -95,7 +97,7 @@ export default function MedicalSuppliesPage() {
       setLoading(true);
       const filtersToUse = customFilters || activeFilters;
       const activePage = customPage !== undefined ? customPage : currentPage;
-      
+
       const params: any = {
         page: activePage,
         limit: itemsPerPage,
@@ -177,7 +179,7 @@ export default function MedicalSuppliesPage() {
       if (res?.success && Array.isArray(res.data)) {
         setDepartments(res.data.map((d: any) => ({ ID: d.ID, DepName: d.DepName || d.DepName2 || String(d.ID) })));
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }, [canSelectDepartment]);
 
   // Fetch หลังโหลด staff_user แล้วเท่านั้น เพื่อให้ข้อมูลอิงแผนกของ staff ตั้งแต่ครั้งแรก
@@ -289,18 +291,18 @@ export default function MedicalSuppliesPage() {
 
   return (
     <>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <History className="h-6 w-6 text-white" />
+      <div className="space-y-4 sm:space-y-6 w-full max-w-full min-w-0 pb-4 sm:pb-6">
+        {/* Header - ตรง admin/medical-supplies */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <History className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                รายการเบิกอุปกรณ์อุปกรณ์ใช้กับคนไข้
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white truncate">
+                รายการเบิกอุปกรณ์ใช้กับคนไข้
               </h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                 ประวัติการเบิกอุปกรณ์จากตู้ SmartCabinet
               </p>
             </div>
@@ -320,7 +322,7 @@ export default function MedicalSuppliesPage() {
                 <DatePickerBE
                   id="startDate"
                   value={formFilters.startDate}
-                  onChange={(value) => setFormFilters({ ...formFilters, startDate: value })}
+                  onChange={(v) => setFormFilters({ ...formFilters, startDate: v })}
                   placeholder="วว/ดด/ปปปป (พ.ศ.)"
                 />
               </div>
@@ -329,7 +331,7 @@ export default function MedicalSuppliesPage() {
                 <DatePickerBE
                   id="endDate"
                   value={formFilters.endDate}
-                  onChange={(value) => setFormFilters({ ...formFilters, endDate: value })}
+                  onChange={(v) => setFormFilters({ ...formFilters, endDate: v })}
                   placeholder="วว/ดด/ปปปป (พ.ศ.)"
                 />
               </div>
@@ -448,26 +450,28 @@ export default function MedicalSuppliesPage() {
           filters={activeFilters}
         />
 
-        {/* Detail Section */}
+        {/* Detail Section - ตรง admin/medical-supplies */}
         {selectedSupply && selectedSupplyId && (
-          <div id="supply-details" className="space-y-6">
+          <div id="supply-details" className="space-y-4 sm:space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>รายละเอียดการเบิกอุปกรณ์</CardTitle>
-                <CardDescription>
+              <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                <CardTitle className="text-base sm:text-lg truncate">รายละเอียดการเบิกอุปกรณ์</CardTitle>
+                <CardDescription className="text-xs sm:text-sm break-words">
                   HN: {selectedSupply.data?.patient_hn || selectedSupply.patient_hn || '-'} |
                   Assession No: {(() => {
                     const supplyItems = selectedSupply.data?.supply_items || selectedSupply.supply_items || [];
-                    const assessionNos = supplyItems
-                      .map((item: any) => item.assession_no)
-                      .filter((no: string) => no && no.trim() !== '');
+                    const assessionNos = [...new Set(
+                      supplyItems
+                        .map((item: any) => item.assession_no)
+                        .filter((no: string) => no && no.trim() !== '')
+                    )];
                     return assessionNos.length > 0 ? assessionNos.join(', ') : '-';
                   })()}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-5">
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <CardContent className="px-4 py-3 sm:px-6 sm:py-4">
+                <div className="space-y-4 sm:space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
                     <div>
                       <p className="text-sm text-gray-500">ชื่อคนไข้</p>
                       <p className="font-semibold">
@@ -487,9 +491,30 @@ export default function MedicalSuppliesPage() {
                     <div>
                       <p className="text-sm text-gray-500">แผนก</p>
                       <p className="font-semibold">
-                        {selectedSupply.data?.department_name || selectedSupply.department_name || 
-                         selectedSupply.data?.department_code || selectedSupply.department_code || '-'}
+                        {selectedSupply.data?.department_name || selectedSupply.department_name ||
+                          selectedSupply.data?.department_code || selectedSupply.department_code || '-'}
                       </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">ประเภทผู้ป่วย</p>
+                      <div className="mt-1">
+                        {(() => {
+                          const ut = (selectedSupply.data?.usage_type || selectedSupply.usage_type || '').toUpperCase();
+                          if (ut === 'OPD') return (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500" />
+                              ผู้ป่วยนอก (OPD)
+                            </Badge>
+                          );
+                          if (ut === 'IPD') return (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-purple-500" />
+                              ผู้ป่วยใน (IPD)
+                            </Badge>
+                          );
+                          return <span className="text-gray-400 text-sm">-</span>;
+                        })()}
+                      </div>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">จำนวนรายการ</p>
@@ -547,26 +572,32 @@ export default function MedicalSuppliesPage() {
                       </div>
                     </div>
                   </div>
+
                   <div className="pt-3 border-t border-gray-100">
                     <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">วันเวลา</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                       <div>
                         <p className="text-sm text-gray-500">เวลาที่เบิก</p>
                         <p className="font-semibold">
                           {formatDate(
                             selectedSupply.created_at ||
-                              selectedSupply.data?.created_at ||
-                              selectedSupply.data?.usage_datetime
+                            selectedSupply.data?.created_at ||
+                            selectedSupply.data?.usage_datetime
                           )}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Date and TimeBillPrinted</p>
+                        <p className="text-sm text-gray-500">วันที่และเวลาที่พิมพ์บิล</p>
                         <p className="font-semibold">
-                          {formatPrintDateTime(
-                            selectedSupply.data?.print_date || selectedSupply.print_date,
-                            selectedSupply.data?.time_print_date || selectedSupply.time_print_date
-                          )}
+                          {(() => {
+                            const printDate = selectedSupply.data?.print_date || selectedSupply.print_date;
+                            const timePrintDate = selectedSupply.data?.time_print_date || selectedSupply.time_print_date;
+                            if (!printDate?.trim() && !timePrintDate?.trim()) return '-';
+                            const dateTimeStr = printDate?.trim()
+                              ? (printDate.includes('T') ? printDate : `${printDate}T${timePrintDate?.trim() || '00:00:00'}`)
+                              : null;
+                            return dateTimeStr ? formatDate(dateTimeStr) : '-';
+                          })()}
                         </p>
                       </div>
                       <div>
@@ -584,87 +615,114 @@ export default function MedicalSuppliesPage() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>รายการอุปกรณ์ที่เบิก</CardTitle>
-                <CardDescription>รายละเอียดอุปกรณ์ทั้งหมดที่เบิกในครั้งนี้</CardDescription>
+              <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                <CardTitle className="text-base sm:text-lg">รายการอุปกรณ์ที่เบิก</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  รายละเอียดอุปกรณ์ทั้งหมดที่เบิกในครั้งนี้
+                  {activeFilters.startDate || activeFilters.endDate ? (
+                    <span className="block mt-2 text-foreground/80 font-medium break-words">
+                      แสดงตามวันที่เลือก: {activeFilters.startDate || '–'} ถึง {activeFilters.endDate || '–'}
+                    </span>
+                  ) : null}
+                </CardDescription>
               </CardHeader>
-              <CardContent className="px-4 py-4">
-                <div className="overflow-x-auto">
-                  <Table>
+              <CardContent className="px-3 py-3 sm:px-6 sm:py-4 overflow-hidden">
+                <p className="text-xs text-gray-500 mb-2 md:hidden">เลื่อนแนวนอนเพื่อดูคอลัมน์ทั้งหมด</p>
+                <div className="overflow-x-auto -mx-3 sm:mx-0 max-w-full">
+                  <Table className="min-w-[600px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[80px]">ลำดับ</TableHead>
-                        <TableHead>รหัสอุปกรณ์</TableHead>
-                        <TableHead>ชื่ออุปกรณ์</TableHead>
-                        <TableHead className="text-center">จำนวน</TableHead>
-                        <TableHead>หน่วย</TableHead>
-                        <TableHead>Assession No</TableHead>
-                        <TableHead>สถานะ</TableHead>
+                        <TableHead className="w-12 sm:w-[80px] text-xs sm:text-sm whitespace-nowrap">ลำดับ</TableHead>
+                        <TableHead className="min-w-[80px] text-xs sm:text-sm">รหัสอุปกรณ์</TableHead>
+                        <TableHead className="min-w-[120px] text-xs sm:text-sm">ชื่ออุปกรณ์</TableHead>
+                        <TableHead className="text-center w-14 text-xs sm:text-sm whitespace-nowrap">จำนวน</TableHead>
+                        <TableHead className="min-w-[60px] text-xs sm:text-sm">หน่วย</TableHead>
+                        <TableHead className="min-w-[90px] text-xs sm:text-sm">Assession No</TableHead>
+                        <TableHead className="min-w-[100px] text-xs sm:text-sm whitespace-nowrap">วันที่สร้าง</TableHead>
+                        <TableHead className="min-w-[80px] text-xs sm:text-sm">สถานะ</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {(() => {
                         const supplyItems = selectedSupply.data?.supply_items || selectedSupply.supply_items || [];
+                        const startDate = activeFilters.startDate || '';
+                        const endDate = activeFilters.endDate || '';
 
-                        if (supplyItems.length === 0) {
+                        const toLocalDateStr = (d: string | Date | null | undefined): string => {
+                          if (!d) return '';
+                          const dt = new Date(d);
+                          const y = dt.getFullYear();
+                          const m = String(dt.getMonth() + 1).padStart(2, '0');
+                          const day = String(dt.getDate()).padStart(2, '0');
+                          return `${y}-${m}-${day}`;
+                        };
+                        const inRange = (dateStr: string) => {
+                          if (!dateStr) return false;
+                          if (!startDate && !endDate) return true;
+                          if (startDate && dateStr < startDate) return false;
+                          if (endDate && dateStr > endDate) return false;
+                          return true;
+                        };
+                        const filteredByDate = supplyItems.filter((item: any) => {
+                          const createdStr = toLocalDateStr(item.created_at);
+                          return inRange(createdStr);
+                        });
+
+                        if (filteredByDate.length === 0) {
                           return (
                             <TableRow>
-                              <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                                ไม่มีรายการอุปกรณ์
+                              <TableCell colSpan={8} className="text-center py-6 sm:py-8 text-gray-500 text-sm">
+                                {supplyItems.length === 0
+                                  ? 'ไม่มีรายการอุปกรณ์'
+                                  : 'ไม่มีรายการอุปกรณ์ที่สร้างหรือแก้ไขในช่วงวันที่ที่กรอง'}
                               </TableCell>
                             </TableRow>
                           );
                         }
 
-                        return supplyItems.map((item: any, index: number) => (
-                          <TableRow key={index}>
-                            <TableCell className="text-center">{index + 1}</TableCell>
-                            <TableCell className="font-mono text-sm">
-                              {item.order_item_code || item.supply_code || '-'}
-                            </TableCell>
-                            <TableCell>
-                              {item.order_item_description || item.supply_name || '-'}
-                            </TableCell>
-                            <TableCell className="text-center font-semibold">
-                              {item.qty || item.quantity || 0}
-                            </TableCell>
-                            <TableCell>{item.uom || item.unit || '-'}</TableCell>
-                            <TableCell className="font-mono text-sm">
-                              {item.assession_no || '-'}
-                            </TableCell>
-                            <TableCell>
-                              {(() => {
-                                const status = item.order_item_status || '-';
-                                const statusLower = status.toLowerCase();
+                        return filteredByDate
+                          .map((item: any, index: number) => (
+                            <TableRow key={index}>
+                              <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-3">{index + 1}</TableCell>
+                              <TableCell className="font-mono text-xs sm:text-sm py-2 sm:py-3">{item.order_item_code || item.supply_code || '-'}</TableCell>
+                              <TableCell className="text-xs sm:text-sm py-2 sm:py-3 max-w-[140px] sm:max-w-none truncate" title={item.order_item_description || item.supply_name}>{item.order_item_description || item.supply_name || '-'}</TableCell>
+                              <TableCell className="text-center font-semibold text-xs sm:text-sm py-2 sm:py-3">{item.qty || item.quantity || 0}</TableCell>
+                              <TableCell className="text-xs sm:text-sm py-2 sm:py-3">{item.uom || item.unit || '-'}</TableCell>
+                              <TableCell className="font-mono text-xs sm:text-sm py-2 sm:py-3">{item.assession_no || '-'}</TableCell>
+                              <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">{item.created_at ? formatDate(item.created_at) : '-'}</TableCell>
+                              <TableCell className="py-2 sm:py-3">
+                                {(() => {
+                                  const status = item.order_item_status || '-';
+                                  const statusLower = status.toLowerCase();
 
-                                if (statusLower === 'discontinue' || statusLower === 'discontinued') {
-                                  return (
-                                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                                      <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-red-500"></span>
-                                      ยกเลิก
-                                    </Badge>
-                                  );
-                                } else if (statusLower === 'verified') {
-                                  return (
-                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                      <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-green-500"></span>
-                                      ยืนยันแล้ว
-                                    </Badge>
-                                  );
-                                } else if (status === '-') {
-                                  return <span className="text-gray-400">-</span>;
-                                } else {
-                                  return (
-                                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                      <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500"></span>
-                                      {status}
-                                    </Badge>
-                                  );
-                                }
-                              })()}
-                            </TableCell>
-                          </TableRow>
-                        ));
+                                  if (statusLower === 'discontinue' || statusLower === 'discontinued') {
+                                    return (
+                                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
+                                        <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-red-500"></span>
+                                        ยกเลิก
+                                      </Badge>
+                                    );
+                                  } else if (statusLower === 'verified') {
+                                    return (
+                                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                                        <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-green-500"></span>
+                                        ยืนยันแล้ว
+                                      </Badge>
+                                    );
+                                  } else if (status === '-') {
+                                    return <span className="text-gray-400 text-xs sm:text-sm">-</span>;
+                                  } else {
+                                    return (
+                                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                                        <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500"></span>
+                                        {status}
+                                      </Badge>
+                                    );
+                                  }
+                                })()}
+                              </TableCell>
+                            </TableRow>
+                          ));
                       })()}
                     </TableBody>
                   </Table>
@@ -675,7 +733,6 @@ export default function MedicalSuppliesPage() {
         )}
       </div>
 
-      {/* Cancel Bill Dialog */}
       <CancelBillDialog
         open={cancelBillDialogOpen}
         onOpenChange={setCancelBillDialogOpen}
