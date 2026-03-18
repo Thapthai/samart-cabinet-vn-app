@@ -271,7 +271,15 @@ export class MedicalSuppliesService {
     const s = (status ?? '').toString().trim();
     const lower = s.toLowerCase();
     if (s === '' || lower === 'verified' || lower === 'verifie') return { allowed: true, normalized: 'Verified' };
-    if (lower === 'discontinue' || lower === 'discontinuud') return { allowed: true, normalized: 'Discontinue' };
+    if (
+      lower === 'discontinue' ||
+      lower === 'discontinuud' ||
+      lower === 'discontinued' ||
+      lower === 'cancel' ||
+      lower === 'cancelled'
+    ) {
+      return { allowed: true, normalized: 'Discontinue' };
+    }
     return { allowed: false };
   }
 
@@ -462,33 +470,85 @@ export class MedicalSuppliesService {
       orderItems.forEach((item: any, i: number) => this.validateOrderItem(item, i));
 
       const firstOrderItem = orderItems[0];
-      const resolved = await this.resolveDepartmentCodeFromDepName2(
-        firstOrderItem?.PatientLocationwhenOrdered,
+      const orderItemForDept =
+        orderItems.find((item: any) => (item.PatientLocationwhenOrdered ?? '').toString().trim()) ??
+        firstOrderItem;
+      let resolved = await this.resolveDepartmentCodeFromDepName2(
+        orderItemForDept?.PatientLocationwhenOrdered,
       );
-      const departmentCode = data.department_code ?? resolved.departmentCode ?? null;
-      // usage_type: ใช้ค่าจาก data ก่อน ถ้าไม่มีให้ใช้ค่าที่ parse จาก PatientLocationwhenOrdered
-      const resolvedUsageType = data.usage_type ?? resolved.usageType ?? null;
+      let departmentCode = data.department_code ?? resolved.departmentCode ?? null;
+      let resolvedUsageType = data.usage_type ?? resolved.usageType ?? null;
 
-      // Validate department: ต้องมี department อยู่ในระบบ
-      if (!departmentCode) {
-        const rawLoc = firstOrderItem?.PatientLocationwhenOrdered ?? '';
+      let existingUsage: (Prisma.MedicalSupplyUsageGetPayload<{
+        include: { supply_items: true };
+      }> | null) = null;
+      if (episodeNumber && patientHn && firstName && lastname) {
+        existingUsage = await this.prisma.medicalSupplyUsage.findFirst({
+          where: {
+            en: episodeNumber,
+            patient_hn: patientHn,
+            first_name: firstName,
+            lastname: lastname,
+          },
+          include: { supply_items: true },
+          orderBy: { created_at: 'desc' },
+        });
+      }
+
+      if (!departmentCode && existingUsage?.department_code) {
+        departmentCode = existingUsage.department_code;
+      }
+      if (!resolvedUsageType && existingUsage?.usage_type) {
+        resolvedUsageType = existingUsage.usage_type;
+      }
+
+      const allOrderDiscontinue =
+        orderItems.length > 0 &&
+        orderItems.every((item: any) => this.isDiscontinueStatus(item.ItemStatus));
+      if (!departmentCode && allOrderDiscontinue && episodeNumber && patientHn) {
+        const anyWithDept = await this.prisma.medicalSupplyUsage.findFirst({
+          where: {
+            en: episodeNumber,
+            patient_hn: patientHn,
+            department_code: { not: null },
+          },
+          orderBy: { created_at: 'desc' },
+          select: { department_code: true, usage_type: true },
+        });
+        if (anyWithDept?.department_code) {
+          departmentCode = anyWithDept.department_code;
+          if (!resolvedUsageType && anyWithDept.usage_type) {
+            resolvedUsageType = anyWithDept.usage_type;
+          }
+        }
+      }
+
+      const needsDepartmentForCreate =
+        orderItems.some((item: any) => !this.isDiscontinueStatus(item.ItemStatus)) ||
+        (data.supplies ?? []).length > 0;
+
+      if (!departmentCode && needsDepartmentForCreate) {
+        const rawLoc = (orderItemForDept?.PatientLocationwhenOrdered ?? '').toString();
         const dashIdx = rawLoc.lastIndexOf('-');
         const deptPart = dashIdx > 0 ? rawLoc.substring(0, dashIdx).trim() : rawLoc;
         throw new BadRequestException(
           `ไม่พบข้อมูลแผนก: "${deptPart || rawLoc}" กรุณาตรวจสอบ PatientLocationwhenOrdered (รูปแบบ: <ชื่อแผนก>-<OPD|IPD>) หรือ department_code`,
         );
       }
-      const deptIdNum = parseInt(departmentCode, 10);
-      const deptRecord = isNaN(deptIdNum)
-        ? null
-        : await this.prisma.department.findUnique({
-          where: { ID: deptIdNum },
-          select: { ID: true, DepName: true, DepName2: true },
-        });
-      if (!deptRecord) {
-        throw new BadRequestException(
-          `ไม่พบแผนก (department_code: ${departmentCode}) ในระบบ`,
-        );
+
+      if (departmentCode) {
+        const deptIdNum = parseInt(departmentCode, 10);
+        const deptRecord = isNaN(deptIdNum)
+          ? null
+          : await this.prisma.department.findUnique({
+            where: { ID: deptIdNum },
+            select: { ID: true, DepName: true, DepName2: true },
+          });
+        if (!deptRecord) {
+          throw new BadRequestException(
+            `ไม่พบแผนก (department_code: ${departmentCode}) ในระบบ`,
+          );
+        }
       }
 
       const printDate = this.normalizeDateToYyyyMmDd(data.DateBillPrinted) ?? (data.DateBillPrinted?.trim() || null);
@@ -532,28 +592,6 @@ export class MedicalSuppliesService {
 
       // Determine if using new format (Order) or legacy format (supplies)
       const legacySupplies = data.supplies || [];
-
-      // Check if there's an existing usage with same EN, HN, FirstName, Lastname
-      let existingUsage: (Prisma.MedicalSupplyUsageGetPayload<{
-        include: { supply_items: true }
-      }> | null) = null;
-
-      if (episodeNumber && patientHn && firstName && lastname) {
-        existingUsage = await this.prisma.medicalSupplyUsage.findFirst({
-          where: {
-            en: episodeNumber,
-            patient_hn: patientHn,
-            first_name: firstName,
-            lastname: lastname,
-          },
-          include: {
-            supply_items: true,
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-        });
-      }
 
       // If existing usage found, process items based on AssessionNo
       if (existingUsage && orderItems.length > 0) {
