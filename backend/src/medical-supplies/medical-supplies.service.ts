@@ -20,13 +20,38 @@ import {
 export class MedicalSuppliesService {
   constructor(private prisma: PrismaService) { }
 
-  // Create Log - เก็บ log ทุกกรณี รวม error
+  /** ดึง HN, EN, ประเภท, สถานะ จาก payload log สำหรับคอลัมน์แยก */
+  private extractLogIndexFields(actionData: any): {
+    patient_hn: string | null;
+    en: string | null;
+    log_type: string | null;
+    log_status: string | null;
+  } {
+    if (actionData == null || typeof actionData !== 'object') {
+      return { patient_hn: null, en: null, log_type: null, log_status: null };
+    }
+    const s = (v: unknown) =>
+      v != null && String(v).trim() !== '' ? String(v).trim() : null;
+    return {
+      patient_hn: s(actionData.patient_hn ?? actionData.HN),
+      en: s(actionData.en ?? actionData.EN),
+      log_type: s(actionData.type ?? actionData.action),
+      log_status: s(actionData.status),
+    };
+  }
+
+  // Create Log - เก็บ log ทุกกรณี รวม error (คอลัมน์แยก + JSON เต็ม)
   private async createLog(usageId: number | null, actionData: any) {
     try {
+      const idx = this.extractLogIndexFields(actionData);
       await this.prisma.medicalSupplyUsageLog.create({
         data: {
           usage_id: usageId,
-          action: actionData,
+          patient_hn: idx.patient_hn,
+          en: idx.en,
+          log_type: idx.log_type,
+          log_status: idx.log_status,
+          action: actionData ?? {},
         },
       });
     } catch (error) {
@@ -305,7 +330,6 @@ export class MedicalSuppliesService {
       let recordedByUserId = data.recorded_by_user_id;
       let finalUserType = 'admin';
       let finalUser: any = null;
-
       if (userContext && userContext.user) {
         // If userType is 'unknown', check if it's staff (userContext.user is { client_id: '...' } or string)
         if (userContext.userType === 'unknown') {
@@ -323,9 +347,14 @@ export class MedicalSuppliesService {
             }
           }
         } else if (userContext.user.id) {
-          // Normal case: user already validated (admin or staff from auth-service)
           finalUserType = userContext.userType || 'admin';
           finalUser = userContext.user;
+        } else if (userContext.user.client_id) {
+          const staffCheck = await this.checkStaffUser(userContext.user.client_id);
+          if (staffCheck) {
+            finalUserType = 'staff';
+            finalUser = staffCheck.user;
+          }
         }
       }
 
@@ -1318,16 +1347,52 @@ export class MedicalSuppliesService {
     }
   }
 
-  // Get Logs (MedicalSupplyUsageLog) with pagination and filters (HN/EN from action JSON)
+  /** คีย์ HN/EN สำหรับจัดกลุ่ม (สอดคล้องกับคอลัมน์ + JSON) */
+  private logKeyHnEnSql(tableAlias = '') {
+    const p = tableAlias ? `${tableAlias}.` : '';
+    return `COALESCE(
+      NULLIF(TRIM(IFNULL(${p}patient_hn,'')),''),
+      NULLIF(TRIM(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(${p}action, '$.patient_hn')),'')),''),
+      NULLIF(TRIM(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(${p}action, '$.HN')),'')),''),
+      ''
+    )`;
+  }
+
+  private logKeyEnSql(tableAlias = '') {
+    const p = tableAlias ? `${tableAlias}.` : '';
+    return `COALESCE(
+      NULLIF(TRIM(IFNULL(${p}en,'')),''),
+      NULLIF(TRIM(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(${p}action, '$.en')),'')),''),
+      NULLIF(TRIM(IFNULL(JSON_UNQUOTE(JSON_EXTRACT(${p}action, '$.EN')),'')),''),
+      ''
+    )`;
+  }
+
+  // Get Logs — จัดกลุ่มตาม HN + EN (แบ่งหน้าตามจำนวนกลุ่ม)
   async findAllLogs(query: GetMedicalSupplyUsageLogsQueryDto): Promise<{
-    data: Array<{ id: number; usage_id: number | null; action: any; created_at: Date }>;
-    total: number;
+    groups: Array<{
+      patient_hn: string;
+      en: string;
+      log_count: number;
+      last_activity_at: Date;
+      logs: Array<{
+        id: number;
+        usage_id: number | null;
+        patient_hn: string | null;
+        en: string | null;
+        log_type: string | null;
+        log_status: string | null;
+        action: any;
+        created_at: Date;
+      }>;
+    }>;
+    total_groups: number;
     page: number;
     limit: number;
     totalPages: number;
   }> {
     const page = Math.max(1, query.page || 1);
-    const limit = Math.min(100, Math.max(1, query.limit || 20));
+    const limit = Math.min(50, Math.max(1, query.limit || 20));
     const skip = (page - 1) * limit;
 
     const table = 'app_microservice_medical_supply_usages_logs';
@@ -1344,40 +1409,128 @@ export class MedicalSuppliesService {
     }
     const hnTrim = query.patient_hn?.trim();
     if (hnTrim) {
-      conditions.push(`JSON_UNQUOTE(JSON_EXTRACT(action, '$.patient_hn')) = ?`);
-      params.push(hnTrim);
+      conditions.push(
+        `(patient_hn = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.patient_hn')) = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.HN')) = ?)`,
+      );
+      params.push(hnTrim, hnTrim, hnTrim);
     }
     const enTrim = query.en?.trim();
     if (enTrim) {
-      conditions.push(`JSON_UNQUOTE(JSON_EXTRACT(action, '$.en')) = ?`);
-      params.push(enTrim);
+      conditions.push(
+        `(en = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.en')) = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.EN')) = ?)`,
+      );
+      params.push(enTrim, enTrim, enTrim);
+    }
+    const typeTrim = query.log_type?.trim();
+    if (typeTrim) {
+      conditions.push(
+        `(log_type = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.type')) = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.action')) = ?)`,
+      );
+      params.push(typeTrim, typeTrim, typeTrim);
+    }
+    const statusTrim = query.log_status?.trim();
+    if (statusTrim) {
+      conditions.push(
+        `(log_status = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.status')) = ?)`,
+      );
+      params.push(statusTrim, statusTrim);
     }
 
     const whereSql = conditions.join(' AND ');
-    const countResult = await this.prisma.$queryRawUnsafe<[{ cnt: bigint }]>(
-      `SELECT COUNT(*) as cnt FROM \`${table}\` WHERE ${whereSql}`,
+    const kHn = this.logKeyHnEnSql('b');
+    const kEn = this.logKeyEnSql('b');
+
+    const innerBase = `
+      SELECT b.id, b.usage_id, b.patient_hn, b.en, b.log_type, b.log_status, b.action, b.created_at,
+        ${kHn} AS k_hn,
+        ${kEn} AS k_en
+      FROM \`${table}\` b
+      WHERE ${whereSql}
+    `;
+
+    const countGroups = await this.prisma.$queryRawUnsafe<[{ c: bigint }]>(
+      `SELECT COUNT(*) AS c FROM (SELECT 1 AS x FROM (${innerBase}) t0 GROUP BY k_hn, k_en) g`,
       ...params,
     );
-    const total = Number(countResult[0]?.cnt ?? 0);
-    const rows = await this.prisma.$queryRawUnsafe<any[]>(
-      `SELECT id, usage_id, action, created_at FROM \`${table}\` WHERE ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    const totalGroups = Number(countGroups[0]?.c ?? 0);
+
+    const groupRows = await this.prisma.$queryRawUnsafe<
+      Array<{ k_hn: string; k_en: string; log_count: bigint; last_activity_at: Date }>
+    >(
+      `SELECT k_hn, k_en, COUNT(*) AS log_count, MAX(created_at) AS last_activity_at
+       FROM (${innerBase}) t1
+       GROUP BY k_hn, k_en
+       ORDER BY last_activity_at DESC
+       LIMIT ? OFFSET ?`,
       ...params,
       limit,
       skip,
     );
-    const data = rows.map((r) => ({
+
+    if (groupRows.length === 0) {
+      return {
+        groups: [],
+        total_groups: totalGroups,
+        page,
+        limit,
+        totalPages: Math.ceil(totalGroups / limit) || 1,
+      };
+    }
+
+    const orClauses: string[] = [];
+    const orParams: string[] = [];
+    for (const g of groupRows) {
+      orClauses.push('(k_hn = ? AND k_en = ?)');
+      orParams.push(g.k_hn ?? '', g.k_en ?? '');
+    }
+    const detailSql = `
+      SELECT id, usage_id, patient_hn, en, log_type, log_status, action, created_at, k_hn, k_en
+      FROM (${innerBase}) t2
+      WHERE ${orClauses.join(' OR ')}
+      ORDER BY k_hn, k_en, created_at DESC
+    `;
+    const flatRows = await this.prisma.$queryRawUnsafe<any[]>(
+      detailSql,
+      ...params,
+      ...orParams,
+    );
+
+    const mapRow = (r: any) => ({
       id: r.id,
       usage_id: r.usage_id,
+      patient_hn: r.patient_hn ?? null,
+      en: r.en ?? null,
+      log_type: r.log_type ?? null,
+      log_status: r.log_status ?? null,
       action: typeof r.action === 'string' ? JSON.parse(r.action) : r.action,
       created_at: r.created_at,
-    }));
+    });
+
+    const byKey = new Map<string, ReturnType<typeof mapRow>[]>();
+    for (const r of flatRows) {
+      const key = `${r.k_hn}\0${r.k_en}`;
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key)!.push(mapRow(r));
+    }
+
+    const groups = groupRows.map((g) => {
+      const key = `${g.k_hn ?? ''}\0${g.k_en ?? ''}`;
+      const logs = byKey.get(key) ?? [];
+      return {
+        patient_hn: g.k_hn || '—',
+        en: g.k_en || '—',
+        log_count: Number(g.log_count),
+        last_activity_at: g.last_activity_at,
+        logs,
+      };
+    });
 
     return {
-      data,
-      total,
+      groups,
+      total_groups: totalGroups,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(totalGroups / limit) || 1,
     };
   }
 
@@ -2307,7 +2460,7 @@ export class MedicalSuppliesService {
       const page = Math.max(1, Number(query.page) || 1);
       const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
       const skip = (page - 1) * limit;
-
+ 
       // Build where clause
       const where: any = {};
 
@@ -2366,11 +2519,17 @@ export class MedicalSuppliesService {
 
       // โหลด ItemStock ตาม itemCode (อาจมีหลายแถว ใช้แถวแรก)
       const itemCodes = [...new Set(records.map((r) => r.itemCode).filter(Boolean))];
+      // select เฉพาะฟิลด์ที่ใช้ — บางแถวใน DB เก็บ HNCode เป็นตัวเลข 0 ทำให้ Prisma (String) error ถ้าโหลดทุกคอลัมน์
       const stocks =
         itemCodes.length > 0
           ? await this.prisma.itemStock.findMany({
             where: { ItemCode: { in: itemCodes } },
-            include: { item: { select: { itemcode: true, itemname: true } } },
+            select: {
+              RowID: true,
+              ItemCode: true,
+              RfidCode: true,
+              item: { select: { itemcode: true, itemname: true } },
+            },
           })
           : [];
       const stockByCode = new Map<string | null, (typeof stocks)[0]>();

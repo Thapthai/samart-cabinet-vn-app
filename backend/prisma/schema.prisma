@@ -462,17 +462,31 @@ model MedicalSupplyUsageLog {
   // Reference to the usage record (nullable for error logs)
   usage_id Int? @map("usage_id")
 
-  // Action data (JSON) - เก็บทุกอย่างใน JSON
+  /// HN (เลข HN ผู้ป่วย) — แยกคอลัมน์เพื่อค้น/รายงาน
+  patient_hn String? @map("patient_hn") @db.VarChar(64)
+
+  /// EN (Episode / เลขอีพีโซด)
+  en String? @map("en") @db.VarChar(64)
+
+  /// ประเภท log เช่น CREATE, UPDATE, หรือชื่อ action
+  log_type String? @map("log_type") @db.VarChar(64)
+
+  /// สถานะ เช่น SUCCESS, ERROR
+  log_status String? @map("log_status") @db.VarChar(32)
+
+  // Action data (JSON) - รายละเอียดเต็ม
   action Json @map("action") @db.Json
 
-  // Timestamp
   created_at DateTime @default(now()) @map("created_at")
 
-  // Relations (optional - for error logs without usage_id)
   usage MedicalSupplyUsage? @relation(fields: [usage_id], references: [id], onDelete: Cascade)
 
   @@index([usage_id])
   @@index([created_at])
+  @@index([patient_hn])
+  @@index([en])
+  @@index([log_type])
+  @@index([log_status])
   @@map("app_microservice_medical_supply_usages_logs")
 }
 

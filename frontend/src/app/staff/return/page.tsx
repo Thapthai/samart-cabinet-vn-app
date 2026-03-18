@@ -27,6 +27,11 @@ import type { ReturnHistoryData } from './types';
 
 const ITEM_PAGE_SIZE = 15;
 
+const getTodayDate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 /** รายการจาก GET /item-stocks/will-return (แยกตามตู้ + ItemCode) */
 interface WillReturnItem {
   ItemCode: string;
@@ -143,16 +148,16 @@ export default function ReturnMedicalSuppliesPage() {
     setItemDropdownPage(0);
   }, [itemSearch]);
 
-  // Return history (default date from/to = today)
-  const [returnHistoryDateFrom, setReturnHistoryDateFrom] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
-  const [returnHistoryDateTo, setReturnHistoryDateTo] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [returnHistoryDateFrom, setReturnHistoryDateFrom] = useState(() => getTodayDate());
+  const [returnHistoryDateTo, setReturnHistoryDateTo] = useState(() => getTodayDate());
   const [returnHistoryReason, setReturnHistoryReason] = useState<string>('ALL');
   const [returnHistoryDepartmentCode, setReturnHistoryDepartmentCode] = useState<string>('');
-  const [returnHistoryData, setReturnHistoryData] = useState<ReturnHistoryData | null>(null);
+  const [returnHistoryData, setReturnHistoryData] = useState<ReturnHistoryData | null>({
+    data: [],
+    total: 0,
+    page: 1,
+    limit: 10,
+  });
   const [returnHistoryPage, setReturnHistoryPage] = useState(1);
   const [returnHistoryLimit] = useState(10);
 
@@ -185,7 +190,7 @@ export default function ReturnMedicalSuppliesPage() {
           if (staffUser?.department_id) {
             const deptCode = String(staffUser.department_id);
             setStaffDepartmentCode(deptCode);
-            setReturnHistoryDepartmentCode(deptCode);
+            // ไม่ตั้งกรองแผนกในประวัติอัตโนมัติ — API กรองผ่าน cabinet↔แผนก ถ้าตู้ไม่ผูกในระบบจะได้ 0 แถว
           }
         }
       } catch {
@@ -286,26 +291,30 @@ export default function ReturnMedicalSuppliesPage() {
       if (returnHistoryReason && returnHistoryReason !== 'ALL') params.return_reason = returnHistoryReason;
       if (returnHistoryDepartmentCode) params.department_code = returnHistoryDepartmentCode;
 
-      const result = await staffMedicalSuppliesApi.getReturnHistory(params);
-      if (result.success && result.data) {
-        setReturnHistoryData({
-          data: result.data,
-          total: (result as any).total || 0,
-          page: (result as any).page || returnHistoryPage,
-          limit: (result as any).limit || returnHistoryLimit,
-        });
-      } else if (result.data) {
-        setReturnHistoryData({
-          data: result.data,
-          total: (result as any).total || 0,
-          page: (result as any).page || returnHistoryPage,
-          limit: (result as any).limit || returnHistoryLimit,
-        });
-      } else {
-        toast.error('ไม่สามารถดึงข้อมูลประวัติการคืนได้');
+      const result = (await staffMedicalSuppliesApi.getReturnHistory(params)) as {
+        success?: boolean;
+        message?: string;
+        data?: any[];
+        total?: number;
+        page?: number;
+        limit?: number;
+      };
+      if (result.success === false) {
+        toast.error(result.message || 'ไม่สามารถโหลดประวัติการแจ้งคืนได้');
+        setReturnHistoryData({ data: [], total: 0, page: 1, limit: returnHistoryLimit });
+        return;
       }
+      const list = Array.isArray(result.data) ? result.data : [];
+      const totalNum = Number(result.total);
+      setReturnHistoryData({
+        data: list,
+        total: Number.isFinite(totalNum) ? totalNum : list.length,
+        page: Number(result.page) || returnHistoryPage,
+        limit: Number(result.limit) || returnHistoryLimit,
+      });
     } catch (error: any) {
       toast.error(`เกิดข้อผิดพลาด: ${error.message}`);
+      setReturnHistoryData({ data: [], total: 0, page: 1, limit: returnHistoryLimit });
     } finally {
       setHistoryLoading(false);
     }
@@ -653,7 +662,6 @@ export default function ReturnMedicalSuppliesPage() {
               reason={returnHistoryReason}
               departmentCode={returnHistoryDepartmentCode}
               departments={departments}
-              departmentDisabled={!!staffDepartmentCode && !canSelectDepartment}
               loading={historyLoading}
               onDateFromChange={setReturnHistoryDateFrom}
               onDateToChange={setReturnHistoryDateTo}
@@ -661,19 +669,17 @@ export default function ReturnMedicalSuppliesPage() {
               onDepartmentChange={setReturnHistoryDepartmentCode}
               onSearch={fetchReturnHistory}
             />
-            {returnHistoryData && (
-              <ReturnHistoryTable
-                data={returnHistoryData}
-                currentPage={returnHistoryPage}
-                limit={returnHistoryLimit}
-                dateFrom={returnHistoryDateFrom}
-                dateTo={returnHistoryDateTo}
-                reason={returnHistoryReason}
-                formatDate={formatDate}
-                getReturnReasonLabel={getReturnReasonLabel}
-                onPageChange={setReturnHistoryPage}
-              />
-            )}
+            <ReturnHistoryTable
+              data={returnHistoryData}
+              currentPage={returnHistoryPage}
+              limit={returnHistoryLimit}
+              dateFrom={returnHistoryDateFrom}
+              dateTo={returnHistoryDateTo}
+              reason={returnHistoryReason}
+              formatDate={formatDate}
+              getReturnReasonLabel={getReturnReasonLabel}
+              onPageChange={setReturnHistoryPage}
+            />
           </TabsContent>
         </Tabs>
       </div>

@@ -42,13 +42,9 @@ export default function ReturnMedicalSuppliesPage() {
   const [departments, setDepartments] = useState<{ ID: number; DepName: string }[]>([]);
   const [cabinets, setCabinets] = useState<Array<{ id: number; cabinet_name?: string; cabinet_code?: string }>>([]);
 
-  // Return history (default date from/to = today)
-  const [returnHistoryDateFrom, setReturnHistoryDateFrom] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
-  const [returnHistoryDateTo, setReturnHistoryDateTo] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  // Return history — ค่าเริ่มต้นเป็นวันนี้ (ทั้งจาก–ถึง)
+  const [returnHistoryDateFrom, setReturnHistoryDateFrom] = useState(() => getTodayDate());
+  const [returnHistoryDateTo, setReturnHistoryDateTo] = useState(() => getTodayDate());
   const [returnHistoryReason, setReturnHistoryReason] = useState<string>('ALL');
   const [returnHistoryDepartmentCode, setReturnHistoryDepartmentCode] = useState<string>('');
   const [returnHistoryData, setReturnHistoryData] = useState<ReturnHistoryData | null>({
@@ -243,10 +239,29 @@ export default function ReturnMedicalSuppliesPage() {
       if (returnHistoryDepartmentCode) params.department_code = returnHistoryDepartmentCode;
 
       const result = await medicalSuppliesApi.getReturnHistory(params);
-      const raw = result as { success?: boolean; data?: any[] | { data?: any[]; total?: number; page?: number; limit?: number }; total?: number; page?: number; limit?: number };
-      const list = Array.isArray(raw.data) ? raw.data : (raw.data && typeof raw.data === 'object' ? (raw.data as { data?: any[] }).data : undefined) ?? [];
-      const payload = raw.data && typeof raw.data === 'object' && !Array.isArray(raw.data) ? (raw.data as { total?: number; page?: number; limit?: number }) : null;
-      const total = raw.total ?? payload?.total ?? 0;
+      const raw = result as {
+        success?: boolean;
+        message?: string;
+        data?: any[] | { data?: any[]; total?: number; page?: number; limit?: number };
+        total?: number;
+        page?: number;
+        limit?: number;
+      };
+      if (raw.success === false) {
+        toast.error(raw.message || 'ไม่สามารถโหลดประวัติการแจ้งคืนได้');
+        setReturnHistoryData({ data: [], total: 0, page: 1, limit: returnHistoryLimit });
+        return;
+      }
+      const list = Array.isArray(raw.data)
+        ? raw.data
+        : raw.data && typeof raw.data === 'object' && Array.isArray((raw.data as { data?: any[] }).data)
+          ? (raw.data as { data: any[] }).data
+          : [];
+      const payload =
+        raw.data && typeof raw.data === 'object' && !Array.isArray(raw.data)
+          ? (raw.data as { total?: number; page?: number; limit?: number })
+          : null;
+      const total = raw.total ?? payload?.total ?? (Array.isArray(list) ? list.length : 0);
       const page = raw.page ?? payload?.page ?? returnHistoryPage;
       const limitVal = raw.limit ?? payload?.limit ?? returnHistoryLimit;
       setReturnHistoryData({

@@ -6,7 +6,7 @@ import { medicalSuppliesApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { toast } from 'sonner';
-import { FileText, Search, RefreshCw, Eye } from 'lucide-react';
+import { FileText, Search, RefreshCw, Eye, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,13 @@ import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -26,8 +33,17 @@ import { cn } from '@/lib/utils';
 export default function LogsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [total, setTotal] = useState(0);
+  const [groups, setGroups] = useState<
+    Array<{
+      patient_hn: string;
+      en: string;
+      log_count: number;
+      last_activity_at: string;
+      logs: any[];
+    }>
+  >([]);
+  const [totalGroups, setTotalGroups] = useState(0);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 20;
@@ -40,12 +56,14 @@ export default function LogsPage() {
   const [formFilters, setFormFilters] = useState({
     patient_hn: '',
     en: '',
+    log_status: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
   });
   const [activeFilters, setActiveFilters] = useState({
     patient_hn: '',
     en: '',
+    log_status: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
   });
@@ -60,17 +78,17 @@ export default function LogsPage() {
       if (f.endDate) params.endDate = f.endDate;
       if (f.patient_hn?.trim()) params.patient_hn = f.patient_hn.trim();
       if (f.en?.trim()) params.en = f.en.trim();
+      if (f.log_status?.trim()) params.log_status = f.log_status.trim();
 
       const res = await medicalSuppliesApi.getLogs(params);
-      const data = res?.data ?? [];
-      setLogs(Array.isArray(data) ? data : []);
-      setTotal(res?.total ?? 0);
+      setGroups(Array.isArray(res?.groups) ? res.groups : []);
+      setTotalGroups(res?.total_groups ?? 0);
       setTotalPages(res?.totalPages ?? 1);
     } catch (err) {
       console.error('Failed to fetch logs:', err);
       toast.error('โหลด log ไม่ได้');
-      setLogs([]);
-      setTotal(0);
+      setGroups([]);
+      setTotalGroups(0);
       setTotalPages(1);
     } finally {
       setLoading(false);
@@ -89,7 +107,13 @@ export default function LogsPage() {
   };
 
   const handleReset = () => {
-    const reset = { patient_hn: '', en: '', startDate: getTodayDate(), endDate: getTodayDate() };
+    const reset = {
+      patient_hn: '',
+      en: '',
+      log_status: '',
+      startDate: getTodayDate(),
+      endDate: getTodayDate(),
+    };
     setFormFilters(reset);
     setActiveFilters(reset);
     setCurrentPage(1);
@@ -202,6 +226,25 @@ export default function LogsPage() {
   };
 
   /** สร้าง array เลขหน้าที่แสดงใน pagination (มี ... สำหรับข้ามหน้า) */
+  const groupRowKey = (g: { patient_hn: string; en: string }, i: number) =>
+    `${g.patient_hn}\0${g.en}\0${i}`;
+
+  const toggleGroup = (key: string) => {
+    setExpandedKeys((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
+  };
+
+  const rowHn = (row: any) =>
+    row?.patient_hn ||
+    (row?.action && typeof row.action.patient_hn === 'string' ? row.action.patient_hn : null) ||
+    '–';
+  const rowEn = (row: any) =>
+    row?.en || (row?.action && typeof row.action.en === 'string' ? row.action.en : null) || '–';
+
   const getPaginationPages = (current: number, total: number): (number | 'ellipsis')[] => {
     if (total <= 1) return [];
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -232,10 +275,10 @@ export default function LogsPage() {
           <Card>
             <CardHeader className="pb-3 sm:pb-6">
               <CardTitle className="text-base sm:text-lg">ตัวกรอง</CardTitle>
-              <CardDescription>กรองตามเลข HN, EN หรือช่วงวันที่</CardDescription>
+              <CardDescription>กรองตามเลข HN, EN สถานะ หรือช่วงวันที่</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-sm">HN</Label>
                   <Input
@@ -255,6 +298,24 @@ export default function LogsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
+                  <Label className="text-sm">สถานะ</Label>
+                  <Select
+                    value={formFilters.log_status || 'all'}
+                    onValueChange={(v) =>
+                      setFormFilters((p) => ({ ...p, log_status: v === 'all' ? '' : v }))
+                    }
+                  >
+                    <SelectTrigger className="h-9 sm:h-10 w-full">
+                      <SelectValue placeholder="ทั้งหมด" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">ทั้งหมด</SelectItem>
+                      <SelectItem value="SUCCESS">SUCCESS</SelectItem>
+                      <SelectItem value="ERROR">ERROR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
                   <Label className="text-sm">วันที่เริ่ม</Label>
                   <DatePickerBE
                     value={formFilters.startDate}
@@ -272,7 +333,7 @@ export default function LogsPage() {
                     className="h-9 sm:h-10"
                   />
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-end lg:flex-col lg:flex-row">
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-end lg:flex-col lg:flex-row lg:col-span-1">
                   <Button onClick={handleSearch} className="gap-2 h-9 sm:h-10 order-1" size="sm">
                     <Search className="h-4 w-4 shrink-0" />
                     ค้นหา
@@ -288,9 +349,9 @@ export default function LogsPage() {
 
           <Card>
             <CardHeader className="pb-3 sm:pb-6">
-              <CardTitle className="text-base sm:text-lg">รายการ Log</CardTitle>
+              <CardTitle className="text-base sm:text-lg">รายการ Log (จัดกลุ่มตาม HN + EN)</CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                ทั้งหมด {total} รายการ (หน้า {currentPage} / {totalPages})
+                {totalGroups} กลุ่มผู้ป่วย · หน้า {currentPage} / {totalPages} — กดแถวเพื่อขยายดู log กลุ่ม
               </CardDescription>
             </CardHeader>
             <CardContent className="px-2 sm:px-6">
@@ -299,106 +360,130 @@ export default function LogsPage() {
                   <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   <p className="mt-3 text-sm text-muted-foreground">กำลังโหลด...</p>
                 </div>
-              ) : logs.length === 0 ? (
+              ) : groups.length === 0 ? (
                 <div className="py-12 sm:py-16 text-center">
                   <FileText className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/50" />
                   <p className="mt-3 text-muted-foreground text-sm sm:text-base">ไม่พบข้อมูล log</p>
                   <p className="text-xs sm:text-sm text-muted-foreground/80 mt-1">ลองเปลี่ยนตัวกรองหรือช่วงวันที่</p>
                 </div>
               ) : (
-                <>
-                  {/* Mobile: card list */}
-                  <div className="block md:hidden space-y-3">
-                    {logs.map((row) => (
+                <div className="space-y-2 sm:space-y-3">
+                  {groups.map((g, gi) => {
+                    const gkey = groupRowKey(g, gi);
+                    const open = expandedKeys.has(gkey);
+                    return (
                       <div
-                        key={row.id}
-                        className="rounded-lg border bg-card p-3 space-y-2 text-sm"
+                        key={gkey}
+                        className="rounded-lg border border-border bg-card overflow-hidden"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-muted-foreground shrink-0 text-xs">
-                            {formatDate(row.created_at)}
-                          </span>
-                          <span className="flex shrink-0 gap-1">
-                            {getMethodBadge(row.action)}
-                            {getStatusBadge(row.action)}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-xs">
-                          <span>HN: {(row.action && typeof (row.action as any).patient_hn === 'string') ? (row.action as any).patient_hn : '–'}</span>
-                          <span>EN: {(row.action && typeof (row.action as any).en === 'string') ? (row.action as any).en : '–'}</span>
-                        </div>
-                        <p className="text-muted-foreground line-clamp-2 text-xs" title={getActionSummary(row.action)}>
-                          {getActionSummary(row.action)}
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full gap-1.5 text-primary border-primary/30 hover:bg-primary/10 text-xs"
-                          onClick={() => setSelectedLog(row)}
+                        <button
+                          type="button"
+                          className="w-full flex flex-wrap items-center justify-between gap-2 p-3 sm:p-4 text-left hover:bg-muted/40 transition-colors"
+                          onClick={() => toggleGroup(gkey)}
                         >
-                          <Eye className="h-3.5 w-3.5" />
-                          ดูรายละเอียด
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Desktop: table */}
-                  <div className="hidden md:block overflow-x-auto rounded-lg border border-border -mx-1">
-                    <Table className="min-w-[800px]">
-                      <TableHeader>
-                        <TableRow className="bg-muted/50 hover:bg-muted/50">
-                          <TableHead className="font-semibold w-[170px]">วันเวลา</TableHead>
-                          <TableHead className="font-semibold w-[110px]">เลข HN</TableHead>
-                          <TableHead className="font-semibold w-[110px]">เลข EN</TableHead>
-                          <TableHead className="font-semibold w-[140px]">ประเภท</TableHead>
-                          <TableHead className="font-semibold w-[90px]">สถานะ</TableHead>
-                          <TableHead className="font-semibold min-w-[200px]">รายละเอียด</TableHead>
-                          <TableHead className="font-semibold w-[120px] text-center">การดำเนินการ</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {logs.map((row) => (
-                          <TableRow key={row.id} className="hover:bg-muted/30">
-                            <TableCell className="text-sm whitespace-nowrap text-foreground/90">
-                              {formatDate(row.created_at)}
-                            </TableCell>
-                            <TableCell className="font-mono text-sm">
-                              {(row.action && typeof (row.action as any).patient_hn === 'string') ? (row.action as any).patient_hn : '–'}
-                            </TableCell>
-                            <TableCell className="font-mono text-sm">
-                              {(row.action && typeof (row.action as any).en === 'string') ? (row.action as any).en : '–'}
-                            </TableCell>
-                            <TableCell>{getMethodBadge(row.action)}</TableCell>
-                            <TableCell>{getStatusBadge(row.action)}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground max-w-[280px]">
-                              <span className="line-clamp-2" title={getActionSummary(row.action)}>
-                                {getActionSummary(row.action)}
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                            {open ? (
+                              <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-muted-foreground" />
+                            )}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+                              <span className="font-mono text-sm font-medium">
+                                HN: <span className="text-foreground">{g.patient_hn}</span>
                               </span>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
-                                onClick={() => setSelectedLog(row)}
-                              >
-                                <Eye className="h-4 w-4" />
-                                ดูรายละเอียด
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </>
+                              <span className="font-mono text-sm font-medium">
+                                EN: <span className="text-foreground">{g.en}</span>
+                              </span>
+                              <Badge variant="secondary" className="text-xs">
+                                {g.log_count} รายการ
+                              </Badge>
+                            </div>
+                          </div>
+                          <span className="text-xs sm:text-sm text-muted-foreground shrink-0 w-full sm:w-auto sm:text-right">
+                            ล่าสุด {formatDate(g.last_activity_at)}
+                          </span>
+                        </button>
+                        {open && (
+                          <div className="border-t bg-muted/20 px-2 py-2 sm:px-3 sm:py-3">
+                            <div className="block md:hidden space-y-2">
+                              {g.logs.map((row: any) => (
+                                <div
+                                  key={row.id}
+                                  className="rounded-md border bg-background p-2.5 space-y-1.5 text-xs"
+                                >
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground">{formatDate(row.created_at)}</span>
+                                    <span className="flex gap-1 shrink-0">
+                                      {getMethodBadge(row.action)}
+                                      {getStatusBadge(row.action)}
+                                    </span>
+                                  </div>
+                                  <p className="text-muted-foreground line-clamp-2">{getActionSummary(row.action)}</p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full h-8 text-xs gap-1"
+                                    onClick={() => setSelectedLog(row)}
+                                  >
+                                    <Eye className="h-3 w-3" /> ดูรายละเอียด
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="hidden md:block overflow-x-auto rounded-md border">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow className="bg-muted/50">
+                                    <TableHead className="w-[160px]">วันเวลา</TableHead>
+                                    <TableHead className="w-[100px]">HN</TableHead>
+                                    <TableHead className="w-[100px]">EN</TableHead>
+                                    <TableHead className="w-[120px]">ประเภท</TableHead>
+                                    <TableHead className="w-[80px]">สถานะ</TableHead>
+                                    <TableHead>รายละเอียด</TableHead>
+                                    <TableHead className="w-[100px] text-center">ดู</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {g.logs.map((row: any) => (
+                                    <TableRow key={row.id}>
+                                      <TableCell className="text-sm whitespace-nowrap">
+                                        {formatDate(row.created_at)}
+                                      </TableCell>
+                                      <TableCell className="font-mono text-sm">{rowHn(row)}</TableCell>
+                                      <TableCell className="font-mono text-sm">{rowEn(row)}</TableCell>
+                                      <TableCell>{getMethodBadge(row.action)}</TableCell>
+                                      <TableCell>{getStatusBadge(row.action)}</TableCell>
+                                      <TableCell className="text-sm text-muted-foreground max-w-[240px]">
+                                        <span className="line-clamp-2">{getActionSummary(row.action)}</span>
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-8 gap-1"
+                                          onClick={() => setSelectedLog(row)}
+                                        >
+                                          <Eye className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
 
               {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t">
                   <p className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
-                    แสดง {(currentPage - 1) * limit + 1}–{Math.min(currentPage * limit, total)} จาก {total} รายการ
+                    กลุ่ม {(currentPage - 1) * limit + 1}–{Math.min(currentPage * limit, totalGroups)} จาก{' '}
+                    {totalGroups} กลุ่ม
                   </p>
                   <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2 flex-wrap justify-center">
                     <Button

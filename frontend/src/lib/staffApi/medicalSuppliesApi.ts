@@ -145,9 +145,23 @@ export const staffMedicalSuppliesApi = {
         limit?: number;
         patient_hn?: string;
         en?: string;
+        log_status?: string;
         startDate?: string;
         endDate?: string;
-    }): Promise<{ success: boolean; data: any[]; total: number; page: number; limit: number; totalPages: number }> => {
+    }): Promise<{
+        success: boolean;
+        groups: Array<{
+            patient_hn: string;
+            en: string;
+            log_count: number;
+            last_activity_at: string;
+            logs: any[];
+        }>;
+        total_groups: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    }> => {
         const response = await staffApi.get('/medical-supplies/logs', { params: query });
         return response.data;
     },

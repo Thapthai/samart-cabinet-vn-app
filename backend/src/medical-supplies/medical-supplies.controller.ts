@@ -9,8 +9,13 @@ import {
   Param,
   Query,
   ParseIntPipe,
+  UseGuards,
+  Req,
+  UnauthorizedException,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { MedicalSuppliesService } from './medical-supplies.service';
+import { FlexibleAuthGuard, MedicalSuppliesAuthRequest } from './guards/flexible-auth.guard';
 import {
   CreateMedicalSupplyUsageDto,
   UpdateMedicalSupplyUsageDto,
@@ -25,13 +30,58 @@ import {
 
 @Controller('medical-supplies')
 export class MedicalSupplyUsageController {
-  constructor(private readonly medicalSuppliesService: MedicalSuppliesService) {}
+  constructor(private readonly medicalSuppliesService: MedicalSuppliesService) { }
 
+  // AuthGuard
   @Post()
-  async create(@Body() payload: any) {
+  @UseGuards(FlexibleAuthGuard)
+  async create(
+    @Body() payload: any,
+    @Req() req: Request & MedicalSuppliesAuthRequest,
+  ) {
+    try {
+      let userContext: { user: any; userType: string };
+
+      if (req.clientCredential) {
+        userContext = {
+          user: req.clientCredential.user,
+          userType: req.clientCredential.userType || 'admin',
+        };
+      } else if (req.user && req.staffJwt) {
+        userContext = { user: req.user, userType: 'staff' };
+      } else if (req.user) {
+        userContext = { user: req.user, userType: 'admin' };
+      } else if (req.clientIdForStaffCheck) {
+        userContext = {
+          user: { client_id: req.clientIdForStaffCheck },
+          userType: 'unknown',
+        };
+      } else {
+        throw new UnauthorizedException();
+      }
+
+      const { _userContext: _ignoredUserContext, ...data } = payload;
+      void _ignoredUserContext;
+      const usage = await this.medicalSuppliesService.create(data, userContext);
+      return { success: true, data: usage };
+    } catch (error: any) {
+      if (error instanceof UnauthorizedException) throw error;
+      return { success: false, message: error?.message };
+    }
+  }
+
+  /**
+   * POST /medical-supplies/open — ไม่มี guard
+   * ใส่ recorded_by_user_id หรือ _userContext ใน body ได้ (ระบบภายนอก)
+   */
+  @Post('open')
+  async createOpen(@Body() payload: any) {
     try {
       const { _userContext, ...data } = payload;
-      const usage = await this.medicalSuppliesService.create(data, _userContext);
+      const usage = await this.medicalSuppliesService.create(
+        data,
+        _userContext ?? undefined,
+      );
       return { success: true, data: usage };
     } catch (error: any) {
       return { success: false, message: error?.message };
@@ -194,7 +244,7 @@ export class MedicalSupplyUsageController {
 
 @Controller('medical-supply-items')
 export class MedicalSupplyItemController {
-  constructor(private readonly medicalSuppliesService: MedicalSuppliesService) {}
+  constructor(private readonly medicalSuppliesService: MedicalSuppliesService) { }
 
   @Post('record-used')
   async recordItemUsedWithPatient(@Body() data: RecordItemUsedWithPatientDto) {
@@ -269,7 +319,7 @@ export class MedicalSupplyItemController {
         ...query,
         page: query.page != null ? Number(query.page) : undefined,
         limit: query.limit != null ? Number(query.limit) : undefined,
-      };
+      }; 
       const result = await this.medicalSuppliesService.getReturnHistory(normalized as GetReturnHistoryQueryDto);
       return { success: true, ...result };
     } catch (error: any) {
@@ -362,7 +412,7 @@ export class MedicalSupplyItemController {
 
 @Controller('medical-supply')
 export class MedicalSupplyController {
-  constructor(private readonly medicalSuppliesService: MedicalSuppliesService) {}
+  constructor(private readonly medicalSuppliesService: MedicalSuppliesService) { }
 
   @Get('validate-item-code')
   async validateItemCode(@Query('itemCode') itemCode: string) {

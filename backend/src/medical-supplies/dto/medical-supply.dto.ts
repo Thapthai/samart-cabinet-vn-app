@@ -366,6 +366,16 @@ export class GetMedicalSupplyUsageLogsQueryDto {
   @IsString()
   endDate?: string;
 
+  /** ประเภท log (เช่น CREATE, UPDATE) */
+  @IsOptional()
+  @IsString()
+  log_type?: string;
+
+  /** สถานะ (เช่น SUCCESS, ERROR) */
+  @IsOptional()
+  @IsString()
+  log_status?: string;
+
   @IsOptional()
   @IsNumber()
   @Type(() => Number)

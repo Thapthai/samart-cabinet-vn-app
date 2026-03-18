@@ -93,14 +93,12 @@ const mainMenuItems: MenuItem[] = [
         href: "/admin/medical-supplies",
         description: "รายการเบิกอุปกรณ์กับคนไข้",
         icon: ClipboardList,
-        submenu: [
-          {
-            name: "แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน",
-            href: "/admin/medical-supplies/return",
-            description: "แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน / ชำรุด",
-            icon: RotateCcw,
-          },
-        ],
+      },
+      {
+        name: "แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน",
+        href: "/admin/return",
+        description: "แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน / ชำรุด",
+        icon: RotateCcw,
       },
       {
         name: "เปรียบเทียบตามเวชภัณฑ์",
@@ -337,7 +335,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                         href={item.href}
                         onClick={() => setIsMobileOpen(false)}
                         className={cn(
-                          "flex items-center flex-1 min-w-0 px-3 py-3 text-lg font-medium rounded-xl",
+                          "flex items-center flex-1 min-w-0 px-3 py-3 text-base font-medium rounded-xl",
                           isActive ? "text-white" : "text-inherit",
                           isCollapsed && "lg:justify-center lg:px-2"
                         )}

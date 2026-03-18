@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, FileSpreadsheet, FileText, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Download, FileText, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -35,7 +35,17 @@ export default function ReturnHistoryTable({
 }: ReturnHistoryTableProps) {
   const [exportLoading, setExportLoading] = useState<'excel' | 'pdf' | null>(null);
 
-  if (!data) return null;
+  const rows = (data?.data ?? []) as ReturnHistoryRecord[];
+
+  if (!data) {
+    return (
+      <Card className="overflow-hidden border-0 shadow-sm bg-white rounded-xl">
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-slate-500">กรุณากดค้นหาเพื่อดูประวัติการคืน</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleDownloadExcel = async () => {
     try {
@@ -47,8 +57,9 @@ export default function ReturnHistoryTable({
         return_reason: reason !== 'ALL' ? reason : undefined,
       });
       toast.success('ดาวน์โหลดรายงาน Excel สำเร็จ');
-    } catch (error: any) {
-      toast.error(`ไม่สามารถดาวน์โหลดรายงาน Excel ได้: ${error?.message || error}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error(`ไม่สามารถดาวน์โหลดรายงาน Excel ได้: ${msg}`);
     } finally {
       setExportLoading(null);
     }
@@ -64,8 +75,9 @@ export default function ReturnHistoryTable({
         return_reason: reason !== 'ALL' ? reason : undefined,
       });
       toast.success('ดาวน์โหลดรายงาน PDF สำเร็จ');
-    } catch (error: any) {
-      toast.error(`ไม่สามารถดาวน์โหลดรายงาน PDF ได้: ${error?.message || error}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      toast.error(`ไม่สามารถดาวน์โหลดรายงาน PDF ได้: ${msg}`);
     } finally {
       setExportLoading(null);
     }
@@ -93,7 +105,6 @@ export default function ReturnHistoryTable({
               size="sm"
               onClick={handleDownloadExcel}
               disabled={exportLoading !== null}
-
             >
               {exportLoading === 'excel' ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -135,7 +146,7 @@ export default function ReturnHistoryTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.data?.map((record: ReturnHistoryRecord, index: number) => (
+              {rows.map((record: ReturnHistoryRecord, index: number) => (
                 <TableRow
                   key={record.id}
                   className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
@@ -175,7 +186,7 @@ export default function ReturnHistoryTable({
           </Table>
         </div>
 
-        {data.data?.length === 0 && (
+        {rows.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="rounded-full bg-slate-100 p-4 mb-3">
               <FileText className="h-8 w-8 text-slate-400" />

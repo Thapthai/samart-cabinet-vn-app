@@ -20,7 +20,6 @@ interface ReturnHistoryFilterProps {
   reason: string;
   departmentCode: string;
   departments: Array<{ ID: number; DepName: string }>;
-  departmentDisabled?: boolean;
   loading: boolean;
   onDateFromChange: (date: string) => void;
   onDateToChange: (date: string) => void;
@@ -35,7 +34,6 @@ export default function ReturnHistoryFilter({
   reason,
   departmentCode,
   departments,
-  departmentDisabled = false,
   loading,
   onDateFromChange,
   onDateToChange,
@@ -73,11 +71,11 @@ export default function ReturnHistoryFilter({
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-2">
-            <Label htmlFor="history-date-from" className="text-slate-600 font-medium">
+            <Label htmlFor="staff-history-date-from" className="text-slate-600 font-medium">
               วันที่เริ่มต้น
             </Label>
             <DatePickerBE
-              id="history-date-from"
+              id="staff-history-date-from"
               value={dateFrom}
               onChange={onDateFromChange}
               placeholder="วว/ดด/ปปปป (พ.ศ.)"
@@ -85,11 +83,11 @@ export default function ReturnHistoryFilter({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="history-date-to" className="text-slate-600 font-medium">
+            <Label htmlFor="staff-history-date-to" className="text-slate-600 font-medium">
               วันที่สิ้นสุด
             </Label>
             <DatePickerBE
-              id="history-date-to"
+              id="staff-history-date-to"
               value={dateTo}
               onChange={onDateToChange}
               placeholder="วว/ดด/ปปปป (พ.ศ.)"
@@ -97,19 +95,14 @@ export default function ReturnHistoryFilter({
             />
           </div>
 
-          {/* Department searchable dropdown */}
           <div className="space-y-2">
             <Label className="text-slate-600 font-medium">แผนก</Label>
-            <DropdownMenu
-              open={departmentDisabled ? false : departmentDropdownOpen}
-              onOpenChange={departmentDisabled ? undefined : setDepartmentDropdownOpen}
-            >
+            <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   className="w-full justify-between font-normal rounded-lg border-slate-200"
                   type="button"
-                  disabled={departmentDisabled}
                 >
                   <span className="truncate">
                     {selectedDeptName ?? 'ทุกแผนก'}
@@ -165,11 +158,11 @@ export default function ReturnHistoryFilter({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="history-reason" className="text-slate-600 font-medium">
+            <Label htmlFor="staff-history-reason" className="text-slate-600 font-medium">
               สาเหตุ
             </Label>
             <Select value={reason || 'ALL'} onValueChange={onReasonChange}>
-              <SelectTrigger id="history-reason" className="rounded-lg border-slate-200 w-full">
+              <SelectTrigger id="staff-history-reason" className="rounded-lg border-slate-200 w-full">
                 <SelectValue placeholder="ทั้งหมด" />
               </SelectTrigger>
               <SelectContent>
