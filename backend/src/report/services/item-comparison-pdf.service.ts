@@ -347,39 +347,37 @@ export class ItemComparisonPdfService {
         doc.y = fy + filterH + 4;
 
         const mHeaders = [
-          'วัน-เวลา (กทม.)',
-          'รหัส',
-          'รายการ',
+          'วัน-เวลา',
+          'Item Code',
+          'รายละเอียด',
           'จำนวน',
-          'ที่เก็บ',
+          'Assession No',
           'สถานะ',
           'HN',
-          'ห้อง/Ward',
-          'ผู้ป่วย',
+          'EN',
+          'แผนก',
+          'ชื่อผู้ป่วย',
         ];
-        const mColFixed = [100, 64, 0, 36, 56, 56, 52, 72, 0];
+        /** 10 คอลัมน์: วัน-เวลา, Item Code, รายละเอียด, จำนวน, Assession No, สถานะ, HN, EN, แผนก, ชื่อผู้ป่วย */
         const mHeaderH = 28;
         const mFont = 9;
         const mFontBold = 9;
 
         const calcMedicalColWidths = () => {
           const cw = mCw();
-          const fixedSum =
-            mColFixed[0] + mColFixed[1] + mColFixed[3] + mColFixed[4] + mColFixed[5] + mColFixed[6] + mColFixed[7];
-          const rest = Math.max(120, cw - fixedSum);
-          const descW = Math.floor(rest * 0.55);
+          const wDt = 88;
+          const wCode = 54;
+          const wQty = 30;
+          const wAss = 48;
+          const wSt = 42;
+          const wHn = 38;
+          const wEn = 40;
+          const wDept = 46;
+          const fixedSum = wDt + wCode + wQty + wAss + wSt + wHn + wEn + wDept;
+          const rest = Math.max(80, cw - fixedSum);
+          const descW = Math.floor(rest * 0.4);
           const patientW = rest - descW;
-          return [
-            mColFixed[0],
-            mColFixed[1],
-            descW,
-            mColFixed[3],
-            mColFixed[4],
-            mColFixed[5],
-            mColFixed[6],
-            mColFixed[7],
-            patientW,
-          ];
+          return [wDt, wCode, descW, wQty, wAss, wSt, wHn, wEn, wDept, patientW];
         };
 
         let mColWidths = calcMedicalColWidths();
@@ -482,20 +480,26 @@ export class ItemComparisonPdfService {
             groupQty += qty;
             const code = u.itemcode || item.itemcode || '-';
             const desc = u.order_item_description || u.itemname || item.itemname || '-';
-            const stockAddr = (u.assession_no && String(u.assession_no).trim()) || '-';
+            const assessionNo = (u.assession_no && String(u.assession_no).trim()) || '-';
             const status = this.getUsageOrderStatusText(u.order_item_status);
-            const room = u.twu || u.print_location || u.department_name || u.department_code || '-';
-            const patient = u.patient_name || '-';
+            const hn = (u.patient_hn && String(u.patient_hn).trim()) || '-';
+            const en = (u.patient_en && String(u.patient_en).trim()) || '-';
+            const dept =
+              (u.department_name && String(u.department_name).trim()) ||
+              (u.department_code && String(u.department_code).trim()) ||
+              '-';
+            const patient = (u.patient_name && String(u.patient_name).trim()) || '-';
 
             const cells = [
               formatOrderDateTimeBangkok(dt),
               code,
               desc,
               String(qty),
-              stockAddr,
+              assessionNo,
               status,
-              u.patient_hn || '-',
-              room,
+              hn,
+              en,
+              dept,
               patient,
             ];
             mColWidths = calcMedicalColWidths();
@@ -505,14 +509,14 @@ export class ItemComparisonPdfService {
             const bg = detailRowIdx % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
             detailRowIdx++;
             let xPos = mMargin;
-            for (let i = 0; i < 9; i++) {
+            for (let i = 0; i < 10; i++) {
               const cellW = mColWidths[i];
               const w = Math.max(4, cellW - 6);
               doc.rect(xPos, rowY, cellW, rh).fillAndStroke(bg, '#DEE2E6');
               doc.fontSize(mFont).font(finalFontName).fillColor('#000000');
               doc.text(cells[i] ?? '-', xPos + 3, rowY + 5, {
                 width: w,
-                align: i === 2 || i === 8 ? 'left' : 'center',
+                align: i === 2 || i === 9 ? 'left' : 'center',
                 lineGap: 1,
               });
               xPos += cellW;
@@ -542,11 +546,7 @@ export class ItemComparisonPdfService {
           doc.y = mMargin;
         }
         doc.fontSize(11).font(finalFontBoldName).fillColor('#1A365D');
-        doc.text('Medical Supply Order Report', mMargin, doc.y, { width: mCw(), align: 'center' });
         doc.y += 14;
-        doc.fontSize(10).font(finalFontName).fillColor('#6C757D');
-        doc.text(`ช่วงวันที่ / Period: ${periodStr}`, mMargin, doc.y, { width: mCw(), align: 'center' });
-        doc.y += 18;
         doc.fontSize(10).font(finalFontName).fillColor('#ADB5BD');
         doc.text('เอกสารนี้สร้างจากระบบรายงานอัตโนมัติ', mMargin, doc.y, {
           width: mCw(),

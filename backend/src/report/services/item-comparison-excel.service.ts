@@ -157,30 +157,22 @@ export class ItemComparisonExcelService {
     summaryDateCell.alignment = { horizontal: 'right', vertical: 'middle' };
     summarySheet.getRow(3).height = 20;
 
-    const sumFilterLabels = ['วันที่เริ่ม', 'วันที่สิ้นสุด', 'แผนก', 'จำนวนรายการ'];
-    const sumFilterValues = [
-      filters.startDate ?? 'ทั้งหมด',
-      filters.endDate ?? 'ทั้งหมด',
-      filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด',
-      `${data.summary?.total_items ?? 0} รายการ`,
-    ];
-    const sumFilterColMap = [['A', 'A'], ['B', 'B'], ['C', 'C'], ['D', 'E']];
-    sumFilterLabels.forEach((lbl, gi) => {
-      const cols = sumFilterColMap[gi];
-      summarySheet.mergeCells(`${cols[0]}4:${cols[1]}4`);
-      const cell = summarySheet.getCell(`${cols[0]}4`);
-      cell.value = `${lbl}: ${sumFilterValues[gi]}`;
-      cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1A365D' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' },
-      };
-    });
-    summarySheet.getRow(4).height = 20;
+    // แถบตัวกรองแบบเดียวกับ PDF (item-comparison-pdf detailFilterText)
+    const summaryFilterText =
+      `วันที่เริ่ม: ${filters.startDate ?? 'ทั้งหมด'}  |  วันที่สิ้นสุด: ${filters.endDate ?? 'ทั้งหมด'}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}  |  จำนวนรายการ: ${data.summary?.total_items ?? 0} รายการ`;
+    summarySheet.mergeCells('A4:E4');
+    const filterCell = summarySheet.getCell('A4');
+    filterCell.value = summaryFilterText;
+    filterCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1A365D' } };
+    filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
+    filterCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    filterCell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' },
+    };
+    summarySheet.getRow(4).height = 28;
 
     const summaryTableHeaders = ['ลำดับ', 'ชื่ออุปกรณ์', 'จำนวนเบิก', 'จำนวนใช้', 'ส่วนต่าง'];
     const summaryHeaderRow = summarySheet.getRow(5);
@@ -256,7 +248,7 @@ export class ItemComparisonExcelService {
   ): void {
     const filters = data.filters ?? {};
 
-    // —— หัวชีตเหมือนชีตแรก: โลโก้ A1:A2 + หัวข้อ B1:I2 ——
+    // —— หัวชีตเหมือนชีตแรก: โลโก้ A1:A2 + หัวข้อ B1:J2 ——
     ws.mergeCells('A1:A2');
     ws.getCell('A1').fill = {
       type: 'pattern',
@@ -278,7 +270,7 @@ export class ItemComparisonExcelService {
     ws.getRow(2).height = 25;
     ws.getColumn(1).width = 12;
 
-    ws.mergeCells('B1:I2');
+    ws.mergeCells('B1:J2');
     const titleCell = ws.getCell('B1');
     titleCell.value =
       'รายงานเปรียบเทียบการเบิกและใช้\nรายละเอียดรายการสั่ง (Medical Supply Order detail)';
@@ -291,14 +283,14 @@ export class ItemComparisonExcelService {
       right: { style: 'thin' },
     };
 
-    ws.mergeCells('A3:I3');
+    ws.mergeCells('A3:J3');
     const dateCell = ws.getCell('A3');
     dateCell.value = `วันที่รายงาน: ${reportDate}`;
     dateCell.font = { name: 'Tahoma', size: 12, color: { argb: THEME.textMuted } };
     dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
     ws.getRow(3).height = 20;
 
-    ws.mergeCells('A4:I4');
+    ws.mergeCells('A4:J4');
     const filterCell = ws.getCell('A4');
     filterCell.value = `วันที่เริ่ม: ${filters.startDate ?? 'ทั้งหมด'}  |  วันที่สิ้นสุด: ${filters.endDate ?? 'ทั้งหมด'}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
     filterCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: THEME.navy } };
@@ -314,15 +306,16 @@ export class ItemComparisonExcelService {
 
     let r = 5;
     const hdrLabels = [
-      'Order Date & Time',
+      'วัน-เวลา',
       'Item Code',
-      'Description',
-      'Quantity',
-      'StockAddress',
-      'OrderStatus',
+      'รายละเอียด',
+      'จำนวน',
+      'Assession No',
+      'สถานะ',
       'HN',
-      'Room',
-      'Patient Name',
+      'EN',
+      'แผนก',
+      'ชื่อผู้ป่วย',
     ];
     const headerRow = ws.getRow(r);
     hdrLabels.forEach((h, i) => {
@@ -356,7 +349,7 @@ export class ItemComparisonExcelService {
         item.itemcode ||
         'รายการอุปกรณ์';
 
-      ws.mergeCells(r, 1, r, 9);
+      ws.mergeCells(r, 1, r, 10);
       const catCell = ws.getCell(r, 1);
       catCell.value = categoryLabel;
       catCell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -377,10 +370,12 @@ export class ItemComparisonExcelService {
         groupQty += qty;
         const code = u.itemcode || item.itemcode || '-';
         const desc = u.order_item_description || u.itemname || item.itemname || '-';
-        const stockAddr = (u.assession_no && String(u.assession_no).trim()) || '-';
+        const assessionNo = (u.assession_no && String(u.assession_no).trim()) || '-';
         const status = orderStatusLabel(u.order_item_status);
-        const room = u.twu || u.print_location || u.department_name || u.department_code || '-';
-        const patient = u.patient_name || '-';
+        const hn = (u.patient_hn && String(u.patient_hn).trim()) || '-';
+        const en = (u.patient_en && String(u.patient_en).trim()) || '-';
+        const room = (u.twu && String(u.twu).trim()) || (u.print_location && String(u.print_location).trim()) || '-';
+        const patient = (u.patient_name && String(u.patient_name).trim()) || '-';
 
         const bg = dataRowIdx % 2 === 0 ? 'FFFFFFFF' : THEME.rowAlt;
         dataRowIdx++;
@@ -389,29 +384,30 @@ export class ItemComparisonExcelService {
           code,
           desc,
           qty,
-          stockAddr,
+          assessionNo,
           status,
-          u.patient_hn || '-',
+          hn,
+          en,
           room,
           patient,
         ]);
         row.height = 22;
-        for (let c = 1; c <= 9; c++) {
+        for (let c = 1; c <= 10; c++) {
           const cell = row.getCell(c);
           cell.font = { name: 'Tahoma', size: 11, color: { argb: THEME.textBody } };
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
           cell.border = BORDER;
           cell.alignment =
-            c === 3 || c === 9
+            c === 3 || c === 10
               ? { horizontal: 'left', vertical: 'middle', wrapText: true }
               : { horizontal: 'center', vertical: 'middle' };
         }
         r++;
       }
 
-      const subRow = ws.addRow(['', '', 'Sub-Total', groupQty, '', '', '', '', '']);
+      const subRow = ws.addRow(['', '', 'Sub-Total', groupQty, '', '', '', '', '', '']);
       subRow.height = 22;
-      for (let c = 1; c <= 9; c++) {
+      for (let c = 1; c <= 10; c++) {
         const cell = subRow.getCell(c);
         cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: THEME.navy } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.navyLight } };
@@ -424,33 +420,21 @@ export class ItemComparisonExcelService {
     }
 
     ws.addRow([]);
-    const titleFoot = ws.addRow(['Medical Supply Order Report']);
-    ws.mergeCells(titleFoot.number, 1, titleFoot.number, 9);
-    titleFoot.getCell(1).font = { name: 'Tahoma', size: 12, bold: true, color: { argb: THEME.navy } };
-    titleFoot.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-
-    const tMin = allDates.length ? Math.min(...allDates) : Date.now();
-    const tMax = allDates.length ? Math.max(...allDates) : Date.now();
-    const periodStr = `${formatPeriodDate(filters.startDate || new Date(tMin))} to ${formatPeriodDate(filters.endDate || new Date(tMax))}`;
-    const periodRow = ws.addRow([`Period date: ${periodStr}`]);
-    ws.mergeCells(periodRow.number, 1, periodRow.number, 9);
-    periodRow.getCell(1).font = { name: 'Tahoma', size: 11, color: { argb: THEME.textMuted } };
-    periodRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-
     const autoFoot = ws.addRow(['เอกสารนี้สร้างจากระบบรายงานอัตโนมัติ']);
-    ws.mergeCells(autoFoot.number, 1, autoFoot.number, 9);
+    ws.mergeCells(autoFoot.number, 1, autoFoot.number, 10);
     autoFoot.getCell(1).font = { name: 'Tahoma', size: 11, color: { argb: THEME.footer } };
     autoFoot.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     ws.getRow(autoFoot.number).height = 18;
 
     ws.getColumn(1).width = 20;
     ws.getColumn(2).width = 16;
-    ws.getColumn(3).width = 32;
+    ws.getColumn(3).width = 38;
     ws.getColumn(4).width = 10;
-    ws.getColumn(5).width = 14;
-    ws.getColumn(6).width = 14;
-    ws.getColumn(7).width = 14;
-    ws.getColumn(8).width = 18;
-    ws.getColumn(9).width = 28;
+    ws.getColumn(5).width = 16;
+    ws.getColumn(6).width = 12;
+    ws.getColumn(7).width = 12;
+    ws.getColumn(8).width = 14;
+    ws.getColumn(9).width = 14;
+    ws.getColumn(10).width = 34;
   }
 }

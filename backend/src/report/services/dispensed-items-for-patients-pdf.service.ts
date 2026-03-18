@@ -63,7 +63,7 @@ export class DispensedItemsForPatientsPdfService {
 
     const doc = new PDFDocument({
       size: 'A4',
-      layout: 'portrait',
+      layout: 'landscape',
       margin: 10,
       bufferPages: true,
     });
@@ -232,7 +232,7 @@ export class DispensedItemsForPatientsPdfService {
           const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
 
           if (doc.y + rowHeight > pageHeight - 35) {
-            doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+            doc.addPage({ size: 'A4', layout: 'landscape', margin: 10 });
             doc.y = margin;
             const newHeaderY = doc.y;
             drawTableHeader(newHeaderY);

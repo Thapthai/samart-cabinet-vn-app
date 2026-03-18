@@ -198,7 +198,7 @@ export class DispensedItemsForPatientsExcelService {
       cell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A365D' } };
       cell.alignment = {
-        horizontal: i === 2 || i === 7 ? 'left' : 'center',
+        horizontal: i === 1 || i === 2 || i === 7 ? 'left' : 'center',
         vertical: 'middle',
       };
       cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -236,7 +236,7 @@ export class DispensedItemsForPatientsExcelService {
         cell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF212529' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
         cell.alignment = {
-          horizontal: colIndex === 2 || colIndex === 7 ? 'left' : 'center',
+          horizontal: colIndex === 1 || colIndex === 2 || colIndex === 7 ? 'left' : 'center',
           vertical: 'middle',
         };
         cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -304,15 +304,15 @@ export class DispensedItemsForPatientsExcelService {
 
     // ---- ความกว้างคอลัมน์ ----
     worksheet.getColumn(1).width = 13;
-    worksheet.getColumn(2).width = 18;
-    worksheet.getColumn(3).width = 22;
+    worksheet.getColumn(2).width = 30;
+    worksheet.getColumn(3).width = 30;
     worksheet.getColumn(4).width = 20;
-    worksheet.getColumn(5).width = 16;
+    worksheet.getColumn(5).width = 20;
     worksheet.getColumn(6).width = 20;
     worksheet.getColumn(7).width = 20;
-    worksheet.getColumn(8).width = 28;
+    worksheet.getColumn(8).width = 35;
     worksheet.getColumn(9).width = 14;
-    worksheet.getColumn(10).width = 18;
+    worksheet.getColumn(10).width = 20;
     worksheet.getColumn(11).width = 12;
 
     const buffer = await workbook.xlsx.writeBuffer();
