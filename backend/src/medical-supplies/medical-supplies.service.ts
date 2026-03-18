@@ -40,10 +40,120 @@ export class MedicalSuppliesService {
     };
   }
 
-  // Create Log - เก็บ log ทุกกรณี รวม error (คอลัมน์แยก + JSON เต็ม)
+  /**
+   * สร้างข้อความอธิบายภาษาไทยให้ user จาก payload log (action เก็บข้อมูลเดิม)
+   */
+  private buildLogUserDescription(actionData: any): string | null {
+    if (actionData == null || typeof actionData !== 'object') return null;
+    const ex = actionData.user_description ?? actionData.description;
+    if (typeof ex === 'string' && ex.trim()) return ex.trim().slice(0, 1024);
+
+    const type = String(actionData.type ?? '').toUpperCase();
+    const status = String(actionData.status ?? '').toUpperCase();
+    const action = String(actionData.action ?? '');
+    const reason = String(actionData.reason ?? '');
+    const errMsg = String(actionData.error_message ?? '');
+
+    if (status === 'ERROR') {
+      if (errMsg.includes('Invalid ItemCodes found:')) {
+        const tail = errMsg.split(/Invalid ItemCodes found:\s*/i)[1]?.trim() ?? '';
+        const single = tail.split(/[\s,]+/).filter(Boolean)[0];
+        if (single && !tail.includes(',')) return `ไม่พบ Itemcode: ${single} ในระบบ`;
+        return 'ไม่พบ Itemcode ชนิดนี้ในระบบ';
+      }
+      if (errMsg.includes('No existing medical supply usage found for EN:')) {
+        const enM = errMsg.match(/EN:\s*([^,\s]+)/);
+        const hnM = errMsg.match(/HN:\s*([^.\s]+)/);
+        return `ไม่พบประวัติการใช้เวชภัณฑ์ของ EN: ${enM?.[1] ?? '—'}, HN: ${hnM?.[1] ?? '—'} จึงไม่สามารถยกเลิกรายการได้`;
+      }
+      if (errMsg.includes('ไม่พบข้อมูลแผนก')) {
+        const q = errMsg.match(/"([^"]*)"/);
+        const dept = q?.[1];
+        if (dept != null && dept !== '')
+          return `ไม่พบข้อมูลแผนก "${dept}" กรุณาตรวจสอบ PatientLocationwhenOrdered รูปแบบ: ชื่อแผนก-OPD/IPD หรือ department_code`;
+        return 'ไม่พบข้อมูลแผนก กรุณาตรวจสอบ PatientLocationwhenOrdered รูปแบบ: ชื่อแผนก-OPD/IPD หรือ department_code';
+      }
+      if (errMsg.includes('ไม่พบแผนก')) {
+        return 'ไม่พบแผนกในระบบ กรุณาตรวจสอบ department_code';
+      }
+      if (errMsg.includes('ห้ามเป็นค่าว่าง')) {
+        const m = errMsg.match(/ห้ามเป็นค่าว่าง:\s*(.+)/);
+        return m ? `ข้อมูลไม่ครบ ฟิลด์ต่อไปนี้ห้ามว่าง: ${m[1]}` : errMsg.slice(0, 1024);
+      }
+      if (/Order\[\d+\]\./.test(errMsg)) {
+        const rowM = errMsg.match(/Order\[(\d+)\]\.(\w+)/);
+        const fieldMap: Record<string, string> = {
+          ItemCode: 'รหัสอุปกรณ์ (ItemCode)',
+          AssessionNo: 'Assession No',
+          QTY: 'จำนวน (QTY)',
+        };
+        const f = rowM ? fieldMap[rowM[2]] ?? rowM[2] : '';
+        if (rowM && errMsg.includes('ห้ามเป็นค่าว่าง'))
+          return `แถวที่ ${Number(rowM[1]) + 1}: ${f} ห้ามเป็นค่าว่าง`;
+        if (rowM && errMsg.includes('ติดลบ'))
+          return `แถวที่ ${Number(rowM[1]) + 1}: จำนวนต้องไม่ติดลบ`;
+      }
+      if (errMsg.length > 0) return errMsg.slice(0, 1024);
+      return 'เกิดข้อผิดพลาด';
+    }
+
+    if (status === 'SUCCESS') {
+      if (action === 'recordStockReturns') return 'บันทึกการคืนสต็อกคลัง';
+      if (action === 'cancel_bill_new_items')
+        return 'สร้างรายการเวชภัณฑ์ใหม่หลังยกเลิกบิล (Cancel Bill)';
+      if (action === 'cancel_bill_item') return 'ยกเลิกรายการเวชภัณฑ์ตามบิล (Cancel Bill)';
+      if (
+        reason.includes('ItemStatus updated to Discontinue') &&
+        reason.includes('same AssessionNo')
+      )
+        return "สถานะเวชภัณฑ์ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี AssessionNo เดียวกันถูกยกเลิกแล้ว";
+      if (reason.includes('New items added based on new AssessionNo'))
+        return 'เพิ่มรายการใหม่ตาม AssessionNo';
+      if (reason.includes('ItemStatus updated based on AssessionNo match'))
+        return 'สถานะเวชภัณฑ์ถูกอัปเดตตาม AssessionNo ที่ตรงกัน';
+      if (action === 'discontinue_item' && reason.includes('all items'))
+        return 'ยกเลิกทุกรายการเวชภัณฑ์ในบิล (ตามสถานะ Discontinue)';
+      if (action === 'discontinue_item')
+        return "สถานะเวชภัณฑ์ถูกอัปเดตเป็น 'ยกเลิก' - รายการที่มี AssessionNo เดียวกันถูกยกเลิกแล้ว";
+      if (action === 'patch_medical_supply_usage')
+        return 'อัปเดตข้อมูลการใช้เวชภัณฑ์ (รวมการยกเลิกบิล)';
+      if (type === 'CREATE' && !action) return 'สร้างเคสผู้ป่วย';
+      if (type === 'UPDATE' && (actionData.order_items_count > 0 || actionData.supplies_count > 0))
+        return 'อัปเดตรายการ Order / รายการเวชภัณฑ์';
+      if (type === 'UPDATE') return 'อัปเดตข้อมูลการใช้เวชภัณฑ์';
+      if (type === 'CREATE') return 'สร้างเคสผู้ป่วย / บันทึกรายการ';
+      if (type === 'DELETE') return 'ลบเคสการใช้เวชภัณฑ์';
+    }
+    return null;
+  }
+
+  /** ดึงข้อความ error จาก Nest HttpException / BadRequestException (รวม invalidCodes) */
+  private extractHttpErrorMessage(error: any): string {
+    const r =
+      typeof error?.getResponse === 'function'
+        ? error.getResponse()
+        : error?.response ?? null;
+    if (r && typeof r === 'object') {
+      const inv = (r as any).invalidCodes;
+      if (Array.isArray(inv) && inv.length) {
+        return inv.length === 1
+          ? `Invalid ItemCodes found: ${inv[0]}`
+          : `Invalid ItemCodes found: ${inv.join(', ')}`;
+      }
+      const m = (r as any).message;
+      if (typeof m === 'string') return m;
+      if (Array.isArray(m)) return m.join('; ');
+      if (m && typeof m === 'object' && typeof (m as any).message === 'string')
+        return (m as any).message;
+    }
+    return error?.message ? String(error.message) : 'Unknown error';
+  }
+
+  // Create Log - เก็บ log ทุกกรณี รวม error (คอลัมน์แยก + JSON เต็ม + description ภาษาไทย)
   private async createLog(usageId: number | null, actionData: any) {
     try {
       const idx = this.extractLogIndexFields(actionData);
+      const description = this.buildLogUserDescription(actionData);
       await this.prisma.medicalSupplyUsageLog.create({
         data: {
           usage_id: usageId,
@@ -51,6 +161,7 @@ export class MedicalSuppliesService {
           en: idx.en,
           log_type: idx.log_type,
           log_status: idx.log_status,
+          description,
           action: actionData ?? {},
         },
       });
@@ -927,7 +1038,6 @@ export class MedicalSuppliesService {
 
       return usage as unknown as MedicalSupplyUsageResponse;
     } catch (error) {
-      // Create error log
       await this.createLog(null, {
         type: 'CREATE',
         status: 'ERROR',
@@ -937,8 +1047,8 @@ export class MedicalSuppliesService {
         first_name: data.FirstName,
         lastname: data.Lastname,
         user_id: data.recorded_by_user_id,
-        error_message: error.message,
-        error_code: error.code,
+        error_message: this.extractHttpErrorMessage(error),
+        error_code: error?.code,
         input_data: data,
       });
       throw error;
@@ -1439,6 +1549,7 @@ export class MedicalSuppliesService {
         en: string | null;
         log_type: string | null;
         log_status: string | null;
+        description: string | null;
         action: any;
         created_at: Date;
       }>;
@@ -1498,7 +1609,7 @@ export class MedicalSuppliesService {
     const kEn = this.logKeyEnSql('b');
 
     const innerBase = `
-      SELECT b.id, b.usage_id, b.patient_hn, b.en, b.log_type, b.log_status, b.action, b.created_at,
+      SELECT b.id, b.usage_id, b.patient_hn, b.en, b.log_type, b.log_status, b.description, b.action, b.created_at,
         ${kHn} AS k_hn,
         ${kEn} AS k_en
       FROM \`${table}\` b
@@ -1541,7 +1652,7 @@ export class MedicalSuppliesService {
       orParams.push(g.k_hn ?? '', g.k_en ?? '');
     }
     const detailSql = `
-      SELECT id, usage_id, patient_hn, en, log_type, log_status, action, created_at, k_hn, k_en
+      SELECT id, usage_id, patient_hn, en, log_type, log_status, description, action, created_at, k_hn, k_en
       FROM (${innerBase}) t2
       WHERE ${orClauses.join(' OR ')}
       ORDER BY k_hn, k_en, created_at DESC
@@ -1559,6 +1670,7 @@ export class MedicalSuppliesService {
       en: r.en ?? null,
       log_type: r.log_type ?? null,
       log_status: r.log_status ?? null,
+      description: r.description ?? null,
       action: typeof r.action === 'string' ? JSON.parse(r.action) : r.action,
       created_at: r.created_at,
     });
@@ -1882,13 +1994,12 @@ export class MedicalSuppliesService {
 
       return updated as unknown as MedicalSupplyUsageResponse;
     } catch (error) {
-      // Create error log
       await this.createLog(null, {
         type: 'UPDATE',
         status: 'ERROR',
         usage_id: id,
-        error_message: error.message,
-        error_code: error.code,
+        error_message: this.extractHttpErrorMessage(error),
+        error_code: error?.code,
         input_data: data,
       });
       throw error;

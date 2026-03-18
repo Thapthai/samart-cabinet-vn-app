@@ -474,6 +474,9 @@ model MedicalSupplyUsageLog {
   /// สถานะ เช่น SUCCESS, ERROR
   log_status String? @map("log_status") @db.VarChar(32)
 
+  /// คำอธิบายภาษาไทยสำหรับผู้ใช้ (action JSON เก็บรายละเอียดเทคนิคเหมือนเดิม)
+  description String? @map("description") @db.VarChar(1024)
+
   // Action data (JSON) - รายละเอียดเต็ม
   action Json @map("action") @db.Json
 

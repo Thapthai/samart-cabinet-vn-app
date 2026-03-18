@@ -150,7 +150,10 @@ export default function LogsPage() {
     const method = getMethodFromAction(action);
     const classes: Record<string, string> = {
       GET: 'bg-blue-50 text-blue-700 border-blue-200',
-      POST: 'bg-green-50 text-green-700 border-green-200',
+      POST:
+        typeLabel === 'CREATE'
+          ? 'bg-blue-50 text-blue-700 border-blue-200'
+          : 'bg-green-50 text-green-700 border-green-200',
       PUT: 'bg-amber-50 text-amber-700 border-amber-200',
       DELETE: 'bg-red-50 text-red-700 border-red-200',
       OTHER: 'bg-slate-50 text-slate-600 border-slate-200',
@@ -190,6 +193,12 @@ export default function LogsPage() {
     } catch {
       return '-';
     }
+  };
+
+  const getLogDescription = (row: any): string => {
+    const d = row?.description;
+    if (d != null && String(d).trim()) return String(d).trim();
+    return getActionSummary(row?.action);
   };
 
   const getStatusBadge = (action: any) => {
@@ -418,7 +427,7 @@ export default function LogsPage() {
                                       {getStatusBadge(row.action)}
                                     </span>
                                   </div>
-                                  <p className="text-muted-foreground line-clamp-2">{getActionSummary(row.action)}</p>
+                                  <p className="text-muted-foreground line-clamp-3">{getLogDescription(row)}</p>
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -453,8 +462,8 @@ export default function LogsPage() {
                                       <TableCell className="font-mono text-sm">{rowEn(row)}</TableCell>
                                       <TableCell>{getMethodBadge(row.action)}</TableCell>
                                       <TableCell>{getStatusBadge(row.action)}</TableCell>
-                                      <TableCell className="text-sm text-muted-foreground max-w-[240px]">
-                                        <span className="line-clamp-2">{getActionSummary(row.action)}</span>
+                                      <TableCell className="text-sm text-muted-foreground max-w-md">
+                                        <span className="line-clamp-3">{getLogDescription(row)}</span>
                                       </TableCell>
                                       <TableCell className="text-center">
                                         <Button
