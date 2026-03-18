@@ -42,5 +42,12 @@ export interface UsageDetail {
   qty_used: number;
   qty_returned: number;
   order_item_status?: string;
+  assession_no?: string;
+  print_location?: string;
+  twu?: string;
+  order_item_description?: string;
+  supply_item_created_at?: Date | string;
+  itemcode?: string;
+  itemname?: string;
 }
 

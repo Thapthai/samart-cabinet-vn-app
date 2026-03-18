@@ -143,20 +143,73 @@ export class MedicalSuppliesService {
 
   /**
    * เช็คว่า ItemStatus เป็นประเภท Discontinue หรือไม่ (รับได้หลายรูปแบบ)
-   * ค่าที่ถือว่าเป็น Discontinue: discontinue, discontinued, cancel, cancelled (ไม่สนใจตัวพิมพ์)
+   * ค่าที่ถือว่าเป็น Discontinue: discontinue, discontinuud (ไม่สนใจตัวพิมพ์)
    */
   private isDiscontinueStatus(status: string | null | undefined): boolean {
     const s = (status ?? '').toString().trim().toLowerCase();
-    return s === 'discontinue' || s === 'discontinued' || s === 'cancel' || s === 'cancelled';
+    return s === 'discontinue' || s === 'discontinuud' || s === 'discontinued' || s === 'cancel' || s === 'cancelled';
   }
 
   /**
-   * Normalize ItemStatus: ถ้าเป็น Discontinue ให้บันทึกเป็น "Discontinue" เสมอ ไม่งั้นใช้ค่าที่ส่งมาหรือ default
+   * ตรวจและ normalize ItemStatus จาก API
+   * - ยืนยัน: Verified, Verifie (ไม่สนใจตัวพิมพ์) หรือค่าว่าง
+   * - ยกเลิก: Discontinue, Discontinuud (ไม่สนใจตัวพิมพ์)
+   * - นอกเหนือจากนี้ → allowed: false (ไม่นำรายการนี้เข้าระบบ)
+   */
+  private validateAndNormalizeItemStatus(status: string | null | undefined): { allowed: boolean; normalized?: 'Verified' | 'Discontinue' } {
+    const s = (status ?? '').toString().trim();
+    const lower = s.toLowerCase();
+    if (s === '' || lower === 'verified' || lower === 'verifie') return { allowed: true, normalized: 'Verified' };
+    if (lower === 'discontinue' || lower === 'discontinuud') return { allowed: true, normalized: 'Discontinue' };
+    return { allowed: false };
+  }
+
+  /**
+   * Normalize ItemStatus: คืนเฉพาะ Verified หรือ Discontinue (ใช้หลังกรองรายการที่ allowed แล้ว)
    */
   private normalizeOrderItemStatus(status: string | null | undefined, defaultStatus = 'Verified'): string {
+    const result = this.validateAndNormalizeItemStatus(status);
+    if (result.allowed && result.normalized) return result.normalized;
     if (this.isDiscontinueStatus(status)) return 'Discontinue';
     const s = (status ?? '').toString().trim();
     return s || defaultStatus;
+  }
+
+  /**
+   * ตรวจ payload ระดับ create: HN, EN, FirstName, Lastname ห้ามว่างเมื่อมี Order
+   */
+  private validateCreateOrderPayload(data: { HN?: string; EN?: string; FirstName?: string; Lastname?: string; Order?: any[] }): void {
+    const order = data.Order || [];
+    if (order.length === 0) return;
+    const hn = (data.HN ?? '').toString().trim();
+    const en = (data.EN ?? '').toString().trim();
+    const firstName = (data.FirstName ?? '').toString().trim();
+    const lastname = (data.Lastname ?? '').toString().trim();
+    const missing: string[] = [];
+    if (!hn) missing.push('HN');
+    if (!en) missing.push('EN');
+    if (!firstName) missing.push('FirstName');
+    if (!lastname) missing.push('Lastname');
+    if (missing.length > 0) {
+      throw new BadRequestException(`ฟิลด์ต่อไปนี้ห้ามเป็นค่าว่าง: ${missing.join(', ')}`);
+    }
+  }
+
+  /**
+   * ตรวจรายการใน Order: ItemCode, AssessionNo, QTY ห้ามว่าง; QTY ห้ามติดลบ
+   * ใช้กับรายการที่ผ่าน ItemStatus allowed แล้ว
+   */
+  private validateOrderItem(item: any, index: number): void {
+    const code = (item.ItemCode ?? '').toString().trim();
+    const assessionNo = (item.AssessionNo ?? '').toString().trim();
+    const qtyRaw = item.QTY;
+    if (!code) throw new BadRequestException(`Order[${index}].ItemCode ห้ามเป็นค่าว่าง`);
+    if (!assessionNo) throw new BadRequestException(`Order[${index}].AssessionNo ห้ามเป็นค่าว่าง`);
+    if (qtyRaw === undefined || qtyRaw === null || qtyRaw === '')
+      throw new BadRequestException(`Order[${index}].QTY ห้ามเป็นค่าว่าง`);
+    const qty = typeof qtyRaw === 'string' ? parseInt(qtyRaw, 10) : Number(qtyRaw);
+    if (Number.isNaN(qty) || qty < 0)
+      throw new BadRequestException(`Order[${index}].QTY ต้องเป็นตัวเลขที่ไม่ติดลบ`);
   }
 
   // Validate single ItemCode - ตรวจสอบว่า ItemCode มีในระบบหรือไม่
@@ -291,8 +344,12 @@ export class MedicalSuppliesService {
       const lastname = data.Lastname || '';
       const hospital = data.Hospital || null;
 
-      // Resolve department_code and usage_type from first Order item's PatientLocationwhenOrdered
-      const orderItems = data.Order || [];
+      // Order: กรองเฉพาะ ItemStatus ที่อนุญาต (Verified/Verifie/Discontinue/Discontinuud/ว่าง) รายการอื่นปัดออก
+      let orderItemsRaw = data.Order || [];
+      this.validateCreateOrderPayload(orderItemsRaw.length > 0 ? data : { ...data, Order: [] });
+      const orderItems = orderItemsRaw.filter((item: any) => this.validateAndNormalizeItemStatus(item.ItemStatus).allowed);
+      orderItems.forEach((item: any, i: number) => this.validateOrderItem(item, i));
+
       const firstOrderItem = orderItems[0];
       const resolved = await this.resolveDepartmentCodeFromDepName2(
         firstOrderItem?.PatientLocationwhenOrdered,
@@ -1591,8 +1648,11 @@ export class MedicalSuppliesService {
         throw new NotFoundException(`Medical supply usage with ID ${id} not found`);
       }
 
-      // Handle Discontinue items if provided (รับได้หลายรูปแบบ: discontinue, discontinued, cancel, cancelled)
-      const orderItems = data.Order || [];
+      // Order: กรองเฉพาะ ItemStatus ที่อนุญาต (Verified/Verifie/Discontinue/Discontinuud/ว่าง) รายการอื่นปัดออก
+      let orderItems = (data.Order || []).filter((item: any) => this.validateAndNormalizeItemStatus(item.ItemStatus).allowed);
+      orderItems.forEach((item: any, i: number) => this.validateOrderItem(item, i));
+
+      // Handle Discontinue items if provided (รับได้หลายรูปแบบ: discontinue, discontinuud)
       const discontinueItems = orderItems.filter(item =>
         item.ItemStatus && this.isDiscontinueStatus(item.ItemStatus),
       );
@@ -1749,8 +1809,8 @@ export class MedicalSuppliesService {
       if (data.billing_total !== undefined) updateData.billing_total = data.billing_total;
       if (data.billing_currency !== undefined) updateData.billing_currency = data.billing_currency;
 
-      // Handle supply items update if provided
-      if (data.Order && data.Order.length > 0) {
+      // Handle supply items update if provided (ใช้ orderItems ที่กรองและตรวจแล้ว)
+      if (orderItems.length > 0) {
         // Delete existing items
         await this.prisma.supplyUsageItem.deleteMany({
           where: { medical_supply_usage_id: id },
@@ -1758,7 +1818,7 @@ export class MedicalSuppliesService {
 
         // Create new items
         updateData.supply_items = {
-          create: data.Order.map(item => ({
+          create: orderItems.map(item => ({
             order_item_code: item.ItemCode,
             order_item_description: item.ItemDescription,
             assession_no: item.AssessionNo,
@@ -1815,7 +1875,7 @@ export class MedicalSuppliesService {
         status: 'SUCCESS',
         usage_id: id,
         updated_fields: Object.keys(data),
-        order_items_count: data.Order?.length || 0,
+        order_items_count: orderItems.length,
         supplies_count: data.supplies?.length || 0,
         input_data: data,
       });
@@ -3479,9 +3539,14 @@ export class MedicalSuppliesService {
             usage_datetime: usage.usage_datetime,
             itemcode: supplyItem?.order_item_code || supplyItem?.supply_code,
             itemname: supplyItem?.supply_name,
+            order_item_description: supplyItem?.order_item_description || supplyItem?.supply_name,
             qty_used: supplyItem?.qty,
             qty_returned: supplyItem?.qty_returned_to_cabinet,
             order_item_status: supplyItem?.order_item_status || '',
+            assession_no: supplyItem?.assession_no ?? '',
+            print_location: usage.print_location ?? '',
+            twu: usage.twu ?? '',
+            supply_item_created_at: supplyItem?.created_at,
             created_at: usage.created_at,
             updated_at: usage.updated_at,
           });
