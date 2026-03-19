@@ -28,7 +28,7 @@ model User {
   backup_codes           String?   @map("backup_codes") @db.Text // JSON string of backup codes
   two_factor_verified_at DateTime? @map("two_factor_verified_at")
 
-  created_at DateTime @default(now()) @map("created_at")
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at DateTime @updatedAt @map("updated_at")
 
   // Relations
@@ -47,7 +47,7 @@ model StaffRole {
   name        String // 'IT 1', 'IT 2', 'Warehouse 1', etc.
   description String?  @db.Text // Description of the role
   is_active   Boolean  @default(true) @map("is_active")
-  created_at  DateTime @default(now()) @map("created_at")
+  created_at  DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at  DateTime @updatedAt @map("updated_at")
 
   // Relations
@@ -71,7 +71,7 @@ model StaffUser {
   client_secret String    @map("client_secret") // Hashed secret
   expires_at    DateTime? @map("expires_at") // Client credential expiration
   is_active     Boolean   @default(true) @map("is_active")
-  created_at    DateTime  @default(now()) @map("created_at")
+  created_at    DateTime  @default(dbgenerated("NOW()")) @map("created_at")
   updated_at    DateTime  @updatedAt @map("updated_at")
 
   // Relations
@@ -90,7 +90,7 @@ model StaffRolePermission {
   role_id    Int      @map("role_id") // Foreign key to StaffRole
   menu_href  String   @map("menu_href") // Menu href path, e.g., '/staff/dashboard'
   can_access Boolean  @default(true) @map("can_access")
-  created_at DateTime @default(now()) @map("created_at")
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at DateTime @updatedAt @map("updated_at")
 
   // Relations
@@ -112,7 +112,7 @@ model OAuthAccount {
   expires_at    DateTime? @map("expires_at")
   token_type    String?   @map("token_type")
   scope         String?
-  created_at    DateTime  @default(now()) @map("created_at")
+  created_at    DateTime  @default(dbgenerated("NOW()")) @map("created_at")
   updated_at    DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -131,7 +131,7 @@ model ApiKey {
   is_active    Boolean   @default(true) @map("is_active")
   last_used_at DateTime? @map("last_used_at")
   expires_at   DateTime? @map("expires_at")
-  created_at   DateTime  @default(now()) @map("created_at")
+  created_at   DateTime  @default(dbgenerated("NOW()")) @map("created_at")
   updated_at   DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -149,7 +149,7 @@ model ClientCredential {
   is_active          Boolean   @default(true) @map("is_active")
   last_used_at       DateTime? @map("last_used_at")
   expires_at         DateTime? @map("expires_at")
-  created_at         DateTime  @default(now()) @map("created_at")
+  created_at         DateTime  @default(dbgenerated("NOW()")) @map("created_at")
   updated_at         DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -164,7 +164,7 @@ model RefreshToken {
   token      String   @unique
   expires_at DateTime @map("expires_at")
   is_revoked Boolean  @default(false) @map("is_revoked")
-  created_at DateTime @default(now()) @map("created_at")
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at")
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -178,7 +178,7 @@ model TwoFactorToken {
   type       String // 'email_otp', 'sms_otp', 'backup_code'
   expires_at DateTime @map("expires_at")
   isUsed     Boolean  @default(false) @map("is_used")
-  created_at DateTime @default(now()) @map("created_at")
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at")
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
@@ -193,7 +193,7 @@ model Category {
   slug        String   @unique
   image       String?
   is_active   Boolean  @default(true)
-  created_at  DateTime @default(now()) @map("created_at")
+  created_at  DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at  DateTime @updatedAt @map("updated_at")
 
   @@map("app_microservice_categories")
@@ -368,8 +368,8 @@ model MedicalSupplyUsage {
   time_print_date String? @map("time_print_date") // Time Print Date (14/11/2025 09:30:00)
   update          String? @map("update") // Print Date - วันที่ของการ Print แยกจากวันที่ Receipt /Invoice
 
-  // Timestamps
-  created_at DateTime @default(now()) @map("created_at")
+  // Timestamps (DateTime(6) = เก็บเศษวินาทีได้เหมือน 2026-03-19 15:20:36.333000)
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at") @db.DateTime(3)
   updated_at DateTime @updatedAt @map("updated_at")
 
   // Relations
@@ -415,8 +415,8 @@ model SupplyUsageItem {
   // Status Management
   item_status String @default("PENDING") @map("item_status") // PENDING, PARTIAL, COMPLETED
 
-  created_at DateTime @default(now()) @map("created_at")
-  updated_at DateTime @updatedAt @map("updated_at")
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at") @db.DateTime(6)
+  updated_at DateTime @updatedAt @map("updated_at") @db.DateTime(6)
 
   // Relations
   usage MedicalSupplyUsage @relation(fields: [medical_supply_usage_id], references: [id], onDelete: Cascade)
@@ -444,7 +444,7 @@ model SupplyItemReturnRecord {
   return_by_user_id String   @map("return_by_user_id")
   return_note       String?  @map("return_note") // หมายเหตุเพิ่มเติม
 
-  created_at DateTime @default(now()) @map("created_at")
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at DateTime @updatedAt @map("updated_at")
 
   // Relation: ระบุว่าคืนมาจากตู้ไหน (ผ่าน stock_id = cabinet.stock_id)
@@ -480,7 +480,7 @@ model MedicalSupplyUsageLog {
   // Action data (JSON) - รายละเอียดเต็ม
   action Json @map("action") @db.Json
 
-  created_at DateTime @default(now()) @map("created_at")
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at")
 
   usage MedicalSupplyUsage? @relation(fields: [usage_id], references: [id], onDelete: Cascade)
 
@@ -629,7 +629,7 @@ model cabinet {
   cabinet_type   String?  @map("cabinet_type") @db.VarChar(255)
   cabinet_status String?  @default("ACTIVE") @map("cabinet_status") @db.VarChar(255)
   stock_id       Int?     @unique() @map("stock_id")
-  created_at     DateTime @default(now()) @map("created_at")
+  created_at     DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at     DateTime @updatedAt @map("updated_at")
 
   cabinetDepartments      cabinetDepartment[]
@@ -648,7 +648,7 @@ model CabinetItemSetting {
   item_code  String   @map("item_code") @db.VarChar(25)
   stock_min  Int?     @map("stock_min")
   stock_max  Int?     @map("stock_max")
-  created_at DateTime @default(now()) @map("created_at")
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at DateTime @updatedAt @map("updated_at")
 
   cabinet cabinet @relation(fields: [cabinet_id], references: [id], onDelete: Cascade)
@@ -666,7 +666,7 @@ model cabinetDepartment {
   status        String  @default("ACTIVE") @map("status") // ACTIVE, INACTIVE
   description   String? @map("description") @db.Text
 
-  created_at DateTime @default(now()) @map("created_at")
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at DateTime @updatedAt @map("updated_at")
 
   cabinet    cabinet?    @relation(fields: [cabinet_id], references: [id])

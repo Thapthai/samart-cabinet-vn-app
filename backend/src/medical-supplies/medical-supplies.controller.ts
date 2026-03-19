@@ -563,13 +563,13 @@ export class MedicalSupplyController {
     }
   }
 
-  @Post('handle-cancel-bill')
-  async handleCancelBill(@Body() data: any) {
-    try {
-      const result = await this.medicalSuppliesService.handleCancelBill(data);
-      return result;
-    } catch (error: any) {
-      return { success: false, message: error?.message };
-    }
-  }
+  // @Post('handle-cancel-bill')
+  // async handleCancelBill(@Body() data: any) {
+  //   try {
+  //     const result = await this.medicalSuppliesService.handleCancelBill(data);
+  //     return result;
+  //   } catch (error: any) {
+  //     return { success: false, message: error?.message };
+  //   }
+  // }
 }
