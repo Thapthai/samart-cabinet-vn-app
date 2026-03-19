@@ -710,17 +710,6 @@ export class MedicalSuppliesService {
           if (newItemCodes.length > 0) {
             const validation = await this.validateItemCodes(newItemCodes);
             if (validation.invalid.length > 0) {
-              await this.createLog(null, {
-                type: 'CREATE',
-                status: 'ERROR',
-                action: 'create_medical_supply_usage',
-                patient_hn: data.HN || data.patient_hn || '',
-                en: data.EN || '',
-                error_message: `Invalid ItemCodes found: ${validation.invalid.join(', ')}`,
-                invalid_item_codes: validation.invalid,
-                input_data: data,
-              });
-
               throw new BadRequestException({
                 message: 'Invalid ItemCodes found',
                 invalidCodes: validation.invalid,
@@ -932,18 +921,6 @@ export class MedicalSuppliesService {
         const validation = await this.validateItemCodes(allItemCodes);
 
         if (validation.invalid.length > 0) {
-          // Log validation error
-          await this.createLog(null, {
-            type: 'CREATE',
-            status: 'ERROR',
-            action: 'create_medical_supply_usage',
-            patient_hn: data.HN || data.patient_hn || '',
-            en: data.EN || '',
-            error_message: `Invalid ItemCodes found: ${validation.invalid.join(', ')}`,
-            invalid_item_codes: validation.invalid,
-            input_data: data,
-          });
-
           throw new BadRequestException({
             message: 'Invalid ItemCodes found',
             invalidCodes: validation.invalid,
