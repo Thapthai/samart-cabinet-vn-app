@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { staffVendingReportsApi } from '@/lib/staffApi/vendingReportsApi';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 export default function VendingReportsPage() {
   const { user } = useAuth();
@@ -171,18 +172,7 @@ export default function VendingReportsPage() {
     handleDownload(url, filename, 'รายงานรายการที่ไม่ได้ใช้');
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
+  const formatDate = (dateString: string) => formatUtcDateTime(dateString);
 
   return (
     <>

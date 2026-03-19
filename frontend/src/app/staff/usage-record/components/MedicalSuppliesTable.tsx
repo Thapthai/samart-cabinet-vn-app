@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RefreshCw, Package, XCircle } from 'lucide-react';
+import { formatPrintDateTime, formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 interface MedicalSuppliesTableProps {
   loading: boolean;
@@ -76,44 +77,7 @@ export default function MedicalSuppliesTable({
       return false;
     }
   };
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
-
-  /** แสดงวันที่/เวลาที่พิมพ์บิล (print_date อาจเป็น YYYY-MM-DD, time_print_date เป็น HH:mm:ss) */
-  const formatPrintDateTime = (printDate: string | null | undefined, timePrintDate: string | null | undefined): string => {
-    const datePart = printDate?.trim();
-    const timePart = timePrintDate?.trim();
-    if (!datePart && !timePart) return '-';
-    const parts: string[] = [];
-    if (datePart) {
-      if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
-        try {
-          const d = new Date(datePart.includes('T') ? datePart : datePart + 'T00:00:00');
-          parts.push(d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }));
-        } catch {
-          parts.push(datePart);
-        }
-      } else {
-        parts.push(datePart);
-      }
-    }
-    if (timePart) {
-      parts.push(timePart.length > 8 ? timePart.slice(0, 8) : timePart);
-    }
-    return parts.join(' ') || '-';
-  };
+  const formatDate = (dateString: string) => formatUtcDateTime(dateString);
 
   const getBillingStatusBadge = (status: string | null | undefined) => {
     if (!status) {

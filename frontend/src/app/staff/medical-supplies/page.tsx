@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import MedicalSuppliesTable from './components/MedicalSuppliesTable';
 import CancelBillDialog from './components/CancelBillDialog';
+import { formatPrintDateTime, formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 export default function MedicalSuppliesPage() {
   const { user } = useAuth();
@@ -196,44 +197,7 @@ export default function MedicalSuppliesPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
-
-  /** แสดงวันที่/เวลาที่พิมพ์บิล (print_date อาจเป็น YYYY-MM-DD, time_print_date เป็น HH:mm:ss) */
-  const formatPrintDateTime = (printDate: string | null | undefined, timePrintDate: string | null | undefined): string => {
-    const datePart = printDate?.trim();
-    const timePart = timePrintDate?.trim();
-    if (!datePart && !timePart) return '-';
-    const parts: string[] = [];
-    if (datePart) {
-      if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
-        try {
-          const d = new Date(datePart.includes('T') ? datePart : datePart + 'T00:00:00');
-          parts.push(d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }));
-        } catch {
-          parts.push(datePart);
-        }
-      } else {
-        parts.push(datePart);
-      }
-    }
-    if (timePart) {
-      parts.push(timePart.length > 8 ? timePart.slice(0, 8) : timePart);
-    }
-    return parts.join(' ') || '-';
-  };
+  const formatDate = (dateString: string | null | undefined) => formatUtcDateTime(dateString);
 
   return (
     <>

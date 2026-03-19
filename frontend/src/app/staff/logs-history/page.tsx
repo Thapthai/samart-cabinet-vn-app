@@ -26,6 +26,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 export default function LogsPage() {
   const [loading, setLoading] = useState(true);
@@ -159,21 +160,7 @@ export default function LogsPage() {
     );
   };
 
-  const formatDate = (v: string | Date) => {
-    try {
-      const d = new Date(v as string);
-      return d.toLocaleString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-    } catch {
-      return String(v ?? '-');
-    }
-  };
+  const formatDate = (v: string | Date) => formatUtcDateTime(String(v));
 
   const getActionSummary = (action: any): string => {
     if (!action || typeof action !== 'object') return '-';

@@ -28,21 +28,6 @@ interface ComparisonTableProps {
   onExportPdf: () => void;
 }
 
-const formatDate = (dateString: string | undefined): string => {
-  if (!dateString) return '';
-  try {
-    // Handle ISO 8601 format (2025-12-23T02:00:12.260Z) or YYYY-MM-DD format
-    const dateOnly = dateString.includes('T')
-      ? dateString.split('T')[0]  // Extract date part before T
-      : dateString.split(' ')[0];  // Or extract before space
-
-    const [year, month, day] = dateOnly.split('-');
-    return `${day}/${month}/${year}`;
-  } catch {
-    return dateString;
-  }
-};
-
 export default function ComparisonTable({
   loading,
   items,

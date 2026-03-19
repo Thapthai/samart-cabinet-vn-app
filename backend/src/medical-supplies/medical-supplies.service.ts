@@ -1214,8 +1214,6 @@ export class MedicalSuppliesService {
         }
       }
 
-
-
       // Filter by assession_no in SupplyUsageItem if provided
       if (query.assession_no) {
         baseWhere.supply_items = {
@@ -1418,15 +1416,11 @@ export class MedicalSuppliesService {
         // Convert Prisma object to plain object first to ensure all properties are included
         const usagePlain = JSON.parse(JSON.stringify(usage));
 
-        // Convert supply_items to plain objects; แปลงวันที่เป็นเวลาประเทศไทย
-        const supplyItemsPlain = usage.supply_items.map(item => {
+        // Convert supply_items to plain objects (วันที่ตามที่เก็บใน DB / ISO ไม่บังคับ +07)
+        const supplyItemsPlain = usage.supply_items.map((item) => {
           const itemPlain = JSON.parse(JSON.stringify(item));
-          const thCreated = this.toThailandDateTimeString(item.created_at);
-          const thUpdated = this.toThailandDateTimeString(item.updated_at);
           return {
             ...itemPlain,
-            ...(thCreated != null && { created_at: thCreated }),
-            ...(thUpdated != null && { updated_at: thUpdated }),
             qty_pending: (item.qty || 0) - (item.qty_used_with_patient || 0) - (item.qty_returned_to_cabinet || 0),
           };
         });
@@ -1435,15 +1429,8 @@ export class MedicalSuppliesService {
           ? departmentNameByCode.get(usage.department_code) ?? null
           : null;
 
-        const thCreatedAt = this.toThailandDateTimeString(usage.created_at);
-        const thUpdatedAt = this.toThailandDateTimeString(usage.updated_at);
-        const thUsageDatetime = this.toThailandDateTimeString((usage as any).usage_datetime);
-
         const result: any = {
           ...usagePlain,
-          ...(thCreatedAt != null && { created_at: thCreatedAt }),
-          ...(thUpdatedAt != null && { updated_at: thUpdatedAt }),
-          ...(thUsageDatetime != null && { usage_datetime: thUsageDatetime }),
           department_name: departmentName,
           recorded_by_user_id: recordedByUserId,
           recorded_by_name: recordedByName,
@@ -3609,19 +3596,19 @@ export class MedicalSuppliesService {
         }
       }
 
-      // Add date range filter on supply_items.created_at
+      // Add date range filter on supply_items.created_at (ช่วงวันตาม UTC ตรงกับ ISO จาก API)
       if (filters?.startDate && filters?.endDate) {
         supplyItemsWhere.created_at = {
-          gte: new Date(filters.startDate),
-          lte: new Date(filters.endDate + 'T23:59:59.999Z'),
+          gte: new Date(`${filters.startDate}T00:00:00.000Z`),
+          lte: new Date(`${filters.endDate}T23:59:59.999Z`),
         };
       } else if (filters?.startDate) {
         supplyItemsWhere.created_at = {
-          gte: new Date(filters.startDate),
+          gte: new Date(`${filters.startDate}T00:00:00.000Z`),
         };
       } else if (filters?.endDate) {
         supplyItemsWhere.created_at = {
-          lte: new Date(filters.endDate + 'T23:59:59.999Z'),
+          lte: new Date(`${filters.endDate}T23:59:59.999Z`),
         };
       }
 

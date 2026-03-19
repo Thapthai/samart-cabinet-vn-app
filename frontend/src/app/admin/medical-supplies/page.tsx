@@ -6,22 +6,10 @@ import { medicalSuppliesApi, vendingReportsApi, departmentApi } from '@/lib/api'
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { toast } from 'sonner';
-import { History, Search, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DatePickerBE } from '@/components/ui/date-picker-be';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { History } from 'lucide-react';
 import MedicalSuppliesTable from './components/MedicalSuppliesTable';
-import CancelBillDialog from './components/CancelBillDialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
+import MedicalSuppliesSearchFilters from './components/MedicalSuppliesSearchFilters';
+import MedicalSupplySelectedDetailSection from './components/MedicalSupplySelectedDetailSection';
 
 export default function MedicalSuppliesPage() {
   const { user } = useAuth();
@@ -29,8 +17,6 @@ export default function MedicalSuppliesPage() {
   const [supplies, setSupplies] = useState<any[]>([]);
   const [selectedSupply, setSelectedSupply] = useState<any>(null);
   const [selectedSupplyId, setSelectedSupplyId] = useState<number | null>(null);
-  const [cancelBillDialogOpen, setCancelBillDialogOpen] = useState(false);
-  const [selectedSupplyForCancel, setSelectedSupplyForCancel] = useState<any>(null);
   const [exportLoading, setExportLoading] = useState<'excel' | 'pdf' | null>(null);
 
   // Departments for search dropdown (admin)
@@ -135,7 +121,6 @@ export default function MedicalSuppliesPage() {
           dataArray = [response.data];
         }
 
-
         setSupplies(dataArray);
 
         const totalItems = response.total || dataArray.length;
@@ -231,56 +216,6 @@ export default function MedicalSuppliesPage() {
     }, 100);
   };
 
-  const handleCancelBill = (supply: any) => {
-    setSelectedSupplyForCancel(supply);
-    setCancelBillDialogOpen(true);
-  };
-
-  const handleCancelBillSuccess = () => {
-    fetchSupplies();
-    setSelectedSupply(null);
-    setSelectedSupplyId(null);
-  };
-
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
-
-  /** แสดงวันที่/เวลาที่พิมพ์บิล (print_date อาจเป็น YYYY-MM-DD, time_print_date เป็น HH:mm:ss) */
-  const formatPrintDateTime = (printDate: string | null | undefined, timePrintDate: string | null | undefined): string => {
-    const datePart = printDate?.trim();
-    const timePart = timePrintDate?.trim();
-    if (!datePart && !timePart) return '-';
-    const parts: string[] = [];
-    if (datePart) {
-      if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
-        try {
-          const d = new Date(datePart.includes('T') ? datePart : datePart + 'T00:00:00');
-          parts.push(d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }));
-        } catch {
-          parts.push(datePart);
-        }
-      } else {
-        parts.push(datePart);
-      }
-    }
-    if (timePart) {
-      parts.push(timePart.length > 8 ? timePart.slice(0, 8) : timePart);
-    }
-    return parts.join(' ') || '-';
-  };
-
   const handleExportReport = async (format: 'excel' | 'pdf') => {
     try {
       setExportLoading(format);
@@ -332,166 +267,19 @@ export default function MedicalSuppliesPage() {
             </div>
           </div>
 
-          {/* Search Filters */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-6 shadow-sm w-full min-w-0">
-            <div className="font-bold text-base sm:text-lg mb-4">
-              วันที่เบิกอุปกรณ์ใช้กับคนไข้
-            </div>
-            <div className="space-y-4">
-              {/* บรรทัดที่ 1: วันที่เริ่มต้น | วันที่สิ้นสุด */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 min-w-0">
-                  <Label htmlFor="startDate">วันที่เริ่มต้น</Label>
-                  <DatePickerBE
-                    id="startDate"
-                    value={formFilters.startDate}
-                    onChange={(v) => setFormFilters({ ...formFilters, startDate: v })}
-                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
-                  />
-                </div>
-                <div className="space-y-2 min-w-0">
-                  <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
-                  <DatePickerBE
-                    id="endDate"
-                    value={formFilters.endDate}
-                    onChange={(v) => setFormFilters({ ...formFilters, endDate: v })}
-                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
-                  />
-                </div>
-              </div>
-
-              {/* บรรทัดที่ 2: ค้นหาชื่ออุปกรณ์ | แผนก */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 min-w-0">
-                  <Label htmlFor="itemName">ค้นหาชื่ออุปกรณ์</Label>
-                  <Input
-                    id="itemName"
-                    placeholder="กรอกชื่ออุปกรณ์..."
-                    value={formFilters.itemName}
-                    onChange={(e) => setFormFilters({ ...formFilters, itemName: e.target.value })}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  />
-                </div>
-                <div className="space-y-2 min-w-0">
-                  <Label>แผนก</Label>
-                <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-between font-normal"
-                      type="button"
-                    >
-                      <span className="truncate">
-                        {formFilters.departmentCode
-                          ? (departments.find((d) => String(d.ID) === formFilters.departmentCode)?.DepName ||
-                            departments.find((d) => String(d.ID) === formFilters.departmentCode)?.DepName2 ||
-                            `แผนก ${formFilters.departmentCode}`)
-                          : 'เลือกแผนก...'}
-                      </span>
-                      <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1">
-                    <div className="px-2 pb-2">
-                      <Input
-                        placeholder="ค้นหาแผนก..."
-                        value={departmentSearch}
-                        onChange={(e) => setDepartmentSearch(e.target.value)}
-                        className="h-8"
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    <div className="max-h-60 overflow-auto">
-                      <button
-                        type="button"
-                        className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                        onClick={() => {
-                          setFormFilters({ ...formFilters, departmentCode: '' });
-                          setDepartmentDropdownOpen(false);
-                          setDepartmentSearch('');
-                        }}
-                      >
-                        -- ทุกแผนก --
-                      </button>
-                      {departments
-                        .filter(
-                          (d) =>
-                            !departmentSearch.trim() ||
-                            (d.DepName?.toLowerCase().includes(departmentSearch.toLowerCase()) ||
-                              d.DepName2?.toLowerCase().includes(departmentSearch.toLowerCase()))
-                        )
-                        .map((dept) => (
-                          <button
-                            key={dept.ID}
-                            type="button"
-                            className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                            onClick={() => {
-                              setFormFilters({ ...formFilters, departmentCode: String(dept.ID) });
-                              setDepartmentDropdownOpen(false);
-                              setDepartmentSearch('');
-                            }}
-                          >
-                            {dept.DepName || dept.DepName2 || `แผนก ${dept.ID}`}
-                          </button>
-                        ))}
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                </div>
-              </div>
-
-              {/* บรรทัดที่ 3: ประเภทผู้ป่วย | HN | EN */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="space-y-2 min-w-0">
-                  <Label>ประเภทผู้ป่วย</Label>
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    value={formFilters.usageType}
-                    onChange={(e) => setFormFilters({ ...formFilters, usageType: e.target.value })}
-                  >
-                    <option value="">-- ทั้งหมด --</option>
-                    <option value="OPD">ผู้ป่วยนอก (OPD)</option>
-                    <option value="IPD">ผู้ป่วยใน (IPD)</option>
-                  </select>
-                </div>
-                <div className="space-y-2 min-w-0">
-                  <Label htmlFor="patientHN">HN</Label>
-                  <Input
-                    id="patientHN"
-                    placeholder="กรอกเลข HN..."
-                    value={formFilters.patientHN}
-                    onChange={(e) => setFormFilters({ ...formFilters, patientHN: e.target.value })}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  />
-                </div>
-                <div className="space-y-2 min-w-0">
-                  <Label htmlFor="patientEN">EN</Label>
-                  <Input
-                    id="patientEN"
-                    placeholder="กรอกเลข EN..."
-                    value={formFilters.patientEN}
-                    onChange={(e) => setFormFilters({ ...formFilters, patientEN: e.target.value })}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 mt-4">
-              <Button onClick={handleSearch} disabled={loading} className="w-full sm:w-auto">
-                <Search className="h-4 w-4 mr-2 shrink-0" />
-                ค้นหา
-              </Button>
-              <Button onClick={handleReset} variant="outline" disabled={loading} className="w-full sm:w-auto">
-                <RefreshCw className="h-4 w-4 mr-2 shrink-0" />
-                รีเซ็ต
-              </Button>
-              <Button onClick={() => fetchSupplies()} variant="outline" disabled={loading} className="w-full sm:w-auto">
-                <RefreshCw className={`h-4 w-4 mr-2 shrink-0 ${loading ? 'animate-spin' : ''}`} />
-                โหลดใหม่
-              </Button>
-            </div>
-          </div>
+          <MedicalSuppliesSearchFilters
+            formFilters={formFilters}
+            onPatchFormFilters={(patch) => setFormFilters((prev) => ({ ...prev, ...patch }))}
+            departments={departments}
+            departmentSearch={departmentSearch}
+            onDepartmentSearchChange={setDepartmentSearch}
+            departmentDropdownOpen={departmentDropdownOpen}
+            onDepartmentDropdownOpenChange={setDepartmentDropdownOpen}
+            loading={loading}
+            onSearch={handleSearch}
+            onReset={handleReset}
+            onReload={() => fetchSupplies()}
+          />
 
           {/* Table */}
           <MedicalSuppliesTable
@@ -504,309 +292,20 @@ export default function MedicalSuppliesPage() {
             onPageChange={handlePageChange}
             onSelectSupply={handleSelectSupply}
             selectedSupplyId={selectedSupplyId}
-            onCancelBill={handleCancelBill}
             onExportExcel={() => handleExportReport('excel')}
             onExportPdf={() => handleExportReport('pdf')}
             exportLoading={exportLoading}
             filters={activeFilters}
           />
 
-          {/* Detail Section */}
           {selectedSupply && selectedSupplyId && (
-            <div id="supply-details" className="space-y-4 sm:space-y-6">
-              <Card>
-                <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
-                  <CardTitle className="text-base sm:text-lg truncate">รายละเอียดการเบิกอุปกรณ์</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm break-words">
-                    HN: {selectedSupply.data?.patient_hn || selectedSupply.patient_hn || '-'} |
-                    Assession No: {(() => {
-                      const supplyItems = selectedSupply.data?.supply_items || selectedSupply.supply_items || [];
-                      const assessionNos = [...new Set(
-                        supplyItems
-                          .map((item: any) => item.assession_no)
-                          .filter((no: string) => no && no.trim() !== '')
-                      )];
-                      return assessionNos.length > 0 ? assessionNos.join(', ') : '-';
-                    })()}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-4 py-3 sm:px-6 sm:py-4">
-                  <div className="space-y-4 sm:space-y-5">
-                    {/* ข้อมูลผู้ป่วยและผู้เบิก */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">ชื่อคนไข้</p>
-                        <p className="font-semibold">
-                          {selectedSupply.data?.first_name || selectedSupply.first_name || ''}{' '}
-                          {selectedSupply.data?.lastname || selectedSupply.lastname || ''}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">ผู้เบิก</p>
-                        <p className="font-semibold">
-                          {selectedSupply.data?.recorded_by_display ||
-                            selectedSupply.recorded_by_display ||
-                            selectedSupply.recorded_by_name ||
-                            selectedSupply.data?.recorded_by_name || '-'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">แผนก</p>
-                        <p className="font-semibold">
-                          {selectedSupply.data?.department_name || selectedSupply.department_name ||
-                            selectedSupply.data?.department_code || selectedSupply.department_code || '-'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">ประเภทผู้ป่วย</p>
-                        <div className="mt-1">
-                          {(() => {
-                            const ut = (selectedSupply.data?.usage_type || selectedSupply.usage_type || '').toUpperCase();
-                            if (ut === 'OPD') return (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500" />
-                                ผู้ป่วยนอก (OPD)
-                              </Badge>
-                            );
-                            if (ut === 'IPD') return (
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-purple-500" />
-                                ผู้ป่วยใน (IPD)
-                              </Badge>
-                            );
-                            return <span className="text-gray-400 text-sm">-</span>;
-                          })()}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">จำนวนรายการ</p>
-                        <p className="font-semibold">
-                          {selectedSupply.supplies_count || selectedSupply.data?.supplies_count ||
-                            (selectedSupply.data?.supply_items || selectedSupply.supply_items || []).length || 0}{' '}
-                          รายการ
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">สถานะใบเสร็จ</p>
-                        <div className="mt-1">
-                          {(() => {
-                            const status = selectedSupply.data?.billing_status || selectedSupply.billing_status;
-                            if (!status) {
-                              return (
-                                <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
-                                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-gray-500" />
-                                  ไม่ระบุ
-                                </Badge>
-                              );
-                            }
-                            const statusLower = status.toLowerCase();
-                            if (statusLower === 'cancelled') {
-                              return (
-                                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-red-500" />
-                                  ยกเลิก
-                                </Badge>
-                              );
-                            }
-                            if (statusLower === 'paid') {
-                              return (
-                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-green-500" />
-                                  ชำระแล้ว
-                                </Badge>
-                              );
-                            }
-                            if (statusLower === 'pending') {
-                              return (
-                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-yellow-500" />
-                                  รอชำระ
-                                </Badge>
-                              );
-                            }
-                            return (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500" />
-                                {status}
-                              </Badge>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* วันเวลา — อยู่ด้านล่าง */}
-                    <div className="pt-3 border-t border-gray-100">
-                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">วันเวลา</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                        <div>
-                          <p className="text-sm text-gray-500">เวลาที่เบิก</p>
-                          <p className="font-semibold">
-                            {formatDate(
-                              selectedSupply.created_at ||
-                              selectedSupply.data?.created_at ||
-                              selectedSupply.data?.usage_datetime
-                            )}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">วันที่และเวลาที่พิมพ์บิล</p>
-                          <p className="font-semibold">
-                            {(() => {
-                              const printDate = selectedSupply.data?.print_date || selectedSupply.print_date;
-                              const timePrintDate = selectedSupply.data?.time_print_date || selectedSupply.time_print_date;
-                              if (!printDate?.trim() && !timePrintDate?.trim()) return '-';
-                              const dateTimeStr = printDate?.trim()
-                                ? (printDate.includes('T') ? printDate : `${printDate}T${timePrintDate?.trim() || '00:00:00'}`)
-                                : null;
-                              return dateTimeStr ? formatDate(dateTimeStr) : '-';
-                            })()}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">วันที่แก้ไขล่าสุด</p>
-                          <p className="font-semibold">
-                            {(selectedSupply.updated_at || selectedSupply.data?.updated_at)
-                              ? formatDate(selectedSupply.updated_at || selectedSupply.data?.updated_at)
-                              : '-'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
-                  <CardTitle className="text-base sm:text-lg">รายการอุปกรณ์ที่เบิก</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">
-                    รายละเอียดอุปกรณ์ทั้งหมดที่เบิกในครั้งนี้
-                    {activeFilters.startDate || activeFilters.endDate ? (
-                      <span className="block mt-2 text-foreground/80 font-medium break-words">
-                        แสดงตามวันที่เลือก: {activeFilters.startDate || '–'} ถึง {activeFilters.endDate || '–'}
-                      </span>
-                    ) : null}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="px-3 py-3 sm:px-6 sm:py-4 overflow-hidden">
-                  <p className="text-xs text-gray-500 mb-2 md:hidden">เลื่อนแนวนอนเพื่อดูคอลัมน์ทั้งหมด</p>
-                  <div className="overflow-x-auto -mx-3 sm:mx-0 max-w-full">
-                    <Table className="min-w-[600px]">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12 sm:w-[80px] text-xs sm:text-sm whitespace-nowrap">ลำดับ</TableHead>
-                          <TableHead className="min-w-[80px] text-xs sm:text-sm">รหัสอุปกรณ์</TableHead>
-                          <TableHead className="min-w-[120px] text-xs sm:text-sm">ชื่ออุปกรณ์</TableHead>
-                          <TableHead className="text-center w-14 text-xs sm:text-sm whitespace-nowrap">จำนวน</TableHead>
-                          <TableHead className="min-w-[60px] text-xs sm:text-sm">หน่วย</TableHead>
-                          <TableHead className="min-w-[90px] text-xs sm:text-sm">Assession No</TableHead>
-                          <TableHead className="min-w-[100px] text-xs sm:text-sm whitespace-nowrap">วันที่สร้าง</TableHead>
-                          <TableHead className="min-w-[100px] text-xs sm:text-sm whitespace-nowrap">วันที่แก้ไข</TableHead>   
-                          <TableHead className="min-w-[80px] text-xs sm:text-sm">สถานะ</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(() => {
-                          const supplyItems = selectedSupply.data?.supply_items || selectedSupply.supply_items || [];
-                          const startDate = activeFilters.startDate || '';
-                          const endDate = activeFilters.endDate || '';
-
-                          // ใช้วันที่ในโซนเวลาท้องถิ่น (ตามที่ user เห็น) เพื่อให้ตรงกับ "แสดงตามวันที่เลือก"
-                          const toLocalDateStr = (d: string | Date | null | undefined): string => {
-                            if (!d) return '';
-                            const dt = new Date(d);
-                            const y = dt.getFullYear();
-                            const m = String(dt.getMonth() + 1).padStart(2, '0');
-                            const day = String(dt.getDate()).padStart(2, '0');
-                            return `${y}-${m}-${day}`;
-                          };
-                          const inRange = (dateStr: string) => {
-                            if (!dateStr) return false;
-                            if (!startDate && !endDate) return true;
-                            if (startDate && dateStr < startDate) return false;
-                            if (endDate && dateStr > endDate) return false;
-                            return true;
-                          };
-                          // กรองเฉพาะรายการที่ "วันที่สร้าง" อยู่ในช่วง (ไม่ใช้ updated_at) เพื่อไม่ให้แสดงแถวที่มี วันที่สร้าง นอกช่วง
-                          const filteredByDate = supplyItems.filter((item: any) => {
-                            const createdStr = toLocalDateStr(item.updated_at);
-                            return inRange(createdStr);
-                          });
-
-                          if (filteredByDate.length === 0) {
-                            return (
-                              <TableRow>
-                                <TableCell colSpan={8} className="text-center py-6 sm:py-8 text-gray-500 text-sm">
-                                  {supplyItems.length === 0
-                                    ? 'ไม่มีรายการอุปกรณ์'
-                                    : 'ไม่มีรายการอุปกรณ์ที่สร้างหรือแก้ไขในช่วงวันที่ที่กรอง'}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          }
-
-                          return filteredByDate
-                            .map((item: any, index: number) => (
-                              <TableRow key={index}>
-                                <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-3">{index + 1}</TableCell>
-                                <TableCell className="font-mono text-xs sm:text-sm py-2 sm:py-3">{item.order_item_code || item.supply_code || '-'}</TableCell>
-                                <TableCell className="text-xs sm:text-sm py-2 sm:py-3 max-w-[140px] sm:max-w-none truncate" title={item.order_item_description || item.supply_name}>{item.order_item_description || item.supply_name || '-'}</TableCell>
-                                <TableCell className="text-center font-semibold text-xs sm:text-sm py-2 sm:py-3">{item.qty || item.quantity || 0}</TableCell>
-                                <TableCell className="text-xs sm:text-sm py-2 sm:py-3">{item.uom || item.unit || '-'}</TableCell>
-                                <TableCell className="font-mono text-xs sm:text-sm py-2 sm:py-3">{item.assession_no || '-'}</TableCell>
-                                <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">{item.created_at ? formatDate(item.created_at) : '-'}</TableCell>
-                                <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">{item.updated_at ? formatDate(item.updated_at) : '-'}</TableCell>
-                                <TableCell className="py-2 sm:py-3">
-                                  {(() => {
-                                    const status = item.order_item_status || '-';
-                                    const statusLower = status.toLowerCase();
-
-                                    if (statusLower === 'discontinue' || statusLower === 'discontinued') {
-                                      return (
-                                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
-                                          <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-red-500"></span>
-                                          ยกเลิก
-                                        </Badge>
-                                      );
-                                    } else if (statusLower === 'verified') {
-                                      return (
-                                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                                          <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-green-500"></span>
-                                          ยืนยันแล้ว
-                                        </Badge>
-                                      );
-                                    } else if (status === '-') {
-                                      return <span className="text-gray-400 text-xs sm:text-sm">-</span>;
-                                    } else {
-                                      return (
-                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-                                          <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500"></span>
-                                          {status}
-                                        </Badge>
-                                      );
-                                    }
-                                  })()}
-                                </TableCell>
-                              </TableRow>
-                            ));
-                        })()}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <MedicalSupplySelectedDetailSection
+              selectedSupply={selectedSupply}
+              activeFilters={activeFilters}
+            />
           )}
         </div>
 
-        {/* Cancel Bill Dialog */}
-        <CancelBillDialog
-          open={cancelBillDialogOpen}
-          onOpenChange={setCancelBillDialogOpen}
-          supply={selectedSupplyForCancel}
-          onSuccess={handleCancelBillSuccess}
-        />
       </AppLayout>
     </ProtectedRoute>
   );

@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import ReturnHistoryFilter from './components/ReturnHistoryFilter';
 import ReturnHistoryTable from './components/ReturnHistoryTable';
 import type { ReturnHistoryData } from './types';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 const ITEM_PAGE_SIZE = 15;
 
@@ -325,20 +326,7 @@ export default function ReturnMedicalSuppliesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, returnHistoryPage]);
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
+  const formatDate = (dateString: string) => formatUtcDateTime(dateString);
 
   const getReturnReasonLabel = (reason: string) => {
     const labels: { [key: string]: string } = {

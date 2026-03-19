@@ -9,6 +9,7 @@ import { useState, useRef, useEffect } from 'react';
 import { itemComparisonApi } from '@/lib/staffApi/itemComparisonApi';
 import { toast } from 'sonner';
 import type { ComparisonItem, UsageItem } from '../types';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 interface ComparisonTableProps {
   loading: boolean;
@@ -27,21 +28,6 @@ interface ComparisonTableProps {
   onExportExcel: () => void;
   onExportPdf: () => void;
 }
-
-const formatDate = (dateString: string | undefined): string => {
-  if (!dateString) return '';
-  try {
-    // Handle ISO 8601 format (2025-12-23T02:00:12.260Z) or YYYY-MM-DD format
-    const dateOnly = dateString.includes('T') 
-      ? dateString.split('T')[0]  // Extract date part before T
-      : dateString.split(' ')[0];  // Or extract before space
-    
-    const [year, month, day] = dateOnly.split('-');
-    return `${day}/${month}/${year}`;
-  } catch {
-    return dateString;
-  }
-};
 
 export default function ComparisonTable({
   loading,
@@ -305,7 +291,7 @@ export default function ComparisonTable({
                             {item.first_dispensed && item.last_dispensed
                               ? `${formatDate(item.first_dispensed)} - ${formatDate(item.last_dispensed)}`
                               : item.first_used && item.last_used
-                              ? `${formatDate(item.first_used)} - ${formatDate(item.last_used)}`
+                              ? `${formatUtcDateTime(String(item.first_used))} - ${formatUtcDateTime(String(item.last_used))}`
                               : '-'}
                           </span>
                         </TableCell> */}

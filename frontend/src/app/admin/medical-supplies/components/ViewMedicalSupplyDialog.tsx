@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Printer, X, Package, User, Calendar, MapPin, DollarSign } from 'lucide-react';
 import { medicalSuppliesApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 interface ViewMedicalSupplyDialogProps {
   open: boolean;
@@ -306,21 +307,15 @@ export default function ViewMedicalSupplyDialog({
             {/* Timestamps */}
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div>
-                สร้างเมื่อ: {new Date(supply.created_at).toLocaleString('th-TH', {
-                  year: 'numeric',
+                สร้างเมื่อ:{' '}
+                {formatUtcDateTime(supply.created_at, {
                   month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
                 })}
               </div>
               <div>
-                แก้ไขล่าสุด: {new Date(supply.updated_at).toLocaleString('th-TH', {
-                  year: 'numeric',
+                แก้ไขล่าสุด:{' '}
+                {formatUtcDateTime(supply.updated_at, {
                   month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
                 })}
               </div>
             </div>

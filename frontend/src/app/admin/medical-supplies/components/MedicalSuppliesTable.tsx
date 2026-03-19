@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RefreshCw, Package, XCircle, Download, ChevronRight } from 'lucide-react';
+import {
+  formatPrintDateTime,
+  formatUtcDateTime,
+  todayYyyyMmDdBangkok,
+  toBangkokYyyyMmDd,
+} from '@/lib/formatThaiDateTime';
 
 interface MedicalSuppliesTableProps {
   loading: boolean;
@@ -17,7 +23,6 @@ interface MedicalSuppliesTableProps {
   onPageChange: (page: number) => void;
   onSelectSupply?: (supply: any) => void;
   selectedSupplyId?: number | null;
-  onCancelBill?: (supply: any) => void;
   onExportExcel?: () => void;
   onExportPdf?: () => void;
   exportLoading?: 'excel' | 'pdf' | null;
@@ -46,83 +51,14 @@ export default function MedicalSuppliesTable({
   onPageChange,
   onSelectSupply,
   selectedSupplyId,
-  onCancelBill,
   onExportExcel,
   onExportPdf,
   exportLoading,
   filters,
 }: MedicalSuppliesTableProps) {
 
-  const canShowCancelBill = (supply: any): boolean => {
-    const supplyData = supply.data || supply;
-    const createdDate = supplyData.created_at || supply.created_at;
-    const billingStatus = supplyData.billing_status || supply.billing_status;
 
-    // ถ้า cancel แล้ว ไม่แสดงปุ่ม
-    if (billingStatus && billingStatus.toLowerCase() === 'cancelled') {
-      return false;
-    }
-
-    if (!createdDate) {
-      return false;
-    }
-
-    try {
-      const created = new Date(createdDate);
-      const today = new Date();
-
-      // เอาแค่วันที่ ไม่เอาเวลา
-      const createdDay = new Date(created.getFullYear(), created.getMonth(), created.getDate());
-      const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-      // คำนวณความแตกต่างของวัน (วันเบิก - วันนี้)
-      const diffTime = todayDay.getTime() - createdDay.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      // แสดงปุ่มเฉพาะเมื่อวันเบิก - วันนี้ ไม่เกิน 1 วัน (0 หรือ 1 วัน)
-      return diffDays >= 0 && diffDays <= 1;
-    } catch (e) {
-      return false;
-    }
-  };
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
-
-  /** แสดงวันที่/เวลาที่พิมพ์บิล (print_date อาจเป็น YYYY-MM-DD, time_print_date เป็น HH:mm:ss) */
-  const formatPrintDateTime = (printDate: string | null | undefined, timePrintDate: string | null | undefined): string => {
-    const datePart = printDate?.trim();
-    const timePart = timePrintDate?.trim();
-    if (!datePart && !timePart) return '-';
-    const parts: string[] = [];
-    if (datePart) {
-      if (/^\d{4}-\d{2}-\d{2}/.test(datePart)) {
-        try {
-          const d = new Date(datePart.includes('T') ? datePart : datePart + 'T00:00:00');
-          parts.push(d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }));
-        } catch {
-          parts.push(datePart);
-        }
-      } else {
-        parts.push(datePart);
-      }
-    }
-    if (timePart) {
-      parts.push(timePart.length > 8 ? timePart.slice(0, 8) : timePart);
-    }
-    return parts.join(' ') || '-';
-  };
+  const formatDate = (dateString: string) => formatUtcDateTime(dateString);
 
   const getBillingStatusBadge = (status: string | null | undefined) => {
     if (!status) {
@@ -333,24 +269,6 @@ export default function MedicalSuppliesTable({
                           <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-100 text-green-800">Qty {totalQtyPending}</span>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        {canShowCancelBill(supply) && onCancelBill && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-600 hover:bg-red-50 h-8 w-8 p-0"
-                                onClick={(e) => { e.stopPropagation(); onCancelBill(supply); }}
-                              >
-                                <XCircle className="h-5 w-5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Cancel Bill ข้ามวัน</p></TooltipContent>
-                          </Tooltip>
-                        )}
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
-                      </div>
                     </div>
                   </div>
                 );
@@ -359,92 +277,91 @@ export default function MedicalSuppliesTable({
 
             {/* Desktop: แสดงเป็นตาราง */}
             <div className="hidden md:block overflow-x-auto max-w-full">
-            <Table className="min-w-[800px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10 sm:w-[80px] text-xs sm:text-sm whitespace-nowrap">ลำดับ</TableHead>
-                  <TableHead className="min-w-[90px] text-xs sm:text-sm">HN / EN คนไข้</TableHead>
-                  <TableHead className="min-w-[80px] text-xs sm:text-sm">แผนก</TableHead>
-                  <TableHead className="min-w-[70px] text-xs sm:text-sm whitespace-nowrap">ประเภท</TableHead>
-                  <TableHead className="min-w-[90px] text-xs sm:text-sm whitespace-nowrap">เวลาที่เบิก</TableHead>
-                  <TableHead className="min-w-[90px] text-xs sm:text-sm whitespace-nowrap">วันเวลา</TableHead>
-                  <TableHead className="min-w-[100px] text-xs sm:text-sm">วันที่ และเวลาที่พิมพ์บิล</TableHead>
-                  <TableHead className="text-center w-14 text-xs sm:text-sm whitespace-nowrap">จำนวนรายการ</TableHead>
-                  <TableHead className="text-center w-14 text-xs sm:text-sm whitespace-nowrap">จำนวนอุปกรณ์ที่ถูกใช้งาน</TableHead>
-                  <TableHead className="min-w-[80px] text-xs sm:text-sm">สถานะ</TableHead>
-                  <TableHead className="text-center w-14 text-xs sm:text-sm whitespace-nowrap">จัดการ</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {supplies.map((supply, index) => {
-                  const supplyData = supply.data || supply;
-                  const id = supply.id || supplyData.id;
-                  const patientName = `${supplyData.first_name || ''} ${supplyData.lastname || ''}`.trim() ||
-                    supplyData.patient_name_th || '-';
-                  const recordedByName = supplyData.recorded_by_display ||
-                    supply.recorded_by_display ||
-                    supply.recorded_by_name ||
-                    supplyData.recorded_by_name || '-';
+              <Table className="min-w-[800px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10 sm:w-[80px] text-xs sm:text-sm whitespace-nowrap">ลำดับ</TableHead>
+                    <TableHead className="min-w-[90px] text-xs sm:text-sm">HN / EN คนไข้</TableHead>
+                    <TableHead className="min-w-[80px] text-xs sm:text-sm">แผนก</TableHead>
+                    <TableHead className="min-w-[70px] text-xs sm:text-sm whitespace-nowrap">ประเภท</TableHead>
+                    <TableHead className="min-w-[90px] text-xs sm:text-sm whitespace-nowrap">เวลาที่เบิก</TableHead>
+                    <TableHead className="min-w-[90px] text-xs sm:text-sm whitespace-nowrap">วันเวลา</TableHead>
+                    <TableHead className="min-w-[100px] text-xs sm:text-sm">วันที่ และเวลาที่พิมพ์บิล</TableHead>
+                    <TableHead className="text-center w-14 text-xs sm:text-sm whitespace-nowrap">จำนวนรายการ</TableHead>
+                    <TableHead className="text-center w-14 text-xs sm:text-sm whitespace-nowrap">จำนวนอุปกรณ์ที่ถูกใช้งาน</TableHead>
+                    <TableHead className="min-w-[80px] text-xs sm:text-sm">สถานะ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {supplies.map((supply, index) => {
+                    const supplyData = supply.data || supply;
+                    const id = supply.id || supplyData.id;
+                    const patientName = `${supplyData.first_name || ''} ${supplyData.lastname || ''}`.trim() ||
+                      supplyData.patient_name_th || '-';
+                    const recordedByName = supplyData.recorded_by_display ||
+                      supply.recorded_by_display ||
+                      supply.recorded_by_name ||
+                      supplyData.recorded_by_name || '-';
 
-                  // Get unique item names for display
-                  const supplyItems = supplyData.supply_items || supply.supply_items || [];
-                  
-                  // Filter out Discontinue items for count
-                  const activeItems = supplyItems.filter((item: any) => {
-                    const status = item.order_item_status?.toLowerCase() || '';
-                    return status !== 'discontinue' && status !== 'discontinued';
-                  });
-                  
-                  // Calculate total qty_pending for active items (excluding Discontinue)
-                  const totalQtyPending = activeItems.reduce((sum: number, item: any) => {
-                    const qty = item.qty || 0;
-                    const qtyUsed = item.qty_used_with_patient || 0;
-                    const qtyReturned = item.qty_returned_to_cabinet || 0;
-                    const qtyPending = qty - qtyUsed - qtyReturned;
-                    return sum + (qtyPending > 0 ? qtyPending : 0);
-                  }, 0);
-                  
-                  const itemNames: string[] = Array.from(
-                    new Set(
-                      supplyItems
-                        .map((item: any) => item.order_item_description || item.supply_name || '')
-                        .filter((name: string) => name && name.trim() !== '')
-                    )
-                  ) as string[];
+                    // Get unique item names for display
+                    const supplyItems = supplyData.supply_items || supply.supply_items || [];
 
-                  // วันเวลาล่าสุดที่ยิงหรืออัปเดต (ใช้ค่าล่าสุดระหว่าง usage กับ supply_items)
-                  const usageUpdated = supplyData.updated_at || supply.updated_at;
-                  const itemUpdatedDates = (supplyItems || [])
-                    .map((item: any) => item.updated_at)
-                    .filter(Boolean);
-                  const allDates = [usageUpdated, ...itemUpdatedDates].filter(Boolean);
-                  const latestDateTime = allDates.length
-                    ? allDates.reduce((a: string, b: string) => (new Date(a) > new Date(b) ? a : b))
-                    : null;
+                    // Filter out Discontinue items for count
+                    const activeItems = supplyItems.filter((item: any) => {
+                      const status = item.order_item_status?.toLowerCase() || '';
+                      return status !== 'discontinue' && status !== 'discontinued';
+                    });
 
-                  const isSelected = selectedSupplyId === id;
+                    // Calculate total qty_pending for active items (excluding Discontinue)
+                    const totalQtyPending = activeItems.reduce((sum: number, item: any) => {
+                      const qty = item.qty || 0;
+                      const qtyUsed = item.qty_used_with_patient || 0;
+                      const qtyReturned = item.qty_returned_to_cabinet || 0;
+                      const qtyPending = qty - qtyUsed - qtyReturned;
+                      return sum + (qtyPending > 0 ? qtyPending : 0);
+                    }, 0);
 
-                  return (
-                    <TableRow
-                      key={id || index}
-                      className={`cursor-pointer transition-colors ${isSelected ? 'bg-purple-100 hover:bg-purple-100' : 'hover:bg-gray-50'
-                        }`}
-                      onClick={() => onSelectSupply && onSelectSupply(supply)}
-                    >
-                      <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-3 tabular-nums">
-                        {(currentPage - 1) * itemsPerPage + index + 1}
-                      </TableCell>
-                      <TableCell className="py-2 sm:py-3">
-                        <div className="text-xs sm:text-sm text-gray-700 leading-tight">
-                          <div>HN {supplyData.patient_hn || '-'}</div>
-                          <div className="text-[10px] sm:text-xs text-gray-500">EN {supplyData.en || '-'}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs sm:text-sm py-2 sm:py-3">
-                        {supplyData.department_name || supplyData.department_code || '-'}
-                      </TableCell>
-                      <TableCell className="py-2 sm:py-3">
-                        {(() => {
+                    const itemNames: string[] = Array.from(
+                      new Set(
+                        supplyItems
+                          .map((item: any) => item.order_item_description || item.supply_name || '')
+                          .filter((name: string) => name && name.trim() !== '')
+                      )
+                    ) as string[];
+
+                    // วันเวลาล่าสุดที่ยิงหรืออัปเดต (ใช้ค่าล่าสุดระหว่าง usage กับ supply_items)
+                    const usageUpdated = supplyData.updated_at || supply.updated_at;
+                    const itemUpdatedDates = (supplyItems || [])
+                      .map((item: any) => item.updated_at)
+                      .filter(Boolean);
+                    const allDates = [usageUpdated, ...itemUpdatedDates].filter(Boolean);
+                    const latestDateTime = allDates.length
+                      ? allDates.reduce((a: string, b: string) => (new Date(a) > new Date(b) ? a : b))
+                      : null;
+
+                    const isSelected = selectedSupplyId === id;
+
+                    return (
+                      <TableRow
+                        key={id || index}
+                        className={`cursor-pointer transition-colors ${isSelected ? 'bg-purple-100 hover:bg-purple-100' : 'hover:bg-gray-50'
+                          }`}
+                        onClick={() => onSelectSupply && onSelectSupply(supply)}
+                      >
+                        <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-3 tabular-nums">
+                          {(currentPage - 1) * itemsPerPage + index + 1}
+                        </TableCell>
+                        <TableCell className="py-2 sm:py-3">
+                          <div className="text-xs sm:text-sm text-gray-700 leading-tight">
+                            <div>HN {supplyData.patient_hn || '-'}</div>
+                            <div className="text-[10px] sm:text-xs text-gray-500">EN {supplyData.en || '-'}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm py-2 sm:py-3">
+                          {supplyData.department_name || supplyData.department_code || '-'}
+                        </TableCell>
+                        <TableCell className="py-2 sm:py-3">
+                          {(() => {
                             const ut = (supplyData.usage_type || '').toUpperCase();
                             if (ut === 'OPD') return (
                               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
@@ -460,56 +377,34 @@ export default function MedicalSuppliesTable({
                             );
                             return <span className="text-gray-400 text-xs sm:text-sm">-</span>;
                           })()}
-                      </TableCell>
-                      <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">
-                        {formatDate(supply.created_at || supplyData.created_at || supplyData.usage_datetime)}
-                      </TableCell>
-                      <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">
-                        {latestDateTime ? formatDate(latestDateTime) : '-'}
-                      </TableCell>
-                      <TableCell className="text-xs sm:text-sm py-2 sm:py-3">
-                        {formatPrintDateTime(supplyData.print_date, supplyData.time_print_date)}
-                      </TableCell>
-                      <TableCell className="text-center py-2 sm:py-3">
-                        <span className="inline-flex items-center justify-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-green-100 text-green-800 font-semibold text-xs sm:text-sm">
-                          {activeItems.length || 0}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center py-2 sm:py-3">
-                        <span className="inline-flex items-center justify-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-green-100 text-green-800 font-semibold text-xs sm:text-sm">
-                          {totalQtyPending || 0}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-2 sm:py-3">
-                        {getBillingStatusBadge(supplyData.billing_status || supply.billing_status)}
-                      </TableCell>
-                      <TableCell className="text-center py-2 sm:py-3">
-                        {canShowCancelBill(supply) && onCancelBill && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-600 hover:bg-red-50 hover:text-red-700 h-8 w-8 p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onCancelBill(supply);
-                                }}
-                              >
-                                <XCircle className="h-5 w-5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Cancel Bill ข้ามวัน</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">
+                          {formatDate(supply.created_at || supplyData.created_at || supplyData.usage_datetime)}
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">
+                          {latestDateTime ? formatDate(latestDateTime) : '-'}
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm py-2 sm:py-3">
+                          {formatPrintDateTime(supplyData.print_date, supplyData.time_print_date)}
+                        </TableCell>
+                        <TableCell className="text-center py-2 sm:py-3">
+                          <span className="inline-flex items-center justify-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-green-100 text-green-800 font-semibold text-xs sm:text-sm">
+                            {activeItems.length || 0}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center py-2 sm:py-3">
+                          <span className="inline-flex items-center justify-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-green-100 text-green-800 font-semibold text-xs sm:text-sm">
+                            {totalQtyPending || 0}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-2 sm:py-3">
+                          {getBillingStatusBadge(supplyData.billing_status || supply.billing_status)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           </>
         )}

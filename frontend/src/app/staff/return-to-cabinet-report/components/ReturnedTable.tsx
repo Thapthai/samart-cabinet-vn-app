@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import DispensedPagination from '../../dispense-from-cabinet/components/DispensedPagination';
 import type { DispensedItem } from '../types';
-import { formatThaiDateTime } from '@/lib/formatThaiDateTime';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 /** ความคาดเคลื่อนกลุ่มตามเวลาคืน (วินาที) */
 const GROUP_TIME_TOLERANCE_SEC = 3;
@@ -224,7 +224,7 @@ export default function ReturnedTable({
                             </span>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {formatThaiDateTime(group.returnTime)}
+                            {formatUtcDateTime(group.returnTime)}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {group.items[0]?.cabinetName ?? '-'}
@@ -273,7 +273,7 @@ export default function ReturnedTable({
                                             {(item.qty ?? 1).toLocaleString()}
                                           </TableCell>
                                           <TableCell className="text-muted-foreground text-sm">
-                                            {formatThaiDateTime(item.modifyDate)}
+                                            {formatUtcDateTime(item.modifyDate)}
                                           </TableCell>
                                           <TableCell className="text-muted-foreground text-sm">
                                             {item.departmentName || '-'}

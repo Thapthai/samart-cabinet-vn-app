@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ComparisonTable from '../components/ComparisonTable';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 export default function ComparisonReportPage() {
   const { user } = useAuth();
@@ -472,15 +473,8 @@ export default function ComparisonReportPage() {
                           <TableCell>{usageData.department_code || '-'}</TableCell>
                           <TableCell>
                             {usageData.usage_datetime || usage.created_at
-                              ? new Date(usageData.usage_datetime || usage.created_at).toLocaleDateString('th-TH', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                              : '-'
-                            }
+                              ? formatUtcDateTime(String(usageData.usage_datetime || usage.created_at))
+                              : '-'}
                           </TableCell>
                           <TableCell className="text-center">
                             {usage.supplies_count || usageData.items?.length || 0}

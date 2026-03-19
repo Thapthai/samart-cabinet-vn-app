@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { medicalSuppliesApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { parseApiDateTime } from '@/lib/formatThaiDateTime';
 
 interface Usage {
   id: number;
@@ -83,11 +84,13 @@ export default function CancelBillPage() {
     { item_code: '', item_description: '', assession_no: '', qty: 0, uom: '', item_status: 'Verified' },
   ]);
 
-  // Format date helper
+  // Format date helper (UTC calendar date — สอดคล้องกับการแสดง instant จาก API)
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('th-TH', {
+    const d = parseApiDateTime(dateString);
+    if (Number.isNaN(d.getTime())) return dateString;
+    return d.toLocaleDateString('th-TH', {
+      timeZone: 'UTC',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

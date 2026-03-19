@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { itemComparisonApi } from '@/lib/staffApi/itemComparisonApi';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 import { toast } from 'sonner';
 import { ComparisonPagination } from '../comparison/ComparisonPagination';
 import type { UsageItem } from '../../types';
@@ -153,16 +154,7 @@ export function UsageItemsTable({
                           <Badge variant="outline">{item.department_code || '-'}</Badge>
                         </TableCell>
                         <TableCell>
-                          {item.created_at 
-                            ? new Date(item.created_at).toLocaleDateString('th-TH', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : '-'
-                          }
+                          {item.created_at ? formatUtcDateTime(String(item.created_at)) : '-'}
                         </TableCell>
                         <TableCell>
                           {(() => {

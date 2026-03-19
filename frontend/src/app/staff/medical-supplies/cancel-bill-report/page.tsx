@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { vendingReportsApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 export default function CancelBillReportPage() {
   const { user } = useAuth();
@@ -43,20 +44,7 @@ export default function CancelBillReportPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
+  const formatDate = (dateString: string) => formatUtcDateTime(dateString);
 
   return (
     <>

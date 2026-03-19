@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { staffReportApi } from '@/lib/staffApi/reportApi';
+import { parseApiDateTime } from '@/lib/formatThaiDateTime';
 
 interface DisbursementRecord {
   code: string;
@@ -80,9 +81,20 @@ export default function EquipmentDisbursementReportPage() {
               let time = '';
               if (usageData.usage_datetime) {
                 try {
-                  const dateTime = new Date(usageData.usage_datetime);
-                  date = dateTime.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                  time = dateTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                  const dateTime = parseApiDateTime(String(usageData.usage_datetime));
+                  if (Number.isNaN(dateTime.getTime())) throw new Error('invalid date');
+                  date = dateTime.toLocaleDateString('th-TH', {
+                    timeZone: 'UTC',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  });
+                  time = dateTime.toLocaleTimeString('th-TH', {
+                    timeZone: 'UTC',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  });
                 } catch (e) {
                   const parts = usageData.usage_datetime.split(' ');
                   if (parts.length >= 2) {

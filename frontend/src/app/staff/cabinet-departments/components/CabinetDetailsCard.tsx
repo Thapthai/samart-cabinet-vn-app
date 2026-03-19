@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Package } from "lucide-react";
 import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
 import { toast } from "sonner";
+import { formatUtcDateTime } from "@/lib/formatThaiDateTime";
 
 interface CabinetDepartment {
   id: number;
@@ -188,7 +189,7 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
                         </TableCell>
                         <TableCell>
                           {stock.LastCabinetModify
-                            ? new Date(stock.LastCabinetModify).toLocaleString("th-TH")
+                            ? formatUtcDateTime(String(stock.LastCabinetModify))
                             : "-"}
                         </TableCell>
                       </TableRow>

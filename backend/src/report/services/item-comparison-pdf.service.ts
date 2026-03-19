@@ -4,13 +4,14 @@ import * as fs from 'fs';
 import { ItemComparisonReportData, UsageDetail } from '../types/item-comparison-report.types';
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
 
-function formatOrderDateTimeBangkok(value: Date | string | null | undefined): string {
+/** วันเวลาในรายงานตาม UTC (ไม่แปลง Asia/Bangkok) */
+function formatOrderDateTimeUtc(value: Date | string | null | undefined): string {
   if (value == null || value === '') return '-';
   const d = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return '-';
   return d
     .toLocaleString('en-GB', {
-      timeZone: 'Asia/Bangkok',
+      timeZone: 'UTC',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -27,7 +28,7 @@ function formatPeriodDate(value: string | Date | null | undefined): string {
   const d = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return String(value);
   return d.toLocaleDateString('en-GB', {
-    timeZone: 'Asia/Bangkok',
+    timeZone: 'UTC',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -94,7 +95,7 @@ export class ItemComparisonPdfService {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-      timeZone: 'Asia/Bangkok',
+      timeZone: 'UTC',
     });
 
     const margin = 10;
@@ -491,7 +492,7 @@ export class ItemComparisonPdfService {
             const patient = (u.patient_name && String(u.patient_name).trim()) || '-';
 
             const cells = [
-              formatOrderDateTimeBangkok(dt),
+              formatOrderDateTimeUtc(dt),
               code,
               desc,
               String(qty),

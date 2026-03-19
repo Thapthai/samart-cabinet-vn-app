@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { medicalSuppliesApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 interface ItemStock {
   RowID: number;
@@ -301,13 +302,7 @@ export default function ReturnToCabinetPage() {
                           <TableCell>{item.itemType || '-'}</TableCell>
                           <TableCell>
                             {item.LastCabinetModify
-                              ? new Date(item.LastCabinetModify).toLocaleString('th-TH', {
-                                year: 'numeric',
-                                month: '2-digit',
-                                day: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })
+                              ? formatUtcDateTime(String(item.LastCabinetModify))
                               : '-'}
                           </TableCell>
                         </TableRow>
