@@ -221,7 +221,7 @@ export class MedicalSuppliesService {
     ].join('-');
   }
 
-  /** ค่า `updated_at` / `created_at` ที่ส่งเข้า Prisma (moment chain ที่ค่าตรงกับระบบ) */
+  /** ค่า `created_at` / `updated_at` ที่ส่งเข้า Prisma (moment chain ที่ค่าตรงกับระบบ) */
   private nowBangkokUtcTrueForPrisma(): Date {
     return moment().tz('Asia/Bangkok').utc(true).toDate();
   }
@@ -708,6 +708,7 @@ export class MedicalSuppliesService {
           }
 
           // Create new supply items
+          const itemTs = this.nowBangkokUtcTrueForPrisma();
           await this.prisma.supplyUsageItem.createMany({
             data: itemsToCreate.map((item): Prisma.SupplyUsageItemCreateManyInput => ({
               medical_supply_usage_id: existingUsage.id,
@@ -725,7 +726,8 @@ export class MedicalSuppliesService {
               unit_price: null,
               total_price: null,
               expiry_date: null,
-              updated_at: this.nowBangkokUtcTrueForPrisma(),
+              created_at: itemTs,
+              updated_at: itemTs,
             })),
           });
 
@@ -930,6 +932,7 @@ export class MedicalSuppliesService {
         );
       }
 
+      const usageTs = this.nowBangkokUtcTrueForPrisma();
       const usage = await this.prisma.medicalSupplyUsage.create({
         data: {
           hospital: hospital,
@@ -952,7 +955,8 @@ export class MedicalSuppliesService {
           billing_tax: data.billing_tax,
           billing_total: data.billing_total,
           billing_currency: data.billing_currency || 'THB',
-          updated_at: this.nowBangkokUtcTrueForPrisma(),
+          created_at: usageTs,
+          updated_at: usageTs,
 
           // Create supply items
           supply_items: {
@@ -974,7 +978,8 @@ export class MedicalSuppliesService {
                 unit_price: null,
                 total_price: null,
                 expiry_date: null,
-                updated_at: this.nowBangkokUtcTrueForPrisma(),
+                created_at: usageTs,
+                updated_at: usageTs,
               })),
               // Legacy format: supplies
               ...legacySupplies.map(item => ({
@@ -993,7 +998,8 @@ export class MedicalSuppliesService {
                 unit_price: item.unit_price,
                 total_price: item.total_price,
                 expiry_date: item.expiry_date,
-                updated_at: this.nowBangkokUtcTrueForPrisma(),
+                created_at: usageTs,
+                updated_at: usageTs,
               })),
             ],
           },
@@ -1953,6 +1959,7 @@ export class MedicalSuppliesService {
           where: { medical_supply_usage_id: id },
         });
 
+        const legacyItemTs = this.nowBangkokUtcTrueForPrisma();
         updateData.supply_items = {
           create: data.supplies.map(item => ({
             order_item_code: item.supply_code,
@@ -1969,7 +1976,8 @@ export class MedicalSuppliesService {
             unit_price: item.unit_price,
             total_price: item.total_price,
             expiry_date: item.expiry_date,
-            updated_at: this.nowBangkokUtcTrueForPrisma(),
+            created_at: legacyItemTs,
+            updated_at: legacyItemTs,
           })),
         };
       }
@@ -4145,6 +4153,7 @@ export class MedicalSuppliesService {
         newUsageId = newUsage.id;
 
         // สร้าง SupplyUsageItems สำหรับรายการใหม่
+        const newItemTs = this.nowBangkokUtcTrueForPrisma();
         for (const newItem of newItems) {
           await this.prisma.supplyUsageItem.create({
             data: {
@@ -4157,7 +4166,8 @@ export class MedicalSuppliesService {
               order_item_status: newItem.item_status || 'Verified',
               qty_used_with_patient: 0,
               qty_returned_to_cabinet: 0,
-              updated_at: this.nowBangkokUtcTrueForPrisma(),
+              created_at: newItemTs,
+              updated_at: newItemTs,
             },
           });
         }
