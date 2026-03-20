@@ -163,6 +163,7 @@ export class MedicalSuppliesService {
           log_status: idx.log_status,
           description,
           action: actionData ?? {},
+          created_at: this.nowBangkokUtcTrueForPrisma(),
         },
       });
     } catch (error) {
