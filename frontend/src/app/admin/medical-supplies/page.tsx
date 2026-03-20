@@ -10,6 +10,7 @@ import { History } from 'lucide-react';
 import MedicalSuppliesTable from './components/MedicalSuppliesTable';
 import MedicalSuppliesSearchFilters from './components/MedicalSuppliesSearchFilters';
 import MedicalSupplySelectedDetailSection from './components/MedicalSupplySelectedDetailSection';
+import { todayYyyyMmDdUtc } from '@/lib/formatThaiDateTime';
 
 export default function MedicalSuppliesPage() {
   const { user } = useAuth();
@@ -24,14 +25,8 @@ export default function MedicalSuppliesPage() {
   const [departmentSearch, setDepartmentSearch] = useState('');
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
 
-  // Get today's date in YYYY-MM-DD format
-  const getTodayDate = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  /** วันนี้ YYYY-MM-DD ตาม UTC — ให้ตรงกับ filter ฝั่ง API ไม่บวก +7 */
+  const getTodayDate = () => todayYyyyMmDdUtc();
 
   // Form filters (for display in form, doesn't trigger search)
   const [formFilters, setFormFilters] = useState({

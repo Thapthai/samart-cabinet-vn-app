@@ -226,17 +226,6 @@ export class MedicalSuppliesService {
     return moment().tz('Asia/Bangkok').utc(true).toDate();
   }
 
-  /** แปลง Date จาก DB → สตริงแสดงผล API แบบ `2026-03-19 15:20:36.333000+07:00` */
-  private toThailandDateTimeString(date: Date | string | null | undefined): string | null {
-    if (date == null) return null;
-    const d = typeof date === 'string' ? new Date(date) : date;
-    if (Number.isNaN(d.getTime())) return null;
-    const m = moment(d).tz('Asia/Bangkok');
-    const ms = m.millisecond();
-    const frac6 = `${String(ms).padStart(3, '0')}000`;
-    return `${m.format('YYYY-MM-DD HH:mm:ss')}.${frac6}+07:00`;
-  }
-
   /** วันที่ created_at ของ item (supply_items) เป็น YYYY-MM-DD สำหรับเทียบกับวันนี้ */
   private getItemCreatedAtYyyyMmDd(item: { created_at?: Date | string | null }): string | null {
     const d = item?.created_at;
@@ -736,6 +725,7 @@ export class MedicalSuppliesService {
               unit_price: null,
               total_price: null,
               expiry_date: null,
+              updated_at: this.nowBangkokUtcTrueForPrisma(),
             })),
           });
 
@@ -984,6 +974,7 @@ export class MedicalSuppliesService {
                 unit_price: null,
                 total_price: null,
                 expiry_date: null,
+                updated_at: this.nowBangkokUtcTrueForPrisma(),
               })),
               // Legacy format: supplies
               ...legacySupplies.map(item => ({
@@ -1002,6 +993,7 @@ export class MedicalSuppliesService {
                 unit_price: item.unit_price,
                 total_price: item.total_price,
                 expiry_date: item.expiry_date,
+                updated_at: this.nowBangkokUtcTrueForPrisma(),
               })),
             ],
           },
@@ -1977,6 +1969,7 @@ export class MedicalSuppliesService {
             unit_price: item.unit_price,
             total_price: item.total_price,
             expiry_date: item.expiry_date,
+            updated_at: this.nowBangkokUtcTrueForPrisma(),
           })),
         };
       }
@@ -4164,6 +4157,7 @@ export class MedicalSuppliesService {
               order_item_status: newItem.item_status || 'Verified',
               qty_used_with_patient: 0,
               qty_returned_to_cabinet: 0,
+              updated_at: this.nowBangkokUtcTrueForPrisma(),
             },
           });
         }

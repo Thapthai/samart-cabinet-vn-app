@@ -14,11 +14,39 @@ export function todayYyyyMmDdBangkok(): string {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
 }
 
+/** วันนี้ใน UTC เป็น YYYY-MM-DD (ใช้กับ filter/API ที่อิง UTC ไม่บวก +7) */
+export function todayYyyyMmDdUtc(): string {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' });
+}
+
 /** แปลงค่า API → วันที่ปฏิทิน Bangkok เป็น YYYY-MM-DD */
 export function toBangkokYyyyMmDd(value: string): string | null {
     const d = parseApiDateTime(value);
     if (Number.isNaN(d.getTime())) return null;
     return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+}
+
+/** แปลงค่า API → วันที่ปฏิทิน UTC เป็น YYYY-MM-DD */
+export function toUtcYyyyMmDd(value: string | Date): string | null {
+    const d = typeof value === 'string' ? parseApiDateTime(value) : value;
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString('en-CA', { timeZone: 'UTC' });
+}
+
+/**
+ * แสดงสตริง YYYY-MM-DD (นับเป็นวันใน UTC) เป็นวันที่ภาษาไทย โดยไม่เลื่อนไป Asia/Bangkok
+ */
+export function formatYyyyMmDdThaiUtc(ymd: string): string {
+    const s = ymd?.trim();
+    if (!s || !/^\d{4}-\d{2}-\d{2}/.test(s)) return s ?? '';
+    const d = parseApiDateTime(s.includes('T') ? s : `${s}T00:00:00.000Z`);
+    if (Number.isNaN(d.getTime())) return s;
+    return d.toLocaleDateString('th-TH', {
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
 }
 
 /**

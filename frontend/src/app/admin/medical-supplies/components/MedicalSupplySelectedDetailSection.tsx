@@ -3,16 +3,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
+import { formatUtcDateTime, toUtcYyyyMmDd } from '@/lib/formatThaiDateTime';
 import MedicalSupplyDetailSummaryCard from './MedicalSupplyDetailSummaryCard';
 
-function toLocalDateStr(d: string | Date | null | undefined): string {
+/** วันที่ปฏิทิน UTC (YYYY-MM-DD) ให้ตรงกับช่วง filter / API ไม่ใช้ +7 Bangkok */
+function toFilterDateStr(d: string | Date | null | undefined): string {
   if (!d) return '';
-  const dt = new Date(d);
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, '0');
-  const day = String(dt.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  const s = typeof d === 'string' ? d : d.toISOString();
+  return toUtcYyyyMmDd(s) ?? '';
 }
 
 function inDateRange(dateStr: string, startDate: string, endDate: string): boolean {
@@ -70,7 +68,7 @@ export default function MedicalSupplySelectedDetailSection({
   const endDate = activeFilters.endDate || '';
 
   const filteredByDate = supplyItems.filter((item: Record<string, unknown>) => {
-    const createdStr = toLocalDateStr(item.updated_at as string | Date | undefined);
+    const createdStr = toFilterDateStr(item.updated_at as string | Date | undefined);
     return inDateRange(createdStr, startDate, endDate);
   });
 
