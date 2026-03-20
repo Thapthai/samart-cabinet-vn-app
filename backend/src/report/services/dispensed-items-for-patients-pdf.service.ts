@@ -2,17 +2,13 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { DispensedItemsForPatientsReportData } from './dispensed-items-for-patients-excel.service';
-import { ReportConfig, resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import { formatReportDateTime } from '../utils/date-timeformat';
 
-/** แปลงวันเวลาเป็นเวลาประเทศไทย (Asia/Bangkok) สำหรับแสดงในรายงาน */
-function formatReportDateTime(value?: string | Date) {
-  if (value == null) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleString(ReportConfig.locale, {
-    timeZone: ReportConfig.timezone,
-    ...ReportConfig.dateFormat.datetime,
-  });
+/** filter วันที่: ว่าง = ทั้งหมด, มีค่า = ใช้ format รายงาน */
+function formatFilterDateValue(v?: string | null): string {
+  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
+  return formatReportDateTime(v);
 }
 
 /** แปลงสถานะให้แสดงเหมือนเว็บ */
@@ -79,12 +75,7 @@ export class DispensedItemsForPatientsPdfService {
     }
 
     const logoBuffer = this.getLogoBuffer();
-    const reportDate = new Date().toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'Asia/Bangkok',
-    });
+    const reportDate = formatReportDateTime(new Date());
 
     return new Promise((resolve, reject) => {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -141,17 +132,9 @@ export class DispensedItemsForPatientsPdfService {
         const filters = data.filters ?? {};
         const filterRowHeight = 34;
         const filterY = doc.y;
-        const fmtDate = (d?: string) => {
-          if (!d) return 'ทั้งหมด';
-          try {
-            return new Date(d).toLocaleDateString('th-TH', {
-              year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Bangkok',
-            });
-          } catch { return d; }
-        };
         const filterCells = [
-          { label: 'วันที่เริ่ม', value: fmtDate(filters.startDate) },
-          { label: 'วันที่สิ้นสุด', value: fmtDate(filters.endDate) },
+          { label: 'วันที่เริ่ม', value: formatFilterDateValue(filters.startDate) },
+          { label: 'วันที่สิ้นสุด', value: formatFilterDateValue(filters.endDate) },
           { label: 'แผนก', value: (filters as any).departmentName ?? filters.departmentCode ?? 'ทั้งหมด' },
           { label: 'ประเภทผู้ป่วย', value: filters.usageType === 'OPD' ? 'ผู้ป่วยนอก (OPD)' : filters.usageType === 'IPD' ? 'ผู้ป่วยใน (IPD)' : 'ทั้งหมด' },
         ];
@@ -281,7 +264,7 @@ export class DispensedItemsForPatientsPdfService {
             const hnEn = `${usage.patient_hn ?? '-'} / ${usage.en ?? '-'}`;
             const usageTypeLabel = (usage.usage_type ?? '').toUpperCase() === 'IPD' ? 'ผู้ป่วยใน'
               : (usage.usage_type ?? '').toUpperCase() === 'OPD' ? 'ผู้ป่วยนอก'
-              : (usage.usage_type ?? '-');
+                : (usage.usage_type ?? '-');
 
             // Main row — รวม แผนก + ประเภท ในคอลัมน์เดียว (index 3)
             const deptAndType = `${usage.department_name ?? usage.department_code ?? '-'}\n${usageTypeLabel}`;

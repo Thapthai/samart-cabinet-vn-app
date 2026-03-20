@@ -26,7 +26,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
+import { formatBangkokDateTime } from '@/lib/formatThaiDateTime';
 
 export default function LogsPage() {
   const [loading, setLoading] = useState(true);
@@ -160,7 +160,7 @@ export default function LogsPage() {
     );
   };
 
-  const formatDate = (v: string | Date) => formatUtcDateTime(String(v));
+  const formatDate = (v: string | Date) => formatBangkokDateTime(String(v));
 
   const getActionSummary = (action: any): string => {
     if (!action || typeof action !== 'object') return '-';

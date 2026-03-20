@@ -2,17 +2,12 @@ import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import { resolveReportLogoPath } from '../config/report.config';
-import { ReportConfig } from '../config/report.config';
+import { formatReportDateTime } from '../utils/date-timeformat';
 
-/** แปลงวันเวลาเป็นเวลาประเทศไทย (Asia/Bangkok) สำหรับแสดงในรายงาน */
-function formatReportDateTime(value?: string | Date) {
-  if (value == null) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleString(ReportConfig.locale, {
-    timeZone: ReportConfig.timezone,
-    ...ReportConfig.dateFormat.datetime,
-  });
+/** filter วันที่: ว่าง = ทั้งหมด, มีค่า = ใช้ format รายงาน */
+function formatFilterDateValue(v?: string | null): string {
+  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
+  return formatReportDateTime(v);
 }
 
 /** รายการอุปกรณ์ในหนึ่ง usage (สำหรับ sub row) */
@@ -134,18 +129,10 @@ export class DispensedItemsForPatientsExcelService {
 
     // ---- แถว 4: Filter summary (วันที่เริ่ม | วันที่สิ้นสุด | แผนก | ประเภทผู้ป่วย) ----
     const filters = data.filters ?? {};
-    const fmtDate = (d?: string) => {
-      if (!d) return 'ทั้งหมด';
-      try {
-        return new Date(d).toLocaleDateString('th-TH', {
-          year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Bangkok',
-        });
-      } catch { return d; }
-    };
     const filterLabels = ['วันที่เริ่ม', 'วันที่สิ้นสุด', 'แผนก', 'ประเภทผู้ป่วย'];
     const filterValues = [
-      fmtDate(filters.startDate),
-      fmtDate(filters.endDate),
+      formatFilterDateValue(filters.startDate),
+      formatFilterDateValue(filters.endDate),
       (filters as any).departmentName ?? filters.departmentCode ?? 'ทั้งหมด',
       filters.usageType === 'OPD' ? 'ผู้ป่วยนอก (OPD)'
         : filters.usageType === 'IPD' ? 'ผู้ป่วยใน (IPD)'
@@ -300,8 +287,8 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.getColumn(3).width = 30;
     worksheet.getColumn(4).width = 20;
     worksheet.getColumn(5).width = 20;
-    worksheet.getColumn(6).width = 20;
-    worksheet.getColumn(7).width = 20;
+    worksheet.getColumn(6).width = 25;
+    worksheet.getColumn(7).width = 25;
     worksheet.getColumn(8).width = 35;
     worksheet.getColumn(9).width = 14;
     worksheet.getColumn(10).width = 20;
