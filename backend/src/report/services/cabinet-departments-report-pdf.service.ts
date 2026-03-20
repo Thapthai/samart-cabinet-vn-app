@@ -1,7 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
-import { CabinetDepartmentsReportData } from './cabinet-departments-report-excel.service';
+import {
+  CabinetDepartmentsReportData,
+  CabinetDepartmentsReportRow,
+} from './cabinet-departments-report-excel.service';
+
+/** รายงานรวมทุกตู้ → แต่ละตู้เริ่มหน้าใหม่ */
+function shouldSplitPagesByCabinet(data: CabinetDepartmentsReportData): boolean {
+  const n = data.filters?.cabinetName;
+  return n == null || String(n).trim() === '';
+}
+
+function groupRowsByCabinetInOrder(rows: CabinetDepartmentsReportRow[]): CabinetDepartmentsReportRow[][] {
+  const groups: CabinetDepartmentsReportRow[][] = [];
+  const keyToIndex = new Map<string, number>();
+  for (const row of rows) {
+    const key = row.cabinet_name ?? '-';
+    if (!keyToIndex.has(key)) {
+      keyToIndex.set(key, groups.length);
+      groups.push([]);
+    }
+    groups[keyToIndex.get(key)!].push(row);
+  }
+  return groups;
+}
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
 
 @Injectable()
@@ -76,72 +99,49 @@ export class CabinetDepartmentsReportPdfService {
         const pageHeight = doc.page.height;
         const contentWidth = pageWidth - margin * 2;
         const rows = data.data ?? [];
+        const shouldSplit = shouldSplitPagesByCabinet(data) && rows.length > 0;
+        const groups = shouldSplit ? groupRowsByCabinetInOrder(rows) : [rows];
 
-        // ---- Header block with logo ----
         const headerTop = 35;
         const headerHeight = 48;
-        doc.rect(margin, headerTop, contentWidth, headerHeight)
-          .fillAndStroke('#F8F9FA', '#DEE2E6');
+        /** หัวรายงานเต็ม (โลโก้ + ชื่อ + วันที่) — ใช้เมื่อเริ่มตู้ใหม่ (รายงานรวมทุกตู้) */
+        const drawFullReportHeader = () => {
+          doc.rect(margin, headerTop, contentWidth, headerHeight)
+            .fillAndStroke('#F8F9FA', '#DEE2E6');
 
-        if (logoBuffer && logoBuffer.length > 0) {
-          try {
-            doc.image(logoBuffer, margin + 8, headerTop + 6, { fit: [70, 36] });
-          } catch {
+          if (logoBuffer && logoBuffer.length > 0) {
             try {
-              doc.image(logoBuffer, margin + 8, headerTop + 6, { width: 70 });
+              doc.image(logoBuffer, margin + 8, headerTop + 6, { fit: [70, 36] });
             } catch {
-              // skip logo
+              try {
+                doc.image(logoBuffer, margin + 8, headerTop + 6, { width: 70 });
+              } catch {
+                // skip logo
+              }
             }
           }
-        }
 
-        doc.fontSize(16).font(finalFontBoldName).fillColor('#1A365D');
-        doc.text('รายงานจัดการตู้ Cabinet - แผนก', margin, headerTop + 6, {
-          width: contentWidth,
-          align: 'center',
-        });
-        doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
-        doc.text('Cabinet Departments Report', margin, headerTop + 22, {
-          width: contentWidth,
-          align: 'center',
-        });
-        doc.fillColor('#000000');
-        doc.y = headerTop + headerHeight + 14;
+          doc.fontSize(16).font(finalFontBoldName).fillColor('#1A365D');
+          doc.text('รายงานจัดการตู้ Cabinet - แผนก', margin, headerTop + 6, {
+            width: contentWidth,
+            align: 'center',
+          });
+          doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
+          doc.text('Cabinet Departments Report', margin, headerTop + 22, {
+            width: contentWidth,
+            align: 'center',
+          });
+          doc.fillColor('#000000');
+          doc.y = headerTop + headerHeight + 14;
 
-        // วันที่รายงาน
-        doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
-        doc.text(`วันที่รายงาน: ${reportDate}`, margin, doc.y, {
-          width: contentWidth,
-          align: 'right',
-        });
-        doc.fillColor('#000000');
-        doc.y += 6;
-
-        // ---- ตาราง Filter (ตู้, แผนก, สถานะ) ----
-        // const filters = data.filters ?? {};
-        // const filterRowHeight = 34;
-        // const filterY = doc.y;
-        // const filterCells = [
-        //   { label: 'ตู้ Cabinet', value: filters.cabinetName ?? 'ทั้งหมด' },
-        //   { label: 'แผนก', value: filters.departmentName ?? 'ทั้งหมด' },
-        //   { label: 'สถานะ', value: filters.status ?? 'ทั้งหมด' },
-        // ];
-        // const filterColWidth = Math.floor(contentWidth / filterCells.length);
-        // let fx = margin;
-        // filterCells.forEach((fc, i) => {
-        //   const cw =
-        //     i === filterCells.length - 1
-        //       ? contentWidth - filterColWidth * (filterCells.length - 1)
-        //       : filterColWidth;
-        //   doc.rect(fx, filterY, cw, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
-        //   doc.fontSize(11).font(finalFontBoldName).fillColor('#444444');
-        //   doc.text(fc.label, fx + 3, filterY + 4, { width: cw - 6, align: 'center' });
-        //   doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
-        //   doc.text(fc.value, fx + 3, filterY + 16, { width: cw - 6, align: 'center' });
-        //   fx += cw;
-        // });
-        // doc.fillColor('#000000');
-        // doc.y = filterY + filterRowHeight + 8;
+          doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
+          doc.text(`วันที่รายงาน: ${reportDate}`, margin, doc.y, {
+            width: contentWidth,
+            align: 'right',
+          });
+          doc.fillColor('#000000');
+          doc.y += 6;
+        };
 
         // ---- ตารางข้อมูลหลัก + รายการอุปกรณ์ในตู้ ----
         const itemHeight = 28;
@@ -192,25 +192,33 @@ export class CabinetDepartmentsReportPdfService {
           doc.fillColor('#000000');
         };
 
-        const tableHeaderY = doc.y;
-        drawTableHeader(tableHeaderY);
-        doc.y = tableHeaderY + itemHeight;
+        for (let g = 0; g < groups.length; g++) {
+          const group = groups[g];
+          if (g > 0 && shouldSplit) {
+            doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+            doc.y = margin;
+          }
 
-        doc.fontSize(13).font(finalFontName).fillColor('#000000');
-        if (rows.length === 0) {
-          const rowY = doc.y;
-          doc.rect(margin, rowY, totalTableWidth, itemHeight).fillAndStroke('#F8F9FA', '#DEE2E6');
-          doc.text('ไม่มีข้อมูล', margin + cellPadding, rowY + 7, {
-            width: totalTableWidth - cellPadding * 2,
-            align: 'center',
-          });
-          doc.y = rowY + itemHeight;
-        } else {
-          for (let idx = 0; idx < rows.length; idx++) {
-            const row = rows[idx];
+          drawFullReportHeader();
+          const tableHeaderY = doc.y;
+          drawTableHeader(tableHeaderY);
+          doc.y = tableHeaderY + itemHeight;
+
+          doc.fontSize(13).font(finalFontName).fillColor('#000000');
+          if (group.length === 0) {
+            const rowY = doc.y;
+            doc.rect(margin, rowY, totalTableWidth, itemHeight).fillAndStroke('#F8F9FA', '#DEE2E6');
+            doc.text('ไม่มีข้อมูล', margin + cellPadding, rowY + 7, {
+              width: totalTableWidth - cellPadding * 2,
+              align: 'center',
+            });
+            doc.y = rowY + itemHeight;
+          } else {
+            for (let idx = 0; idx < group.length; idx++) {
+            const row = group[idx];
             const bg = idx % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
             const cellTexts = [
-              String(row.seq),
+              String(idx + 1),
               row.cabinet_name ?? '-',
               row.department_name ?? '-',
               row.quantity_display ?? '-',
@@ -318,6 +326,7 @@ export class CabinetDepartmentsReportPdfService {
                 doc.y = subY + subRowHeight;
               },
             );
+            }
           }
         }
 

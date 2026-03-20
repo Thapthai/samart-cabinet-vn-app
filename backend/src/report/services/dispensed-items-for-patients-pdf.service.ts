@@ -3,12 +3,12 @@ import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { DispensedItemsForPatientsReportData } from './dispensed-items-for-patients-excel.service';
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
-import { formatReportDateTime } from '../utils/date-timeformat';
+import { formatReportDateOnly, formatReportDateTime } from '../utils/date-timeformat';
 
-/** filter วันที่: ว่าง = ทั้งหมด, มีค่า = ใช้ format รายงาน */
-function formatFilterDateValue(v?: string | null): string {
+/** filter วันที่เริ่ม/สิ้นสุด: ว่าง = ทั้งหมด, มีค่า = วันที่อย่างเดียว (ไม่มีเวลา) */
+function formatFilterDateOnly(v?: string | null): string {
   if (v == null || String(v).trim() === '') return 'ทั้งหมด';
-  return formatReportDateTime(v);
+  return formatReportDateOnly(v);
 }
 
 /** แปลงสถานะให้แสดงเหมือนเว็บ */
@@ -67,8 +67,8 @@ export class DispensedItemsForPatientsPdfService {
         finalFontName = 'ThaiFont';
         finalFontBoldName = 'ThaiFontBold';
         // prime ฟอนต์บน page แรก เพื่อให้ PDFKit embed font ใน resource ของ page 1
-        doc.font(finalFontBoldName).fontSize(13);
-        doc.font(finalFontName).fontSize(13);
+        doc.font(finalFontBoldName).fontSize(15);
+        doc.font(finalFontName).fontSize(15);
       }
     } catch {
       // keep default
@@ -90,7 +90,7 @@ export class DispensedItemsForPatientsPdfService {
 
         // ---- Header block with logo ----
         const headerTop = 35;
-        const headerHeight = 48;
+        const headerHeight = 56;
         doc.rect(margin, headerTop, contentWidth, headerHeight)
           .fillAndStroke('#F8F9FA', '#DEE2E6');
 
@@ -106,13 +106,13 @@ export class DispensedItemsForPatientsPdfService {
           }
         }
 
-        doc.fontSize(16).font(finalFontBoldName).fillColor('#1A365D');
+        doc.fontSize(20).font(finalFontBoldName).fillColor('#1A365D');
         doc.text('รายการเบิกอุปกรณ์ใช้กับคนไข้', margin, headerTop + 6, {
           width: contentWidth,
           align: 'center',
         });
-        doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
-        doc.text('Dispensed Items for Patients Report', margin, headerTop + 22, {
+        doc.fontSize(14).font(finalFontName).fillColor('#6C757D');
+        doc.text('Dispensed Items for Patients Report', margin, headerTop + 26, {
           width: contentWidth,
           align: 'center',
         });
@@ -120,7 +120,7 @@ export class DispensedItemsForPatientsPdfService {
         doc.y = headerTop + headerHeight + 14;
 
         // วันที่รายงาน
-        doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
+        doc.fontSize(13).font(finalFontName).fillColor('#6C757D');
         doc.text(`วันที่รายงาน: ${reportDate}`, margin, doc.y, {
           width: contentWidth,
           align: 'right',
@@ -130,11 +130,11 @@ export class DispensedItemsForPatientsPdfService {
 
         // ---- ตาราง Filter Summary (1 แถว 4 ช่อง) ----
         const filters = data.filters ?? {};
-        const filterRowHeight = 34;
+        const filterRowHeight = 44;
         const filterY = doc.y;
         const filterCells = [
-          { label: 'วันที่เริ่ม', value: formatFilterDateValue(filters.startDate) },
-          { label: 'วันที่สิ้นสุด', value: formatFilterDateValue(filters.endDate) },
+          { label: 'วันที่เริ่ม', value: formatFilterDateOnly(filters.startDate) },
+          { label: 'วันที่สิ้นสุด', value: formatFilterDateOnly(filters.endDate) },
           { label: 'แผนก', value: (filters as any).departmentName ?? filters.departmentCode ?? 'ทั้งหมด' },
           { label: 'ประเภทผู้ป่วย', value: filters.usageType === 'OPD' ? 'ผู้ป่วยนอก (OPD)' : filters.usageType === 'IPD' ? 'ผู้ป่วยใน (IPD)' : 'ทั้งหมด' },
         ];
@@ -145,17 +145,17 @@ export class DispensedItemsForPatientsPdfService {
             ? contentWidth - filterColWidth * (filterCells.length - 1)
             : filterColWidth;
           doc.rect(fx, filterY, cw, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
-          doc.fontSize(11).font(finalFontBoldName).fillColor('#444444');
-          doc.text(fc.label, fx + 3, filterY + 4, { width: cw - 6, align: 'center' });
-          doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
-          doc.text(fc.value, fx + 3, filterY + 16, { width: cw - 6, align: 'center' });
+          doc.fontSize(12).font(finalFontBoldName).fillColor('#444444');
+          doc.text(fc.label, fx + 3, filterY + 5, { width: cw - 6, align: 'center' });
+          doc.fontSize(14).font(finalFontName).fillColor('#1A365D');
+          doc.text(fc.value, fx + 3, filterY + 18, { width: cw - 6, align: 'center' });
           fx += cw;
         });
         doc.fillColor('#000000');
         doc.y = filterY + filterRowHeight + 8;
 
         // ---- ตารางข้อมูล ----
-        const itemHeight = 28;
+        const itemHeight = 38;
         const cellPadding = 4;
         const totalTableWidth = contentWidth;
         // ลำดับ, HN/EN, ชื่อคนไข้, แผนก/ประเภท(รวม), วันที่เบิก, ชื่ออุปกรณ์, จำนวน, Assession, สถานะ
@@ -170,11 +170,11 @@ export class DispensedItemsForPatientsPdfService {
 
         const drawTableHeader = (y: number) => {
           let x = margin;
-          doc.fontSize(13).font(finalFontBoldName);
+          doc.fontSize(14).font(finalFontBoldName);
           doc.rect(margin, y, totalTableWidth, itemHeight).fill('#1A365D');
           doc.fillColor('#FFFFFF');
           headers.forEach((h, i) => {
-            doc.text(h, x + cellPadding, y + 8, {
+            doc.text(h, x + cellPadding, y + 9, {
               width: Math.max(2, colWidths[i] - cellPadding * 2),
               align: 'center',
             });
@@ -199,10 +199,10 @@ export class DispensedItemsForPatientsPdfService {
           statusText?: string,
         ) => {
           // คำนวณความสูงแถว
-          doc.fontSize(13).font(finalFontName);
+          doc.fontSize(17).font(finalFontName);
           const cellHeights = cellTexts.map((text, i) => {
             const w = Math.max(4, colWidths[i] - cellPadding * 2);
-            return doc.heightOfString(text ?? '-', { width: w });
+            return doc.heightOfString(text ?? '-', { width: w, lineGap: 1 });
           });
           const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
 
@@ -212,7 +212,7 @@ export class DispensedItemsForPatientsPdfService {
             const newHeaderY = doc.y;
             drawTableHeader(newHeaderY);
             doc.y = newHeaderY + itemHeight;
-            doc.fontSize(13).font(finalFontName).fillColor('#000000');
+            doc.fontSize(17).font(finalFontName).fillColor('#000000');
           }
 
           const rowY = doc.y;
@@ -233,10 +233,11 @@ export class DispensedItemsForPatientsPdfService {
               if (sl === 'ยืนยันแล้ว' || sl === 'verified') textColor = '#155724';
               else if (sl === 'ยกเลิก' || sl === 'discontinue' || sl === 'discontinued') textColor = '#721C24';
             }
-            doc.fontSize(13).font(finalFontName).fillColor(textColor);
+            doc.fontSize(14).font(finalFontName).fillColor(textColor);
             doc.text(cellTexts[i] ?? '-', xPos + cellPadding, rowY + cellPadding, {
               width: w,
               align: i === 2 || i === 5 ? 'left' : 'center',
+              lineGap: 1,
             });
             xPos += cw;
           }
@@ -244,11 +245,11 @@ export class DispensedItemsForPatientsPdfService {
           doc.y = rowY + rowHeight;
         };
 
-        doc.fontSize(13).font(finalFontName).fillColor('#000000');
+        doc.fontSize(17).font(finalFontName).fillColor('#000000');
         if (usages.length === 0) {
           const rowY = doc.y;
           doc.rect(margin, rowY, totalTableWidth, itemHeight).fillAndStroke('#F8F9FA', '#DEE2E6');
-          doc.text('ไม่มีข้อมูล', margin + cellPadding, rowY + 7, {
+          doc.text('ไม่มีข้อมูล', margin + cellPadding, rowY + 10, {
             width: totalTableWidth - cellPadding * 2,
             align: 'center',
           });
@@ -294,10 +295,10 @@ export class DispensedItemsForPatientsPdfService {
         }
 
         // footer note
-        doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
+        doc.fontSize(17).font(finalFontName).fillColor('#6C757D');
         doc.text(
           `จำนวนรายการทั้งหมด: ${data.summary?.total_records ?? 0} รายการ | จำนวนคนไข้: ${data.summary?.total_patients ?? 0} ราย`,
-          margin, doc.y + 6, { width: contentWidth, align: 'center' },
+          margin, doc.y + 10, { width: contentWidth, align: 'center' },
         );
         doc.fillColor('#000000');
 

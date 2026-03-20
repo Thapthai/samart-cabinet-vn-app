@@ -70,8 +70,8 @@ export class MedicalSuppliesService {
         const q = errMsg.match(/"([^"]*)"/);
         const dept = q?.[1];
         if (dept != null && dept !== '')
-          return `ไม่พบข้อมูลแผนก "${dept}" กรุณาตรวจสอบ PatientLocationwhenOrdered รูปแบบ: ชื่อแผนก-OPD/IPD หรือ department_code`;
-        return 'ไม่พบข้อมูลแผนก กรุณาตรวจสอบ PatientLocationwhenOrdered รูปแบบ: ชื่อแผนก-OPD/IPD หรือ department_code';
+          return `ไม่พบข้อมูลแผนก "${dept}" กรุณาตรวจสอบ PatientLocationwhenOrdered รูปแบบ: ชื่อแผนก-OPD/IPD`;
+        return 'ไม่พบข้อมูลแผนก กรุณาตรวจสอบ PatientLocationwhenOrdered รูปแบบ: ชื่อแผนก-OPD/IPD';
       }
       if (errMsg.includes('ไม่พบแผนก')) {
         return 'ไม่พบแผนกในระบบ กรุณาตรวจสอบ department_code';
@@ -320,8 +320,8 @@ export class MedicalSuppliesService {
     const code = (item.ItemCode ?? '').toString().trim();
     const assessionNo = (item.AssessionNo ?? '').toString().trim();
     const qtyRaw = item.QTY;
-    if (!code) throw new BadRequestException(`Order[${index}].ItemCode ห้ามเป็นค่าว่าง`);
-    if (!assessionNo) throw new BadRequestException(`Order[${index}].AssessionNo ห้ามเป็นค่าว่าง`);
+    if (!code) throw new BadRequestException(`ItemCode ห้ามเป็นค่าว่าง`);
+    if (!assessionNo) throw new BadRequestException(`AssessionNo ห้ามเป็นค่าว่าง`);
     if (qtyRaw === undefined || qtyRaw === null || qtyRaw === '')
       throw new BadRequestException(`Order[${index}].QTY ห้ามเป็นค่าว่าง`);
     const qty = typeof qtyRaw === 'string' ? parseInt(qtyRaw, 10) : Number(qtyRaw);
@@ -530,7 +530,7 @@ export class MedicalSuppliesService {
         const dashIdx = rawLoc.lastIndexOf('-');
         const deptPart = dashIdx > 0 ? rawLoc.substring(0, dashIdx).trim() : rawLoc;
         throw new BadRequestException(
-          `ไม่พบข้อมูลแผนก: "${deptPart || rawLoc}" กรุณาตรวจสอบ PatientLocationwhenOrdered (รูปแบบ: <ชื่อแผนก>-<OPD|IPD>) หรือ department_code`,
+          `ไม่พบข้อมูลแผนก: "${deptPart || rawLoc}" กรุณาตรวจสอบ PatientLocationwhenOrdered (รูปแบบ: <ชื่อแผนก>-<OPD|IPD>)`,
         );
       }
 
@@ -936,7 +936,7 @@ export class MedicalSuppliesService {
       // If no items to create at all, return error (should not happen)
       if (itemsToCreate.length === 0 && legacySupplies.length === 0) {
         throw new BadRequestException(
-          `No items to create for EN: ${episodeNumber}, HN: ${patientHn}`
+          `ไม่สามารถดำเนินการกับเคสผู้ป่วย EN: ${episodeNumber}, HN: ${patientHn} ได้ เนื่องจาก ItemStatus ไม่ถูกต้อง`
         );
       }
 

@@ -3,36 +3,11 @@ import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { ItemComparisonReportData, UsageDetail } from '../types/item-comparison-report.types';
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import { formatReportDateTime } from '../utils/date-timeformat';
 
-/** วันเวลาในรายงานตาม UTC (ไม่แปลง Asia/Bangkok) */
-function formatOrderDateTimeUtc(value: Date | string | null | undefined): string {
-  if (value == null || value === '') return '-';
-  const d = typeof value === 'string' ? new Date(value) : value;
-  if (Number.isNaN(d.getTime())) return '-';
-  return d
-    .toLocaleString('en-GB', {
-      timeZone: 'UTC',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    })
-    .replace(',', '');
-}
-
-function formatPeriodDate(value: string | Date | null | undefined): string {
-  if (value == null || value === '') return '-';
-  const d = typeof value === 'string' ? new Date(value) : value;
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleDateString('en-GB', {
-    timeZone: 'UTC',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+function formatFilterDateValue(v?: string | null): string {
+  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
+  return formatReportDateTime(v);
 }
 
 @Injectable()
@@ -83,24 +58,19 @@ export class ItemComparisonPdfService {
       if (hasThai) {
         finalFontName = 'ThaiFont';
         finalFontBoldName = 'ThaiFontBold';
-        doc.font(finalFontBoldName).fontSize(13);
-        doc.font(finalFontName).fontSize(13);
+        doc.font(finalFontBoldName).fontSize(15);
+        doc.font(finalFontName).fontSize(15);
       }
     } catch {
       /* keep default */
     }
 
     const logoBuffer = this.getLogoBuffer();
-    const reportDate = new Date().toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'UTC',
-    });
+    const reportDate = formatReportDateTime(new Date());
 
     const margin = 10;
     const filters = data.filters ?? {};
-    const itemHeight = 28;
+    const itemHeight = 32;
     const cellPadding = 4;
     const bottomSafe = 45;
     const logoSlotW = 86;
@@ -135,13 +105,13 @@ export class ItemComparisonPdfService {
             }
           }
 
-          doc.fontSize(15).font(finalFontBoldName).fillColor('#1A365D');
+          doc.fontSize(18).font(finalFontBoldName).fillColor('#1A365D');
           doc.text(titleTh, textLeft, headerTop + 8, { width: textW, align: 'center' });
-          doc.fontSize(10).font(finalFontName).fillColor('#6C757D');
+          doc.fontSize(12).font(finalFontName).fillColor('#6C757D');
           doc.text(titleEn, textLeft, headerTop + 28, { width: textW, align: 'center' });
           doc.fillColor('#000000');
           doc.y = headerTop + headerHeight + 12;
-          doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
+          doc.fontSize(14).font(finalFontName).fillColor('#6C757D');
           doc.text(`วันที่รายงาน: ${reportDate}`, margin, doc.y, { width: cw, align: 'right' });
           doc.fillColor('#000000');
           doc.y += 8;
@@ -152,8 +122,8 @@ export class ItemComparisonPdfService {
           const filterRowHeight = 36;
           const filterY = doc.y;
           const filterCells = [
-            { label: 'วันที่เริ่ม', value: filters.startDate ?? 'ทั้งหมด' },
-            { label: 'วันที่สิ้นสุด', value: filters.endDate ?? 'ทั้งหมด' },
+            { label: 'วันที่เริ่ม', value: formatFilterDateValue(filters.startDate) },
+            { label: 'วันที่สิ้นสุด', value: formatFilterDateValue(filters.endDate) },
             { label: 'แผนก', value: filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด' },
             { label: 'จำนวนรายการ', value: `${data.summary?.total_items ?? 0} รายการ` },
           ];
@@ -165,9 +135,9 @@ export class ItemComparisonPdfService {
                 ? cw - filterColWidth * (filterCells.length - 1)
                 : filterColWidth;
             doc.rect(fx, filterY, cellW, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
-            doc.fontSize(10).font(finalFontBoldName).fillColor('#444444');
+            doc.fontSize(12).font(finalFontBoldName).fillColor('#444444');
             doc.text(fc.label, fx + 4, filterY + 5, { width: cellW - 8, align: 'center' });
-            doc.fontSize(12).font(finalFontName).fillColor('#1A365D');
+            doc.fontSize(14).font(finalFontName).fillColor('#1A365D');
             doc.text(String(fc.value), fx + 4, filterY + 18, { width: cellW - 8, align: 'center' });
             fx += cellW;
           });
@@ -192,7 +162,7 @@ export class ItemComparisonPdfService {
         const drawSummaryHeader = (y: number) => {
           const cw = contentWidth();
           let x = margin;
-          doc.fontSize(12).font(finalFontBoldName);
+          doc.fontSize(14).font(finalFontBoldName);
           doc.rect(margin, y, cw, itemHeight).fill('#1A365D');
           doc.fillColor('#FFFFFF');
           sHeaders.forEach((h, i) => {
@@ -218,19 +188,20 @@ export class ItemComparisonPdfService {
             const headerY = doc.y;
             drawSummaryHeader(headerY);
             doc.y = headerY + itemHeight;
-            doc.fontSize(12).font(finalFontName).fillColor('#000000');
+            doc.fontSize(14).font(finalFontName).fillColor('#000000');
           }
         };
 
         const summaryHeaderY = doc.y;
         drawSummaryHeader(summaryHeaderY);
         doc.y = summaryHeaderY + itemHeight;
-        doc.fontSize(12).font(finalFontName).fillColor('#000000');
+        doc.fontSize(14).font(finalFontName).fillColor('#000000');
 
         if (comparisonData.length === 0) {
           const rowY = doc.y;
           const cw = contentWidth();
           doc.rect(margin, rowY, cw, itemHeight).fillAndStroke('#F8F9FA', '#DEE2E6');
+          doc.fontSize(14).font(finalFontName);
           doc.text('ไม่มีข้อมูล', margin + cellPadding, rowY + 8, {
             width: cw - cellPadding * 2,
             align: 'center',
@@ -247,7 +218,7 @@ export class ItemComparisonPdfService {
               String(item.total_used ?? 0),
               String(difference),
             ];
-            doc.fontSize(12).font(finalFontName);
+            doc.fontSize(14).font(finalFontName);
             const sHeights = sTexts.map((text, i) => {
               const w = Math.max(4, sColWidths[i] - cellPadding * 2);
               return doc.heightOfString(text ?? '-', { width: w });
@@ -265,7 +236,7 @@ export class ItemComparisonPdfService {
               if (i === 4 && difference !== 0) cellBg = '#FFF3CD';
               doc.rect(xPos, rowY, cellW, sRowHeight).fillAndStroke(cellBg, '#DEE2E6');
               doc
-                .fontSize(12)
+                .fontSize(14)
                 .font(finalFontName)
                 .fillColor(i === 4 && difference !== 0 ? '#856404' : '#000000');
               doc.text(sTexts[i] ?? '-', xPos + cellPadding, rowY + cellPadding, {
@@ -279,7 +250,7 @@ export class ItemComparisonPdfService {
           });
         }
 
-        doc.fontSize(10).font(finalFontName).fillColor('#ADB5BD');
+        doc.fontSize(12).font(finalFontName).fillColor('#ADB5BD');
         doc.text('เอกสารนี้สร้างจากระบบรายงานอัตโนมัติ', margin, doc.y + 8, {
           width: contentWidth(),
           align: 'center',
@@ -294,7 +265,7 @@ export class ItemComparisonPdfService {
           return;
         }
 
-        // ---------- รายละเอียด: แนวนอน ให้ตาราง 9 คอลัมน์อ่านได้ ----------
+        // ---------- รายละเอียด: แนวนอน (9 คอลัมน์ รวม HN/EN คอลัมน์เดียว) ----------
         doc.addPage({ size: 'A4', layout: 'landscape', margin: 14 });
         const mMargin = 14;
         const mCw = () => doc.page.width - mMargin * 2;
@@ -318,13 +289,13 @@ export class ItemComparisonPdfService {
               }
             }
           }
-          doc.fontSize(14).font(finalFontBoldName).fillColor('#1A365D');
+          doc.fontSize(18).font(finalFontBoldName).fillColor('#1A365D');
           doc.text(titleTh, textLeft, headerTop + 8, { width: textW, align: 'center' });
-          doc.fontSize(9).font(finalFontName).fillColor('#6C757D');
+          doc.fontSize(13).font(finalFontName).fillColor('#6C757D');
           doc.text(titleEn, textLeft, headerTop + 26, { width: textW, align: 'center' });
           doc.fillColor('#000000');
           doc.y = headerTop + headerHeight + 10;
-          doc.fontSize(10).font(finalFontName).fillColor('#6C757D');
+          doc.fontSize(14).font(finalFontName).fillColor('#6C757D');
           doc.text(`วันที่รายงาน: ${reportDate}`, mMargin, doc.y, { width: cw, align: 'right' });
           doc.y += 10;
         };
@@ -334,15 +305,15 @@ export class ItemComparisonPdfService {
           'Medical Supply Order detail',
         );
 
-        const detailFilterText = `วันที่เริ่ม: ${filters.startDate ?? 'ทั้งหมด'}  |  วันที่สิ้นสุด: ${filters.endDate ?? 'ทั้งหมด'}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
-        doc.fontSize(9).font(finalFontName).fillColor('#1A365D');
+        const detailFilterText = `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
+        doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
         const filterH = Math.max(
-          26,
-          doc.heightOfString(detailFilterText, { width: mCw() - 16 }) + 14,
+          30,
+          doc.heightOfString(detailFilterText, { width: mCw() - 16 }) + 18,
         );
         const fy = doc.y;
         doc.rect(mMargin, fy, mCw(), filterH).fillAndStroke('#E8EDF2', '#DEE2E6');
-        doc.font(finalFontBoldName).fontSize(9);
+        doc.font(finalFontBoldName).fontSize(13);
         doc.text(detailFilterText, mMargin + 8, fy + 7, { width: mCw() - 16, align: 'center' });
         doc.fillColor('#000000');
         doc.y = fy + filterH + 4;
@@ -354,31 +325,30 @@ export class ItemComparisonPdfService {
           'จำนวน',
           'Assession No',
           'สถานะ',
-          'HN',
-          'EN',
+          'HN/EN',
           'แผนก',
           'ชื่อผู้ป่วย',
         ];
-        /** 10 คอลัมน์: วัน-เวลา, Item Code, รายละเอียด, จำนวน, Assession No, สถานะ, HN, EN, แผนก, ชื่อผู้ป่วย */
-        const mHeaderH = 28;
-        const mFont = 9;
-        const mFontBold = 9;
+        /** 9 คอลัมน์: HN / EN รวมเป็นคอลัมน์เดียว เว้นบรรทัด */
+        const mHeaderH = 40;
+        const mFont = 13;
+        const mFontBold = 13;
 
         const calcMedicalColWidths = () => {
           const cw = mCw();
-          const wDt = 88;
-          const wCode = 54;
-          const wQty = 30;
-          const wAss = 48;
-          const wSt = 42;
-          const wHn = 38;
-          const wEn = 40;
-          const wDept = 46;
-          const fixedSum = wDt + wCode + wQty + wAss + wSt + wHn + wEn + wDept;
+          const wDt = 116;
+          const wCode = 78;
+          const wQty = 32;
+          const wAss = 70;
+          const wSt = 44;
+          const wHnEn = 82;
+          const wDept = 48;
+          const fixedSum = wDt + wCode + wQty + wAss + wSt + wHnEn + wDept;
           const rest = Math.max(80, cw - fixedSum);
-          const descW = Math.floor(rest * 0.4);
+          // ส่วนที่เหลือแบ่ง รายละเอียด vs ชื่อผู้ป่วย (ลดสัดส่วนรายละเอียดนิดหน่อย — ไปขยาย Assession No แล้ว)
+          const descW = Math.floor(rest * 0.54);
           const patientW = rest - descW;
-          return [wDt, wCode, descW, wQty, wAss, wSt, wHn, wEn, wDept, patientW];
+          return [wDt, wCode, descW, wQty, wAss, wSt, wHnEn, wDept, patientW];
         };
 
         let mColWidths = calcMedicalColWidths();
@@ -391,7 +361,7 @@ export class ItemComparisonPdfService {
           doc.rect(mMargin, y, cw, mHeaderH).fill('#1A365D');
           doc.fillColor('#FFFFFF');
           mHeaders.forEach((h, i) => {
-            doc.text(h, x + 3, y + 9, {
+            doc.text(h, x + 3, y + 11, {
               width: Math.max(2, mColWidths[i] - 6),
               align: 'center',
             });
@@ -406,16 +376,15 @@ export class ItemComparisonPdfService {
           doc.fillColor('#000000');
         };
 
-        const allDates: number[] = [];
         let detailRowIdx = 0;
 
         const rowTextHeight = (texts: string[], cols: number[]) => {
           doc.fontSize(mFont).font(finalFontName);
           const heights = texts.map((t, i) => {
             const w = Math.max(4, cols[i] - 6);
-            return doc.heightOfString(t || '-', { width: w, lineGap: 1 });
+            return doc.heightOfString(t || '-', { width: w, lineGap: 2 });
           });
-          return Math.max(24, Math.max(...heights, 14) + 10);
+          return Math.max(36, Math.max(...heights, 16) + 16);
         };
 
         const ensureMedicalSpace = (need: number, repeatTableHeader: boolean) => {
@@ -465,7 +434,7 @@ export class ItemComparisonPdfService {
           ensureMedicalSpace(catH + 6, true);
           const catY = doc.y;
           doc.rect(mMargin, catY, mCw(), catH).fillAndStroke('#1A365D', '#DEE2E6');
-          doc.fontSize(10).font(finalFontBoldName).fillColor('#FFFFFF');
+          doc.fontSize(13).font(finalFontBoldName).fillColor('#FFFFFF');
           doc.text(categoryLabel, mMargin + 10, catY + 6, { width: mCw() - 20 });
           doc.fillColor('#000000');
           doc.y = catY + catH;
@@ -473,10 +442,6 @@ export class ItemComparisonPdfService {
           let groupQty = 0;
           for (const u of sorted) {
             const dt = (u as any).supply_item_created_at ?? u.usage_datetime;
-            if (dt) {
-              const t = new Date(dt).getTime();
-              if (!Number.isNaN(t)) allDates.push(t);
-            }
             const qty = u.qty_used ?? 0;
             groupQty += qty;
             const code = u.itemcode || item.itemcode || '-';
@@ -490,16 +455,16 @@ export class ItemComparisonPdfService {
               (u.department_code && String(u.department_code).trim()) ||
               '-';
             const patient = (u.patient_name && String(u.patient_name).trim()) || '-';
+            const hnEn = `${hn}\n${en}`;
 
             const cells = [
-              formatOrderDateTimeUtc(dt),
+              formatReportDateTime(dt),
               code,
               desc,
               String(qty),
               assessionNo,
               status,
-              hn,
-              en,
+              hnEn,
               dept,
               patient,
             ];
@@ -510,27 +475,27 @@ export class ItemComparisonPdfService {
             const bg = detailRowIdx % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
             detailRowIdx++;
             let xPos = mMargin;
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 9; i++) {
               const cellW = mColWidths[i];
               const w = Math.max(4, cellW - 6);
               doc.rect(xPos, rowY, cellW, rh).fillAndStroke(bg, '#DEE2E6');
               doc.fontSize(mFont).font(finalFontName).fillColor('#000000');
               doc.text(cells[i] ?? '-', xPos + 3, rowY + 5, {
                 width: w,
-                align: i === 2 || i === 9 ? 'left' : 'center',
-                lineGap: 1,
+                align: i === 2 || i === 8 ? 'left' : 'center',
+                lineGap: 2,
               });
               xPos += cellW;
             }
             doc.y = rowY + rh;
           }
 
-          const subBarH = 22;
+          const subBarH = 28;
           ensureMedicalSpace(subBarH, true);
           const subY = doc.y;
           doc.rect(mMargin, subY, mCw(), subBarH).fillAndStroke('#E8EDF2', '#DEE2E6');
           doc.fontSize(mFont).font(finalFontBoldName).fillColor('#1A365D');
-          doc.text(`Sub-Total จำนวนรวม: ${groupQty}`, mMargin + 12, subY + 6, {
+          doc.text(`Sub-Total จำนวนรวม: ${groupQty}`, mMargin + 12, subY + 8, {
             width: mCw() - 24,
             align: 'right',
           });
@@ -538,17 +503,12 @@ export class ItemComparisonPdfService {
           doc.y = subY + subBarH + 8;
         }
 
-        const tMin = allDates.length ? Math.min(...allDates) : Date.now();
-        const tMax = allDates.length ? Math.max(...allDates) : Date.now();
-        const periodStr = `${formatPeriodDate(filters.startDate || new Date(tMin))} — ${formatPeriodDate(filters.endDate || new Date(tMax))}`;
-
         if (doc.y + 40 > mPh() - bottomSafe) {
           doc.addPage({ size: 'A4', layout: 'landscape', margin: mMargin });
           doc.y = mMargin;
         }
-        doc.fontSize(11).font(finalFontBoldName).fillColor('#1A365D');
         doc.y += 14;
-        doc.fontSize(10).font(finalFontName).fillColor('#ADB5BD');
+        doc.fontSize(13).font(finalFontName).fillColor('#ADB5BD');
         doc.text('เอกสารนี้สร้างจากระบบรายงานอัตโนมัติ', mMargin, doc.y, {
           width: mCw(),
           align: 'center',

@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import { resolveReportLogoPath } from '../config/report.config';
-import { formatReportDateTime } from '../utils/date-timeformat';
+import { formatReportDateOnly, formatReportDateTime } from '../utils/date-timeformat';
 
-/** filter วันที่: ว่าง = ทั้งหมด, มีค่า = ใช้ format รายงาน */
-function formatFilterDateValue(v?: string | null): string {
+/** filter วันที่เริ่ม/สิ้นสุด: ว่าง = ทั้งหมด, มีค่า = วันที่อย่างเดียว (ไม่มีเวลา) */
+function formatFilterDateOnly(v?: string | null): string {
   if (v == null || String(v).trim() === '') return 'ทั้งหมด';
-  return formatReportDateTime(v);
+  return formatReportDateOnly(v);
 }
 
 /** รายการอุปกรณ์ในหนึ่ง usage (สำหรับ sub row) */
@@ -110,7 +110,7 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.mergeCells('B1:K2');
     const headerCell = worksheet.getCell('B1');
     headerCell.value = 'รายการเบิกอุปกรณ์ใช้กับคนไข้\nDispensed Items for Patients Report';
-    headerCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FF1A365D' } };
+    headerCell.font = { name: 'Tahoma', size: 18, bold: true, color: { argb: 'FF1A365D' } };
     headerCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
     headerCell.border = {
@@ -123,7 +123,7 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.mergeCells('A3:K3');
     const dateCell = worksheet.getCell('A3');
     dateCell.value = `วันที่รายงาน: ${reportDate}`;
-    dateCell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF6C757D' } };
+    dateCell.font = { name: 'Tahoma', size: 15, color: { argb: 'FF6C757D' } };
     dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
     worksheet.getRow(3).height = 20;
 
@@ -131,8 +131,8 @@ export class DispensedItemsForPatientsExcelService {
     const filters = data.filters ?? {};
     const filterLabels = ['วันที่เริ่ม', 'วันที่สิ้นสุด', 'แผนก', 'ประเภทผู้ป่วย'];
     const filterValues = [
-      formatFilterDateValue(filters.startDate),
-      formatFilterDateValue(filters.endDate),
+      formatFilterDateOnly(filters.startDate),
+      formatFilterDateOnly(filters.endDate),
       (filters as any).departmentName ?? filters.departmentCode ?? 'ทั้งหมด',
       filters.usageType === 'OPD' ? 'ผู้ป่วยนอก (OPD)'
         : filters.usageType === 'IPD' ? 'ผู้ป่วยใน (IPD)'
@@ -145,7 +145,7 @@ export class DispensedItemsForPatientsExcelService {
       worksheet.mergeCells(`${cols[0]}4:${cols[1]}4`);
       const cell = worksheet.getCell(`${cols[0]}4`);
       cell.value = `${lbl}: ${filterValues[gi]}`;
-      cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1A365D' } };
+      cell.font = { name: 'Tahoma', size: 17, bold: true, color: { argb: 'FF1A365D' } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border = {
@@ -153,7 +153,7 @@ export class DispensedItemsForPatientsExcelService {
         bottom: { style: 'thin' }, right: { style: 'thin' },
       };
     });
-    worksheet.getRow(4).height = 20;
+    worksheet.getRow(4).height = 28;
 
     // ---- แถว 5: Table header (11 คอลัมน์) ----
     const tableStartRow = 5;
@@ -174,7 +174,7 @@ export class DispensedItemsForPatientsExcelService {
     tableHeaders.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
       cell.value = h;
-      cell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.font = { name: 'Tahoma', size: 17, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A365D' } };
       cell.alignment = {
         horizontal: i === 1 || i === 2 || i === 7 ? 'left' : 'center',
@@ -182,7 +182,7 @@ export class DispensedItemsForPatientsExcelService {
       };
       cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
     });
-    headerRow.height = 26;
+    headerRow.height = 32;
 
     // ---- แถวข้อมูล ----
     let dataRowIndex = tableStartRow + 1;
@@ -212,7 +212,7 @@ export class DispensedItemsForPatientsExcelService {
       mainCells.forEach((val, colIndex) => {
         const cell = excelRow.getCell(colIndex + 1);
         cell.value = val;
-        cell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF212529' } };
+        cell.font = { name: 'Tahoma', size: 17, color: { argb: 'FF212529' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
         cell.alignment = {
           horizontal: colIndex === 1 || colIndex === 2 || colIndex === 7 ? 'left' : 'center',
@@ -220,7 +220,7 @@ export class DispensedItemsForPatientsExcelService {
         };
         cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
       });
-      excelRow.height = 22;
+      excelRow.height = 28;
       dataRowIndex++;
 
       // Sub rows
@@ -241,14 +241,14 @@ export class DispensedItemsForPatientsExcelService {
           if (colIndex === 10) {
             const statusLower = String(val).toLowerCase();
             if (statusLower === 'ยืนยันแล้ว' || statusLower === 'verified') {
-              cell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF16A34A' }, bold: true };
+              cell.font = { name: 'Tahoma', size: 17, color: { argb: 'FF16A34A' }, bold: true };
             } else if (statusLower === 'ยกเลิก' || statusLower === 'discontinue' || statusLower === 'discontinued') {
-              cell.font = { name: 'Tahoma', size: 11, color: { argb: 'FFDC2626' }, bold: true };
+              cell.font = { name: 'Tahoma', size: 17, color: { argb: 'FFDC2626' }, bold: true };
             } else {
-              cell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF212529' } };
+              cell.font = { name: 'Tahoma', size: 17, color: { argb: 'FF212529' } };
             }
           } else {
-            cell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF212529' } };
+            cell.font = { name: 'Tahoma', size: 17, color: { argb: 'FF212529' } };
           }
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F8FF' } };
           cell.alignment = {
@@ -269,7 +269,7 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.mergeCells(`A${footerRow}:K${footerRow}`);
     const footerCell = worksheet.getCell(`A${footerRow}`);
     footerCell.value = 'เอกสารนี้สร้างจากระบบรายงานอัตโนมัติ';
-    footerCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FFADB5BD' } };
+    footerCell.font = { name: 'Tahoma', size: 15, color: { argb: 'FFADB5BD' } };
     footerCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(footerRow).height = 18;
 
@@ -277,7 +277,7 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.mergeCells(`A${noteRow}:K${noteRow}`);
     const noteCell = worksheet.getCell(`A${noteRow}`);
     noteCell.value = `จำนวนรายการทั้งหมด: ${data.summary?.total_records ?? 0} รายการ | จำนวนคนไข้: ${data.summary?.total_patients ?? 0} ราย`;
-    noteCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF6C757D' } };
+    noteCell.font = { name: 'Tahoma', size: 17, color: { argb: 'FF6C757D' } };
     noteCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(noteRow).height = 16;
 

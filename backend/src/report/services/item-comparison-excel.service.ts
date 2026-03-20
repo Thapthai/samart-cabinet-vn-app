@@ -3,6 +3,12 @@ import * as ExcelJS from 'exceljs';
 import * as fs from 'fs';
 import { resolveReportLogoPath } from '../config/report.config';
 import { ItemComparisonReportData, UsageDetail } from '../types/item-comparison-report.types';
+import { formatReportDateTime } from '../utils/date-timeformat';
+
+function formatFilterDateValue(v?: string | null): string {
+  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
+  return formatReportDateTime(v);
+}
 
 /** ธีมเดียวกับชีตสรุป */
 const THEME = {
@@ -21,37 +27,6 @@ const BORDER = {
   bottom: { style: 'thin' as const, color: { argb: 'FF000000' } },
   right: { style: 'thin' as const, color: { argb: 'FF000000' } },
 };
-
-/** วันเวลาในรายงานตาม UTC (ไม่แปลง Asia/Bangkok) */
-function formatOrderDateTimeUtc(value: Date | string | null | undefined): string {
-  if (value == null || value === '') return '-';
-  const d = typeof value === 'string' ? new Date(value) : value;
-  if (Number.isNaN(d.getTime())) return '-';
-  return d
-    .toLocaleString('en-GB', {
-      timeZone: 'UTC',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    })
-    .replace(',', '');
-}
-
-function formatPeriodDate(value: string | Date | null | undefined): string {
-  if (value == null || value === '') return '-';
-  const d = typeof value === 'string' ? new Date(value) : value;
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleDateString('en-GB', {
-    timeZone: 'UTC',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-}
 
 function orderStatusLabel(status?: string): string {
   if (status == null || status === '') return '-';
@@ -73,12 +48,7 @@ export class ItemComparisonExcelService {
     workbook.creator = 'Report Service';
     workbook.created = new Date();
 
-    const reportDate = new Date().toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'UTC',
-    });
+    const reportDate = formatReportDateTime(new Date());
 
     let logoImageId: number | null = null;
     const logoPath = resolveReportLogoPath();
@@ -160,7 +130,7 @@ export class ItemComparisonExcelService {
 
     // แถบตัวกรองแบบเดียวกับ PDF (item-comparison-pdf detailFilterText)
     const summaryFilterText =
-      `วันที่เริ่ม: ${filters.startDate ?? 'ทั้งหมด'}  |  วันที่สิ้นสุด: ${filters.endDate ?? 'ทั้งหมด'}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}  |  จำนวนรายการ: ${data.summary?.total_items ?? 0} รายการ`;
+      `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}  |  จำนวนรายการ: ${data.summary?.total_items ?? 0} รายการ`;
     summarySheet.mergeCells('A4:E4');
     const filterCell = summarySheet.getCell('A4');
     filterCell.value = summaryFilterText;
@@ -293,7 +263,7 @@ export class ItemComparisonExcelService {
 
     ws.mergeCells('A4:J4');
     const filterCell = ws.getCell('A4');
-    filterCell.value = `วันที่เริ่ม: ${filters.startDate ?? 'ทั้งหมด'}  |  วันที่สิ้นสุด: ${filters.endDate ?? 'ทั้งหมด'}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
+    filterCell.value = `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
     filterCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: THEME.navy } };
     filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.navyLight } };
     filterCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -330,7 +300,6 @@ export class ItemComparisonExcelService {
     headerRow.height = 26;
     r++;
 
-    const allDates: number[] = [];
     let dataRowIdx = 0;
 
     for (const item of comparisonData) {
@@ -363,10 +332,6 @@ export class ItemComparisonExcelService {
       let groupQty = 0;
       for (const u of sorted) {
         const dt = (u as any).supply_item_created_at ?? u.usage_datetime;
-        if (dt) {
-          const t = new Date(dt).getTime();
-          if (!Number.isNaN(t)) allDates.push(t);
-        }
         const qty = u.qty_used ?? 0;
         groupQty += qty;
         const code = u.itemcode || item.itemcode || '-';
@@ -381,7 +346,7 @@ export class ItemComparisonExcelService {
         const bg = dataRowIdx % 2 === 0 ? 'FFFFFFFF' : THEME.rowAlt;
         dataRowIdx++;
         const row = ws.addRow([
-          formatOrderDateTimeUtc(dt),
+          formatReportDateTime(dt),
           code,
           desc,
           qty,
@@ -427,7 +392,7 @@ export class ItemComparisonExcelService {
     autoFoot.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
     ws.getRow(autoFoot.number).height = 18;
 
-    ws.getColumn(1).width = 20;
+    ws.getColumn(1).width = 24;
     ws.getColumn(2).width = 16;
     ws.getColumn(3).width = 38;
     ws.getColumn(4).width = 10;

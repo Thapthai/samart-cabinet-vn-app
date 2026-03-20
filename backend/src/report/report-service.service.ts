@@ -613,6 +613,12 @@ export class ReportServiceService {
         }
       }
 
+      const paginationTotal = comparisonResult?.pagination?.total;
+      const totalItemsCount =
+        paginationTotal !== undefined && paginationTotal !== null
+          ? Number(paginationTotal)
+          : Number(comparisonResult?.summary?.total_items ?? comparisonData.length);
+
       const reportData: ItemComparisonReportData = {
         filters: {
           itemCode: params.itemCode,
@@ -622,12 +628,14 @@ export class ReportServiceService {
           departmentCode: params.departmentCode,
           departmentName: deptNameForExcel,
         },
-        summary: comparisonResult?.summary || {
-          total_items: 0,
-          total_dispensed: 0,
-          total_used: 0,
-          matched_count: 0,
-          discrepancy_count: 0,
+        summary: {
+          ...(comparisonResult?.summary || {
+            total_dispensed: 0,
+            total_used: 0,
+            matched_count: 0,
+            discrepancy_count: 0,
+          }),
+          total_items: totalItemsCount,
         },
         comparison: comparisonData.map((item: any) => ({
           ...item,
@@ -716,6 +724,12 @@ export class ReportServiceService {
         }
       }
 
+      const paginationTotalPdf = comparisonResult?.pagination?.total;
+      const totalItemsCountPdf =
+        paginationTotalPdf !== undefined && paginationTotalPdf !== null
+          ? Number(paginationTotalPdf)
+          : Number(comparisonResult?.summary?.total_items ?? comparisonData.length);
+
       const reportData: ItemComparisonReportData = {
         filters: {
           itemCode: params.itemCode,
@@ -725,12 +739,14 @@ export class ReportServiceService {
           departmentCode: params.departmentCode,
           departmentName: deptNameForPdf,
         },
-        summary: comparisonResult?.summary || {
-          total_items: 0,
-          total_dispensed: 0,
-          total_used: 0,
-          matched_count: 0,
-          discrepancy_count: 0,
+        summary: {
+          ...(comparisonResult?.summary || {
+            total_dispensed: 0,
+            total_used: 0,
+            matched_count: 0,
+            discrepancy_count: 0,
+          }),
+          total_items: totalItemsCountPdf,
         },
         comparison: comparisonData.map((item: any) => ({
           ...item,

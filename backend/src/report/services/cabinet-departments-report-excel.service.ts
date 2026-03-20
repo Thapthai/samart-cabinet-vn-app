@@ -34,16 +34,38 @@ export interface CabinetDepartmentsReportData {
   data: CabinetDepartmentsReportRow[];
 }
 
+/** รายงานรวมทุกตู้ → Excel: แยก sheet ต่อตู้ */
+function shouldSplitSheetsByCabinet(data: CabinetDepartmentsReportData): boolean {
+  const n = data.filters?.cabinetName;
+  return n == null || String(n).trim() === '';
+}
+
+/** จัดกลุ่มแถวตามชื่อตู้ ตามลำดับที่ปรากฏใน data */
+function groupRowsByCabinetInOrder(rows: CabinetDepartmentsReportRow[]): CabinetDepartmentsReportRow[][] {
+  const groups: CabinetDepartmentsReportRow[][] = [];
+  const keyToIndex = new Map<string, number>();
+  for (const row of rows) {
+    const key = row.cabinet_name ?? '-';
+    if (!keyToIndex.has(key)) {
+      keyToIndex.set(key, groups.length);
+      groups.push([]);
+    }
+    groups[keyToIndex.get(key)!].push(row);
+  }
+  return groups;
+}
+
+function sanitizeExcelSheetName(name: string, fallbackIndex: number): string {
+  const raw = (name || `ตู้_${fallbackIndex}`).replace(/[:\\/?*[\]]/g, '_').trim();
+  return raw.length > 31 ? raw.slice(0, 31) : raw;
+}
+
 @Injectable()
 export class CabinetDepartmentsReportExcelService {
   async generateReport(data: CabinetDepartmentsReportData): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Report Service';
     workbook.created = new Date();
-    const worksheet = workbook.addWorksheet('จัดการตู้ Cabinet - แผนก', {
-      pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true },
-      properties: { defaultRowHeight: 20 },
-    });
 
     const reportDate = new Date().toLocaleDateString('th-TH', {
       year: 'numeric',
@@ -51,6 +73,47 @@ export class CabinetDepartmentsReportExcelService {
       day: 'numeric',
       timeZone: 'Asia/Bangkok',
     });
+
+    const rows = data.data ?? [];
+    const splitByCabinet = shouldSplitSheetsByCabinet(data) && rows.length > 0;
+    const cabinetGroups = splitByCabinet ? groupRowsByCabinetInOrder(rows) : [rows];
+
+    const usedSheetNames = new Set<string>();
+    for (let gi = 0; gi < cabinetGroups.length; gi++) {
+      const groupRows = cabinetGroups[gi];
+      let sheetName = splitByCabinet
+        ? sanitizeExcelSheetName(groupRows[0]?.cabinet_name ?? `ตู้_${gi + 1}`, gi + 1)
+        : 'จัดการตู้ Cabinet - แผนก';
+      if (splitByCabinet && usedSheetNames.has(sheetName)) {
+        const suffix = `_${gi + 1}`;
+        sheetName = sanitizeExcelSheetName(`${sheetName.slice(0, Math.max(0, 31 - suffix.length))}${suffix}`, gi + 1);
+      }
+      usedSheetNames.add(sheetName);
+      const worksheet = workbook.addWorksheet(sheetName, {
+        pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true },
+        properties: { defaultRowHeight: 20 },
+      });
+
+      this.fillCabinetDepartmentsSheet(workbook, worksheet, data, groupRows, reportDate, splitByCabinet);
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
+  /** เติมเนื้อหา 1 sheet (กลุ่มแถวของตู้เดียว หรือทั้งหมด) */
+  private fillCabinetDepartmentsSheet(
+    workbook: ExcelJS.Workbook,
+    worksheet: ExcelJS.Worksheet,
+    data: CabinetDepartmentsReportData,
+    rows: CabinetDepartmentsReportRow[],
+    reportDate: string,
+    isPerCabinetSheet: boolean,
+  ): void {
+    const filters = data.filters ?? {};
+    const filterCabinetDisplay = isPerCabinetSheet
+      ? rows[0]?.cabinet_name ?? filters.cabinetName ?? 'ทั้งหมด'
+      : filters.cabinetName ?? 'ทั้งหมด';
 
     worksheet.mergeCells('A1:A2');
     worksheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
@@ -81,10 +144,9 @@ export class CabinetDepartmentsReportExcelService {
     dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
     worksheet.getRow(3).height = 20;
 
-    const filters = data.filters ?? {};
     const filterLabels = ['ตู้ Cabinet', 'แผนก', 'สถานะ'];
     const filterValues = [
-      filters.cabinetName ?? 'ทั้งหมด',
+      filterCabinetDisplay,
       filters.departmentName ?? 'ทั้งหมด',
       filters.status ?? 'ทั้งหมด',
     ];
@@ -116,10 +178,11 @@ export class CabinetDepartmentsReportExcelService {
     headerRow.height = 26;
 
     let dataRowIndex = tableStartRow + 1;
-    (data.data ?? []).forEach((row, idx) => {
+    rows.forEach((row, idx) => {
+      const seq = idx + 1;
       const excelRow = worksheet.getRow(dataRowIndex);
       const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8F9FA';
-      [row.seq, row.cabinet_name, row.department_name, row.quantity_display, row.status, row.description].forEach((val, colIndex) => {
+      [seq, row.cabinet_name, row.department_name, row.quantity_display, row.status, row.description].forEach((val, colIndex) => {
         const cell = excelRow.getCell(colIndex + 1);
         cell.value = val ?? '-';
         cell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FF212529' } };
@@ -198,7 +261,9 @@ export class CabinetDepartmentsReportExcelService {
     const noteRow = footerRow + 1;
     worksheet.mergeCells(`A${noteRow}:F${noteRow}`);
     const noteCell = worksheet.getCell(`A${noteRow}`);
-    noteCell.value = `จำนวนรายการทั้งหมด: ${data.summary?.total_records ?? 0} รายการ`;
+    noteCell.value = isPerCabinetSheet
+      ? `จำนวนรายการ (ตู้นี้): ${rows.length} รายการ | รวมทุกตู้: ${data.summary?.total_records ?? 0} รายการ`
+      : `จำนวนรายการทั้งหมด: ${data.summary?.total_records ?? 0} รายการ`;
     noteCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF6C757D' } };
     noteCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(noteRow).height = 16;
@@ -209,8 +274,5 @@ export class CabinetDepartmentsReportExcelService {
     worksheet.getColumn(4).width = 28;
     worksheet.getColumn(5).width = 14;
     worksheet.getColumn(6).width = 36;
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    return Buffer.from(buffer);
   }
 }

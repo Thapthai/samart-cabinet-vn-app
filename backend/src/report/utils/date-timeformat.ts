@@ -41,3 +41,46 @@ export function formatDate(v: string | Date | null | undefined): string {
 
 /** alias สำหรับรายงาน (ชื่อสื่อความหมายเดียวกับ formatDate) */
 export const formatReportDateTime = formatDate;
+
+const TH_DATE_ONLY_OPTS: Intl.DateTimeFormatOptions = {
+  calendar: 'buddhist',
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+};
+
+function localeDateOnly(d: Date, timeZone: string): string {
+  return d.toLocaleDateString('th-TH', { ...TH_DATE_ONLY_OPTS, timeZone });
+}
+
+/** วันที่อย่างเดียว (ไม่มีเวลา) — สำหรับ filter วันที่เริ่ม/สิ้นสุด ฯลฯ */
+export function formatReportDateOnly(value?: string | Date | null): string {
+  if (value == null || value === '') return '-';
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '-';
+    return localeDateOnly(value, 'Asia/Bangkok');
+  }
+  const s = String(value).trim();
+  if (!s) return '-';
+  const hasExplicitTz = /Z$/i.test(s) || /[+-]\d{2}:?\d{2}$/.test(s);
+  let d: Date;
+  if (hasExplicitTz) {
+    d = new Date(s);
+    if (Number.isNaN(d.getTime())) return s;
+    return localeDateOnly(d, 'UTC');
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, mo, da] = s.split('-').map(Number);
+    d = new Date(Date.UTC(y, mo - 1, da, 12, 0, 0));
+    if (Number.isNaN(d.getTime())) return s;
+    return localeDateOnly(d, 'Asia/Bangkok');
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s)) {
+    const normalized = s.includes('T') ? s : s.replace(' ', 'T');
+    d = new Date(`${normalized}+07:00`);
+  } else {
+    d = new Date(s);
+  }
+  if (Number.isNaN(d.getTime())) return s;
+  return localeDateOnly(d, 'Asia/Bangkok');
+}
