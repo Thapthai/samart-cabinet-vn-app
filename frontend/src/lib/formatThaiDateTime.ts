@@ -1,4 +1,11 @@
 /**
+ * วันเวลาในระบบ
+ *
+ * - **แสดงผลแบบ UTC (ไม่ +7 / ไม่ใช้ Asia/Bangkok):** `formatUtcDateTime`, `todayYyyyMmDdUtc`,
+ *   `toUtcYyyyMmDd`, `formatYyyyMmDdThaiUtc`, และ **`formatThaiDateTime`** (alias ของ UTC)
+ * - **ยังใช้ Asia/Bangkok (+7) เฉพาะเมื่อเรียกชัด:** `formatBangkokDateTime`, `todayYyyyMmDdBangkok`,
+ *   `toBangkokYyyyMmDd` (เลิกใช้แนะนำให้ใช้คู่ UTC แทน)
+ *
  * Parse ค่าวันเวลาจาก API (รองรับ `...+07:00` ที่มีช่องว่างคั่นวัน–เวลา)
  */
 export function parseApiDateTime(value: string): Date {
@@ -9,7 +16,7 @@ export function parseApiDateTime(value: string): Date {
     return new Date(s);
 }
 
-/** วันนี้ใน Asia/Bangkok เป็น YYYY-MM-DD */
+/** @deprecated ใช้ `todayYyyyMmDdUtc()` แทน — ยังคืนค่าแบบ Asia/Bangkok (+7) เพื่อไม่ทำลายโค้ดเก่า */
 export function todayYyyyMmDdBangkok(): string {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
 }
@@ -19,7 +26,7 @@ export function todayYyyyMmDdUtc(): string {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'UTC' });
 }
 
-/** แปลงค่า API → วันที่ปฏิทิน Bangkok เป็น YYYY-MM-DD */
+/** @deprecated ใช้ `toUtcYyyyMmDd()` แทน — แปลงเป็น YYYY-MM-DD ตาม Asia/Bangkok (+7) */
 export function toBangkokYyyyMmDd(value: string): string | null {
     const d = parseApiDateTime(value);
     if (Number.isNaN(d.getTime())) return null;
@@ -72,7 +79,7 @@ export function formatUtcDateTime(
 }
 
 /**
- * แสดงวันเวลาใน Asia/Bangkok เสมอ (กันเวลา +7 ผิดเมื่อเครื่องไม่ได้ตั้ง TZ ไทย / ค่า API มี offset)
+ * แสดงวันเวลาใน Asia/Bangkok (+7) — ใช้เฉพาะเมื่อต้องการเวลาไทยจริงๆ
  */
 export function formatBangkokDateTime(
     value?: string | null,
@@ -92,8 +99,9 @@ export function formatBangkokDateTime(
     });
 }
 
+/** ชื่อเดิมว่า “ไทย” แต่ให้ตรงกับ API/DB เป็น UTC — ไม่แปลง +7 (เหมือน `formatUtcDateTime`) */
 export function formatThaiDateTime(value?: string) {
-    return formatBangkokDateTime(value, undefined);
+    return formatUtcDateTime(value, undefined);
 }
 
 /**

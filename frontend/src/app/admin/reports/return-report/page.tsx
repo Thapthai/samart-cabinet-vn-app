@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { medicalSuppliesApi, vendingReportsApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 export default function ReturnReportPage() {
   const { user } = useAuth();
@@ -60,20 +61,7 @@ export default function ReturnReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [returnHistoryPage]);
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
+  const formatDate = (dateString: string) => formatUtcDateTime(dateString);
 
   const getReturnReasonLabel = (reason: string) => {
     const labels: { [key: string]: string } = {

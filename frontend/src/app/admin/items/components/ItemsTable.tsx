@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import type { Item } from "@/types/item";
+import { formatUtcDateTime } from "@/lib/formatThaiDateTime";
 
 /** itemcode -> max_available_qty (แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน / รอแจ้ง) จาก will-return */
 interface ItemsTableProps {
@@ -276,11 +277,10 @@ console.log(items);
                                     <TableBody>
                                       {itemStocks.map((stock, idx) => {
                                         const expireStr = stock.ExpireDate;
-                                        const expireDate = expireStr ? new Date(expireStr) : null;
                                         const expired = isExpired(expireStr);
                                         const nearExpiry = !expired && isNearExpiry(expireStr);
                                         const expireDisplay = expireStr
-                                          ? expireDate?.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" }) ?? expireStr
+                                          ? formatUtcDateTime(expireStr)
                                           : "-";
                                         return (
                                           <TableRow

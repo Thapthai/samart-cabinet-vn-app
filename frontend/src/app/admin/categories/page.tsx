@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import CreateCategoryDialog from './components/CreateCategoryDialog';
 import EditCategoryDialog from './components/EditCategoryDialog';
 import DeleteCategoryDialog from './components/DeleteCategoryDialog';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -138,7 +139,7 @@ export default function CategoriesPage() {
                     )}
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-gray-500">
-                        สร้างเมื่อ: {new Date(category.created_at).toLocaleDateString('th-TH')}
+                        สร้างเมื่อ: {formatUtcDateTime(String(category.created_at))}
                       </span>
                       <div className="flex items-center space-x-2">
                         <Button

@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { vendingReportsApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { toUtcYyyyMmDd, formatYyyyMmDdThaiUtc } from '@/lib/formatThaiDateTime';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
@@ -81,17 +82,10 @@ export function UnusedDispensedTab() {
     }
   };
 
+  /** วันที่ตามปฏิทิน UTC (ไม่ +7) */
   const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch (e) {
-      return dateString;
-    }
+    const ymd = toUtcYyyyMmDd(dateString);
+    return ymd ? formatYyyyMmDdThaiUtc(ymd) : dateString;
   };
 
   return (

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import DispensedPagination from './DispensedPagination';
 import type { DispensedItem } from '../types';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 interface DispensedTableProps {
   loading: boolean;
@@ -101,16 +102,8 @@ export default function DispensedTable({
                       <TableCell className="font-medium">{item.itemname || '-'}</TableCell>
                       <TableCell>{item.cabinetUserName || 'ไม่ระบุ'}</TableCell>
                       <TableCell className="text-right font-medium">{item.qty}</TableCell>
-                      <TableCell>
-                        {item.modifyDate
-                          ? new Date(item.modifyDate).toLocaleDateString('th-TH', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })
-                          : '-'}
+                      <TableCell className="text-muted-foreground">
+                        {item.modifyDate ? formatUtcDateTime(item.modifyDate) : '-'}
                       </TableCell>
                     </TableRow>
                   ))}

@@ -12,6 +12,7 @@ import ReturnFormTab from './components/ReturnFormTab';
 import ReturnHistoryTab from './components/ReturnHistoryTab';
 import WillReturnFilterCard from './components/WillReturnFilterCard';
 import type { ReturnHistoryData, WillReturnItem } from './types';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 const getTodayDate = () => {
   const today = new Date();
@@ -284,20 +285,7 @@ export default function ReturnMedicalSuppliesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, returnHistoryPage]);
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
+  const formatDate = (dateString: string) => formatUtcDateTime(dateString);
 
   const getReturnReasonLabel = (reason: string) => {
     const labels: { [key: string]: string } = {

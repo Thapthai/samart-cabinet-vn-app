@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CalendarClock, Package, AlertCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 export interface ItemWithExpiry {
   RowID: number;
@@ -157,7 +158,7 @@ export default function ItemsWithExpirySidebar({
                               {formatExpiryLabel(daysLeft)}
                             </span>
                             <span className="text-xs text-slate-400">
-                              {item.วันหมดอายุ || (item.ExpireDate ? new Date(item.ExpireDate).toLocaleDateString('th-TH') : '-')}
+                              {item.วันหมดอายุ || (item.ExpireDate ? formatUtcDateTime(item.ExpireDate) : '-')}
                             </span>
                           </div>
                         </div>

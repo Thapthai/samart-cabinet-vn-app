@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pencil, Trash2, Key, UserPlus, Copy, Eye, EyeOff } from 'lucide-react';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 interface StaffUser {
   id: number;
@@ -397,7 +398,7 @@ export default function StaffUsersPage() {
                         {staff.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
                       </Badge>
                     </TableCell>
-                    <TableCell>{new Date(staff.created_at).toLocaleDateString('th-TH')}</TableCell>
+                    <TableCell>{formatUtcDateTime(String(staff.created_at))}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
                         <Button

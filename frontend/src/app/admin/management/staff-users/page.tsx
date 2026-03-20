@@ -5,6 +5,7 @@ import { staffUserApi, staffRoleApi, departmentApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { toast } from 'sonner';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -468,7 +469,7 @@ export default function StaffUsersPage() {
                           <TableCell>
                             <Badge variant={staff.is_active ? 'default' : 'secondary'}>{staff.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}</Badge>
                           </TableCell>
-                          <TableCell>{staff.created_at ? new Date(staff.created_at).toLocaleDateString('th-TH') : '-'}</TableCell>
+                          <TableCell>{staff.created_at ? formatUtcDateTime(String(staff.created_at)) : '-'}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-2 justify-end">
                               <Button size="icon" variant="outline" onClick={() => openEditDialog(staff)} title="แก้ไข">
