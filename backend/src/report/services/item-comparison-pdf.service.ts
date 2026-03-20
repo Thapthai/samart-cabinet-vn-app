@@ -117,40 +117,40 @@ export class ItemComparisonPdfService {
           doc.y += 8;
         };
 
-        const drawFilterRow = () => {
-          const cw = contentWidth();
-          const filterRowHeight = 36;
-          const filterY = doc.y;
-          const filterCells = [
-            { label: 'วันที่เริ่ม', value: formatFilterDateValue(filters.startDate) },
-            { label: 'วันที่สิ้นสุด', value: formatFilterDateValue(filters.endDate) },
-            { label: 'แผนก', value: filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด' },
-            { label: 'จำนวนรายการ', value: `${data.summary?.total_items ?? 0} รายการ` },
-          ];
-          const filterColWidth = Math.floor(cw / filterCells.length);
-          let fx = margin;
-          filterCells.forEach((fc, i) => {
-            const cellW =
-              i === filterCells.length - 1
-                ? cw - filterColWidth * (filterCells.length - 1)
-                : filterColWidth;
-            doc.rect(fx, filterY, cellW, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
-            doc.fontSize(12).font(finalFontBoldName).fillColor('#444444');
-            doc.text(fc.label, fx + 4, filterY + 5, { width: cellW - 8, align: 'center' });
-            doc.fontSize(14).font(finalFontName).fillColor('#1A365D');
-            doc.text(String(fc.value), fx + 4, filterY + 18, { width: cellW - 8, align: 'center' });
-            fx += cellW;
-          });
-          doc.fillColor('#000000');
-          doc.y = filterY + filterRowHeight + 4;
-        };
+        // const drawFilterRow = () => {
+        //   const cw = contentWidth();
+        //   const filterRowHeight = 36;
+        //   const filterY = doc.y;
+        //   const filterCells = [
+        //     { label: 'วันที่เริ่ม', value: formatFilterDateValue(filters.startDate) },
+        //     { label: 'วันที่สิ้นสุด', value: formatFilterDateValue(filters.endDate) },
+        //     { label: 'แผนก', value: filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด' },
+        //     { label: 'จำนวนรายการ', value: `${data.summary?.total_items ?? 0} รายการ` },
+        //   ];
+        //   const filterColWidth = Math.floor(cw / filterCells.length);
+        //   let fx = margin;
+        //   filterCells.forEach((fc, i) => {
+        //     const cellW =
+        //       i === filterCells.length - 1
+        //         ? cw - filterColWidth * (filterCells.length - 1)
+        //         : filterColWidth;
+        //     doc.rect(fx, filterY, cellW, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
+        //     doc.fontSize(12).font(finalFontBoldName).fillColor('#444444');
+        //     doc.text(fc.label, fx + 4, filterY + 5, { width: cellW - 8, align: 'center' });
+        //     doc.fontSize(14).font(finalFontName).fillColor('#1A365D');
+        //     doc.text(String(fc.value), fx + 4, filterY + 18, { width: cellW - 8, align: 'center' });
+        //     fx += cellW;
+        //   });
+        //   doc.fillColor('#000000');
+        //   doc.y = filterY + filterRowHeight + 4;
+        // };
 
         // ---------- หน้าแรก: สรุป ----------
         drawHeaderBlock(
           'สรุปรายการเบิก — เปรียบเทียบการเบิกและใช้',
           'Item comparison summary (dispensed vs usage)',
         );
-        drawFilterRow();
+        // drawFilterRow();
 
         const cw0 = contentWidth();
         const sColPct = [0.07, 0.48, 0.15, 0.15, 0.15];

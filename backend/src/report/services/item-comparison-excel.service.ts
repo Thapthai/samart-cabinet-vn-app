@@ -36,6 +36,28 @@ function orderStatusLabel(status?: string): string {
   return status;
 }
 
+/** แปลง cm → px สำหรับขนาดรูปใน Excel (96 DPI มาตรฐาน) */
+function cmToExcelPx(cm: number): number {
+  return Math.round((cm * 96) / 2.54);
+}
+
+/** ชีตรายละเอียด: โลโก้ความกว้าง 4.01 cm ไม่ยึดเต็มช่อง merge A1:A2 */
+function addLogoImageCompact(ws: ExcelJS.Worksheet, logoImageId: number | null): void {
+  if (logoImageId == null) return;
+  const widthCm = 4.01;
+  const widthPx = cmToExcelPx(widthCm);
+  /** สัดส่วนเดิม 88×36 px */
+  const heightPx = Math.round(widthPx * (36 / 88));
+  try {
+    ws.addImage(logoImageId, {
+      tl: { col: 0, row: 0 },
+      ext: { width: widthPx, height: heightPx },
+    });
+  } catch {
+    /* skip */
+  }
+}
+
 @Injectable()
 export class ItemComparisonExcelService {
   async generateReport(data: ItemComparisonReportData): Promise<Buffer> {
@@ -129,21 +151,21 @@ export class ItemComparisonExcelService {
     summarySheet.getRow(3).height = 20;
 
     // แถบตัวกรองแบบเดียวกับ PDF (item-comparison-pdf detailFilterText)
-    const summaryFilterText =
-      `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}  |  จำนวนรายการ: ${data.summary?.total_items ?? 0} รายการ`;
-    summarySheet.mergeCells('A4:E4');
-    const filterCell = summarySheet.getCell('A4');
-    filterCell.value = summaryFilterText;
-    filterCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1A365D' } };
-    filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
-    filterCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    filterCell.border = {
-      top: { style: 'thin' },
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' },
-    };
-    summarySheet.getRow(4).height = 28;
+    // const summaryFilterText =
+    //   `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}  |  จำนวนรายการ: ${data.summary?.total_items ?? 0} รายการ`;
+    // summarySheet.mergeCells('A4:E4');
+    // const filterCell = summarySheet.getCell('A4');
+    // filterCell.value = summaryFilterText;
+    // filterCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1A365D' } };
+    // filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
+    // filterCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    // filterCell.border = {
+    //   top: { style: 'thin' },
+    //   left: { style: 'thin' },
+    //   bottom: { style: 'thin' },
+    //   right: { style: 'thin' },
+    // };
+    // summarySheet.getRow(4).height = 28;
 
     const summaryTableHeaders = ['ลำดับ', 'ชื่ออุปกรณ์', 'จำนวนเบิก', 'จำนวนใช้', 'ส่วนต่าง'];
     const summaryHeaderRow = summarySheet.getRow(5);
@@ -230,13 +252,7 @@ export class ItemComparisonExcelService {
       right: { style: 'thin' },
       bottom: { style: 'thin' },
     };
-    if (logoImageId != null) {
-      try {
-        ws.addImage(logoImageId, 'A1:A2');
-      } catch {
-        /* skip */
-      }
-    }
+    addLogoImageCompact(ws, logoImageId);
     ws.getRow(1).height = 25;
     ws.getRow(2).height = 25;
     ws.getColumn(1).width = 12;
@@ -254,26 +270,26 @@ export class ItemComparisonExcelService {
       right: { style: 'thin' },
     };
 
-    ws.mergeCells('A3:J3');
-    const dateCell = ws.getCell('A3');
-    dateCell.value = `วันที่รายงาน: ${reportDate}`;
-    dateCell.font = { name: 'Tahoma', size: 12, color: { argb: THEME.textMuted } };
-    dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
-    ws.getRow(3).height = 20;
+    // ws.mergeCells('A3:J3');
+    // const dateCell = ws.getCell('A3');
+    // dateCell.value = `วันที่รายงาน: ${reportDate}`;
+    // dateCell.font = { name: 'Tahoma', size: 12, color: { argb: THEME.textMuted } };
+    // dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
+    // ws.getRow(3).height = 20;
 
-    ws.mergeCells('A4:J4');
-    const filterCell = ws.getCell('A4');
-    filterCell.value = `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
-    filterCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: THEME.navy } };
-    filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.navyLight } };
-    filterCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    filterCell.border = {
-      top: { style: 'thin' },
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' },
-    };
-    ws.getRow(4).height = 22;
+    // ws.mergeCells('A4:J4');
+    // const filterCell = ws.getCell('A4');
+    // filterCell.value = `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
+    // filterCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: THEME.navy } };
+    // filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.navyLight } };
+    // filterCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    // filterCell.border = {
+    //   top: { style: 'thin' },
+    //   left: { style: 'thin' },
+    //   bottom: { style: 'thin' },
+    //   right: { style: 'thin' },
+    // };
+    // ws.getRow(4).height = 22;
 
     let r = 5;
     const hdrLabels = [
