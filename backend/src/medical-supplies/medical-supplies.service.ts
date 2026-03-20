@@ -4528,14 +4528,15 @@ export class MedicalSuppliesService {
         }
       });
 
-      await this.createLog(null, {
-        type: 'CREATE',
-        status: 'SUCCESS',
-        action: 'recordStockReturns',
-        item_stock_ids: rowIds,
-        return_by_user_id: data.return_by_user_id,
-        count: data.items.length,
-      });
+      // บันทึก log สำเร็จ (usage_id = null — ไม่มี usage เดียวที่ผูก)
+      // await this.createLog(null, {
+      //   type: 'CREATE',
+      //   status: 'SUCCESS',
+      //   action: 'recordStockReturns',
+      //   item_stock_ids: rowIds,
+      //   return_by_user_id: data.return_by_user_id,
+      //   count: data.items.length,
+      // });
 
       return {
         success: true,
@@ -4543,14 +4544,15 @@ export class MedicalSuppliesService {
         message: `บันทึกการคืนอุปกรณ์เข้าตู้สำเร็จ ${data.items.length} รายการ`,
       };
     } catch (error: any) {
-      await this.createLog(null, {
-        type: 'CREATE',
-        status: 'ERROR',
-        action: 'recordStockReturns',
-        return_by_user_id: data?.return_by_user_id,
-        error_message: error?.message,
-        error_code: error?.code,
-      });
+      // บันทึก log กรณี error (เช่น validation / transaction ล้ม)
+      // await this.createLog(null, {
+      //   type: 'CREATE',
+      //   status: 'ERROR',
+      //   action: 'recordStockReturns',
+      //   return_by_user_id: data?.return_by_user_id,
+      //   error_message: error?.message,
+      //   error_code: error?.code,
+      // });
       throw error;
     }
   }
@@ -4580,14 +4582,14 @@ export class MedicalSuppliesService {
       const updatedCount = Number(updateResult || 0);
 
       // Create success log
-      await this.createLog(null, {
-        type: 'UPDATE',
-        status: 'SUCCESS',
-        action: 'returnItemsToCabinet',
-        row_ids: rowIds,
-        user_id: userId,
-        updated_count: updatedCount,
-      });
+      // await this.createLog(null, {
+      //   type: 'UPDATE',
+      //   status: 'SUCCESS',
+      //   action: 'returnItemsToCabinet',
+      //   row_ids: rowIds,
+      //   user_id: userId,
+      //   updated_count: updatedCount,
+      // });
 
       return {
         success: true,
@@ -4596,15 +4598,15 @@ export class MedicalSuppliesService {
       };
     } catch (error) {
       // Create error log
-      await this.createLog(null, {
-        type: 'UPDATE',
-        status: 'ERROR',
-        action: 'returnItemsToCabinet',
-        row_ids: rowIds,
-        user_id: userId,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // await this.createLog(null, {
+      //   type: 'UPDATE',
+      //   status: 'ERROR',
+      //   action: 'returnItemsToCabinet',
+      //   row_ids: rowIds,
+      //   user_id: userId,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
@@ -4752,14 +4754,14 @@ export class MedicalSuppliesService {
       const updatedCount = Number(updateResult || 0);
 
       // Create success log
-      await this.createLog(null, {
-        type: 'UPDATE',
-        status: 'SUCCESS',
-        action: 'dispenseItemsFromCabinet',
-        row_ids: rowIds,
-        user_id: userId,
-        updated_count: updatedCount,
-      });
+      // await this.createLog(null, {
+      //   type: 'UPDATE',
+      //   status: 'SUCCESS',
+      //   action: 'dispenseItemsFromCabinet',
+      //   row_ids: rowIds,
+      //   user_id: userId,
+      //   updated_count: updatedCount,
+      // });
 
       return {
         success: true,
@@ -4768,15 +4770,15 @@ export class MedicalSuppliesService {
       };
     } catch (error) {
       // Create error log
-      await this.createLog(null, {
-        type: 'UPDATE',
-        status: 'ERROR',
-        action: 'dispenseItemsFromCabinet',
-        row_ids: rowIds,
-        user_id: userId,
-        error_message: error.message,
-        error_code: error.code,
-      });
+      // await this.createLog(null, {
+      //   type: 'UPDATE',
+      //   status: 'ERROR',
+      //   action: 'dispenseItemsFromCabinet',
+      //   row_ids: rowIds,
+      //   user_id: userId,
+      //   error_message: error.message,
+      //   error_code: error.code,
+      // });
       throw error;
     }
   }
