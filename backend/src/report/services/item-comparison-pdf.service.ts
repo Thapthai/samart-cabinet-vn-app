@@ -3,11 +3,16 @@ import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { ItemComparisonReportData, UsageDetail } from '../types/item-comparison-report.types';
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
-import { formatReportDateTime } from '../utils/date-timeformat';
+import {
+  formatReportDateOnlyUtc,
+  formatReportDateTime,
+  formatReportDateTimeUtc,
+} from '../utils/date-timeformat';
 
-function formatFilterDateValue(v?: string | null): string {
+/** filter วันที่เริ่ม/สิ้นสุด: ว่าง = ทั้งหมด — แสดงตาม UTC ให้ตรง DB */
+function formatFilterDateOnly(v?: string | null): string {
   if (v == null || String(v).trim() === '') return 'ทั้งหมด';
-  return formatReportDateTime(v);
+  return formatReportDateOnlyUtc(v);
 }
 
 @Injectable()
@@ -116,34 +121,6 @@ export class ItemComparisonPdfService {
           doc.fillColor('#000000');
           doc.y += 8;
         };
-
-        // const drawFilterRow = () => {
-        //   const cw = contentWidth();
-        //   const filterRowHeight = 36;
-        //   const filterY = doc.y;
-        //   const filterCells = [
-        //     { label: 'วันที่เริ่ม', value: formatFilterDateValue(filters.startDate) },
-        //     { label: 'วันที่สิ้นสุด', value: formatFilterDateValue(filters.endDate) },
-        //     { label: 'แผนก', value: filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด' },
-        //     { label: 'จำนวนรายการ', value: `${data.summary?.total_items ?? 0} รายการ` },
-        //   ];
-        //   const filterColWidth = Math.floor(cw / filterCells.length);
-        //   let fx = margin;
-        //   filterCells.forEach((fc, i) => {
-        //     const cellW =
-        //       i === filterCells.length - 1
-        //         ? cw - filterColWidth * (filterCells.length - 1)
-        //         : filterColWidth;
-        //     doc.rect(fx, filterY, cellW, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
-        //     doc.fontSize(12).font(finalFontBoldName).fillColor('#444444');
-        //     doc.text(fc.label, fx + 4, filterY + 5, { width: cellW - 8, align: 'center' });
-        //     doc.fontSize(14).font(finalFontName).fillColor('#1A365D');
-        //     doc.text(String(fc.value), fx + 4, filterY + 18, { width: cellW - 8, align: 'center' });
-        //     fx += cellW;
-        //   });
-        //   doc.fillColor('#000000');
-        //   doc.y = filterY + filterRowHeight + 4;
-        // };
 
         // ---------- หน้าแรก: สรุป ----------
         drawHeaderBlock(
@@ -305,7 +282,7 @@ export class ItemComparisonPdfService {
           'Medical Supply Order detail',
         );
 
-        const detailFilterText = `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
+        const detailFilterText = `วันที่เริ่ม: ${formatFilterDateOnly(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateOnly(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
         doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
         const filterH = Math.max(
           30,
@@ -458,7 +435,7 @@ export class ItemComparisonPdfService {
             const hnEn = `${hn}\n${en}`;
 
             const cells = [
-              formatReportDateTime(dt),
+              formatReportDateTimeUtc(dt),
               code,
               desc,
               String(qty),

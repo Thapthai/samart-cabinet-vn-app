@@ -5,11 +5,6 @@ import { resolveReportLogoPath } from '../config/report.config';
 import { ItemComparisonReportData, UsageDetail } from '../types/item-comparison-report.types';
 import { formatReportDateTime } from '../utils/date-timeformat';
 
-function formatFilterDateValue(v?: string | null): string {
-  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
-  return formatReportDateTime(v);
-}
-
 /** ธีมเดียวกับชีตสรุป */
 const THEME = {
   navy: 'FF1A365D',
@@ -107,7 +102,7 @@ export class ItemComparisonExcelService {
     reportDate: string,
     logoImageId: number | null,
   ): void {
-    const filters = data.filters ?? {};
+
 
     summarySheet.mergeCells('A1:A2');
     summarySheet.getCell('A1').fill = {
@@ -150,25 +145,9 @@ export class ItemComparisonExcelService {
     summaryDateCell.alignment = { horizontal: 'right', vertical: 'middle' };
     summarySheet.getRow(3).height = 20;
 
-    // แถบตัวกรองแบบเดียวกับ PDF (item-comparison-pdf detailFilterText)
-    // const summaryFilterText =
-    //   `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}  |  จำนวนรายการ: ${data.summary?.total_items ?? 0} รายการ`;
-    // summarySheet.mergeCells('A4:E4');
-    // const filterCell = summarySheet.getCell('A4');
-    // filterCell.value = summaryFilterText;
-    // filterCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1A365D' } };
-    // filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
-    // filterCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    // filterCell.border = {
-    //   top: { style: 'thin' },
-    //   left: { style: 'thin' },
-    //   bottom: { style: 'thin' },
-    //   right: { style: 'thin' },
-    // };
-    // summarySheet.getRow(4).height = 28;
 
     const summaryTableHeaders = ['ลำดับ', 'ชื่ออุปกรณ์', 'จำนวนเบิก', 'จำนวนใช้', 'ส่วนต่าง'];
-    const summaryHeaderRow = summarySheet.getRow(5);
+    const summaryHeaderRow = summarySheet.getRow(4);
     summaryTableHeaders.forEach((h, i) => {
       const cell = summaryHeaderRow.getCell(i + 1);
       cell.value = h;
@@ -184,7 +163,7 @@ export class ItemComparisonExcelService {
     });
     summaryHeaderRow.height = 26;
 
-    let summaryDataRowIndex = 6;
+    let summaryDataRowIndex = 5;
     comparisonData.forEach((item, idx) => {
       const difference =
         (item.total_dispensed ?? 0) - (item.total_used ?? 0) - (item.total_returned ?? 0);
@@ -239,7 +218,6 @@ export class ItemComparisonExcelService {
     reportDate: string,
     logoImageId: number | null,
   ): void {
-    const filters = data.filters ?? {};
 
     // —— หัวชีตเหมือนชีตแรก: โลโก้ A1:A2 + หัวข้อ B1:J2 ——
     ws.mergeCells('A1:A2');
@@ -270,30 +248,9 @@ export class ItemComparisonExcelService {
       right: { style: 'thin' },
     };
 
-    // ws.mergeCells('A3:J3');
-    // const dateCell = ws.getCell('A3');
-    // dateCell.value = `วันที่รายงาน: ${reportDate}`;
-    // dateCell.font = { name: 'Tahoma', size: 12, color: { argb: THEME.textMuted } };
-    // dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
-    // ws.getRow(3).height = 20;
-
-    // ws.mergeCells('A4:J4');
-    // const filterCell = ws.getCell('A4');
-    // filterCell.value = `วันที่เริ่ม: ${formatFilterDateValue(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateValue(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
-    // filterCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: THEME.navy } };
-    // filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.navyLight } };
-    // filterCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    // filterCell.border = {
-    //   top: { style: 'thin' },
-    //   left: { style: 'thin' },
-    //   bottom: { style: 'thin' },
-    //   right: { style: 'thin' },
-    // };
-    // ws.getRow(4).height = 22;
-
-    let r = 5;
+    let r = 4;
     const hdrLabels = [
-      'วัน-เวลา',
+      'วัน - เวลา',
       'Item Code',
       'รายละเอียด',
       'จำนวน',
@@ -362,7 +319,7 @@ export class ItemComparisonExcelService {
         const bg = dataRowIdx % 2 === 0 ? 'FFFFFFFF' : THEME.rowAlt;
         dataRowIdx++;
         const row = ws.addRow([
-          formatReportDateTime(dt),
+          dt,
           code,
           desc,
           qty,
@@ -383,6 +340,20 @@ export class ItemComparisonExcelService {
             c === 3 || c === 10
               ? { horizontal: 'left', vertical: 'middle', wrapText: true }
               : { horizontal: 'center', vertical: 'middle' };
+          // ค่า dt ถูกแล้ว แต่ Excel มักใช้รูปแบบแค่วันที่ — ตั้ง numFmt ให้เห็นเวลาในช่อง
+          if (c === 1) {
+            let v = cell.value;
+            if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v.trim())) {
+              const parsed = new Date(v.trim());
+              if (!Number.isNaN(parsed.getTime())) {
+                cell.value = parsed;
+                v = parsed;
+              }
+            }
+            if (v instanceof Date || (typeof v === 'number' && Number.isFinite(v))) {
+              cell.numFmt = 'dd/mm/yyyy hh:mm:ss';
+            }
+          }
         }
         r++;
       }

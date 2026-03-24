@@ -84,3 +84,53 @@ export function formatReportDateOnly(value?: string | Date | null): string {
   if (Number.isNaN(d.getTime())) return s;
   return localeDateOnly(d, 'Asia/Bangkok');
 }
+
+// --- แยกจากของเดิม: ค่า `Date` / DB เก็บเป็น UTC ให้แสดงตาม UTC (ไม่เลื่อนเป็น Asia/Bangkok) ---
+
+/** แปลง input เป็นจุดเวลา — สตริง ISO ไม่มี timezone (วันเวลา) ให้ parse เป็น UTC (ต่อ Z) */
+function parseInputForUtcDisplay(v: string | Date): Date | null {
+  if (v instanceof Date) {
+    return Number.isNaN(v.getTime()) ? null : v;
+  }
+  const s = String(v).trim();
+  if (!s) return null;
+  const hasExplicitTz = /Z$/i.test(s) || /[+-]\d{2}:?\d{2}$/.test(s);
+  if (hasExplicitTz) {
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s)) {
+    const normalized = s.includes('T') ? s : s.replace(' ', 'T');
+    const d = new Date(normalized.endsWith('Z') ? normalized : `${normalized}Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * เหมือน formatReportDateTime แต่ `Date` และข้อมูลจาก DB แสดงตาม **UTC** ตรงกับ ISO (ไม่ +7)
+ * ใช้กับรายงานที่เก็บเวลาเป็น UTC ใน DB
+ */
+export function formatReportDateTimeUtc(
+  v: string | Date | null | undefined,
+): string {
+  if (v == null || v === '') return '-';
+  const d = parseInputForUtcDisplay(v as string | Date);
+  if (d == null) return typeof v === 'string' ? v : '-';
+  return d.toLocaleString('th-TH', { ...TH_DATETIME_OPTS, timeZone: 'UTC' });
+}
+
+/**
+ * เหมือน formatReportDateOnly แต่ส่วนที่เป็น `Date` / ช่วงเวลา UTC แสดงตาม **UTC**
+ */
+export function formatReportDateOnlyUtc(value?: string | Date | null): string {
+  if (value == null || value === '') return '-';
+  const d = parseInputForUtcDisplay(value as string | Date);
+  if (d == null) return typeof value === 'string' ? value : '-';
+  return localeDateOnly(d, 'UTC');
+}

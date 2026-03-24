@@ -145,7 +145,7 @@ export class DispensedItemsForPatientsExcelService {
       (filters as any).departmentName ?? filters.departmentCode ?? 'ทั้งหมด',
       filters.usageType === 'OPD' ? 'ผู้ป่วยนอก (OPD)'
         : filters.usageType === 'IPD' ? 'ผู้ป่วยใน (IPD)'
-        : 'ทั้งหมด',
+          : 'ทั้งหมด',
     ];
     // 11 columns → 4 กลุ่ม: A-C(3), D-F(3), G-I(3), J-K(2)
     const filterColMap = [['A', 'C'], ['D', 'F'], ['G', 'I'], ['J', 'K']];
@@ -207,7 +207,7 @@ export class DispensedItemsForPatientsExcelService {
       const hnEn = `${usage.patient_hn ?? '-'} / ${usage.en ?? '-'}`;
       const usageTypeLabel = (usage.usage_type ?? '').toUpperCase() === 'IPD' ? 'ผู้ป่วยใน (IPD)'
         : (usage.usage_type ?? '').toUpperCase() === 'OPD' ? 'ผู้ป่วยนอก (OPD)'
-        : (usage.usage_type ?? '-');
+          : (usage.usage_type ?? '-');
 
       // Main row
       const mainCells: (string | number)[] = [
