@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -11,11 +11,22 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  ArrowLeft,
   Shield,
 } from 'lucide-react';
-import { staffMenuItems, filterMenuByPermissions } from '@/app/staff/menus';
+import {
+  staffMenuItems,
+  filterMenuByPermissions,
+  type StaffMenuSubItem,
+} from '@/app/staff/menus';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ASSETS } from '@/lib/assets';
 
 interface StaffSidebarProps {
@@ -30,6 +41,59 @@ interface StaffSidebarProps {
   isAdmin?: boolean;
 }
 
+const STAFF_SIDEBAR_COLLAPSED_KEY = 'staff-sidebar-collapsed';
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setMatches(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [query]);
+  return matches;
+}
+
+/** เมนูย่อยแบบรายการเดียว (staff ไม่มีเมนูซ้อน) — ใช้ตอน sidebar หุบ desktop */
+function StaffCollapsedFlyoutSubItems({
+  items,
+  pathname,
+  onNavigate,
+}: {
+  items: StaffMenuSubItem[];
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  return (
+    <>
+      {items.map((sub) => {
+        const SubIcon = sub.icon;
+        const subActive =
+          pathname === sub.href || pathname.startsWith(sub.href + '/');
+        return (
+          <DropdownMenuItem key={sub.href} asChild>
+            <Link
+              href={sub.href}
+              onClick={onNavigate}
+              className={cn(
+                'flex cursor-pointer items-center gap-2',
+                subActive && 'bg-sky-50 font-medium text-slate-900',
+              )}
+            >
+              {SubIcon ? (
+                <SubIcon className="h-4 w-4 shrink-0" />
+              ) : (
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+              )}
+              <span className="break-words leading-tight">{sub.name}</span>
+            </Link>
+          </DropdownMenuItem>
+        );
+      })}
+    </>
+  );
+}
 
 export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: StaffSidebarProps) {
   const pathname = usePathname();
@@ -37,6 +101,34 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const skipInitialPersist = useRef(true);
+  const isLg = useMediaQuery('(min-width: 1024px)');
+  /** ไอคอน + เปิดแผงเมนูทางขวา (เฉพาะ desktop ตอน sidebar หุบ) */
+  const useCollapsedFlyout = isCollapsed && isLg;
+
+  // โหลดการหุบ/กางจากเครื่อง (หลัง mount)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(STAFF_SIDEBAR_COLLAPSED_KEY) === '1') {
+        setIsCollapsed(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // จำค่าที่ผู้ใช้เลือก — รีเฟรชก็ยังหุบ/กางตามเดิม (คีย์แยกจาก admin-sidebar-collapsed)
+  useEffect(() => {
+    if (skipInitialPersist.current) {
+      skipInitialPersist.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(STAFF_SIDEBAR_COLLAPSED_KEY, isCollapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [isCollapsed]);
 
   // Next.js automatically strips basePath from pathname, so we can use it directly
   // Close mobile menu on route change
@@ -200,23 +292,59 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
           {/* Navigation */}
           <nav className="flex-1 pl-2 pr-2 py-6 space-y-2 overflow-y-auto overflow-x-hidden scrollbar-sidebar">
             {/* Admin - Back to Admin Panel Link */}
-            {isAdmin && (
-              <Link
-                href="/admin/items"
-                onClick={() => setIsMobileOpen(false)}
-                className={cn(
-                  'group relative flex items-center w-full pl-2 pr-2 py-3 text-lg font-medium rounded-xl transition-all duration-200 mb-4',
-                  'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30 hover:from-sky-500 hover:to-blue-500',
-                  isCollapsed && 'lg:justify-center lg:px-2'
-                )}
-                title={isCollapsed ? 'กลับไปหน้า Admin' : undefined}
-              >
-                <Shield className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
-                {!isCollapsed && (
-                  <span className="flex-1 font-semibold">กลับไปหน้า Admin</span>
-                )}
-              </Link>
-            )}
+            {isAdmin &&
+              (useCollapsedFlyout ? (
+                <div className="mb-4 w-full rounded-xl bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30">
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-center rounded-xl px-2 py-3 outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
+                        aria-label="กลับไปหน้า Admin"
+                        aria-haspopup="menu"
+                      >
+                        <Shield className="h-5 w-5 flex-shrink-0 text-white" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      side="right"
+                      align="start"
+                      sideOffset={8}
+                      className="w-56 max-w-[min(18rem,calc(100vw-4rem))]"
+                    >
+                      <DropdownMenuLabel className="font-semibold text-slate-900">
+                        กลับไปหน้า Admin
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href="/admin/items"
+                          onClick={() => setIsMobileOpen(false)}
+                          className="cursor-pointer"
+                        >
+                          ไปที่หน้า Admin
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ) : (
+                <Link
+                  href="/admin/items"
+                  onClick={() => setIsMobileOpen(false)}
+                  className={cn(
+                    'group relative flex items-center w-full pl-2 pr-2 py-3 text-lg font-medium rounded-xl transition-all duration-200 mb-4',
+                    'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30 hover:from-sky-500 hover:to-blue-500',
+                    isCollapsed && 'lg:justify-center lg:px-2',
+                  )}
+                  title={isCollapsed ? 'กลับไปหน้า Admin' : undefined}
+                >
+                  <Shield className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
+                  {!isCollapsed && (
+                    <span className="flex-1 font-semibold">กลับไปหน้า Admin</span>
+                  )}
+                </Link>
+              ))}
 
             {filterMenuByPermissions(staffMenuItems, permissions)
               .map((item) => {
@@ -226,100 +354,167 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                   isPathActive(pathname, item.href) ||
                   (hasSubmenu && item.submenu!.some((s) => isPathActive(pathname, s.href)));
                 const open = openSubmenus[item.href] ?? isActive;
+                const rowActiveClass = isActive
+                  ? 'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30'
+                  : 'text-slate-700 hover:bg-sky-100/90 hover:text-slate-900';
 
                 return (
                   <div key={item.href}>
-                    <div
-                      className={cn(
-                        'group relative flex items-center w-full rounded-xl transition-all duration-200',
-                        isActive
-                          ? 'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30'
-                          : 'text-slate-700 hover:bg-sky-100/90 hover:text-slate-900',
-                        isCollapsed && 'lg:justify-center lg:px-2'
-                      )}
-                    >
-                      {item.noHref && hasSubmenu ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
-                            setIsMobileOpen(false);
-                          }}
+                    {useCollapsedFlyout ? (
+                      <div className={cn('group relative w-full rounded-xl', rowActiveClass)}>
+                        <DropdownMenu modal={false}>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className={cn(
+                                'relative flex w-full items-center justify-center rounded-xl px-2 py-3 text-lg font-medium outline-none transition-colors',
+                                isActive ? 'text-white' : 'text-inherit',
+                                'focus-visible:ring-2 focus-visible:ring-sky-400/50',
+                              )}
+                              aria-label={item.name}
+                              aria-haspopup="menu"
+                            >
+                              {isActive && (
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
+                              )}
+                              <Icon
+                                className={cn(
+                                  'h-5 w-5 flex-shrink-0',
+                                  isActive ? 'text-white' : 'text-slate-600',
+                                )}
+                              />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            side="right"
+                            align="start"
+                            sideOffset={8}
+                            className="w-64 max-h-[min(70vh,24rem)] max-w-[min(18rem,calc(100vw-4rem))] overflow-y-auto"
+                          >
+                            <DropdownMenuLabel className="font-semibold text-slate-900">
+                              {item.name}
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {hasSubmenu ? (
+                              <StaffCollapsedFlyoutSubItems
+                                items={item.submenu!}
+                                pathname={pathname}
+                                onNavigate={() => setIsMobileOpen(false)}
+                              />
+                            ) : (
+                              <DropdownMenuItem asChild>
+                                <Link
+                                  href={item.href}
+                                  onClick={() => setIsMobileOpen(false)}
+                                  className="cursor-pointer"
+                                >
+                                  ไปที่หน้า{item.name}
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    ) : (
+                      <>
+                        <div
                           className={cn(
-                            'flex flex-1 min-w-0 items-center pl-2 pr-2 py-3 text-lg font-medium rounded-xl text-inherit text-left cursor-pointer',
-                            isActive && 'text-white',
-                            isCollapsed && 'lg:justify-center lg:px-2'
+                            'group relative flex items-center w-full rounded-xl transition-all duration-200',
+                            rowActiveClass,
+                            isCollapsed && 'lg:justify-center lg:px-2',
                           )}
-                          title={isCollapsed ? item.name : undefined}
                         >
-                          {isActive && !isCollapsed && (
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
-                          )}
-                          <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
-                          {!isCollapsed && <span className="flex-1 min-w-0 break-words leading-tight text-left">{item.name}</span>}
-                        </button>
-                      ) : (
-                        <Link
-                          href={item.href}
-                          onClick={() => setIsMobileOpen(false)}
-                          className={cn(
-                            'flex flex-1 min-w-0 items-center pl-2 pr-2 py-3 text-lg font-medium rounded-xl text-inherit',
-                            isActive && 'text-white',
-                            isCollapsed && 'lg:justify-center lg:px-2'
-                          )}
-                          title={isCollapsed ? item.name : undefined}
-                        >
-                          {isActive && !isCollapsed && (
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
-                          )}
-                          <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
-                          {!isCollapsed && <span className="flex-1 min-w-0 break-words leading-tight text-left">{item.name}</span>}
-                        </Link>
-                      )}
-                      {hasSubmenu && !isCollapsed && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
-                          }}
-                          className={cn(
-                            'flex-shrink-0 p-2 rounded-lg text-inherit hover:bg-sky-100/80 transition-colors',
-                            isActive && 'text-white'
-                          )}
-                          aria-expanded={open}
-                          aria-label={open ? 'ปิดเมนูย่อย' : 'เปิดเมนูย่อย'}
-                        >
-                          <ChevronRight className={cn('h-4 w-4 transition-transform duration-200', open && 'rotate-90')} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Submenu */}
-                    {hasSubmenu && open && !isCollapsed && (
-                      <div className="ml-4 mt-2 space-y-1 border-l-2 border-sky-300/70 pl-4">
-                        {item.submenu!.map((subItem) => {
-                          const SubIcon = subItem.icon;
-                          const isSubActive = isPathActive(pathname, subItem.href);
-                          return (
+                          {item.noHref && hasSubmenu ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
+                                setIsMobileOpen(false);
+                              }}
+                              className={cn(
+                                'flex flex-1 min-w-0 items-center pl-2 pr-2 py-3 text-lg font-medium rounded-xl text-inherit text-left cursor-pointer',
+                                isActive && 'text-white',
+                                isCollapsed && 'lg:justify-center lg:px-2',
+                              )}
+                              title={isCollapsed ? item.name : undefined}
+                            >
+                              {isActive && !isCollapsed && (
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
+                              )}
+                              <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
+                              {!isCollapsed && (
+                                <span className="flex-1 min-w-0 break-words leading-tight text-left">{item.name}</span>
+                              )}
+                            </button>
+                          ) : (
                             <Link
-                              key={subItem.href}
-                              href={subItem.href}
+                              href={item.href}
                               onClick={() => setIsMobileOpen(false)}
                               className={cn(
-                                'flex items-center pl-2 pr-2 py-2 text-lg rounded-lg transition-all duration-200',
-                                isSubActive
-                                  ? 'bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium'
-                                  : 'text-slate-600 hover:bg-sky-50 hover:text-slate-800'
+                                'flex flex-1 min-w-0 items-center pl-2 pr-2 py-3 text-lg font-medium rounded-xl text-inherit',
+                                isActive && 'text-white',
+                                isCollapsed && 'lg:justify-center lg:px-2',
                               )}
+                              title={isCollapsed ? item.name : undefined}
                             >
-                              {SubIcon ? <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />}
-                              <span className="break-words leading-tight">{subItem.name}</span>
+                              {isActive && !isCollapsed && (
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
+                              )}
+                              <Icon className={cn('h-5 w-5 flex-shrink-0', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
+                              {!isCollapsed && (
+                                <span className="flex-1 min-w-0 break-words leading-tight text-left">{item.name}</span>
+                              )}
                             </Link>
-                          );
-                        })}
-                      </div>
+                          )}
+                          {hasSubmenu && !isCollapsed && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
+                              }}
+                              className={cn(
+                                'flex-shrink-0 p-2 rounded-lg text-inherit hover:bg-sky-100/80 transition-colors',
+                                isActive && 'text-white',
+                              )}
+                              aria-expanded={open}
+                              aria-label={open ? 'ปิดเมนูย่อย' : 'เปิดเมนูย่อย'}
+                            >
+                              <ChevronRight className={cn('h-4 w-4 transition-transform duration-200', open && 'rotate-90')} />
+                            </button>
+                          )}
+                        </div>
+
+                        {hasSubmenu && open && !isCollapsed && (
+                          <div className="ml-4 mt-2 space-y-1 border-l-2 border-sky-300/70 pl-4">
+                            {item.submenu!.map((subItem) => {
+                              const SubIcon = subItem.icon;
+                              const isSubActive = isPathActive(pathname, subItem.href);
+                              return (
+                                <Link
+                                  key={subItem.href}
+                                  href={subItem.href}
+                                  onClick={() => setIsMobileOpen(false)}
+                                  className={cn(
+                                    'flex items-center pl-2 pr-2 py-2 text-lg rounded-lg transition-all duration-200',
+                                    isSubActive
+                                      ? 'bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium'
+                                      : 'text-slate-600 hover:bg-sky-50 hover:text-slate-800',
+                                  )}
+                                >
+                                  {SubIcon ? (
+                                    <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  ) : (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />
+                                  )}
+                                  <span className="break-words leading-tight">{subItem.name}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 );
@@ -328,23 +523,48 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
 
           {/* Footer */}
           <div className="p-4 border-t border-sky-200/80">
-            {onLogout && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  onLogout();
-                  setIsMobileOpen(false);
-                }}
-                className={cn(
-                  'w-full justify-start text-lg text-slate-600 hover:text-slate-900 hover:bg-red-50',
-                  isCollapsed && 'lg:justify-center lg:px-2'
-                )}
-                title={isCollapsed ? 'ออกจากระบบ' : undefined}
-              >
-                <LogOut className={cn('h-5 w-5', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
-                {!isCollapsed && <span>ออกจากระบบ</span>}
-              </Button>
-            )}
+            {onLogout &&
+              (useCollapsedFlyout ? (
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-center px-2 text-lg text-slate-600 hover:text-slate-900 hover:bg-red-50"
+                      aria-label="ออกจากระบบ"
+                      aria-haspopup="menu"
+                    >
+                      <LogOut className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="end" sideOffset={8} className="w-48">
+                    <DropdownMenuItem
+                      className="cursor-pointer text-red-700 focus:text-red-800"
+                      onClick={() => {
+                        onLogout();
+                        setIsMobileOpen(false);
+                      }}
+                    >
+                      ออกจากระบบ
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    onLogout();
+                    setIsMobileOpen(false);
+                  }}
+                  className={cn(
+                    'w-full justify-start text-lg text-slate-600 hover:text-slate-900 hover:bg-red-50',
+                    isCollapsed && 'lg:justify-center lg:px-2',
+                  )}
+                  title={isCollapsed ? 'ออกจากระบบ' : undefined}
+                >
+                  <LogOut className={cn('h-5 w-5', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
+                  {!isCollapsed && <span>ออกจากระบบ</span>}
+                </Button>
+              ))}
           </div>
         </div>
       </aside>

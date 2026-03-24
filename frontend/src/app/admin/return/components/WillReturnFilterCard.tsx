@@ -30,6 +30,8 @@ interface WillReturnFilterCardProps {
   onReset: () => void;
   onRefresh?: () => void;
   loading: boolean;
+  /** Staff: ล็อกแผนกตามโปรไฟล์ — ไม่ให้เลือกทั้งหมด/แผนกอื่น (role warehouse ไม่ใช้โหมดนี้) */
+  departmentLocked?: boolean;
 }
 
 export default function WillReturnFilterCard({
@@ -49,12 +51,21 @@ export default function WillReturnFilterCard({
   onReset,
   onRefresh,
   loading,
+  departmentLocked = false,
 }: WillReturnFilterCardProps) {
+  const lockedDeptLabel =
+    departments.find((d) => String(d.ID) === departmentId)?.DepName ??
+    (departmentId ? `แผนก ${departmentId}` : 'ไม่ระบุแผนก');
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>กรองข้อมูล</CardTitle>
-        <CardDescription>ค้นหาและกรองรายการแจ้งคืนอุปกรณ์</CardDescription>
+        <CardDescription>
+          {departmentLocked
+            ? 'แสดงเฉพาะรายการในแผนกของคุณ — เลือกตู้และช่วงวันที่ได้ตามปกติ'
+            : 'ค้นหาและกรองรายการแจ้งคืนอุปกรณ์'}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
@@ -94,31 +105,43 @@ export default function WillReturnFilterCard({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">แผนก</label>
-              <Select
-                value={departmentId || 'all'}
-                onValueChange={(v) => {
-                  onDepartmentChange(v === 'all' ? '' : v);
-                  onCabinetChange('');
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="เลือกแผนก" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">ทั้งหมด</SelectItem>
-                  {departments.map((d) => (
-                    <SelectItem key={d.ID} value={String(d.ID)}>
-                      {d.DepName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {departmentLocked ? (
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                  <span className="truncate">{lockedDeptLabel}</span>
+                </div>
+              ) : (
+                <Select
+                  value={departmentId || 'all'}
+                  onValueChange={(v) => {
+                    onDepartmentChange(v === 'all' ? '' : v);
+                    onCabinetChange('');
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="เลือกแผนก" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">ทั้งหมด</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.ID} value={String(d.ID)}>
+                        {d.DepName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">ตู้ Cabinet</label>
               <Select value={cabinetId || 'all'} onValueChange={(v) => onCabinetChange(v === 'all' ? '' : v)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={departmentId ? 'เลือกตู้ Cabinet' : 'ทั้งหมด'} />
+                  <SelectValue
+                    placeholder={
+                      departmentId && cabinets.length === 0
+                        ? 'ไม่มีตู้ในแผนกนี้'
+                        : 'เลือกตู้ Cabinet'
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">ทั้งหมด</SelectItem>

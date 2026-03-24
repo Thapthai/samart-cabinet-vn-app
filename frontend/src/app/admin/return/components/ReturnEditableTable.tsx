@@ -21,10 +21,10 @@ import {
 import type { SupplyItem, ReturnReason } from '../types';
 
 export const RETURN_REASON_OPTIONS: { value: ReturnReason; label: string }[] = [
-  { value: 'UNWRAPPED_UNUSED', label: 'ยังไม่ได้แกะซอง / อยู่ในสภาพเดิม' },
   { value: 'EXPIRED', label: 'อุปกรณ์หมดอายุ' },
   { value: 'CONTAMINATED', label: 'อุปกรณ์มีการปนเปื้อน' },
   { value: 'DAMAGED', label: 'อุปกรณ์ชำรุด' },
+  { value: 'OTHER', label: 'อื่นๆ (ระบุหมายเหตุ เช่น หาย)' },
 ];
 
 export interface ReturnRow {
@@ -118,12 +118,15 @@ export default function ReturnEditableTable({
                     <TableCell>
                       <Select
                         value={row.returnReason}
-                        onValueChange={(v) => onReasonChange(row.item.id, v as ReturnReason)}
+                        onValueChange={(v) => {
+                          onReasonChange(row.item.id, v as ReturnReason);
+                          if (v !== 'OTHER') onNoteChange(row.item.id, '');
+                        }}
                       >
-                        <SelectTrigger className="w-full min-w-[180px] rounded-lg border-slate-200">
+                        <SelectTrigger className="h-auto min-h-9 w-full min-w-[220px] !w-full max-w-none whitespace-normal rounded-lg border-slate-200 py-2 [&_[data-slot=select-value]]:line-clamp-none">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="min-w-[var(--radix-select-trigger-width)]">
                           {RETURN_REASON_OPTIONS.map((opt) => (
                             <SelectItem key={opt.value} value={opt.value}>
                               {opt.label}
@@ -134,10 +137,15 @@ export default function ReturnEditableTable({
                     </TableCell>
                     <TableCell>
                       <Input
-                        value={row.returnNote}
+                        value={row.returnReason === 'OTHER' ? row.returnNote : ''}
                         onChange={(e) => onNoteChange(row.item.id, e.target.value)}
-                        placeholder="หมายเหตุ (ถ้ามี)"
-                        className="min-w-[120px] rounded-lg border-slate-200"
+                        placeholder={
+                          row.returnReason === 'OTHER'
+                            ? 'เช่น หาย'
+                            : 'เลือก "อื่นๆ" เพื่อกรอก'
+                        }
+                        disabled={row.returnReason !== 'OTHER'}
+                        className="h-9 min-w-[140px] w-full rounded-lg border-slate-200 disabled:cursor-not-allowed disabled:opacity-70"
                       />
                     </TableCell>
                   </TableRow>

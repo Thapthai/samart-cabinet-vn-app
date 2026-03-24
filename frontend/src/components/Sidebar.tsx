@@ -6,6 +6,17 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ASSETS } from "@/lib/assets";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   LayoutDashboard,
   Package,
   Menu,
@@ -218,10 +229,98 @@ function isSubmenuActive(pathname: string, sub: SubMenuItem): boolean {
   return (sub.submenu ?? []).some((s) => isSubmenuActive(pathname, s));
 }
 
+/** เมนูย่อยในแผงตอน sidebar หุบ (desktop) */
+function CollapsedFlyoutSubItems({
+  items,
+  pathname,
+}: {
+  items: SubMenuItem[];
+  pathname: string;
+}) {
+  return (
+    <>
+      {items.map((sub) => {
+        const SubIcon = sub.icon;
+        const hasNested = (sub.submenu?.length ?? 0) > 0;
+        const subActive = isSubmenuActive(pathname, sub);
+
+        if (hasNested) {
+          return (
+            <DropdownMenuSub key={sub.href}>
+              <DropdownMenuSubTrigger className="cursor-pointer gap-2">
+                {SubIcon ? <SubIcon className="h-4 w-4 shrink-0" /> : null}
+                <span className="truncate">{sub.name}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="max-h-[min(70vh,20rem)] overflow-y-auto">
+                {sub.submenu!.map((inner) => {
+                  const InnerIcon = inner.icon;
+                  const innerActive = isPathActive(pathname, inner.href);
+                  return (
+                    <DropdownMenuItem key={inner.href} asChild>
+                      <Link
+                        href={inner.href}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-2",
+                          innerActive && "bg-sky-50 font-medium text-slate-900",
+                        )}
+                      >
+                        {InnerIcon ? (
+                          <InnerIcon className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+                        )}
+                        <span className="break-words">{inner.name}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          );
+        }
+
+        return (
+          <DropdownMenuItem key={sub.href} asChild>
+            <Link
+              href={sub.href}
+              className={cn(
+                "flex cursor-pointer items-center gap-2",
+                subActive && "bg-sky-50 font-medium text-slate-900",
+              )}
+            >
+              {SubIcon ? (
+                <SubIcon className="h-4 w-4 shrink-0" />
+              ) : (
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+              )}
+              <span className="break-words leading-tight">{sub.name}</span>
+            </Link>
+          </DropdownMenuItem>
+        );
+      })}
+    </>
+  );
+}
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setMatches(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
+
 export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
   const [openSubmenus, setOpenSubmenus] = React.useState<Record<string, boolean>>({});
+  const isLg = useMediaQuery("(min-width: 1024px)");
+  /** เมนูแบบไอคอน + เปิดแผงเมนูทางขวา (เฉพาะ desktop ตอน sidebar หุบ) */
+  const useCollapsedFlyout = isCollapsed && isLg;
 
   return (
     <>
@@ -245,51 +344,54 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
       <aside
         className={cn(
           "fixed top-0 left-0 z-40 h-screen bg-gradient-to-b from-sky-50 via-blue-50/80 to-indigo-50 text-slate-800 shadow-xl overflow-x-hidden border-r border-sky-200/80",
-          "transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-          isCollapsed ? "lg:w-16" : "w-72 lg:w-72",
+          "w-72 max-w-[min(18rem,calc(100vw-2rem))] will-change-[width]",
+          "transition-[width,transform] duration-300 ease-in-out motion-reduce:transition-none",
+          isCollapsed ? "lg:w-16 lg:max-w-none" : "lg:w-72",
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex flex-col h-full">
-          <div className={cn("flex items-center justify-between border-b border-sky-200/80 transition-[padding] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] p-4", isCollapsed && "lg:p-2")}>
-            {!isCollapsed && (
-              <Link
-                href="/admin/dashboard"
-                className="flex items-center space-x-3 flex-1 min-w-0"
-              >
-                <div className="w-45 h-15 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  <img
-                    src={ASSETS.LOGO}
-                    alt="POSE Logo"
-                    className="max-w-full max-h-full w-auto h-auto object-contain"
-                  />
-                </div>
-
-              </Link>
+        <div className="flex flex-col h-full min-h-0">
+          <div
+            className={cn(
+              "flex shrink-0 border-b border-sky-200/80 transition-[padding] duration-300 ease-in-out",
+              isCollapsed
+                ? "lg:flex-col lg:items-stretch lg:gap-2 lg:px-2 lg:py-3"
+                : "flex-row items-center justify-between gap-2 p-4"
             )}
-            {isCollapsed && (
-              <Link
-                href="/admin/dashboard"
-                className="w-50 h-15 flex items-center justify-center mx-auto overflow-hidden"
-              >
-                <img
-                  src={ASSETS.LOGO}
-                  alt="POSE"
-                  className="max-w-full max-h-full w-auto h-auto object-contain"
-                />
-              </Link>
-            )}
+          >
+            <Link
+              href="/admin/dashboard"
+              className={cn(
+                "flex items-center justify-center min-w-0 overflow-hidden rounded-lg outline-none ring-sky-400/0 focus-visible:ring-2",
+                isCollapsed ? "lg:w-full" : "flex-1"
+              )}
+            >
+              <img
+                src={ASSETS.LOGO}
+                alt="POSE Logo"
+                className={cn(
+                  "object-contain transition-[transform,width,height,max-width] duration-300 ease-in-out",
+                  isCollapsed
+                    ? "h-11 w-auto max-h-11 max-w-[2.75rem] lg:h-9 lg:max-h-9 lg:max-w-9"
+                    : "h-12 max-h-14 w-auto max-w-[200px]"
+                )}
+              />
+            </Link>
             <button
               type="button"
               onClick={() =>
                 isMobileOpen ? setIsMobileOpen(false) : setIsCollapsed(!isCollapsed)
               }
-              className="hidden lg:flex flex-shrink-0 items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-sky-100 transition-colors duration-200"
+              className={cn(
+                "hidden lg:inline-flex flex-shrink-0 items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 hover:bg-sky-100/90 transition-colors duration-200",
+                isCollapsed ? "h-9 w-full" : "h-9 w-9"
+              )}
+              aria-label={isCollapsed ? "ขยายเมนู" : "หุบเมนู"}
             >
               {isCollapsed ? (
-                <ChevronRight className="h-4 w-4 transition-transform duration-200" />
+                <ChevronRight className="h-4 w-4" />
               ) : (
-                <ChevronLeft className="h-4 w-4 transition-transform duration-200" />
+                <ChevronLeft className="h-4 w-4" />
               )}
             </button>
           </div>
@@ -303,149 +405,257 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                 (hasSubmenu && item.submenu!.some((s) => isSubmenuActive(pathname, s)));
               const open = openSubmenus[item.href] ?? true;
 
+              const rowActiveClass = isActive
+                ? "bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30"
+                : "text-slate-700 hover:bg-sky-100/90 hover:text-slate-900";
+
               return (
                 <div key={item.href}>
-                  <div
-                    className={cn(
-                      "flex items-center w-full rounded-xl",
-                      isActive
-                        ? "bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30"
-                        : "text-slate-700 hover:bg-sky-100/90 hover:text-slate-900",
-                      isCollapsed && "lg:justify-center lg:px-2"
-                    )}
-                  >
-                    {item.noHref && hasSubmenu ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
-                          setIsMobileOpen(false);
-                        }}
-                        className={cn(
-                          "flex items-center flex-1 min-w-0 px-3 py-3 text-lg font-medium rounded-xl text-left cursor-pointer",
-                          isActive ? "text-white" : "text-inherit",
-                          isCollapsed && "lg:justify-center lg:px-2"
-                        )}
-                      >
-                        <Icon className={cn("h-5 w-5 flex-shrink-0 transition-all duration-200", isActive ? "text-white" : "text-slate-600", isCollapsed ? "lg:mx-auto" : "mr-2")} />
-                        <span className={cn("flex-1 min-w-0 text-left break-words leading-tight transition-opacity duration-200", isCollapsed && "lg:opacity-0 lg:w-0 lg:min-w-0 lg:overflow-hidden")}>{item.name}</span>
-                      </button>
-                    ) : (
-                      <Link
-                        href={item.href}
-                        onClick={() => setIsMobileOpen(false)}
-                        className={cn(
-                          "flex items-center flex-1 min-w-0 px-3 py-3 text-base font-medium rounded-xl",
-                          isActive ? "text-white" : "text-inherit",
-                          isCollapsed && "lg:justify-center lg:px-2"
-                        )}
-                      >
-                        <Icon className={cn("h-5 w-5 flex-shrink-0 transition-all duration-200", isActive ? "text-white" : "text-slate-600", isCollapsed ? "lg:mx-auto" : "mr-2")} />
-                        <span className={cn("flex-1 min-w-0 text-left break-words leading-tight transition-opacity duration-200", isCollapsed && "lg:opacity-0 lg:w-0 lg:min-w-0 lg:overflow-hidden")}>{item.name}</span>
-                      </Link>
-                    )}
-                    {hasSubmenu && !isCollapsed && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
-                        }}
-                        className={cn(
-                          "flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-inherit transition-colors",
-                          "hover:bg-sky-100/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/50",
-                          isActive && "text-white hover:bg-white/15"
-                        )}
-                        aria-expanded={open}
-                        aria-label={open ? "ปิดเมนูย่อย" : "เปิดเมนูย่อย"}
-                      >
-                        <ChevronRight className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-90")} />
-                      </button>
-                    )}
-                  </div>
-                  {hasSubmenu && !isCollapsed && open && (
-                    <div className="ml-4 mt-1 space-y-1 border-l border-sky-300/70 pl-4">
-                      {item.submenu!.map((sub) => {
-                        const SubIcon = sub.icon;
-                        const hasNested = (sub.submenu?.length ?? 0) > 0;
-                        const subActive = isSubmenuActive(pathname, sub);
-                        const nestedKey = `${item.href}__${sub.href}`;
-                        const nestedOpen = openSubmenus[nestedKey] ?? subActive;
-
-                        if (hasNested) {
-                          return (
-                            <div key={sub.href}>
-                              <div
-                                className={cn(
-                                  "flex items-center rounded-lg",
-                                  subActive ? "bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium" : "text-slate-600 hover:bg-sky-50 hover:text-slate-800"
-                                )}
-                              >
-                                <Link
-                                  href={sub.href}
-                                  onClick={() => setIsMobileOpen(false)}
-                                  className="flex flex-1 min-w-0 items-center px-3 py-2 text-lg rounded-lg text-inherit"
-                                >
-                                  {SubIcon ? <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />}
-                                  <span className="break-words leading-tight">{sub.name}</span>
-                                </Link>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setOpenSubmenus((p) => ({ ...p, [nestedKey]: !nestedOpen }));
-                                  }}
-                                  className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-inherit hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/50 transition-colors"
-                                  aria-expanded={nestedOpen}
-                                  aria-label={nestedOpen ? "ปิดเมนูย่อย" : "เปิดเมนูย่อย"}
-                                >
-                                  <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200", nestedOpen && "rotate-90")} />
-                                </button>
-                              </div>
-                              {nestedOpen && (
-                                <div className="ml-3 mt-1 space-y-1 border-l border-sky-300/70 pl-3">
-                                  {sub.submenu!.map((inner) => {
-                                    const InnerIcon = inner.icon;
-                                    const innerActive = isPathActive(pathname, inner.href);
-                                    return (
-                                      <Link
-                                        key={inner.href}
-                                        href={inner.href}
-                                        onClick={() => setIsMobileOpen(false)}
-                                        className={cn(
-                                          "flex items-center px-3 py-2 text-lg rounded-lg",
-                                          innerActive ? "bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium" : "text-slate-600 hover:bg-sky-50 hover:text-slate-800"
-                                        )}
-                                      >
-                                        {InnerIcon ? <InnerIcon className="h-4 w-4 mr-2 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />}
-                                        <span>{inner.name}</span>
-                                      </Link>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <Link
-                            key={sub.href}
-                            href={sub.href}
-                            onClick={() => setIsMobileOpen(false)}
+                  {useCollapsedFlyout ? (
+                    <div className={cn("w-full rounded-xl", rowActiveClass)}>
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
                             className={cn(
-                              "flex items-center px-3 py-2 text-lg rounded-lg",
-                              subActive ? "bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium" : "text-slate-600 hover:bg-sky-50 hover:text-slate-800"
+                              "flex w-full items-center justify-center rounded-xl px-2 py-3 text-lg font-medium outline-none transition-colors",
+                              isActive ? "text-white" : "text-inherit",
+                              "focus-visible:ring-2 focus-visible:ring-sky-400/50",
+                            )}
+                            aria-label={item.name}
+                            aria-haspopup="menu"
+                          >
+                            <Icon
+                              className={cn(
+                                "h-5 w-5 flex-shrink-0 transition-all duration-200",
+                                isActive ? "text-white" : "text-slate-600",
+                              )}
+                            />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          side="right"
+                          align="start"
+                          sideOffset={8}
+                          className="w-64 max-h-[min(70vh,24rem)] max-w-[min(18rem,calc(100vw-4rem))] overflow-y-auto"
+                        >
+                          <DropdownMenuLabel className="font-semibold text-slate-900">
+                            {item.name}
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {hasSubmenu ? (
+                            <CollapsedFlyoutSubItems items={item.submenu!} pathname={pathname} />
+                          ) : (
+                            <DropdownMenuItem asChild>
+                              <Link
+                                href={item.href}
+                                onClick={() => setIsMobileOpen(false)}
+                                className="cursor-pointer"
+                              >
+                                ไปที่หน้า{item.name}
+                              </Link>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        className={cn(
+                          "flex items-center w-full rounded-xl",
+                          rowActiveClass,
+                          isCollapsed && "lg:justify-center lg:px-2",
+                        )}
+                      >
+                        {item.noHref && hasSubmenu ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
+                              setIsMobileOpen(false);
+                            }}
+                            className={cn(
+                              "flex items-center flex-1 min-w-0 px-3 py-3 text-lg font-medium rounded-xl text-left cursor-pointer",
+                              isActive ? "text-white" : "text-inherit",
+                              isCollapsed && "lg:justify-center lg:px-2",
                             )}
                           >
-                            {SubIcon ? <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" /> : <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />}
-                            <span>{sub.name}</span>
+                            <Icon
+                              className={cn(
+                                "h-5 w-5 flex-shrink-0 transition-all duration-200",
+                                isActive ? "text-white" : "text-slate-600",
+                                isCollapsed ? "lg:mx-auto" : "mr-2",
+                              )}
+                            />
+                            <span
+                              className={cn(
+                                "flex-1 min-w-0 text-left break-words leading-tight",
+                                isCollapsed && "lg:sr-only",
+                              )}
+                            >
+                              {item.name}
+                            </span>
+                          </button>
+                        ) : (
+                          <Link
+                            href={item.href}
+                            onClick={() => setIsMobileOpen(false)}
+                            className={cn(
+                              "flex items-center flex-1 min-w-0 px-3 py-3 text-base font-medium rounded-xl",
+                              isActive ? "text-white" : "text-inherit",
+                              isCollapsed && "lg:justify-center lg:px-2",
+                            )}
+                          >
+                            <Icon
+                              className={cn(
+                                "h-5 w-5 flex-shrink-0 transition-all duration-200",
+                                isActive ? "text-white" : "text-slate-600",
+                                isCollapsed ? "lg:mx-auto" : "mr-2",
+                              )}
+                            />
+                            <span
+                              className={cn(
+                                "flex-1 min-w-0 text-left break-words leading-tight",
+                                isCollapsed && "lg:sr-only",
+                              )}
+                            >
+                              {item.name}
+                            </span>
                           </Link>
-                        );
-                      })}
-                    </div>
+                        )}
+                        {hasSubmenu && !isCollapsed && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
+                            }}
+                            className={cn(
+                              "flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-inherit transition-colors",
+                              "hover:bg-sky-100/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400/50",
+                              isActive && "text-white hover:bg-white/15",
+                            )}
+                            aria-expanded={open}
+                            aria-label={open ? "ปิดเมนูย่อย" : "เปิดเมนูย่อย"}
+                          >
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 transition-transform duration-200",
+                                open && "rotate-90",
+                              )}
+                            />
+                          </button>
+                        )}
+                      </div>
+                      {hasSubmenu && !isCollapsed && open && (
+                        <div className="ml-4 mt-1 space-y-1 border-l border-sky-300/70 pl-4">
+                          {item.submenu!.map((sub) => {
+                            const SubIcon = sub.icon;
+                            const hasNested = (sub.submenu?.length ?? 0) > 0;
+                            const subActive = isSubmenuActive(pathname, sub);
+                            const nestedKey = `${item.href}__${sub.href}`;
+                            const nestedOpen = openSubmenus[nestedKey] ?? subActive;
+
+                            if (hasNested) {
+                              return (
+                                <div key={sub.href}>
+                                  <div
+                                    className={cn(
+                                      "flex items-center rounded-lg",
+                                      subActive
+                                        ? "bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium"
+                                        : "text-slate-600 hover:bg-sky-50 hover:text-slate-800",
+                                    )}
+                                  >
+                                    <Link
+                                      href={sub.href}
+                                      onClick={() => setIsMobileOpen(false)}
+                                      className="flex flex-1 min-w-0 items-center px-3 py-2 text-lg rounded-lg text-inherit"
+                                    >
+                                      {SubIcon ? (
+                                        <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                                      ) : (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />
+                                      )}
+                                      <span className="break-words leading-tight">{sub.name}</span>
+                                    </Link>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setOpenSubmenus((p) => ({ ...p, [nestedKey]: !nestedOpen }));
+                                      }}
+                                      className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-inherit hover:bg-white/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/50 transition-colors"
+                                      aria-expanded={nestedOpen}
+                                      aria-label={nestedOpen ? "ปิดเมนูย่อย" : "เปิดเมนูย่อย"}
+                                    >
+                                      <ChevronRight
+                                        className={cn(
+                                          "h-3.5 w-3.5 transition-transform duration-200",
+                                          nestedOpen && "rotate-90",
+                                        )}
+                                      />
+                                    </button>
+                                  </div>
+                                  {nestedOpen && (
+                                    <div className="ml-3 mt-1 space-y-1 border-l border-sky-300/70 pl-3">
+                                      {sub.submenu!.map((inner) => {
+                                        const InnerIcon = inner.icon;
+                                        const innerActive = isPathActive(pathname, inner.href);
+                                        return (
+                                          <Link
+                                            key={inner.href}
+                                            href={inner.href}
+                                            onClick={() => setIsMobileOpen(false)}
+                                            className={cn(
+                                              "flex items-center px-3 py-2 text-lg rounded-lg",
+                                              innerActive
+                                                ? "bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium"
+                                                : "text-slate-600 hover:bg-sky-50 hover:text-slate-800",
+                                            )}
+                                          >
+                                            {InnerIcon ? (
+                                              <InnerIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                                            ) : (
+                                              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />
+                                            )}
+                                            <span>{inner.name}</span>
+                                          </Link>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <Link
+                                key={sub.href}
+                                href={sub.href}
+                                onClick={() => setIsMobileOpen(false)}
+                                className={cn(
+                                  "flex items-center px-3 py-2 text-lg rounded-lg",
+                                  subActive
+                                    ? "bg-sky-100 text-slate-800 border-l-2 border-sky-400 font-medium"
+                                    : "text-slate-600 hover:bg-sky-50 hover:text-slate-800",
+                                )}
+                              >
+                                {SubIcon ? (
+                                  <SubIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                                ) : (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 mr-2" />
+                                )}
+                                <span>{sub.name}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               );
@@ -455,7 +665,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
           <div className={cn("p-4 border-t border-sky-200/80 transition-all duration-300", isCollapsed && "lg:px-2")}>
             <div className={cn("flex items-center gap-2 text-slate-500 overflow-hidden", isCollapsed && "lg:justify-center")}>
               <img src={ASSETS.LOGO} alt="POSE" width={20} height={20} className="object-contain flex-shrink-0 opacity-90" />
-              <span className={cn("text-sm font-medium whitespace-nowrap transition-opacity duration-200", isCollapsed && "lg:opacity-0 lg:w-0 lg:min-w-0 lg:overflow-hidden")}>© 2026 POSE Intelligence</span>
+              <span className={cn("text-sm font-medium whitespace-nowrap", isCollapsed && "lg:sr-only")}>© 2026 POSE Intelligence</span>
             </div>
           </div>
         </div>

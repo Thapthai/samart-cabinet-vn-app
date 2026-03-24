@@ -6,7 +6,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { RotateCcw, History } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { medicalSuppliesApi, itemsApi, departmentApi, cabinetApi } from '@/lib/api';
+import { medicalSuppliesApi, itemsApi, departmentApi, cabinetApi, cabinetDepartmentApi } from '@/lib/api';
 import { toast } from 'sonner';
 import ReturnFormTab from './components/ReturnFormTab';
 import ReturnHistoryTab from './components/ReturnHistoryTab';
@@ -21,6 +21,20 @@ const getTodayDate = () => {
   const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
+
+type CabinetFilterOption = { id: number; cabinet_name?: string; cabinet_code?: string };
+
+function mapCabinetRow(c: unknown): CabinetFilterOption | null {
+  if (!c || typeof c !== 'object') return null;
+  const o = c as Record<string, unknown>;
+  const id = o.id;
+  if (typeof id !== 'number') return null;
+  return {
+    id,
+    cabinet_name: typeof o.cabinet_name === 'string' ? o.cabinet_name : undefined,
+    cabinet_code: typeof o.cabinet_code === 'string' ? o.cabinet_code : undefined,
+  };
+}
 
 export default function ReturnMedicalSuppliesPage() {
   const { user } = useAuth();
@@ -106,13 +120,59 @@ export default function ReturnMedicalSuppliesPage() {
     [filterDepartmentId, filterCabinetId, filterItemCode, filterStartDate, filterEndDate],
   );
 
+  const loadCabinetsForFilter = useCallback(async (departmentIdStr: string) => {
+    try {
+      let next: CabinetFilterOption[] = [];
+      if (!departmentIdStr) {
+        const res = await cabinetApi.getAll({ page: 1, limit: 500 });
+        const raw = (res as { success?: boolean; data?: unknown[] }).data;
+        if (Array.isArray(raw)) {
+          next = raw.map(mapCabinetRow).filter((x): x is CabinetFilterOption => x != null);
+        }
+      } else {
+        const deptId = parseInt(departmentIdStr, 10);
+        if (Number.isNaN(deptId)) {
+          setCabinets([]);
+          return;
+        }
+        const res = await cabinetDepartmentApi.getAll({ departmentId: deptId });
+        const mappings = (res as { success?: boolean; data?: unknown[] }).data;
+        if (!Array.isArray(mappings)) {
+          setCabinets([]);
+          return;
+        }
+        const unique = new Map<number, CabinetFilterOption>();
+        for (const row of mappings) {
+          if (!row || typeof row !== 'object') continue;
+          const m = row as { status?: string; cabinet?: unknown };
+          if (m.status != null && m.status !== 'ACTIVE') continue;
+          const mapped = mapCabinetRow(m.cabinet);
+          if (mapped && !unique.has(mapped.id)) unique.set(mapped.id, mapped);
+        }
+        next = Array.from(unique.values());
+      }
+      setCabinets(next);
+      setFilterCabinetId((prev) => {
+        if (!prev) return prev;
+        const id = parseInt(prev, 10);
+        if (Number.isNaN(id)) return '';
+        return next.some((c) => c.id === id) ? prev : '';
+      });
+    } catch {
+      setCabinets([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchDepartments();
-    fetchCabinets();
     loadWillReturnItems();
     // โหลดรายการและตัวเลือกกรองเฉพาะตอน mount; การกดค้นหา/รีเซ็ตเรียก loadWillReturnItems เอง
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    loadCabinetsForFilter(filterDepartmentId);
+  }, [filterDepartmentId, loadCabinetsForFilter]);
 
   const fetchDepartments = async () => {
     try {
@@ -120,22 +180,6 @@ export default function ReturnMedicalSuppliesPage() {
       if (res.success && Array.isArray(res.data)) {
         setDepartments(res.data.map((d: any) => ({ ID: d.ID, DepName: d.DepName || d.DepName2 || String(d.ID) })));
       }
-    } catch {
-      // ignore
-    }
-  };
-
-  const fetchCabinets = async () => {
-    try {
-      const res = await cabinetApi.getAll({ limit: 500 });
-      const list = (res as { data?: any[] }).data ?? [];
-      setCabinets(
-        list.map((c: any) => ({
-          id: c.id ?? c.ID,
-          cabinet_name: c.cabinet_name ?? c.CabinetName,
-          cabinet_code: c.cabinet_code ?? c.CabinetCode,
-        })),
-      );
     } catch {
       // ignore
     }
@@ -200,7 +244,8 @@ export default function ReturnMedicalSuppliesPage() {
       const items = rowIds.map((item_stock_id: number) => ({
         item_stock_id,
         return_reason: reasonParam,
-        return_note: noteParam?.trim() || undefined,
+        return_note:
+          reasonParam === 'OTHER' && noteParam?.trim() ? noteParam.trim() : undefined,
       }));
 
       const resp = await medicalSuppliesApi.recordStockReturn({
@@ -289,7 +334,8 @@ export default function ReturnMedicalSuppliesPage() {
 
   const getReturnReasonLabel = (reason: string) => {
     const labels: { [key: string]: string } = {
-      UNWRAPPED_UNUSED: 'ยังไม่ได้แกะซอง หรือยังอยู่ในสภาพเดิม',
+      OTHER: 'อื่นๆ',
+      UNWRAPPED_UNUSED: 'อื่นๆ (ข้อมูลเก่า)',
       EXPIRED: 'อุปกรณ์หมดอายุ',
       CONTAMINATED: 'อุปกรณ์มีการปนเปื้อน',
       DAMAGED: 'อุปกรณ์ชำรุด',

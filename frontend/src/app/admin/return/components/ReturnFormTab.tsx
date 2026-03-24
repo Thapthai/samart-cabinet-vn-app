@@ -39,7 +39,7 @@ function getRowKey(item: WillReturnItem): string {
   return `${item.ItemCode}-${item.StockID ?? 0}`;
 }
 
-const DEFAULT_FORM = { qty: 1, reason: 'UNWRAPPED_UNUSED', note: '' };
+const DEFAULT_FORM = { qty: 1, reason: 'EXPIRED', note: '' };
 
 export default function ReturnFormTab({
   willReturnItems,
@@ -56,7 +56,7 @@ export default function ReturnFormTab({
   const [selectedItemCode, setSelectedItemCode] = useState<string>('');
   const [selectedStockID, setSelectedStockID] = useState<number | null>(null);
   const [qty, setQty] = useState<number>(1);
-  const [reason, setReason] = useState<string>('UNWRAPPED_UNUSED');
+  const [reason, setReason] = useState<string>('EXPIRED');
   const [note, setNote] = useState<string>('');
   const [itemDropdownPage, setItemDropdownPage] = useState(0);
   const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
@@ -149,11 +149,12 @@ export default function ReturnFormTab({
         stockId: selectedStockID,
         qty: qtyToSubmit,
         reason,
-        note,
+        note: reason === 'OTHER' ? note : '',
       });
       setSelectedItemCode('');
       setSelectedStockID(null);
       setQty(1);
+      setReason('EXPIRED');
       setNote('');
       setItemSearch('');
       setItemDropdownPage(0);
@@ -186,7 +187,7 @@ export default function ReturnFormTab({
         stockId: item.StockID ?? null,
         qty: qtyToSubmit,
         reason: form.reason,
-        note: form.note,
+        note: form.reason === 'OTHER' ? form.note : '',
       });
       setFormByKey((prev) => {
         const next = { ...prev };
@@ -202,205 +203,6 @@ export default function ReturnFormTab({
 
   return (
     <div className="space-y-6">
-      {/* การ์ดฟอร์มแบบเดิม (dropdown + จำนวน/สาเหตุ/หมายเหตุ + ปุ่มแจ้งอุปกรณ์) */}
-      {/*
-      <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
-        <CardHeader className="border-b bg-slate-50/50">
-          <CardTitle className="text-lg font-semibold text-slate-800">
-            แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน / ชำรุด
-          </CardTitle>
-          <CardDescription className="text-slate-500 mt-1">
-            เลือกรายการจาก dropdown หรือจากตารางด้านล่าง แล้วกรอกจำนวน สาเหตุ หมายเหตุ กดปุ่มแจ้งอุปกรณ์
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6 pt-6">
-          {loadingWillReturn ? (
-            <div className="flex items-center justify-center py-10 text-slate-500">
-              <span className="h-5 w-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mr-3" />
-              กำลังโหลดรายการ...
-            </div>
-          ) : willReturnItems.length === 0 ? (
-            <div className="py-10 text-center text-slate-500">ไม่มีรายการที่ต้องแจ้งอุปกรณ์ที่ไม่ถูกใช้งาน</div>
-          ) : (
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="w-[40%] min-w-0 shrink-0">
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">รายการอุปกรณ์</label>
-                <button
-                  ref={itemTriggerRef}
-                  type="button"
-                  onClick={() => setItemDropdownOpen((o) => !o)}
-                  className={cn(
-                    'flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm transition-colors hover:border-slate-300',
-                    itemDropdownOpen && 'border-emerald-400 ring-2 ring-emerald-500/20',
-                  )}
-                >
-                  <span className="min-w-0 flex-1 truncate text-slate-800">
-                    {selectedItem
-                      ? (() => {
-                        const name = selectedItem.itemname ?? selectedItem.ItemCode;
-                        const cabinet = selectedItem.cabinet_code || selectedItem.cabinet_name;
-                        const dept = selectedItem.department_name;
-                        if (cabinet || dept) return `${name} — ตู้ ${cabinet ?? '-'}${dept ? ` (แผนก ${dept})` : ''}`;
-                        return name;
-                      })()
-                      : 'เลือกรายการอุปกรณ์ (ระบุตู้)'}
-                  </span>
-                  <ChevronDown className={cn('h-4 w-4 shrink-0 text-slate-400', itemDropdownOpen && 'rotate-180')} />
-                </button>
-                {typeof document !== 'undefined' &&
-                  itemDropdownOpen &&
-                  itemDropdownRect &&
-                  createPortal(
-                    <div
-                      ref={itemPanelRef}
-                      className="fixed z-[9999] min-w-[200px] rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
-                      style={{
-                        top: itemDropdownRect.top,
-                        left: itemDropdownRect.left,
-                        width: itemDropdownRect.width,
-                      }}
-                    >
-                      <div className="sticky top-0 border-b border-slate-100 bg-white px-2 py-2">
-                        <div className="relative w-full">
-                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                          <Input
-                            placeholder="ค้นหาชื่อ, รหัส, ตู้ หรือแผนก..."
-                            value={itemSearch}
-                            onChange={(e) => setItemSearch(e.target.value)}
-                            className="h-9 w-full border-slate-200 bg-slate-50/50 pl-9 text-sm focus-visible:ring-2"
-                            autoFocus
-                          />
-                        </div>
-                      </div>
-                      <div className="max-h-[280px] overflow-y-auto overscroll-contain">
-                        {paginatedItems.length === 0 ? (
-                          <div className="px-3 py-8 text-center text-sm text-slate-500">ไม่พบรายการ</div>
-                        ) : (
-                          <ul className="py-1">
-                            {paginatedItems.map((item) => {
-                              const isSelected =
-                                item.ItemCode === selectedItemCode &&
-                                (item.StockID == null || item.StockID === selectedStockID);
-                              const cabinetLabel = item.cabinet_code || item.cabinet_name || 'ตู้ไม่ระบุ';
-                              const deptLabel = item.department_name ? `แผนก ${item.department_name}` : '';
-                              return (
-                                <li key={getRowKey(item)}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      selectItem(item);
-                                      setItemDropdownOpen(false);
-                                      setItemSearch('');
-                                      setItemDropdownPage(0);
-                                    }}
-                                    className={cn(
-                                      'flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-slate-50',
-                                      isSelected && 'bg-emerald-50 hover:bg-emerald-50',
-                                    )}
-                                  >
-                                    <span className="line-clamp-2 text-sm font-medium text-slate-800">
-                                      {item.itemname ?? item.ItemCode}
-                                    </span>
-                                    <span className="text-xs font-medium text-blue-700">
-                                      ตู้: {cabinetLabel}
-                                      {deptLabel ? ` · ${deptLabel}` : ''}
-                                    </span>
-                                    <span className="text-xs text-slate-500">
-                                      {item.ItemCode} · สูงสุดแจ้งได้ {item.max_available_qty}
-                                    </span>
-                                  </button>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                      </div>
-                      {totalItemPages > 1 && (
-                        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-3 py-2 text-xs text-slate-500">
-                          <span>
-                            หน้า {itemDropdownPage + 1} / {totalItemPages} ({filteredItems.length} รายการ)
-                          </span>
-                          <div className="flex gap-0.5">
-                            <button
-                              type="button"
-                              onClick={() => setItemDropdownPage((p) => Math.max(0, p - 1))}
-                              disabled={itemDropdownPage === 0}
-                              className="rounded p-1.5 hover:bg-slate-200 disabled:opacity-40"
-                            >
-                              <ChevronLeft className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setItemDropdownPage((p) => Math.min(totalItemPages - 1, p + 1))}
-                              disabled={itemDropdownPage >= totalItemPages - 1}
-                              className="rounded p-1.5 hover:bg-slate-200 disabled:opacity-40"
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>,
-                    document.body,
-                  )}
-              </div>
-              <div className="w-[10%] min-w-0 shrink-0">
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">จำนวน (สูงสุด {maxQty})</label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={maxQty}
-                  value={qty}
-                  onChange={(e) => setQty(Math.min(maxQty, Math.max(1, parseInt(e.target.value, 10) || 1)))}
-                  className="h-10 rounded-lg border-slate-200"
-                />
-              </div>
-              <div className="w-[20%] min-w-0 shrink-0 [&_[data-slot=select-trigger]]:w-full">
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">สาเหตุ</label>
-                <Select value={reason} onValueChange={setReason}>
-                  <SelectTrigger className="h-10 w-full rounded-lg border-slate-200">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="UNWRAPPED_UNUSED">ยังไม่ได้แกะซอง / อยู่ในสภาพเดิม</SelectItem>
-                    <SelectItem value="EXPIRED">อุปกรณ์หมดอายุ</SelectItem>
-                    <SelectItem value="CONTAMINATED">อุปกรณ์มีการปนเปื้อน</SelectItem>
-                    <SelectItem value="DAMAGED">อุปกรณ์ชำรุด</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="w-[15%] min-w-0 shrink-0">
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">หมายเหตุ (ถ้ามี)</label>
-                <Input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="รายละเอียดเพิ่มเติม"
-                  className="h-10 w-full rounded-lg border-slate-200"
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={handleSubmitForm}
-                disabled={isSubmitting || !selectedItemCode || maxQty < 1}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    กำลังบันทึก...
-                  </>
-                ) : (
-                  <>
-                    <RotateCcw className="h-4 w-4" />
-                    แจ้งอุปกรณ์
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    */}
 
       {/* การ์ดตารางแบบแจ้งคืนในแถว */}
       <Card className="border-0 shadow-sm rounded-xl overflow-hidden">
@@ -411,7 +213,7 @@ export default function ReturnFormTab({
                 แจ้งคืนอุปกรณ์ (แบบตาราง)
               </CardTitle>
               <CardDescription className="text-slate-500 mt-1">
-                กรอกจำนวน สาเหตุ และหมายเหตุ ในแต่ละแถว แล้วกดปุ่ม แจ้งคืน เพื่อบันทึก
+                กรอกจำนวนและสาเหตุในแต่ละแถว — กรอกหมายเหตุได้เมื่อเลือกสาเหตุ &quot;อื่นๆ&quot; แล้วกดปุ่มแจ้งคืน
               </CardDescription>
             </div>
 
@@ -441,7 +243,7 @@ export default function ReturnFormTab({
                     <TableHead className="text-center min-w-[140px]">เบิก | ใช้แล้ว | สูงสุดแจ้งได้</TableHead>
                     <TableHead className="w-24 text-center">จำนวน</TableHead>
                     <TableHead className="w-48">สาเหตุ</TableHead>
-                    <TableHead className="min-w-[140px]">หมายเหตุ</TableHead>
+                    <TableHead className="min-w-[160px]">หมายเหตุ (ถ้าเลือกอื่นๆ)</TableHead>
                     <TableHead className="w-28 text-center">ดำเนินการ</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -493,25 +295,33 @@ export default function ReturnFormTab({
                         <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
                           <Select
                             value={form.reason}
-                            onValueChange={(v) => setRowForm(item, { reason: v })}
+                            onValueChange={(v) =>
+                              setRowForm(item, {
+                                reason: v,
+                                ...(v !== 'OTHER' ? { note: '' } : {}),
+                              })
+                            }
                           >
-                            <SelectTrigger className="h-9 border-slate-200 text-sm">
+                            <SelectTrigger className="h-auto min-h-9 w-full min-w-[220px] !w-full max-w-none whitespace-normal border-slate-200 py-2 text-sm [&_[data-slot=select-value]]:line-clamp-none">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="UNWRAPPED_UNUSED">ยังไม่ได้แกะซอง / อยู่ในสภาพเดิม</SelectItem>
+                            <SelectContent className="min-w-[var(--radix-select-trigger-width)]">
                               <SelectItem value="EXPIRED">อุปกรณ์หมดอายุ</SelectItem>
                               <SelectItem value="CONTAMINATED">อุปกรณ์มีการปนเปื้อน</SelectItem>
                               <SelectItem value="DAMAGED">อุปกรณ์ชำรุด</SelectItem>
+                              <SelectItem value="OTHER">อื่นๆ (ระบุหมายเหตุ เช่น หาย)</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="p-2" onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="p-2 align-middle" onClick={(e) => e.stopPropagation()}>
                           <Input
-                            value={form.note}
+                            value={form.reason === 'OTHER' ? form.note : ''}
                             onChange={(e) => setRowForm(item, { note: e.target.value })}
-                            placeholder="หมายเหตุ (ถ้ามี)"
-                            className="h-9 w-full text-sm"
+                            placeholder={
+                              form.reason === 'OTHER' ? 'เช่น หาย' : 'เลือก "อื่นๆ" เพื่อกรอก'
+                            }
+                            disabled={form.reason !== 'OTHER'}
+                            className="h-9 w-full min-w-[160px] text-sm disabled:cursor-not-allowed disabled:opacity-70"
                           />
                         </TableCell>
                         <TableCell className="p-2 text-center" onClick={(e) => e.stopPropagation()}>

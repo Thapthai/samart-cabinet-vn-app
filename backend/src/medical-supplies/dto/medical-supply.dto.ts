@@ -9,10 +9,10 @@ export enum ItemStatus {
 }
 
 export enum ReturnReason {
-  UNWRAPPED_UNUSED = 'UNWRAPPED_UNUSED', // แกะห่อแล้วไม่ได้ใช้
-  EXPIRED = 'EXPIRED',                   // อุปกรณ์หมดอายุ
-  CONTAMINATED = 'CONTAMINATED',         // อุปกรณ์มีการปนเปื้อนไม่สามารถนำกลับมาใช้งานได้
-  DAMAGED = 'DAMAGED',                   // อุปกรณ์มีการชำรุดไม่สามารถนำมาใช้งานได้
+  OTHER = 'OTHER', // อื่นๆ — ระบุรายละเอียดในหมายเหตุ (เช่น หาย)
+  EXPIRED = 'EXPIRED', // อุปกรณ์หมดอายุ
+  CONTAMINATED = 'CONTAMINATED', // อุปกรณ์มีการปนเปื้อนไม่สามารถนำกลับมาใช้งานได้
+  DAMAGED = 'DAMAGED', // อุปกรณ์มีการชำรุดไม่สามารถนำมาใช้งานได้
 }
 
 // Order Item Input (New Format from API Spec)
@@ -484,8 +484,8 @@ export class GetReturnHistoryQueryDto {
   patient_hn?: string;
 
   @IsOptional()
-  @IsEnum(ReturnReason)
-  return_reason?: ReturnReason;
+  @IsString()
+  return_reason?: string;
 
   @IsOptional()
   @IsString()

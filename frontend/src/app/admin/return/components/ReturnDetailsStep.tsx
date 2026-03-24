@@ -55,27 +55,42 @@ export default function ReturnDetailsStep({
 
         <div className="space-y-2">
           <Label htmlFor="return-reason">สาเหตุ</Label>
-          <Select value={returnReason} onValueChange={(value) => onReasonChange(value as ReturnReason)}>
-            <SelectTrigger>
+          <Select
+            value={returnReason}
+            onValueChange={(value) => {
+              onReasonChange(value as ReturnReason);
+              if (value !== 'OTHER') onNoteChange('');
+            }}
+          >
+            <SelectTrigger className="h-auto min-h-9 w-full min-w-[220px] !w-full max-w-none whitespace-normal [&_[data-slot=select-value]]:line-clamp-none">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="UNWRAPPED_UNUSED">ยังไม่ได้แกะซอง หรือยังอยู่ในสภาพเดิม</SelectItem>
+            <SelectContent className="min-w-[var(--radix-select-trigger-width)]">
               <SelectItem value="EXPIRED">อุปกรณ์หมดอายุ</SelectItem>
               <SelectItem value="CONTAMINATED">อุปกรณ์มีการปนเปื้อน</SelectItem>
               <SelectItem value="DAMAGED">อุปกรณ์ชำรุด</SelectItem>
+              <SelectItem value="OTHER">อื่นๆ (ระบุหมายเหตุ เช่น หาย)</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="return-note">หมายเหตุ (ถ้ามี)</Label>
+          <Label
+            htmlFor="return-note"
+            className={returnReason !== 'OTHER' ? 'text-muted-foreground' : undefined}
+          >
+            หมายเหตุ
+          </Label>
           <Textarea
             id="return-note"
-            value={returnNote}
+            value={returnReason === 'OTHER' ? returnNote : ''}
             onChange={(e) => onNoteChange(e.target.value)}
-            placeholder="ระบุหมายเหตุเพิ่มเติม..."
+            placeholder={
+              returnReason === 'OTHER' ? 'เช่น หาย' : 'เลือก "อื่นๆ" ด้านบนเพื่อกรอกหมายเหตุ'
+            }
             rows={3}
+            disabled={returnReason !== 'OTHER'}
+            className="min-h-[4.5rem] resize-none disabled:cursor-not-allowed disabled:opacity-70"
           />
         </div>
 

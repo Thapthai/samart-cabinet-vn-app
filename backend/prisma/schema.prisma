@@ -439,7 +439,7 @@ model SupplyItemReturnRecord {
 
   // Return Details
   qty_returned      Int      @map("qty_returned") // จำนวนที่คืนในครั้งนี้
-  return_reason     String   @map("return_reason") // UNWRAPPED_UNUSED, EXPIRED, CONTAMINATED, DAMAGED
+  return_reason     String   @map("return_reason") // OTHER, EXPIRED, CONTAMINATED, DAMAGED (ค่าเก่า UNWRAPPED_UNUSED อาจยังอยู่ในฐานข้อมูล)
   return_datetime   DateTime @default(now()) @map("return_datetime")
   return_by_user_id String   @map("return_by_user_id")
   return_note       String?  @map("return_note") // หมายเหตุเพิ่มเติม

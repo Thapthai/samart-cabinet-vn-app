@@ -168,7 +168,8 @@ export default function ReturnHistoryFilter({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">ทั้งหมด</SelectItem>
-                <SelectItem value="UNWRAPPED_UNUSED">ยังไม่ได้แกะซอง / อยู่ในสภาพเดิม</SelectItem>
+                <SelectItem value="OTHER">อื่นๆ</SelectItem>
+                <SelectItem value="UNWRAPPED_UNUSED">อื่นๆ (ข้อมูลเก่า)</SelectItem>
                 <SelectItem value="EXPIRED">อุปกรณ์หมดอายุ</SelectItem>
                 <SelectItem value="CONTAMINATED">อุปกรณ์มีการปนเปื้อน</SelectItem>
                 <SelectItem value="DAMAGED">อุปกรณ์ชำรุด</SelectItem>

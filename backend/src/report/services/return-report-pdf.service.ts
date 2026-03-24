@@ -263,7 +263,8 @@ export class ReturnReportPdfService {
 
   private getReturnReasonLabel(reason: string): string {
     const labels: { [key: string]: string } = {
-      UNWRAPPED_UNUSED: 'ยังไม่ได้แกะซอง / อยู่ในสภาพเดิม',
+      OTHER: 'อื่นๆ',
+      UNWRAPPED_UNUSED: 'อื่นๆ (ข้อมูลเก่า)',
       EXPIRED: 'อุปกรณ์หมดอายุ',
       CONTAMINATED: 'อุปกรณ์มีการปนเปื้อน',
       DAMAGED: 'อุปกรณ์ชำรุด',

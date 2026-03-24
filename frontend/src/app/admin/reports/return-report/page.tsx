@@ -65,10 +65,11 @@ export default function ReturnReportPage() {
 
   const getReturnReasonLabel = (reason: string) => {
     const labels: { [key: string]: string } = {
-      'UNWRAPPED_UNUSED': 'ยังไม่ได้แกะซอง หรือยังอยู่ในสภาพเดิม',
-      'EXPIRED': 'อุปกรณ์หมดอายุ',
-      'CONTAMINATED': 'อุปกรณ์มีการปนเปื้อน',
-      'DAMAGED': 'อุปกรณ์ชำรุด',
+      OTHER: 'อื่นๆ',
+      UNWRAPPED_UNUSED: 'อื่นๆ (ข้อมูลเก่า)',
+      EXPIRED: 'อุปกรณ์หมดอายุ',
+      CONTAMINATED: 'อุปกรณ์มีการปนเปื้อน',
+      DAMAGED: 'อุปกรณ์ชำรุด',
     };
     return labels[reason] || reason;
   };
@@ -147,7 +148,8 @@ export default function ReturnReportPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ALL">ทั้งหมด</SelectItem>
-                      <SelectItem value="UNWRAPPED_UNUSED">ยังไม่ได้แกะซอง หรือยังอยู่ในสภาพเดิม</SelectItem>
+                      <SelectItem value="OTHER">อื่นๆ</SelectItem>
+                      <SelectItem value="UNWRAPPED_UNUSED">อื่นๆ (ข้อมูลเก่า)</SelectItem>
                       <SelectItem value="EXPIRED">อุปกรณ์หมดอายุ</SelectItem>
                       <SelectItem value="CONTAMINATED">อุปกรณ์มีการปนเปื้อน</SelectItem>
                       <SelectItem value="DAMAGED">อุปกรณ์ชำรุด</SelectItem>

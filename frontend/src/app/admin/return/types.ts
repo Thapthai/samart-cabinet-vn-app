@@ -63,7 +63,7 @@ export interface ReturnHistoryData {
   limit: number;
 }
 
-export type ReturnReason = 'UNWRAPPED_UNUSED' | 'EXPIRED' | 'CONTAMINATED' | 'DAMAGED';
+export type ReturnReason = 'OTHER' | 'EXPIRED' | 'CONTAMINATED' | 'DAMAGED';
 
 /** รายการจาก GET /item-stocks/will-return (แยกตามตู้ + ItemCode) */
 export interface WillReturnItem {

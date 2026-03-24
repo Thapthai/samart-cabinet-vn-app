@@ -83,8 +83,16 @@ export const staffItemsApi = {
         return response.data;
     },
 
-    getItemStocksWillReturn: async (): Promise<{ success: boolean; data: any[] }> => {
-        const response = await staffApi.get('/item-stocks/will-return');
+    getItemStocksWillReturn: async (params?: {
+        department_id?: number;
+        cabinet_id?: number;
+        item_code?: string;
+        start_date?: string;
+        end_date?: string;
+    }): Promise<{ success: boolean; data: any[] }> => {
+        const response = await staffApi.get('/item-stocks/will-return', {
+            params: params && Object.keys(params).length > 0 ? params : undefined,
+        });
         return response.data as { success: boolean; data: any[] };
     },
 };

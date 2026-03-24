@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ReactNode, useState, useEffect } from 'react';
+import React, { ReactNode, useState, useEffect, useRef } from 'react';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 
@@ -10,8 +10,36 @@ interface AppLayoutProps {
   fullWidth?: boolean;
 }
 
+const ADMIN_SIDEBAR_COLLAPSED_KEY = 'admin-sidebar-collapsed';
+
 export default function AppLayout({ children, fullWidth }: AppLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const skipInitialPersist = useRef(true);
+
+  // โหลดการหุบ/กางจากเครื่อง (หลัง mount เพื่อไม่ให้ SSR/hydration คนละค่า)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(ADMIN_SIDEBAR_COLLAPSED_KEY) === '1') {
+        setIsCollapsed(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // จำค่าที่ผู้ใช้เลือก — เปลี่ยนหน้าในแอปไม่รีเซ็ต state; รีเฟรชก็ยังหุบ/กางตามเดิม
+  // ข้ามครั้งแรกเพื่อไม่เขียน '0' ทับก่อน effect ด้านบนจะ setState จาก localStorage
+  useEffect(() => {
+    if (skipInitialPersist.current) {
+      skipInitialPersist.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(ADMIN_SIDEBAR_COLLAPSED_KEY, isCollapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [isCollapsed]);
   const [zoomLevel, setZoomLevel] = useState<number>(100);
 
   // Sync zoom level with CSS variable (set by Navbar)
@@ -37,8 +65,8 @@ export default function AppLayout({ children, fullWidth }: AppLayoutProps) {
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
       
       {/* Main Content - margin-left ให้ตรงกับความกว้าง Sidebar (w-16 เมื่อ collapse, w-72 เมื่อกาง) */}
-      <div 
-        className={`flex-1 flex flex-col transition-all duration-300 ${
+      <div
+        className={`flex-1 flex flex-col min-w-0 transition-[margin] duration-300 ease-in-out motion-reduce:transition-none ${
           isCollapsed ? 'lg:ml-16' : 'lg:ml-72'
         }`}
       >
