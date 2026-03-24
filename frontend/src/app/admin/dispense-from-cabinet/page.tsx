@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { medicalSuppliesApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -10,8 +10,8 @@ import { Package } from 'lucide-react';
 import FilterSection from './components/FilterSection';
 import DispensedTable from './components/DispensedTable';
 import type { DispensedItem, FilterState, SummaryData } from './types';
+import { buildDispensedGroups } from '@/lib/dispenseFromCabinet/buildDispensedGroups';
 
-// Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
   const today = new Date();
   const year = today.getFullYear();
@@ -20,12 +20,14 @@ const getTodayDate = () => {
   return `${year}-${month}-${day}`;
 };
 
+const GROUPS_PER_PAGE = 10;
+const FETCH_BATCH_LIMIT = 5000;
+
 export default function DispenseFromCabinetPage() {
   const { user } = useAuth();
   const [loadingList, setLoadingList] = useState(true);
   const [dispensedList, setDispensedList] = useState<DispensedItem[]>([]);
 
-  // Filters
   const [filters, setFilters] = useState<FilterState>({
     searchItemCode: '',
     startDate: getTodayDate(),
@@ -35,25 +37,26 @@ export default function DispenseFromCabinetPage() {
     cabinetId: '1',
   });
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+  const [totalRawItems, setTotalRawItems] = useState(0);
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchDispensedList();
-    }
-  }, [user?.id]);
+  const allGroups = useMemo(() => buildDispensedGroups(dispensedList), [dispensedList]);
+  const totalGroups = allGroups.length;
+  const totalPages = useMemo(
+    () => (totalGroups > 0 ? Math.ceil(totalGroups / GROUPS_PER_PAGE) : 1),
+    [totalGroups],
+  );
 
-  const fetchDispensedList = async (page: number = 1, customFilters?: FilterState) => {
+  const fetchDispensedList = async (
+    customFilters?: FilterState,
+    options?: { resetPage?: boolean },
+  ) => {
     try {
       setLoadingList(true);
-      const activeFilters = customFilters || filters;
-      const params: any = {
-        page,
-        limit: itemsPerPage,
+      const activeFilters = customFilters ?? filters;
+      const params: Record<string, unknown> = {
+        page: 1,
+        limit: FETCH_BATCH_LIMIT,
       };
       if (activeFilters.startDate) params.startDate = activeFilters.startDate;
       if (activeFilters.endDate) params.endDate = activeFilters.endDate;
@@ -61,31 +64,48 @@ export default function DispenseFromCabinetPage() {
       if (activeFilters.departmentId) params.departmentId = activeFilters.departmentId;
       if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
 
-      const response = await medicalSuppliesApi.getDispensedItems(params);
+      const aggregated: DispensedItem[] = [];
+      let reportedTotal = 0;
+      let page = 1;
 
+      while (true) {
+        const response = (await medicalSuppliesApi.getDispensedItems({
+          ...params,
+          page,
+          limit: FETCH_BATCH_LIMIT,
+        })) as any;
 
-      // response shape expected from API:
-      // { success: boolean, data: [...], total, page, limit, totalPages, ... }
-      if (response?.success && Array.isArray(response.data)) {
-        const dispensedData = response.data;
-
-        const total = typeof response.total === 'number' ? response.total : dispensedData.length;
-        const limit = typeof response.limit === 'number' ? response.limit : itemsPerPage;
-        const totalPagesNum =
-          typeof response.totalPages === 'number' ? response.totalPages : Math.ceil(total / limit);
-
-        setDispensedList(dispensedData);
-        setTotalItems(total);
-        setTotalPages(totalPagesNum);
-        setCurrentPage(response.page || page);
-
-        if (dispensedData.length === 0) {
-          toast.info('ไม่พบข้อมูลการเบิกอุปกรณ์ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
-        } else {
-          toast.success(`พบ ${total} รายการเบิกอุปกรณ์`);
+        if (!response?.success || !Array.isArray(response.data)) {
+          toast.error((response as any)?.error || (response as any)?.message || 'ไม่สามารถโหลดข้อมูลได้');
+          break;
         }
+
+        const dispensedData = response.data;
+        reportedTotal =
+          typeof response.total === 'number' ? response.total : Number(response.total ?? aggregated.length);
+        aggregated.push(...dispensedData);
+
+        const batchLen = dispensedData.length;
+        if (batchLen < FETCH_BATCH_LIMIT || aggregated.length >= reportedTotal) {
+          break;
+        }
+        page += 1;
+        if (page > 500) {
+          console.warn('dispense-from-cabinet: stopped batch fetch after 500 pages');
+          break;
+        }
+      }
+
+      setDispensedList(aggregated);
+      setTotalRawItems(reportedTotal);
+      if (options?.resetPage !== false) {
+        setCurrentPage(1);
+      }
+
+      if (aggregated.length === 0) {
+        toast.info('ไม่พบข้อมูลการเบิกอุปกรณ์ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
       } else {
-        toast.error((response as any)?.error || (response as any)?.message || 'ไม่สามารถโหลดข้อมูลได้');
+        toast.success(`พบ ${reportedTotal} รายการเบิกอุปกรณ์`);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || error.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -94,9 +114,19 @@ export default function DispenseFromCabinetPage() {
     }
   };
 
+  useEffect(() => {
+    if (user?.id) {
+      fetchDispensedList(undefined, { resetPage: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + user id
+  }, [user?.id]);
+
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
+  }, [totalPages]);
+
   const handleSearch = () => {
-    setCurrentPage(1);
-    fetchDispensedList(1);
+    fetchDispensedList(undefined, { resetPage: true });
   };
 
   const handleClearSearch = () => {
@@ -109,12 +139,11 @@ export default function DispenseFromCabinetPage() {
       cabinetId: '1',
     };
     setFilters(clearedFilters);
-    setCurrentPage(1);
-    fetchDispensedList(1, clearedFilters);
+    fetchDispensedList(clearedFilters, { resetPage: true });
   };
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleExportReport = async (format: 'excel' | 'pdf') => {
@@ -144,20 +173,19 @@ export default function DispenseFromCabinetPage() {
   const calculateSummary = (): SummaryData => {
     const totalQty = dispensedList.reduce((sum, item) => sum + (item.qty || 0), 0);
     return {
-      total: totalItems,
+      total: totalRawItems,
       totalQty,
     };
   };
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
-    fetchDispensedList(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
   const getItemTypes = () => {
     const types = new Map();
-    dispensedList.forEach(item => {
+    dispensedList.forEach((item) => {
       if (item.itemtypeID && item.itemType) {
         types.set(item.itemtypeID, item.itemType);
       }
@@ -171,22 +199,18 @@ export default function DispenseFromCabinetPage() {
     <ProtectedRoute>
       <AppLayout fullWidth>
         <div className="space-y-6">
-          {/* Header */}
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-100 rounded-lg">
               <Package className="h-6 w-6 text-purple-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                รายงานเบิกอุปกรณ์จากตู้
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-900">รายงานเบิกอุปกรณ์จากตู้</h1>
               <p className="text-sm text-gray-500 mt-1">
                 รายการอุปกรณ์ทั้งหมดที่เบิกจากตู้ SmartCabinet
               </p>
             </div>
           </div>
 
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm text-blue-600 font-medium">รายการทั้งหมด</p>
@@ -198,24 +222,23 @@ export default function DispenseFromCabinetPage() {
             </div>
           </div>
 
-          {/* Filter Section */}
           <FilterSection
             filters={filters}
             onFilterChange={handleFilterChange}
             onSearch={handleSearch}
             onClear={handleClearSearch}
-            onRefresh={() => fetchDispensedList(currentPage)}
+            onRefresh={() => fetchDispensedList(undefined, { resetPage: false })}
             loading={loadingList}
           />
 
-          {/* Dispensed Items Table */}
           <DispensedTable
             loading={loadingList}
             items={dispensedList}
             currentPage={currentPage}
             totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
+            totalRawItems={totalRawItems}
+            totalGroups={totalGroups}
+            groupsPerPage={GROUPS_PER_PAGE}
             searchItemCode={filters.searchItemCode}
             itemTypeFilter={filters.itemTypeFilter}
             onPageChange={handlePageChange}

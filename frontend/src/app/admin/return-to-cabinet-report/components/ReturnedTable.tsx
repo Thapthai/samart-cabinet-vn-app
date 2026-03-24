@@ -7,84 +7,27 @@ import { cn } from '@/lib/utils';
 import DispensedPagination from '../../dispense-from-cabinet/components/DispensedPagination';
 import type { DispensedItem } from '../types';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
+import {
+  buildReturnedGroups,
+  RETURNED_GROUP_TIME_TOLERANCE_SEC,
+  type ReturnedGroup,
+} from '@/lib/returnToCabinet/buildReturnedGroups';
 
-/** ความคาดเคลื่อนกลุ่มตามเวลาคืน (วินาที) */
-const GROUP_TIME_TOLERANCE_SEC = 3;
-const TOLERANCE_MS = GROUP_TIME_TOLERANCE_SEC * 1000;
+export type { ReturnedGroup };
 
 const COLUMN_COUNT = 9;
-
-export interface ReturnedGroup {
-  key: string;
-  itemcode: string;
-  itemname: string;
-  returnTime: string;
-  items: DispensedItem[];
-  totalQty: number;
-}
-
-function buildGroups(items: DispensedItem[]): ReturnedGroup[] {
-  if (items.length === 0) return [];
-  // เรียงตามวันที่คืน ล่าสุดก่อน (ให้ตรงกับ backend ORDER BY DESC)
-  const sorted = [...items].sort((a, b) => {
-    const tA = new Date(a.modifyDate).getTime();
-    const tB = new Date(b.modifyDate).getTime();
-    return tB - tA;
-  });
-
-  const groups: ReturnedGroup[] = [];
-  let current: DispensedItem[] = [];
-  let groupStartTime = 0;
-
-  for (const item of sorted) {
-    const t = new Date(item.modifyDate).getTime();
-    if (current.length === 0) {
-      current = [item];
-      groupStartTime = t;
-    } else {
-      const sameItem = (item.itemcode ?? '') === (current[0].itemcode ?? '');
-      // เรียง DESC แล้ว groupStartTime = เวลาล่าสุดในกลุ่ม, t <= groupStartTime → อยู่ในกลุ่มถ้า groupStartTime - t <= 3 วินาที
-      const withinWindow = groupStartTime - t <= TOLERANCE_MS;
-      if (sameItem && withinWindow) {
-        current.push(item);
-      } else {
-        if (current.length > 0) {
-          const totalQty = current.reduce((sum, i) => sum + (i.qty ?? 1), 0);
-          groups.push({
-            key: `${current[0].itemcode}_${current[0].RowID}_${groupStartTime}`,
-            itemcode: current[0].itemcode ?? '',
-            itemname: current[0].itemname ?? current[0].itemcode ?? '',
-            returnTime: current[0].modifyDate,
-            items: current,
-            totalQty,
-          });
-        }
-        current = [item];
-        groupStartTime = t;
-      }
-    }
-  }
-  if (current.length > 0) {
-    const totalQty = current.reduce((sum, i) => sum + (i.qty ?? 1), 0);
-    groups.push({
-      key: `${current[0].itemcode}_${current[0].RowID}_${groupStartTime}`,
-      itemcode: current[0].itemcode ?? '',
-      itemname: current[0].itemname ?? current[0].itemcode ?? '',
-      returnTime: current[0].modifyDate,
-      items: current,
-      totalQty,
-    });
-  }
-  return groups;
-}
 
 interface ReturnedTableProps {
   loading: boolean;
   items: DispensedItem[];
   currentPage: number;
   totalPages: number;
-  totalItems: number;
-  itemsPerPage: number;
+  /** จำนวนรายการดิบจาก API (การ์ดสรุป / คำอธิบาย) */
+  totalRawItems: number;
+  /** จำนวนกลุ่มหลังจัดกลุ่ม — ใช้กับ pagination */
+  totalGroups: number;
+  /** จำนวนแถวหลัก (กลุ่ม) ต่อหน้า */
+  groupsPerPage: number;
   searchItemCode: string;
   itemTypeFilter: string;
   onPageChange: (page: number) => void;
@@ -97,8 +40,9 @@ export default function ReturnedTable({
   items,
   currentPage,
   totalPages,
-  totalItems,
-  itemsPerPage,
+  totalRawItems,
+  totalGroups,
+  groupsPerPage,
   searchItemCode,
   itemTypeFilter,
   onPageChange,
@@ -107,7 +51,14 @@ export default function ReturnedTable({
 }: ReturnedTableProps) {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
-  const groups = useMemo(() => buildGroups(items), [items]);
+  const groups = useMemo(() => buildReturnedGroups(items), [items]);
+
+  const paginatedGroups = useMemo(() => {
+    const start = (currentPage - 1) * groupsPerPage;
+    return groups.slice(start, start + groupsPerPage);
+  }, [groups, currentPage, groupsPerPage]);
+
+  const groupRowOffset = (currentPage - 1) * groupsPerPage;
 
   const toggleExpand = (key: string) => {
     setExpandedKeys((prev) => {
@@ -117,8 +68,6 @@ export default function ReturnedTable({
       return next;
     });
   };
-
-  const baseRowIndex = (currentPage - 1) * itemsPerPage;
 
   const totalReturnedQty = useMemo(
     () => items.reduce((sum, i) => sum + (i.qty ?? 1), 0),
@@ -132,7 +81,7 @@ export default function ReturnedTable({
           <CardTitle>รายการเติมอุปกรณ์เข้าตู้</CardTitle>
           <CardDescription>
             {items.length > 0
-              ? `แสดง ${groups.length} กลุ่ม จากทั้งหมด ${totalItems} รายการ (รวม ${totalReturnedQty.toLocaleString()} ชิ้น) · จัดกลุ่มตามรหัสอุปกรณ์และเวลาที่เติม ±${GROUP_TIME_TOLERANCE_SEC} วินาที`
+              ? `แสดง ${paginatedGroups.length} กลุ่มในหน้านี้ (สูงสุด ${groupsPerPage} กลุ่มต่อหน้า) · รวม ${totalGroups} กลุ่ม จาก ${totalRawItems} รายการดิบ (รวม ${totalReturnedQty.toLocaleString()} ชิ้น) · จัดกลุ่มตามรหัสอุปกรณ์และเวลาที่เติม ±${RETURNED_GROUP_TIME_TOLERANCE_SEC} วินาที`
               : 'รายการอุปกรณ์ทั้งหมดที่เติมเข้าตู้ SmartCabinet'}
             {(searchItemCode || itemTypeFilter !== 'all') && items.length > 0 && ' (กรองแล้ว)'}
           </CardDescription>
@@ -180,9 +129,9 @@ export default function ReturnedTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {groups.map((group, groupIndex) => {
+                  {paginatedGroups.map((group, groupIndex) => {
                     const isExpanded = expandedKeys.has(group.key);
-                    const rowNum = baseRowIndex + groupIndex + 1;
+                    const rowNum = groupRowOffset + groupIndex + 1;
                     return (
                       <Fragment key={group.key}>
                         <TableRow
@@ -220,9 +169,6 @@ export default function ReturnedTable({
                             <span className="font-semibold text-slate-700">
                               {group.totalQty.toLocaleString()}
                             </span>
-                            {/* <span className="text-muted-foreground text-xs ml-1">
-                              ({group.items.length} รายการ)
-                            </span> */}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {formatUtcDateTime(group.returnTime)}
@@ -301,8 +247,9 @@ export default function ReturnedTable({
             <DispensedPagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={totalItems}
-              itemsPerPage={itemsPerPage}
+              totalItems={totalGroups}
+              itemsPerPage={groupsPerPage}
+              countLabel="กลุ่ม"
               onPageChange={onPageChange}
             />
           </>

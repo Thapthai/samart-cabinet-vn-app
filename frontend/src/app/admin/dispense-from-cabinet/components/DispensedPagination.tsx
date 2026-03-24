@@ -7,6 +7,8 @@ interface DispensedPaginationProps {
   totalItems: number;
   itemsPerPage: number;
   onPageChange: (page: number) => void;
+  /** คำนับหน่วยใน footer (เช่น "กลุ่ม" เมื่อแบ่งหน้าตามกลุ่ม) */
+  countLabel?: string;
 }
 
 export default function DispensedPagination({
@@ -15,6 +17,7 @@ export default function DispensedPagination({
   totalItems,
   itemsPerPage,
   onPageChange,
+  countLabel = 'รายการ',
 }: DispensedPaginationProps) {
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
@@ -22,7 +25,7 @@ export default function DispensedPagination({
   return (
     <div className="flex items-center justify-between px-2 py-4">
       <div className="text-sm text-gray-600">
-        แสดง {startItem} ถึง {endItem} จากทั้งหมด {totalItems} รายการ
+        แสดง {startItem} ถึง {endItem} จากทั้งหมด {totalItems} {countLabel}
       </div>
       <div className="flex items-center gap-2">
         <Button

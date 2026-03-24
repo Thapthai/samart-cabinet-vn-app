@@ -7,84 +7,23 @@ import { cn } from '@/lib/utils';
 import DispensedPagination from './DispensedPagination';
 import type { DispensedItem } from '../types';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
+import {
+  buildDispensedGroups,
+  DISPENSED_GROUP_TIME_TOLERANCE_SEC,
+} from '@/lib/dispenseFromCabinet/buildDispensedGroups';
 
-/** ความคาดเคลื่อนกลุ่มตามเวลาเบิก (วินาที) */
-const GROUP_TIME_TOLERANCE_SEC = 3;
-const TOLERANCE_MS = GROUP_TIME_TOLERANCE_SEC * 1000;
+export type { DispensedGroup } from '@/lib/dispenseFromCabinet/buildDispensedGroups';
 
 const COLUMN_COUNT = 9;
-
-export interface DispensedGroup {
-  key: string;
-  itemcode: string;
-  itemname: string;
-  dispenseTime: string;
-  items: DispensedItem[];
-  totalQty: number;
-}
-
-function buildGroups(items: DispensedItem[]): DispensedGroup[] {
-  if (items.length === 0) return [];
-  // เรียงตามวันที่เบิก ล่าสุดก่อน (ให้ตรงกับ backend ORDER BY DESC)
-  const sorted = [...items].sort((a, b) => {
-    const tA = new Date(a.modifyDate).getTime();
-    const tB = new Date(b.modifyDate).getTime();
-    return tB - tA;
-  });
-
-  const groups: DispensedGroup[] = [];
-  let current: DispensedItem[] = [];
-  let groupStartTime = 0;
-
-  for (const item of sorted) {
-    const t = new Date(item.modifyDate).getTime();
-    if (current.length === 0) {
-      current = [item];
-      groupStartTime = t;
-    } else {
-      const sameItem = (item.itemcode ?? '') === (current[0].itemcode ?? '');
-      // เรียง DESC แล้ว groupStartTime = เวลาล่าสุดในกลุ่ม, t <= groupStartTime → อยู่ในกลุ่มถ้า groupStartTime - t <= 3 วินาที
-      const withinWindow = groupStartTime - t <= TOLERANCE_MS;
-      if (sameItem && withinWindow) {
-        current.push(item);
-      } else {
-        if (current.length > 0) {
-          const totalQty = current.reduce((sum, i) => sum + (i.qty ?? 1), 0);
-          groups.push({
-            key: `${current[0].itemcode}_${current[0].RowID}_${groupStartTime}`,
-            itemcode: current[0].itemcode ?? '',
-            itemname: current[0].itemname ?? current[0].itemcode ?? '',
-            dispenseTime: current[0].modifyDate,
-            items: current,
-            totalQty,
-          });
-        }
-        current = [item];
-        groupStartTime = t;
-      }
-    }
-  }
-  if (current.length > 0) {
-    const totalQty = current.reduce((sum, i) => sum + (i.qty ?? 1), 0);
-    groups.push({
-      key: `${current[0].itemcode}_${current[0].RowID}_${groupStartTime}`,
-      itemcode: current[0].itemcode ?? '',
-      itemname: current[0].itemname ?? current[0].itemcode ?? '',
-      dispenseTime: current[0].modifyDate,
-      items: current,
-      totalQty,
-    });
-  }
-  return groups;
-}
 
 interface DispensedTableProps {
   loading: boolean;
   items: DispensedItem[];
   currentPage: number;
   totalPages: number;
-  totalItems: number;
-  itemsPerPage: number;
+  totalRawItems: number;
+  totalGroups: number;
+  groupsPerPage: number;
   searchItemCode: string;
   itemTypeFilter: string;
   onPageChange: (page: number) => void;
@@ -97,8 +36,9 @@ export default function DispensedTable({
   items,
   currentPage,
   totalPages,
-  totalItems,
-  itemsPerPage,
+  totalRawItems,
+  totalGroups,
+  groupsPerPage,
   searchItemCode,
   itemTypeFilter,
   onPageChange,
@@ -107,7 +47,14 @@ export default function DispensedTable({
 }: DispensedTableProps) {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
-  const groups = useMemo(() => buildGroups(items), [items]);
+  const groups = useMemo(() => buildDispensedGroups(items), [items]);
+
+  const paginatedGroups = useMemo(() => {
+    const start = (currentPage - 1) * groupsPerPage;
+    return groups.slice(start, start + groupsPerPage);
+  }, [groups, currentPage, groupsPerPage]);
+
+  const groupRowOffset = (currentPage - 1) * groupsPerPage;
 
   const toggleExpand = (key: string) => {
     setExpandedKeys((prev) => {
@@ -117,8 +64,6 @@ export default function DispensedTable({
       return next;
     });
   };
-
-  const baseRowIndex = (currentPage - 1) * itemsPerPage;
 
   const totalDispensedQty = useMemo(
     () => items.reduce((sum, i) => sum + (i.qty ?? 1), 0),
@@ -132,7 +77,7 @@ export default function DispensedTable({
           <CardTitle>รายการเบิกอุปกรณ์จากตู้</CardTitle>
           <CardDescription>
             {items.length > 0
-              ? `แสดง ${groups.length} กลุ่ม จากทั้งหมด ${totalItems} รายการ (รวม ${totalDispensedQty.toLocaleString()} ชิ้น) · จัดกลุ่มตามรหัสอุปกรณ์และเวลาที่เบิก ±${GROUP_TIME_TOLERANCE_SEC} วินาที`
+              ? `แสดง ${paginatedGroups.length} กลุ่มในหน้านี้ (สูงสุด ${groupsPerPage} กลุ่มต่อหน้า) · รวม ${totalGroups} กลุ่ม จาก ${totalRawItems} รายการดิบ (รวม ${totalDispensedQty.toLocaleString()} ชิ้น) · จัดกลุ่มตามรหัสอุปกรณ์และเวลาที่เบิก ±${DISPENSED_GROUP_TIME_TOLERANCE_SEC} วินาที`
               : 'รายการอุปกรณ์ที่เบิกจากตู้ SmartCabinet'}
             {(searchItemCode || itemTypeFilter !== 'all') && items.length > 0 && ' (กรองแล้ว)'}
           </CardDescription>
@@ -176,13 +121,12 @@ export default function DispensedTable({
                     <TableHead>วันที่เบิก</TableHead>
                     <TableHead>แผนก</TableHead>
                     <TableHead>ชื่อผู้เบิก</TableHead>
-
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {groups.map((group, groupIndex) => {
+                  {paginatedGroups.map((group, groupIndex) => {
                     const isExpanded = expandedKeys.has(group.key);
-                    const rowNum = baseRowIndex + groupIndex + 1;
+                    const rowNum = groupRowOffset + groupIndex + 1;
                     return (
                       <Fragment key={group.key}>
                         <TableRow
@@ -220,9 +164,6 @@ export default function DispensedTable({
                             <span className="font-semibold text-slate-700">
                               {group.totalQty.toLocaleString()}
                             </span>
-                            {/* <span className="text-muted-foreground text-xs ml-1">
-                              ({group.items.length} รายการ)
-                            </span> */}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {formatUtcDateTime(group.dispenseTime)}
@@ -281,7 +222,6 @@ export default function DispensedTable({
                                           <TableCell className="text-muted-foreground text-sm font-mono">
                                             {item.RfidCode || '-'}
                                           </TableCell>
-
                                         </TableRow>
                                       ))}
                                     </TableBody>
@@ -301,8 +241,9 @@ export default function DispensedTable({
             <DispensedPagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={totalItems}
-              itemsPerPage={itemsPerPage}
+              totalItems={totalGroups}
+              itemsPerPage={groupsPerPage}
+              countLabel="กลุ่ม"
               onPageChange={onPageChange}
             />
           </>
