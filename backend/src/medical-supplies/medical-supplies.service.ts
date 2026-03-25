@@ -318,6 +318,8 @@ export class MedicalSuppliesService {
     const s = (status ?? '').toString().trim();
     const lower = s.toLowerCase();
     if (s === '' || lower === 'verified' || lower === 'verifie') return { allowed: true, normalized: 'Verified' };
+    /** HIS บางเส้นส่ง Update เมื่อแก้จำนวน/QTY — ถือเป็นยืนยันรายการเดิม */
+    if (lower === 'update' || lower === 'updated') return { allowed: true, normalized: 'Verified' };
     if (
       lower === 'discontinue' ||
       lower === 'discontinuud' ||
@@ -642,7 +644,7 @@ export class MedicalSuppliesService {
 
       // If existing usage found, process items based on AssessionNo
       if (existingUsage && orderItems.length > 0) {
-        const itemsToUpdate: Array<{ item: any; newStatus: string }> = [];
+        const itemsToUpdate: Array<{ item: any; newStatus: string; orderItem: (typeof orderItems)[number] }> = [];
         const itemsToCreate: typeof orderItems = [];
         const discontinueItemsInOrder: typeof orderItems = [];
         const discontinueAffectedUsageIds = new Set<number>();
@@ -721,10 +723,11 @@ export class MedicalSuppliesService {
             );
 
             if (existingItem) {
-              // If same AssessionNo + ItemCode found, update ItemStatus only (ค่าที่บันทึกต้องเป็น "Discontinue" ถ้าเป็นประเภท discontinue)
+              // If same AssessionNo + ItemCode found — อัปเดตทั้งสถานะและจำนวน (QTY) จาก Order
               itemsToUpdate.push({
                 item: existingItem,
                 newStatus: this.normalizeOrderItemStatus(orderItem.ItemStatus) || existingItem.order_item_status || 'Verified',
+                orderItem,
               });
             } else {
               // Different line (AssessionNo+ItemCode) → add new item
@@ -733,12 +736,31 @@ export class MedicalSuppliesService {
           }
         }
 
-        // Update existing items' status
-        for (const { item, newStatus } of itemsToUpdate) {
+        // Update existing items: สถานะ + จำนวน (QTY) ตาม payload — เดิมอัปเดตแค่ status ทำให้ QTY ใหม่ไม่ติด DB
+        for (const { item, newStatus, orderItem } of itemsToUpdate) {
+          const qtyParsed =
+            typeof orderItem.QTY === 'string' ? parseInt(String(orderItem.QTY), 10) : Number(orderItem.QTY);
+          const newQty = Number.isNaN(qtyParsed) ? (item.qty ?? 0) : qtyParsed;
+          const committed = (item.qty_used_with_patient ?? 0) + (item.qty_returned_to_cabinet ?? 0);
+          if (newQty < committed) {
+            throw new BadRequestException(
+              `ไม่สามารถตั้ง QTY เป็น ${newQty} ได้ เพราะมีการใช้/คืนแล้ว ${committed} ชิ้น (ItemCode: ${orderItem.ItemCode}, AssessionNo: ${(orderItem.AssessionNo ?? '').toString().trim()})`,
+            );
+          }
+
+          const derivedItemStatus = this.calculateItemStatus(
+            newQty,
+            item.qty_used_with_patient ?? 0,
+            item.qty_returned_to_cabinet ?? 0,
+          );
+
           await this.prisma.supplyUsageItem.update({
             where: { id: item.id },
             data: {
               order_item_status: newStatus,
+              qty: newQty,
+              quantity: newQty,
+              item_status: derivedItemStatus,
               updated_at: this.nowBangkokUtcTrueForPrisma(),
             },
           });
@@ -748,10 +770,12 @@ export class MedicalSuppliesService {
             item.order_item_description,
             item.order_item_code,
           );
+          const qtyChanged = (item.qty ?? 0) !== newQty;
+          const statusChanged = (item.order_item_status ?? '') !== newStatus;
           await this.createLog(existingUsage.id, {
             type: 'UPDATE',
             status: 'SUCCESS',
-            action: 'update_item_status',
+            action: qtyChanged ? 'update_item_status_and_qty' : 'update_item_status',
             patient_hn: existingUsage.patient_hn ?? '',
             en: existingUsage.en ?? '',
             assession_no: item.assession_no,
@@ -759,8 +783,14 @@ export class MedicalSuppliesService {
             order_item_description: item.order_item_description,
             old_status: item.order_item_status,
             new_status: newStatus,
-            reason: 'ItemStatus updated based on AssessionNo match',
-            user_description: `สถานะเวชภัณฑ์ **${statusDisplayName}** ที่มี **AssessionNo : ${statusAn}** ถูกอัปเดต`,
+            old_qty: item.qty,
+            new_qty: newQty,
+            reason: qtyChanged
+              ? 'ItemStatus and QTY updated based on AssessionNo + ItemCode match'
+              : 'ItemStatus updated based on AssessionNo match',
+            user_description: qtyChanged
+              ? `เวชภัณฑ์ **${statusDisplayName}** (AssessionNo : ${statusAn}) — อัปเดตจำนวนจาก **${item.qty ?? 0}** เป็น **${newQty}** ชิ้น${statusChanged ? ` และสถานะเป็น ${newStatus}` : ''}`
+              : `สถานะเวชภัณฑ์ **${statusDisplayName}** ที่มี **AssessionNo : ${statusAn}** ถูกอัปเดต`,
             input_data: data,
           });
         }
