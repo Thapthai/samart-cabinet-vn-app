@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import CreateCabinetDialog from './components/CreateCabinetDialog';
 import EditCabinetDialog from './components/EditCabinetDialog';
-import DeleteCabinetDialog from './components/DeleteCabinetDialog';
 import CabinetsTable from './components/CabinetsTable';
+import { cabinetApi } from '@/lib/api';
 
 interface Cabinet {
   id: number;
@@ -30,8 +30,8 @@ export default function CabinetsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedCabinet, setSelectedCabinet] = useState<Cabinet | null>(null);
+  const [updatingCabinetId, setUpdatingCabinetId] = useState<number | null>(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,9 +47,9 @@ export default function CabinetsPage() {
     filterCabinets();
   }, [cabinets, searchTerm]);
 
-  const fetchCabinets = async () => {
+  const fetchCabinets = async (opts?: { silent?: boolean }) => {
     try {
-      setLoading(true);
+      if (!opts?.silent) setLoading(true);
       const params: any = {
         page: currentPage,
         limit: itemsPerPage,
@@ -69,7 +69,7 @@ export default function CabinetsPage() {
       console.error('Failed to fetch cabinets:', error);
       toast.error('ไม่สามารถโหลดข้อมูลตู้ Cabinet ได้');
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   };
 
@@ -97,9 +97,26 @@ export default function CabinetsPage() {
     setShowEditDialog(true);
   };
 
-  const handleDelete = (cabinet: Cabinet) => {
-    setSelectedCabinet(cabinet);
-    setShowDeleteDialog(true);
+  const handleToggleCabinetStatus = async (cabinet: Cabinet, enabled: boolean) => {
+    try {
+      setUpdatingCabinetId(cabinet.id);
+      const cabinet_status = enabled ? 'ACTIVE' : 'INACTIVE';
+      const response = await cabinetApi.update(cabinet.id, { cabinet_status });
+      if (response.success) {
+        toast.success(enabled ? 'เปิดใช้งานตู้แล้ว' : 'ปิดใช้งานตู้แล้ว');
+        await fetchCabinets({ silent: true });
+      } else {
+        toast.error(response.message || 'ไม่สามารถอัปเดตสถานะตู้ได้');
+      }
+    } catch (error: unknown) {
+      const msg =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      toast.error(msg || 'เกิดข้อผิดพลาดในการอัปเดตสถานะตู้');
+    } finally {
+      setUpdatingCabinetId(null);
+    }
   };
 
   return (
@@ -152,7 +169,8 @@ export default function CabinetsPage() {
           totalItems={totalItems}
           itemsPerPage={itemsPerPage}
           onEdit={handleEdit}
-          onDelete={handleDelete}
+          onToggleStatus={handleToggleCabinetStatus}
+          updatingCabinetId={updatingCabinetId}
           onPageChange={handlePageChange}
         />
       </div>
@@ -171,12 +189,6 @@ export default function CabinetsPage() {
         onSuccess={fetchCabinets}
       />
 
-      <DeleteCabinetDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        cabinet={selectedCabinet}
-        onSuccess={fetchCabinets}
-      />
     </>
   );
 }

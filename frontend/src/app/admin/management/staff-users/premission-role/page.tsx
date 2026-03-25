@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import { staffRolePermissionApi, staffRoleApi } from "@/lib/api";
+import { staffRoleIsStaffPermissionHead } from "@/lib/staffRolePolicy";
 import {
   Card,
   CardContent,
@@ -146,8 +147,7 @@ export default function ManageStaffRolesPage() {
     roles.forEach((role) => {
       defaultPermissions[role.code] = {};
       menuItemsList.forEach((menu) => {
-        // Default: all menus enabled except manageUsers and manageRoles for non-it1 roles
-        if (role.code === "it1") {
+        if (staffRoleIsStaffPermissionHead(role.code)) {
           defaultPermissions[role.code][menu.value] = true;
         } else {
           defaultPermissions[role.code][menu.value] =

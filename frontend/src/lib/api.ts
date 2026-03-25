@@ -1378,7 +1378,7 @@ export const reportsApi = {
 };
 
 // =========================== Staff User API ===========================
-// Backend DTO: CreateStaffUserDto (email, fname, lname, role_code?, role_id?, department_id?, password?, expires_at?)
+// Backend DTO: CreateStaffUserDto (email, fname, lname, role_code?, role_id?, department_id?, password?, expires_at?, is_active?)
 // Backend DTO: UpdateStaffUserDto (email?, fname?, lname?, role_code?, role_id?, department_id?, password?, is_active?, expires_at?)
 // Response shape: { success: boolean; data?: T; message?: string; error?: string }
 export const staffUserApi = {
@@ -1391,6 +1391,7 @@ export const staffUserApi = {
     department_id?: number | null;
     password?: string;
     expires_at?: string;
+    is_active?: boolean;
   }): Promise<ApiResponse<any>> => {
     const body: Record<string, unknown> = {
       email: data.email.trim(),
@@ -1401,6 +1402,7 @@ export const staffUserApi = {
     if (data.department_id != null) body.department_id = Number(data.department_id);
     if (data.password && String(data.password).length >= 8) body.password = data.password;
     if (data.expires_at?.trim()) body.expires_at = data.expires_at.trim();
+    if (data.is_active !== undefined) body.is_active = data.is_active;
     const response = await api.post('/staff-users', body);
     return response.data;
   },

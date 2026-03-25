@@ -47,6 +47,10 @@ export class CreateStaffUserDto {
   @IsOptional()
   @IsString()
   expires_at?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }
 
 export class UpdateStaffUserDto {

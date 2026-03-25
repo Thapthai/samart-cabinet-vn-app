@@ -7,6 +7,7 @@ import { Package } from 'lucide-react';
 import FilterSection from './components/FilterSection';
 import DispensedTable from './components/DispensedTable';
 import type { DispensedItem, FilterState, SummaryData } from './types';
+import { staffRoleCanSelectAnyDepartment, staffRoleLocksDepartmentToProfile } from '@/lib/staffRolePolicy';
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -51,8 +52,8 @@ export default function DispenseFromCabinetPage() {
       if (raw) {
         const staffUser = JSON.parse(raw.trim());
         const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-        if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
-        if (staffUser?.department_id) {
+        if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
+        if (staffUser?.department_id && staffRoleLocksDepartmentToProfile(roleCode)) {
           departmentId = String(staffUser.department_id);
           setStaffDepartmentId(departmentId);
           setFilters(prev => ({ ...prev, departmentId, cabinetId: '' }));

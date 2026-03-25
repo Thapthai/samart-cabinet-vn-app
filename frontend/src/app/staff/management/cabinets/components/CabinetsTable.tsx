@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Loader2, Package } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Edit, Loader2, Package } from 'lucide-react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,6 +24,12 @@ interface Cabinet {
   updated_at?: string;
 }
 
+/** ปิดใช้งานเมื่อ cabinet_status = INACTIVE — นอกนั้นถือว่าเปิด (รวม ACTIVE, USED, AVAILIABLE, …) */
+function isCabinetEnabled(status?: string | null): boolean {
+  const s = (status ?? 'ACTIVE').toString().toUpperCase();
+  return s !== 'INACTIVE';
+}
+
 interface CabinetsTableProps {
   cabinets: Cabinet[];
   loading: boolean;
@@ -32,7 +38,8 @@ interface CabinetsTableProps {
   totalItems: number;
   itemsPerPage: number;
   onEdit: (cabinet: Cabinet) => void;
-  onDelete: (cabinet: Cabinet) => void;
+  onToggleStatus: (cabinet: Cabinet, enabled: boolean) => void;
+  updatingCabinetId: number | null;
   onPageChange: (page: number) => void;
 }
 
@@ -44,10 +51,18 @@ export default function CabinetsTable({
   totalItems,
   itemsPerPage,
   onEdit,
-  onDelete,
+  onToggleStatus,
+  updatingCabinetId,
   onPageChange,
 }: CabinetsTableProps) {
   const getStatusBadge = (status?: string) => {
+    const u = (status ?? '').toUpperCase();
+    if (u === 'INACTIVE') {
+      return <Badge className="bg-slate-500 hover:bg-slate-600">ปิดใช้งาน</Badge>;
+    }
+    if (u === 'ACTIVE') {
+      return <Badge className="bg-emerald-600 hover:bg-emerald-700">ACTIVE</Badge>;
+    }
     switch (status) {
       case 'AVAILIABLE':
         return <Badge className="bg-green-500 hover:bg-green-600">ใช้งานได้</Badge>;
@@ -102,20 +117,34 @@ export default function CabinetsTable({
                 <TableHead>ประเภท</TableHead>
                 <TableHead>Stock ID</TableHead>
                 <TableHead>สถานะ</TableHead>
+                <TableHead className="text-center w-[140px]">เปิดใช้งาน</TableHead>
                 <TableHead className="text-right">จัดการ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cabinets.map((cabinet) => (
-                <TableRow key={cabinet.id}>
-                  <TableCell className="font-medium">{cabinet.id}</TableCell>
-                  <TableCell>{cabinet.cabinet_name || '-'}</TableCell>
-                  <TableCell>{cabinet.cabinet_code || '-'}</TableCell>
-                  <TableCell>{cabinet.cabinet_type || '-'}</TableCell>
-                  <TableCell>{cabinet.stock_id || '-'}</TableCell>
-                  <TableCell>{getStatusBadge(cabinet.cabinet_status)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end space-x-2">
+              {cabinets.map((cabinet) => {
+                const enabled = isCabinetEnabled(cabinet.cabinet_status);
+                const busy = updatingCabinetId === cabinet.id;
+                return (
+                  <TableRow key={cabinet.id}>
+                    <TableCell className="font-medium">{cabinet.id}</TableCell>
+                    <TableCell>{cabinet.cabinet_name || '-'}</TableCell>
+                    <TableCell>{cabinet.cabinet_code || '-'}</TableCell>
+                    <TableCell>{cabinet.cabinet_type || '-'}</TableCell>
+                    <TableCell>{cabinet.stock_id || '-'}</TableCell>
+                    <TableCell>{getStatusBadge(cabinet.cabinet_status)}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Switch
+                          checked={enabled}
+                          disabled={busy}
+                          onCheckedChange={(checked) => onToggleStatus(cabinet, checked)}
+                          aria-label={enabled ? 'ปิดใช้งานตู้' : 'เปิดใช้งานตู้'}
+                        />
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -124,18 +153,10 @@ export default function CabinetsTable({
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDelete(cabinet)}
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

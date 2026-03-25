@@ -8,6 +8,7 @@ import ReturnedTable from './components/ReturnedTable';
 import type { DispensedItem, FilterState, SummaryData } from './types.ts';
 import { returnedItemsApi } from '@/lib/staffApi/returnedItemsApi';
 import { buildReturnedGroups } from '@/lib/returnToCabinet/buildReturnedGroups';
+import { staffRoleCanSelectAnyDepartment, staffRoleLocksDepartmentToProfile } from '@/lib/staffRolePolicy';
 
 const getTodayDate = () => {
   const today = new Date();
@@ -125,8 +126,8 @@ export default function ReturnToCabinetReportPage() {
       if (raw) {
         const staffUser = JSON.parse(raw.trim());
         const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-        if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
-        if (staffUser?.department_id) {
+        if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
+        if (staffUser?.department_id && staffRoleLocksDepartmentToProfile(roleCode)) {
           departmentId = String(staffUser.department_id);
           setStaffDepartmentId(departmentId);
           setFilters((prev) => ({ ...prev, departmentId, cabinetId: '' }));

@@ -14,6 +14,7 @@ import {
 import type { ComparisonItem, UsageItem, FilterState, SummaryData } from './types';
 import { itemComparisonApi } from '@/lib/staffApi/itemComparisonApi';
 import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
+import { staffRoleCanSelectAnyDepartment, staffRoleLocksDepartmentToProfile } from '@/lib/staffRolePolicy';
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = (): string => {
@@ -59,8 +60,8 @@ export default function ItemComparisonPage() {
         if (raw) {
           const staffUser = JSON.parse(raw.trim());
           const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-          if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
-          if (staffUser?.department_id) {
+          if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
+          if (staffUser?.department_id && staffRoleLocksDepartmentToProfile(roleCode)) {
             deptCode = String(staffUser.department_id);
             setStaffDepartmentCode(deptCode);
             setFilters(prev => ({ ...prev, departmentCode: deptCode }));

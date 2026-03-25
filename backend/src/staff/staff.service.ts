@@ -138,6 +138,7 @@ export class StaffService {
         client_id,
         client_secret: client_secret_hash,
         expires_at: expiresAt,
+        is_active: dto.is_active ?? true,
       },
     });
     return {

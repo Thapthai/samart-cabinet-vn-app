@@ -19,15 +19,8 @@ import {
   type StaffMenuSubItem,
 } from '@/app/staff/menus';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { ASSETS } from '@/lib/assets';
+import { staffRoleDisplayLabel } from '@/lib/staffRolePolicy';
 
 interface StaffSidebarProps {
   staffUser?: {
@@ -55,8 +48,8 @@ function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-/** เมนูย่อยแบบรายการเดียว (staff ไม่มีเมนูซ้อน) — ใช้ตอน sidebar หุบ desktop */
-function StaffCollapsedFlyoutSubItems({
+/** เมนูย่อยตอน sidebar หุบ — แสดงซ้อนลงใต้หัวข้อในแถบเดียวกัน */
+function StaffCollapsedInlineSubItems({
   items,
   pathname,
   onNavigate,
@@ -66,45 +59,49 @@ function StaffCollapsedFlyoutSubItems({
   onNavigate: () => void;
 }) {
   return (
-    <>
+    <div className="flex flex-col gap-0.5 border-t border-sky-200/50 py-1">
       {items.map((sub) => {
         const SubIcon = sub.icon;
-        const subActive =
-          pathname === sub.href || pathname.startsWith(sub.href + '/');
+        const subActive = pathname === sub.href || pathname.startsWith(sub.href + '/');
         return (
-          <DropdownMenuItem key={sub.href} asChild>
-            <Link
-              href={sub.href}
-              onClick={onNavigate}
-              className={cn(
-                'flex cursor-pointer items-center gap-2',
-                subActive && 'bg-sky-50 font-medium text-slate-900',
-              )}
-            >
-              {SubIcon ? (
-                <SubIcon className="h-4 w-4 shrink-0" />
-              ) : (
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
-              )}
-              <span className="break-words leading-tight">{sub.name}</span>
-            </Link>
-          </DropdownMenuItem>
+          <Link
+            key={sub.href}
+            href={sub.href}
+            title={sub.name}
+            onClick={onNavigate}
+            className={cn(
+              'flex items-center justify-center rounded-lg p-2 transition-colors',
+              subActive ? 'bg-sky-200/90 text-slate-900' : 'text-slate-600 hover:bg-sky-100/90',
+            )}
+          >
+            {SubIcon ? (
+              <SubIcon className="h-4 w-4 shrink-0" />
+            ) : (
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+            )}
+          </Link>
         );
       })}
-    </>
+    </div>
   );
 }
 
 export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: StaffSidebarProps) {
   const pathname = usePathname();
+  const staffRoleCodeForMenu =
+    typeof staffUser?.role === 'string'
+      ? staffUser.role
+      : (staffUser?.role && typeof staffUser.role === 'object' && staffUser.role.code
+          ? staffUser.role.code
+          : '') || '';
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const skipInitialPersist = useRef(true);
   const isLg = useMediaQuery('(min-width: 1024px)');
-  /** ไอคอน + เปิดแผงเมนูทางขวา (เฉพาะ desktop ตอน sidebar หุบ) */
-  const useCollapsedFlyout = isCollapsed && isLg;
+  /** แถบแคบ (ไอคอนอย่างเดียว) — เมนูย่อยขยายลงด้านล่างในแถบเดียวกัน ไม่ใช้ dropdown */
+  const useCollapsedNarrow = isCollapsed && isLg;
 
   // โหลดการหุบ/กางจากเครื่อง (หลัง mount)
   useEffect(() => {
@@ -183,15 +180,8 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
     if (isAdmin) return 'Admin';
 
     const roleCode = typeof role === 'string' ? role : role?.code || '';
-    const roleMap: Record<string, string> = {
-      it1: 'IT 1',
-      it2: 'IT 2',
-      it3: 'IT 3',
-      warehouse1: 'Warehouse 1',
-      warehouse2: 'Warehouse 2',
-      warehouse3: 'Warehouse 3',
-    };
-    return roleMap[roleCode] || roleCode || 'Staff';
+    const label = staffRoleDisplayLabel(roleCode);
+    return label || roleCode || 'Staff';
   };
 
   return (
@@ -293,41 +283,19 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
           <nav className="flex-1 pl-2 pr-2 py-6 space-y-2 overflow-y-auto overflow-x-hidden scrollbar-sidebar">
             {/* Admin - Back to Admin Panel Link */}
             {isAdmin &&
-              (useCollapsedFlyout ? (
-                <div className="mb-4 w-full rounded-xl bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30">
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-center rounded-xl px-2 py-3 outline-none focus-visible:ring-2 focus-visible:ring-sky-400/50"
-                        aria-label="กลับไปหน้า Admin"
-                        aria-haspopup="menu"
-                      >
-                        <Shield className="h-5 w-5 flex-shrink-0 text-white" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      side="right"
-                      align="start"
-                      sideOffset={8}
-                      className="w-56 max-w-[min(18rem,calc(100vw-4rem))]"
-                    >
-                      <DropdownMenuLabel className="font-semibold text-slate-900">
-                        กลับไปหน้า Admin
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href="/admin/items"
-                          onClick={() => setIsMobileOpen(false)}
-                          className="cursor-pointer"
-                        >
-                          ไปที่หน้า Admin
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+              (useCollapsedNarrow ? (
+                <Link
+                  href="/admin/items"
+                  onClick={() => setIsMobileOpen(false)}
+                  className={cn(
+                    'group relative mb-4 flex w-full items-center justify-center rounded-xl px-2 py-3 text-lg font-medium transition-all duration-200',
+                    'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30 hover:from-sky-500 hover:to-blue-500',
+                  )}
+                  title="กลับไปหน้า Admin"
+                  aria-label="กลับไปหน้า Admin"
+                >
+                  <Shield className="h-5 w-5 flex-shrink-0 text-white" />
+                </Link>
               ) : (
                 <Link
                   href="/admin/items"
@@ -346,33 +314,42 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                 </Link>
               ))}
 
-            {filterMenuByPermissions(staffMenuItems, permissions)
+            {filterMenuByPermissions(staffMenuItems, permissions, staffRoleCodeForMenu, {
+                skipSubRoleGate: isAdmin,
+              })
               .map((item) => {
                 const Icon = item.icon;
                 const hasSubmenu = item.submenu && item.submenu.length > 0;
                 const isActive =
                   isPathActive(pathname, item.href) ||
                   (hasSubmenu && item.submenu!.some((s) => isPathActive(pathname, s.href)));
-                const open = openSubmenus[item.href] ?? isActive;
                 const rowActiveClass = isActive
                   ? 'bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30'
                   : 'text-slate-700 hover:bg-sky-100/90 hover:text-slate-900';
 
+                const groupOpen = openSubmenus[item.href] ?? isActive;
+
                 return (
                   <div key={item.href}>
-                    {useCollapsedFlyout ? (
-                      <div className={cn('group relative w-full rounded-xl', rowActiveClass)}>
-                        <DropdownMenu modal={false}>
-                          <DropdownMenuTrigger asChild>
+                    {useCollapsedNarrow ? (
+                      <div className="w-full overflow-hidden rounded-xl">
+                        <div className={cn('group relative w-full rounded-xl', rowActiveClass)}>
+                          {hasSubmenu ? (
                             <button
                               type="button"
+                              onClick={() =>
+                                setOpenSubmenus((p) => {
+                                  const cur = p[item.href] ?? isActive;
+                                  return { ...p, [item.href]: !cur };
+                                })
+                              }
                               className={cn(
                                 'relative flex w-full items-center justify-center rounded-xl px-2 py-3 text-lg font-medium outline-none transition-colors',
                                 isActive ? 'text-white' : 'text-inherit',
                                 'focus-visible:ring-2 focus-visible:ring-sky-400/50',
                               )}
                               aria-label={item.name}
-                              aria-haspopup="menu"
+                              aria-expanded={groupOpen}
                             >
                               {isActive && (
                                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
@@ -384,36 +361,36 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                                 )}
                               />
                             </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            side="right"
-                            align="start"
-                            sideOffset={8}
-                            className="w-64 max-h-[min(70vh,24rem)] max-w-[min(18rem,calc(100vw-4rem))] overflow-y-auto"
-                          >
-                            <DropdownMenuLabel className="font-semibold text-slate-900">
-                              {item.name}
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {hasSubmenu ? (
-                              <StaffCollapsedFlyoutSubItems
-                                items={item.submenu!}
-                                pathname={pathname}
-                                onNavigate={() => setIsMobileOpen(false)}
+                          ) : (
+                            <Link
+                              href={item.href}
+                              onClick={() => setIsMobileOpen(false)}
+                              className={cn(
+                                'relative flex w-full items-center justify-center rounded-xl px-2 py-3 text-lg font-medium transition-colors',
+                                isActive ? 'text-white' : 'text-inherit',
+                              )}
+                              title={item.name}
+                              aria-label={item.name}
+                            >
+                              {isActive && (
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
+                              )}
+                              <Icon
+                                className={cn(
+                                  'h-5 w-5 flex-shrink-0',
+                                  isActive ? 'text-white' : 'text-slate-600',
+                                )}
                               />
-                            ) : (
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  href={item.href}
-                                  onClick={() => setIsMobileOpen(false)}
-                                  className="cursor-pointer"
-                                >
-                                  ไปที่หน้า{item.name}
-                                </Link>
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                            </Link>
+                          )}
+                        </div>
+                        {hasSubmenu && groupOpen && (
+                          <StaffCollapsedInlineSubItems
+                            items={item.submenu!}
+                            pathname={pathname}
+                            onNavigate={() => setIsMobileOpen(false)}
+                          />
+                        )}
                       </div>
                     ) : (
                       <>
@@ -425,18 +402,12 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                           )}
                         >
                           {item.noHref && hasSubmenu ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
-                                setIsMobileOpen(false);
-                              }}
+                            <div
                               className={cn(
-                                'flex flex-1 min-w-0 items-center pl-2 pr-2 py-3 text-lg font-medium rounded-xl text-inherit text-left cursor-pointer',
+                                'relative flex flex-1 min-w-0 items-center pl-2 pr-2 py-3 text-lg font-medium rounded-xl text-inherit',
                                 isActive && 'text-white',
                                 isCollapsed && 'lg:justify-center lg:px-2',
                               )}
-                              title={isCollapsed ? item.name : undefined}
                             >
                               {isActive && !isCollapsed && (
                                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
@@ -445,7 +416,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                               {!isCollapsed && (
                                 <span className="flex-1 min-w-0 break-words leading-tight text-left">{item.name}</span>
                               )}
-                            </button>
+                            </div>
                           ) : (
                             <Link
                               href={item.href}
@@ -466,27 +437,9 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                               )}
                             </Link>
                           )}
-                          {hasSubmenu && !isCollapsed && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setOpenSubmenus((p) => ({ ...p, [item.href]: !open }));
-                              }}
-                              className={cn(
-                                'flex-shrink-0 p-2 rounded-lg text-inherit hover:bg-sky-100/80 transition-colors',
-                                isActive && 'text-white',
-                              )}
-                              aria-expanded={open}
-                              aria-label={open ? 'ปิดเมนูย่อย' : 'เปิดเมนูย่อย'}
-                            >
-                              <ChevronRight className={cn('h-4 w-4 transition-transform duration-200', open && 'rotate-90')} />
-                            </button>
-                          )}
                         </div>
 
-                        {hasSubmenu && open && !isCollapsed && (
+                        {hasSubmenu && (
                           <div className="ml-4 mt-2 space-y-1 border-l-2 border-sky-300/70 pl-4">
                             {item.submenu!.map((subItem) => {
                               const SubIcon = subItem.icon;
@@ -523,48 +476,23 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
 
           {/* Footer */}
           <div className="p-4 border-t border-sky-200/80">
-            {onLogout &&
-              (useCollapsedFlyout ? (
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-center px-2 text-lg text-slate-600 hover:text-slate-900 hover:bg-red-50"
-                      aria-label="ออกจากระบบ"
-                      aria-haspopup="menu"
-                    >
-                      <LogOut className="h-5 w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="right" align="end" sideOffset={8} className="w-48">
-                    <DropdownMenuItem
-                      className="cursor-pointer text-red-700 focus:text-red-800"
-                      onClick={() => {
-                        onLogout();
-                        setIsMobileOpen(false);
-                      }}
-                    >
-                      ออกจากระบบ
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    onLogout();
-                    setIsMobileOpen(false);
-                  }}
-                  className={cn(
-                    'w-full justify-start text-lg text-slate-600 hover:text-slate-900 hover:bg-red-50',
-                    isCollapsed && 'lg:justify-center lg:px-2',
-                  )}
-                  title={isCollapsed ? 'ออกจากระบบ' : undefined}
-                >
-                  <LogOut className={cn('h-5 w-5', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
-                  {!isCollapsed && <span>ออกจากระบบ</span>}
-                </Button>
-              ))}
+            {onLogout && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  onLogout();
+                  setIsMobileOpen(false);
+                }}
+                className={cn(
+                  'w-full justify-start text-lg text-slate-600 hover:text-slate-900 hover:bg-red-50',
+                  isCollapsed && 'lg:justify-center lg:px-2',
+                )}
+                title={isCollapsed ? 'ออกจากระบบ' : undefined}
+              >
+                <LogOut className={cn('h-5 w-5', isCollapsed ? 'lg:mx-auto' : 'mr-2')} />
+                {!isCollapsed && <span>ออกจากระบบ</span>}
+              </Button>
+            )}
           </div>
         </div>
       </aside>

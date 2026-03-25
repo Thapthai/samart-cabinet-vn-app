@@ -25,6 +25,7 @@ import {
 import MedicalSuppliesTable from './components/MedicalSuppliesTable';
 import CancelBillDialog from './components/CancelBillDialog';
 import { formatPrintDateTime, formatUtcDateTime } from '@/lib/formatThaiDateTime';
+import { staffRoleCanSelectAnyDepartment, staffRoleBypassesDepartmentLock } from '@/lib/staffRolePolicy';
 
 export default function MedicalSuppliesPage() {
   const { user } = useAuth();
@@ -160,11 +161,15 @@ export default function MedicalSuppliesPage() {
         const staffUser = JSON.parse(trimmed);
         if (staffUser && typeof staffUser === 'object') {
           const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-          if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
-          setStaffDepartment({
-            department_id: staffUser.department_id ?? null,
-            department_name: staffUser.department_name ?? null,
-          });
+          if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
+          if (staffRoleBypassesDepartmentLock(roleCode)) {
+            setStaffDepartment({ department_id: null, department_name: null });
+          } else {
+            setStaffDepartment({
+              department_id: staffUser.department_id ?? null,
+              department_name: staffUser.department_name ?? null,
+            });
+          }
         }
       }
     } catch {

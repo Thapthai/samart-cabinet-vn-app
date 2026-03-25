@@ -16,6 +16,7 @@ import ReturnHistoryFilter from './components/ReturnHistoryFilter';
 import ReturnHistoryTable from './components/ReturnHistoryTable';
 import type { ReturnHistoryData } from './types';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
+import { staffRoleCanSelectAnyDepartment } from '@/lib/staffRolePolicy';
 
 const getTodayDate = () => {
   const today = new Date();
@@ -179,21 +180,21 @@ export default function ReturnMedicalSuppliesPage() {
   }, []);
 
   useEffect(() => {
-    let warehouse = false;
+    let canPickDept = false;
     try {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('staff_user') : null;
       if (raw) {
         const roleCode = (JSON.parse(raw.trim())?.role ?? '').toString().toLowerCase();
-        if (roleCode.includes('warehouse')) warehouse = true;
+        canPickDept = staffRoleCanSelectAnyDepartment(roleCode);
       }
     } catch {
       // ignore
     }
-    setCanSelectDepartment(warehouse);
+    setCanSelectDepartment(canPickDept);
 
     fetchDepartments();
-    // Staff ทั่วไป: แผนกตามโปรไฟล์ — warehouse: ค่าเริ่มต้นเหมือน admin (29)
-    const deptStr = warehouse ? '29' : (readStaffDepartmentIdFromStorage() ?? '29');
+    // เลือกแผนกได้ (สาย warehouse / IT-001 / WH-001): ค่าเริ่มต้นเหมือน admin (29)
+    const deptStr = canPickDept ? '29' : (readStaffDepartmentIdFromStorage() ?? '29');
     setFilterDepartmentId(deptStr);
     setFilterCabinetId('1');
     const start = getTodayDate();

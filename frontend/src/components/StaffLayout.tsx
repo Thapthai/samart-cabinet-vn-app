@@ -123,6 +123,8 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
       '/staff/settings': 'ตั้งค่า',
       '/staff/permissions/users': 'จัดการสิทธิ์',
       '/staff/permissions/roles': 'กำหนดสิทธิ์',
+      '/staff/management/permission-users': 'จัดการสิทธิ์',
+      '/staff/management/permission-roles': 'กำหนดสิทธิ์',
     };
     return pathMap[pathname] || 'Staff Portal';
   };

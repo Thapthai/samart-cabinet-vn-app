@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { User, Lock, Save, Eye, EyeOff } from 'lucide-react';
 import { staffUserApi } from '@/lib/api';
+import { staffRoleDisplayLabel } from '@/lib/staffRolePolicy';
 
 export default function SettingsPage() {
   const [staffUser, setStaffUser] = useState<any>(null);
@@ -81,15 +82,8 @@ export default function SettingsPage() {
   };
 
   const getRoleLabel = (role?: string) => {
-    const roleMap: Record<string, string> = {
-      it1: 'IT 1',
-      it2: 'IT 2',
-      it3: 'IT 3',
-      warehouse1: 'Warehouse 1',
-      warehouse2: 'Warehouse 2',
-      warehouse3: 'Warehouse 3',
-    };
-    return roleMap[role || ''] || role || '-';
+    if (!role) return '-';
+    return staffRoleDisplayLabel(role);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

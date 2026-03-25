@@ -11,6 +11,7 @@ import CreateMappingDialog from "./components/CreateMappingDialog";
 import EditMappingDialog from "./components/EditMappingDialog";
 import DeleteMappingDialog from "./components/DeleteMappingDialog";
 import CreateCabinetDialog from "@/app/staff/cabinets/components/CreateCabinetDialog";
+import { staffRoleCanSelectAnyDepartment, staffRoleLocksDepartmentToProfile } from "@/lib/staffRolePolicy";
 
 interface CabinetDepartment {
   id: number;
@@ -67,8 +68,8 @@ export default function ItemStockDepartmentsPage() {
         if (raw) {
           const staffUser = JSON.parse(raw.trim());
           const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-          if (roleCode.includes('warehouse')) setCanSelectDepartment(true);
-          if (staffUser?.department_id) {
+          if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
+          if (staffUser?.department_id && staffRoleLocksDepartmentToProfile(roleCode)) {
             const deptId = String(staffUser.department_id);
             setStaffDepartmentId(deptId);
             setActiveFilters(prev => ({ ...prev, departmentId: deptId }));

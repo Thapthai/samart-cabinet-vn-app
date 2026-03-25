@@ -4,6 +4,8 @@ export interface StaffMenuSubItem {
     href: string;
     description?: string;
     icon?: any;
+    /** ถ้ากำหนด: แสดงเมนูนี้เฉพาะ role ที่ระบุ (คู่กับสิทธิ์จาก API ที่ไม่ถูกปิด) */
+    roles?: string[];
 }
 
 export interface StaffMenuItem {
@@ -16,21 +18,40 @@ export interface StaffMenuItem {
     /** เมื่อเป็น true กดแล้วไม่นำทาง แค่เปิด/ปิด submenu */
     noHref?: boolean;
 }
-// Utility to filter menu and submenu by permissions
+// Utility to filter menu and submenu by permissions (+ optional role gate บนเมนูย่อย)
 export function filterMenuByPermissions(
     menuItems: StaffMenuItem[],
-    permissions: Record<string, boolean>
+    permissions: Record<string, boolean>,
+    roleCode?: string | null,
+    options?: { skipSubRoleGate?: boolean },
 ): StaffMenuItem[] {
+    const r = (roleCode ?? '').toString().trim().toLowerCase();
+    const skipGate = options?.skipSubRoleGate === true;
+
+    const subVisible = (sub: StaffMenuSubItem): boolean => {
+        if (permissions[sub.href] === false) return false;
+        if (sub.roles?.length) {
+            if (skipGate) return true;
+            return !!r && sub.roles.map((x) => x.toLowerCase()).includes(r);
+        }
+        return permissions[sub.href] !== false;
+    };
+
     return menuItems
-        .filter((item) => permissions[item.href] !== false)
         .map((item) => {
-            if (item.submenu) {
-                const filteredSubmenu = item.submenu.filter((sub) => permissions[sub.href] !== false);
-                return { ...item, submenu: filteredSubmenu };
-            }
-            return item;
+            if (!item.submenu) return item;
+            const filteredSubmenu = item.submenu.filter(subVisible);
+            return { ...item, submenu: filteredSubmenu };
         })
-        .filter((item) => !item.submenu || item.submenu.length > 0);
+        .filter((item) => {
+            if (item.submenu && item.submenu.length > 0) {
+                if (item.noHref) return true;
+                return true;
+            }
+            if (item.submenu) return false;
+            if (item.noHref) return false;
+            return permissions[item.href] !== false;
+        });
 }
 import {
     LayoutDashboard,
@@ -151,14 +172,14 @@ export const staffMenuItems = [
                 href: '/staff/management/permission-users',
                 icon: Users,
                 description: 'จัดการ User',
-                roles: ['it1'],
+                roles: ['IT-001', 'WH-001', 'it1', 'warehouse1'],
             },
             {
                 name: 'กำหนดสิทธิ์',
                 href: '/staff/management/permission-roles',
                 icon: Shield,
                 description: 'กำหนดสิทธิ์การเข้าถึงเมนู',
-                roles: ['it1'],
+                roles: ['IT-001', 'WH-001', 'it1', 'warehouse1'],
             },
         ],
     },

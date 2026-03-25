@@ -12,6 +12,7 @@ import EditItemDialog from './components/EditItemDialog';
 import DeleteItemDialog from './components/DeleteItemDialog';
 import UpdateMinMaxDialog from './components/UpdateMinMaxDialog';
 import FilterSection from './components/FilterSection';
+import { staffRoleCanSelectAnyDepartment, staffRoleLocksDepartmentToProfile } from '@/lib/staffRolePolicy';
 import ItemsTable from './components/ItemsTable';
 
 export default function ItemsPage() {
@@ -51,10 +52,10 @@ export default function ItemsPage() {
       if (raw) {
         const staffUser = JSON.parse(raw.trim());
         const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-        if (roleCode.includes('warehouse')) {
+        if (staffRoleCanSelectAnyDepartment(roleCode)) {
           setCanSelectDepartment(true);
         }
-        if (staffUser?.department_id) {
+        if (staffUser?.department_id && staffRoleLocksDepartmentToProfile(roleCode)) {
           const deptId = String(staffUser.department_id);
           setStaffDepartmentId(deptId);
           setActiveFilters(prev => ({ ...prev, departmentId: deptId }));

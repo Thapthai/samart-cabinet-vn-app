@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { staffRolePermissionApi, staffRoleApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Shield, Save, Loader2, CornerDownRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { staffMenuItems, StaffMenuSubItem } from '@/app/staff/menus';
+import {
+  readStaffRoleCodeFromStorage,
+  staffRoleCanManageRoleColumn,
+  staffRoleIsStaffPermissionHead,
+  normalizeStaffRoleCode,
+  staffRoleIsItFamily,
+  staffRoleIsWarehouseFamily,
+} from '@/lib/staffRolePolicy';
 
 
 // Flatten staffMenuItems (and submenus) from menus.ts for permission table
@@ -50,12 +57,16 @@ interface Permission {
 }
 
 export default function ManageRolesPage() {
-  const router = useRouter();
   const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>({});
   const [roles, setRoles] = useState<Role[]>([]);
   const [menuItems, setMenuItems] = useState<Array<{ value: string; label: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [viewerRole, setViewerRole] = useState('');
+
+  useEffect(() => {
+    setViewerRole(readStaffRoleCodeFromStorage());
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -121,12 +132,14 @@ export default function ManageRolesPage() {
     roles.forEach((role) => {
       defaultPermissions[role.code] = {};
       menuItemsList.forEach((menu) => {
-        // Default: all menus enabled except manageUsers and manageRoles for non-it1 roles
-        if (role.code === 'it1') {
+        const manageUserPaths = ['/staff/management/permission-users', '/staff/permissions/users'];
+        const manageRolePaths = ['/staff/management/permission-roles', '/staff/permissions/roles'];
+        const isManageUsers = manageUserPaths.includes(menu.value);
+        const isManageRoles = manageRolePaths.includes(menu.value);
+        if (staffRoleIsStaffPermissionHead(role.code)) {
           defaultPermissions[role.code][menu.value] = true;
         } else {
-          defaultPermissions[role.code][menu.value] = 
-            menu.value !== '/staff/permissions/users' && menu.value !== '/staff/permissions/roles';
+          defaultPermissions[role.code][menu.value] = !isManageUsers && !isManageRoles;
         }
       });
     });
@@ -178,11 +191,9 @@ export default function ManageRolesPage() {
   };
 
   const getRoleBadgeVariant = (role: string) => {
-    if (role.startsWith('it')) {
-      return 'default';
-    } else if (role.startsWith('warehouse')) {
-      return 'secondary';
-    }
+    const r = normalizeStaffRoleCode(role);
+    if (staffRoleIsItFamily(r)) return 'default';
+    if (staffRoleIsWarehouseFamily(r)) return 'secondary';
     return 'outline';
   };
 
@@ -261,6 +272,7 @@ export default function ManageRolesPage() {
                       </TableCell>
                       {roles.map((role) => {
                         const isDashboard = menu.value === '/staff/dashboard';
+                        const canEditCol = staffRoleCanManageRoleColumn(viewerRole, role.code);
                         return (
                           <TableCell key={role.code} className="text-center">
                             <Checkbox
@@ -268,7 +280,7 @@ export default function ManageRolesPage() {
                               onCheckedChange={isDashboard ? undefined : (checked: boolean) =>
                                 handlePermissionChange(role.code, menu.value, checked)
                               }
-                              disabled={isDashboard}
+                              disabled={isDashboard || !canEditCol}
                             />
                           </TableCell>
                         );
@@ -291,13 +303,13 @@ export default function ManageRolesPage() {
         <CardContent>
           <div className="space-y-2">
             <p className="text-sm text-gray-600">
-              • <strong>IT 1:</strong> เห็นทุกเมนู รวมถึงเมนูจัดการสิทธิ์และกำหนดสิทธิ์
+              • <strong>IT-001:</strong> แก้สิทธิ์เมนูได้เฉพาะ Role สาย IT ที่ไม่ใช่ IT-001
             </p>
             <p className="text-sm text-gray-600">
-              • <strong>IT 2, IT 3, Warehouse 1-3:</strong> เห็นทุกเมนู ยกเว้นเมนูจัดการสิทธิ์และกำหนดสิทธิ์ (สามารถกำหนดเองได้)
+              • <strong>WH-001:</strong> แก้สิทธิ์เมนูได้เฉพาะ Role สาย Warehouse / WH-* ที่ไม่ใช่ WH-001
             </p>
             <p className="text-sm text-gray-600">
-              • สามารถเปิด/ปิดสิทธิ์การเข้าถึงเมนูแต่ละเมนูได้
+              • หัวหน้าสายไม่แก้คอลัมน์ของอีกฝ่ายหรือของตนเองระดับหัวหน้า
             </p>
             <p className="text-sm text-gray-600">
               • คลิก <strong>บันทึก</strong> เพื่อบันทึกการเปลี่ยนแปลง

@@ -43,7 +43,7 @@ model User {
 
 model StaffRole {
   id          Int      @id @default(autoincrement())
-  code        String   @unique // 'it1', 'it2', 'it3', 'warehouse1', 'warehouse2', 'warehouse3'
+  code        String   @unique // e.g. IT-001, WH-001, it2, warehouse2
   name        String // 'IT 1', 'IT 2', 'Warehouse 1', etc.
   description String?  @db.Text // Description of the role
   is_active   Boolean  @default(true) @map("is_active")
