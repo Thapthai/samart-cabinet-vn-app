@@ -5,109 +5,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ASSETS } from "@/lib/assets";
-import {
-  LayoutDashboard,
-  Package,
-  Menu,
-  X,
-  ChevronLeft,
-  ChevronRight,
-  FileBarChart,
-  ClipboardList,
-  Users,
-  RotateCcw,
-  Network,
-} from "lucide-react";
+import { adminMenuItems, type StaffMenuItem, type StaffMenuSubItem } from "@/app/admin/menus";
+import { Button } from "@/components/ui/button";
+import { Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface SidebarProps {
   isCollapsed: boolean;
   setIsCollapsed: (value: boolean) => void;
 }
 
-type MenuItem = {
-  name: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description: string;
-};
-
-const mainMenuItems: MenuItem[] = [
-  {
-    name: "Dashboard",
-    href: "/admin/dashboard",
-    icon: LayoutDashboard,
-    description: "ภาพรวมระบบ",
-  },
-  {
-    name: "จัดการตู้ Cabinet - แผนก",
-    href: "/admin/cabinet-departments",
-    icon: Network,
-    description: "จัดการตู้ Cabinet และเชื่อมโยงกับแผนก",
-  },
-  {
-    name: "สต๊อกอุปกรณ์ในตู้",
-    href: "/admin/items",
-    icon: Package,
-    description: "เมนูสต๊อกอุปกรณ์ที่มีในตู้ SmartCabinet",
-  },
-  {
-    name: "เบิกอุปกรณ์จากตู้",
-    href: "/admin/dispense-from-cabinet",
-    icon: FileBarChart,
-    description: "การเบิกอุปกรณ์จากตู้ SmartCabinet",
-  },
-  {
-    name: "เติมอุปกรณ์เข้าตู้",
-    href: "/admin/return-to-cabinet-report",
-    icon: FileBarChart,
-    description: "การเติมอุปกรณ์เข้าตู้ SmartCabinet",
-  },
-  {
-    name: "เบิกอุปกรณ์กับคนไข้",
-    href: "/admin/medical-supplies",
-    icon: ClipboardList,
-    description: "รายการเบิกอุปกรณ์กับคนไข้",
-  },
-  {
-    name: "แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน",
-    href: "/admin/return",
-    icon: RotateCcw,
-    description: "แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน / ชำรุด",
-  },
-  {
-    name: "เปรียบเทียบตามเวชภัณฑ์",
-    href: "/admin/item-comparison",
-    icon: FileBarChart,
-    description: "เปรียบเทียบการเบิกกับการใช้งานตามเวชภัณฑ์",
-  },
-  {
-    name: "จัดการตู้ Cabinet",
-    href: "/admin/management/cabinets",
-    icon: Package,
-    description: "จัดการตู้ Cabinet",
-  },
-  {
-    name: "Staff Users",
-    href: "/admin/management/staff-users",
-    icon: Users,
-    description: "จัดการ Staff Users และ Client Credentials",
-  },
-  {
-    name: "Staff Permission Role",
-    href: "/admin/management/permission-role",
-    icon: Users,
-    description: "จัดการ Staff Permission Role",
-  },
-  {
-    name: "ประวัติการใช้งาน",
-    href: "/admin/logs-history",
-    icon: ClipboardList,
-    description: "ประวัติการใช้งานระบบ",
-  },
-];
-
 function isPathActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
+}
+
+function isSectionActive(item: StaffMenuItem, pathname: string): boolean {
+  return (item.submenu ?? []).some((s) => isPathActive(pathname, s.href));
 }
 
 function useMediaQuery(query: string): boolean {
@@ -122,75 +34,123 @@ function useMediaQuery(query: string): boolean {
   return matches;
 }
 
+/** เมนูย่อยตอน sidebar หุบ — ไอคอนซ้อนใต้หัวกลุ่ม (แบบ Staff) */
+function AdminCollapsedSubIcons({
+  items,
+  pathname,
+  onNavigate,
+}: {
+  items: StaffMenuSubItem[];
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 border-t border-sky-200/50 py-1">
+      {items.map((sub) => {
+        const SubIcon = sub.icon;
+        const subActive = isPathActive(pathname, sub.href);
+        return (
+          <Link
+            key={sub.href}
+            href={sub.href}
+            title={sub.name}
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center justify-center rounded-lg p-2 transition-colors",
+              subActive ? "bg-sky-200/90 text-slate-900 ring-1 ring-sky-400/50" : "text-slate-600 hover:bg-sky-100/90",
+            )}
+          >
+            {SubIcon ? (
+              <SubIcon className="h-4 w-4 shrink-0" />
+            ) : (
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+            )}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
   const isLg = useMediaQuery("(min-width: 1024px)");
+  /** หุบแคบเฉพาะ desktop — มือถือใช้เมนูเต็มเสมอ (ไม่ผูกกับ isCollapsed จากจอใหญ่) */
+  const useCollapsedNarrow = isCollapsed && isLg;
+  /** มือถือ: หัว + ฟุตเตอร์แบบขยายเสมอ */
+  const showExpandedChrome = !isCollapsed || !isLg;
+
+  React.useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
 
   return (
     <>
       <div className="lg:hidden fixed top-4 left-4 z-[60]">
-        <button
-          type="button"
+        <Button
+          variant="outline"
+          size="icon"
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="bg-white shadow-lg hover:bg-sky-50 border border-sky-200 h-9 w-9 rounded-md flex items-center justify-center"
+          className="bg-white shadow-lg hover:bg-sky-50 border-sky-200 h-9 w-9"
         >
           {isMobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        </button>
+        </Button>
       </div>
 
       {isMobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          className="lg:hidden fixed inset-0 bg-black/50 z-[45]"
           onClick={() => setIsMobileOpen(false)}
+          aria-hidden
         />
       )}
 
       <aside
         className={cn(
-          "fixed top-0 left-0 z-40 h-screen bg-gradient-to-b from-sky-50 via-blue-50/80 to-indigo-50 text-slate-800 shadow-xl overflow-x-hidden border-r border-sky-200/80",
-          "w-72 max-w-[min(18rem,calc(100vw-2rem))] will-change-[width,transform]",
-          "transition-[width,transform] duration-300 ease-in-out motion-reduce:transition-none",
-          isCollapsed ? "lg:w-16 lg:max-w-none" : "lg:w-72",
-          isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          "fixed lg:sticky top-0 left-0 z-50 h-[100dvh] max-h-[100dvh] bg-gradient-to-b from-sky-50 via-blue-50/80 to-indigo-50 text-slate-800 transition-[transform,width] duration-300 ease-in-out shadow-xl border-r border-sky-200/80",
+          /* มือถือ: ความกว้างตู้เมนูเต็มเสมอ — ไม่ใช้ w-16 จากโหมดหุบบน desktop */
+          "w-[min(20rem,calc(100vw-1rem))] max-w-[100vw]",
+          isCollapsed ? "lg:w-16" : "lg:w-72",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
         <div className="flex flex-col h-full min-h-0">
           <div
             className={cn(
-              "flex shrink-0 border-b border-sky-200/80 transition-[padding] duration-300 ease-in-out",
-              isCollapsed
-                ? "lg:flex-col lg:items-stretch lg:gap-2 lg:px-2 lg:py-3"
-                : "flex-row items-center justify-between gap-2 p-4"
+              "flex shrink-0 items-center justify-between border-b border-sky-200/80 transition-[padding] duration-300 gap-2",
+              showExpandedChrome ? "p-4" : "lg:px-2 lg:py-3 p-4",
             )}
           >
-            <Link
-              href="/admin/dashboard"
-              className={cn(
-                "flex items-center justify-center min-w-0 overflow-hidden rounded-lg outline-none ring-sky-400/0 focus-visible:ring-2",
-                isCollapsed ? "lg:w-full" : "flex-1"
-              )}
-            >
-              <img
-                src={ASSETS.LOGO}
-                alt="POSE Logo"
-                className={cn(
-                  "object-contain transition-[transform,width,height,max-width] duration-300 ease-in-out",
-                  isCollapsed
-                    ? "h-11 w-auto max-h-11 max-w-[2.75rem] lg:h-9 lg:max-h-9 lg:max-w-9"
-                    : "h-12 max-h-14 w-auto max-w-[200px]"
-                )}
-              />
-            </Link>
-            <button
-              type="button"
-              onClick={() =>
-                isMobileOpen ? setIsMobileOpen(false) : setIsCollapsed(!isCollapsed)
-              }
-              className={cn(
-                "hidden lg:inline-flex flex-shrink-0 items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 hover:bg-sky-100/90 transition-colors duration-200",
-                isCollapsed ? "h-9 w-full" : "h-9 w-9"
-              )}
+            {showExpandedChrome ? (
+              <Link
+                href="/admin/dashboard"
+                className="flex items-center gap-3 flex-1 min-w-0 no-underline"
+                onClick={() => setIsMobileOpen(false)}
+              >
+                <div className="w-11 h-11 rounded-xl bg-white/90 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-md ring-1 ring-sky-200/60">
+                  <img src={ASSETS.LOGO} alt="Logo" className="w-8 h-8 object-contain" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg sm:text-xl font-bold break-words leading-tight text-slate-800">Admin Portal</h2>
+                  <p className="text-sm sm:text-base text-slate-500 break-words leading-tight">Smart Cabinet</p>
+                </div>
+              </Link>
+            ) : (
+              <Link
+                href="/admin/dashboard"
+                className="lg:mx-auto flex items-center justify-center w-11 h-11 rounded-xl bg-white/90 overflow-hidden shadow-md ring-1 ring-sky-200/60 flex-shrink-0"
+                title="Admin Portal"
+                onClick={() => setIsMobileOpen(false)}
+              >
+                <img src={ASSETS.LOGO} alt="Logo" className="w-7 h-7 object-contain" />
+              </Link>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="hidden lg:flex w-9 h-9 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-sky-100 flex-shrink-0 transition-colors duration-200"
               aria-label={isCollapsed ? "ขยายเมนู" : "หุบเมนู"}
             >
               {isCollapsed ? (
@@ -198,54 +158,161 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
               ) : (
                 <ChevronLeft className="h-4 w-4" />
               )}
-            </button>
+            </Button>
           </div>
 
-          <nav className="flex-1 pl-2 pr-2 py-6 space-y-2 overflow-y-auto overflow-x-hidden scrollbar-sidebar">
-            {mainMenuItems.map((item) => {
+          <nav
+            className={cn(
+              "flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-sidebar py-4 space-y-3",
+              /* มือถือ: padding ซ้ายขวาให้พอดีจอ — desktop หุบยังแคบได้ */
+              "px-3 sm:px-3",
+              useCollapsedNarrow ? "lg:px-2 lg:pr-2" : "lg:pl-2 lg:pr-2",
+            )}
+          >
+            {adminMenuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = isPathActive(pathname, item.href);
-              const rowActiveClass = isActive
-                ? "bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30"
-                : "text-slate-700 hover:bg-sky-100/90 hover:text-slate-900";
-
-              return (
-                <div key={item.href}>
-                  <Link
-                    href={item.href}
-                    title={isCollapsed && isLg ? item.name : undefined}
-                    onClick={() => setIsMobileOpen(false)}
-                    className={cn(
-                      "flex items-center w-full min-w-0 px-3 py-3 text-base font-medium rounded-xl",
-                      rowActiveClass,
-                      isCollapsed && "lg:justify-center lg:px-2",
-                    )}
-                  >
-                    <Icon
+              if (!item.submenu?.length) {
+                if (!Icon) return null;
+                const leafActive = isPathActive(pathname, item.href);
+                if (useCollapsedNarrow) {
+                  return (
+                    <div
+                      key={item.href}
                       className={cn(
-                        "h-5 w-5 flex-shrink-0 transition-all duration-200",
-                        isActive ? "text-white" : "text-slate-600",
-                        isCollapsed ? "lg:mx-auto" : "mr-2",
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "flex-1 min-w-0 text-left break-words leading-tight",
-                        isCollapsed && "lg:sr-only",
+                        "overflow-hidden rounded-xl",
+                        leafActive &&
+                          "bg-gradient-to-r from-sky-400 to-blue-400 text-white shadow-md shadow-sky-300/30",
                       )}
                     >
-                      {item.name}
-                    </span>
+                      <Link
+                        href={item.href}
+                        onClick={() => setIsMobileOpen(false)}
+                        className={cn(
+                          "relative flex w-full items-center justify-center rounded-xl px-2 py-3 text-lg font-medium transition-colors",
+                          leafActive ? "text-white" : "text-slate-700 hover:bg-sky-100/90",
+                        )}
+                        title={item.name}
+                        aria-label={item.name}
+                      >
+                        {leafActive && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sky-400 rounded-r-full" />
+                        )}
+                        <Icon className={cn("h-5 w-5 shrink-0", leafActive ? "text-white" : "text-slate-600")} />
+                      </Link>
+                    </div>
+                  );
+                }
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-lg font-medium transition-colors",
+                      leafActive
+                        ? "bg-sky-100 text-slate-900 border border-sky-300/90 shadow-sm"
+                        : "text-slate-700 hover:bg-sky-50/90",
+                    )}
+                  >
+                    <Icon className="h-5 w-5 shrink-0 text-slate-600" />
+                    <span className="break-words leading-tight">{item.name}</span>
                   </Link>
+                );
+              }
+
+              const sectionActive = isSectionActive(item, pathname);
+              if (!Icon) return null;
+
+              if (useCollapsedNarrow) {
+                return (
+                  <div key={item.href} className="w-full overflow-hidden rounded-xl">
+                    <div
+                      className={cn(
+                        "flex w-full items-center justify-center rounded-xl px-2 py-2.5",
+                        sectionActive
+                          ? "bg-gradient-to-r from-sky-400 to-blue-500 text-white shadow-md"
+                          : "text-slate-700",
+                      )}
+                      title={item.name}
+                    >
+                      <Icon className={cn("h-5 w-5 shrink-0", sectionActive ? "text-white" : "text-slate-600")} />
+                    </div>
+                    <AdminCollapsedSubIcons
+                      items={item.submenu!}
+                      pathname={pathname}
+                      onNavigate={() => setIsMobileOpen(false)}
+                    />
+                  </div>
+                );
+              }
+
+              return (
+                <div key={item.href} className="space-y-1">
+                  <div
+                    className={cn(
+                      "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-lg font-semibold select-none",
+                      sectionActive
+                        ? "bg-gradient-to-r from-sky-400 to-blue-500 text-white shadow-md shadow-sky-300/25"
+                        : "text-slate-800",
+                    )}
+                  >
+                    <Icon className={cn("h-5 w-5 shrink-0", sectionActive ? "text-white" : "text-slate-600")} />
+                    <span className="break-words leading-tight">{item.name}</span>
+                  </div>
+                  <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-sky-300/80 pl-3">
+                    {item.submenu!.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const subActive = isPathActive(pathname, sub.href);
+                      return (
+                        <Link
+                          key={sub.href}
+                          href={sub.href}
+                          onClick={() => setIsMobileOpen(false)}
+                          className={cn(
+                            "flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-base transition-colors",
+                            subActive
+                              ? "bg-sky-100/95 text-slate-900 border border-sky-300 font-medium shadow-sm"
+                              : "text-slate-600 hover:bg-sky-50 hover:text-slate-800",
+                          )}
+                        >
+                          {SubIcon ? (
+                            <SubIcon className="h-4 w-4 shrink-0 text-slate-500" />
+                          ) : (
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+                          )}
+                          <span className="break-words leading-snug">{sub.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}
           </nav>
 
-          <div className={cn("p-4 border-t border-sky-200/80 transition-all duration-300", isCollapsed && "lg:px-2")}>
-            <div className={cn("flex items-center gap-2 text-slate-500 overflow-hidden", isCollapsed && "lg:justify-center")}>
-              <img src={ASSETS.LOGO} alt="POSE" width={20} height={20} className="object-contain flex-shrink-0 opacity-90" />
-              <span className={cn("text-sm font-medium whitespace-nowrap", isCollapsed && "lg:sr-only")}>© 2026 POSE Intelligence</span>
+          <div
+            className={cn(
+              "shrink-0 border-t border-sky-200/80 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]",
+              !showExpandedChrome && "lg:px-2",
+            )}
+          >
+            <div
+              className={cn(
+                "flex items-center gap-2 text-slate-500 overflow-hidden text-xs sm:text-sm",
+                !showExpandedChrome && "lg:justify-center",
+              )}
+            >
+              <div className="w-8 h-8 rounded-lg bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm ring-1 ring-sky-200/50">
+                <img src={ASSETS.LOGO} alt="" width={18} height={18} className="object-contain opacity-90" />
+              </div>
+              <span
+                className={cn(
+                  "font-medium break-words leading-snug",
+                  !showExpandedChrome && "lg:sr-only",
+                )}
+              >
+                © 2026 POSE Intelligence
+              </span>
             </div>
           </div>
         </div>
