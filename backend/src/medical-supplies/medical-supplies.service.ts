@@ -40,6 +40,31 @@ export class MedicalSuppliesService {
     };
   }
 
+  /** ชื่อแสดงใน log: ใช้คำอธิบายก่อน ถ้าไม่มีใช้รหัส */
+  private formatSupplyDisplayName(description?: string | null, itemCode?: string | null): string {
+    const d = (description ?? '').toString().trim();
+    if (d) return d;
+    const c = (itemCode ?? '').toString().trim();
+    return c || '—';
+  }
+
+  /** ข้อความไทย: เพิ่มเวชภัณฑ์ใหม่ **ชื่อ** ที่มี **AssessionNo : x** (ถ้าไม่มีเลข Assession จะไม่ต่อท้าย) */
+  private thaiLogLineAddNewSupply(
+    itemDescription?: string | null,
+    itemCode?: string | null,
+    assessionNo?: string | null,
+  ): string {
+    const name = this.formatSupplyDisplayName(itemDescription, itemCode);
+    const no = (assessionNo ?? '').toString().trim();
+    if (no) return `เพิ่มเวชภัณฑ์ใหม่ **${name}** ที่มี **AssessionNo : ${no}**`;
+    return `เพิ่มเวชภัณฑ์ใหม่ **${name}**`;
+  }
+
+  /** รวมหลายบรรทัดสำหรับ log สร้าง/เพิ่มหลายรายการ */
+  private joinThaiLogLines(lines: string[]): string {
+    return lines.filter(Boolean).join(' · ').slice(0, 1024);
+  }
+
   /**
    * สร้างข้อความอธิบายภาษาไทยให้ user จาก payload log (action เก็บข้อมูลเดิม)
    */
@@ -105,19 +130,53 @@ export class MedicalSuppliesService {
       if (
         reason.includes('ItemStatus updated to Discontinue') &&
         reason.includes('same AssessionNo')
-      )
+      ) {
+        const name = this.formatSupplyDisplayName(
+          actionData.order_item_description,
+          actionData.item_code,
+        );
+        const no = (actionData.assession_no ?? '').toString().trim() || '—';
+        if (name !== '—' || no !== '—')
+          return `สถานะเวชภัณฑ์ **${name}** ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี **AssessionNo : ${no}** ถูกยกเลิกแล้ว`;
         return "สถานะเวชภัณฑ์ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี AssessionNo เดียวกันถูกยกเลิกแล้ว";
-      if (reason.includes('New items added based on new AssessionNo'))
+      }
+      if (reason.includes('Bill cancelled - Discontinue') && reason.includes('AssessionNo')) {
+        const name = this.formatSupplyDisplayName(
+          actionData.order_item_description,
+          actionData.item_code,
+        );
+        const no = (actionData.assession_no ?? '').toString().trim() || '—';
+        if (name !== '—' || no !== '—')
+          return `สถานะเวชภัณฑ์ **${name}** ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี **AssessionNo : ${no}** ถูกยกเลิกแล้ว`;
+      }
+      if (reason.includes('New items added based on new AssessionNo')) {
+        const lines = actionData.new_items_thai_lines;
+        if (Array.isArray(lines) && lines.length)
+          return this.joinThaiLogLines(lines.map((x: unknown) => String(x)));
         return 'เพิ่มรายการใหม่ตาม AssessionNo';
-      if (reason.includes('ItemStatus updated based on AssessionNo match'))
+      }
+      if (reason.includes('ItemStatus updated based on AssessionNo match')) {
+        const name = this.formatSupplyDisplayName(
+          actionData.order_item_description,
+          actionData.item_code,
+        );
+        const no = (actionData.assession_no ?? '').toString().trim() || '—';
+        if (name !== '—' || no !== '—')
+          return `สถานะเวชภัณฑ์ **${name}** ที่มี **AssessionNo : ${no}** ถูกอัปเดต`;
         return 'สถานะเวชภัณฑ์ถูกอัปเดตตาม AssessionNo ที่ตรงกัน';
+      }
       if (action === 'discontinue_item' && reason.includes('all items'))
         return 'ยกเลิกทุกรายการเวชภัณฑ์ในบิล (ตามสถานะ Discontinue)';
       if (action === 'discontinue_item')
         return "สถานะเวชภัณฑ์ถูกอัปเดตเป็น 'ยกเลิก' - รายการที่มี AssessionNo เดียวกันถูกยกเลิกแล้ว";
       if (action === 'patch_medical_supply_usage')
         return 'อัปเดตข้อมูลการใช้เวชภัณฑ์ (รวมการยกเลิกบิล)';
-      if (type === 'CREATE' && !action) return 'สร้างเคสผู้ป่วย';
+      if (type === 'CREATE' && !action) {
+        const cl = actionData.new_items_thai_lines;
+        if (Array.isArray(cl) && cl.length)
+          return this.joinThaiLogLines(cl.map((x: unknown) => String(x)));
+        return 'สร้างเคสผู้ป่วย';
+      }
       if (type === 'UPDATE' && (actionData.order_items_count > 0 || actionData.supplies_count > 0))
         return 'อัปเดตรายการ Order / รายการเวชภัณฑ์';
       if (type === 'UPDATE') return 'อัปเดตข้อมูลการใช้เวชภัณฑ์';
@@ -624,6 +683,10 @@ export class MedicalSuppliesService {
                 },
               });
 
+              const discontinueDisplayName = this.formatSupplyDisplayName(
+                item.order_item_description ?? orderItem.ItemDescription,
+                item.order_item_code ?? orderItem.ItemCode,
+              );
               await this.createLog(item.medical_supply_usage_id, {
                 type: 'UPDATE',
                 status: 'SUCCESS',
@@ -632,9 +695,11 @@ export class MedicalSuppliesService {
                 en: data.EN || '',
                 assession_no: assessionNo,
                 item_code: item.order_item_code,
+                order_item_description: item.order_item_description,
                 old_status: item.order_item_status,
                 new_status: 'Discontinue',
                 reason: 'ItemStatus updated to Discontinue - all items with same AssessionNo are discontinued',
+                user_description: `สถานะเวชภัณฑ์ **${discontinueDisplayName}** ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี **AssessionNo : ${assessionNo}** ถูกยกเลิกแล้ว`,
                 input_data: data,
               });
             }
@@ -678,6 +743,11 @@ export class MedicalSuppliesService {
             },
           });
 
+          const statusAn = (item.assession_no ?? '').toString().trim() || '—';
+          const statusDisplayName = this.formatSupplyDisplayName(
+            item.order_item_description,
+            item.order_item_code,
+          );
           await this.createLog(existingUsage.id, {
             type: 'UPDATE',
             status: 'SUCCESS',
@@ -686,9 +756,11 @@ export class MedicalSuppliesService {
             en: existingUsage.en ?? '',
             assession_no: item.assession_no,
             item_code: item.order_item_code,
+            order_item_description: item.order_item_description,
             old_status: item.order_item_status,
             new_status: newStatus,
             reason: 'ItemStatus updated based on AssessionNo match',
+            user_description: `สถานะเวชภัณฑ์ **${statusDisplayName}** ที่มี **AssessionNo : ${statusAn}** ถูกอัปเดต`,
             input_data: data,
           });
         }
@@ -732,6 +804,9 @@ export class MedicalSuppliesService {
             })),
           });
 
+          const newItemsThaiLines = itemsToCreate.map((it) =>
+            this.thaiLogLineAddNewSupply(it.ItemDescription, it.ItemCode, it.AssessionNo),
+          );
           await this.createLog(existingUsage.id, {
             type: 'UPDATE',
             status: 'SUCCESS',
@@ -743,6 +818,8 @@ export class MedicalSuppliesService {
             lastname: lastname,
             new_items_count: itemsToCreate.length,
             reason: 'New items added based on new AssessionNo',
+            new_items_thai_lines: newItemsThaiLines,
+            user_description: this.joinThaiLogLines(newItemsThaiLines),
             input_data: data,
           });
         }
@@ -861,6 +938,11 @@ export class MedicalSuppliesService {
               },
             });
 
+            const billDiscAn = (discontinueItem.AssessionNo ?? '').toString().trim();
+            const billDiscName = this.formatSupplyDisplayName(
+              discontinueItem.ItemDescription ?? existingItem.order_item_description,
+              discontinueItem.ItemCode ?? existingItem.order_item_code,
+            );
             // Log the cancellation
             await this.createLog(existingItem.medical_supply_usage_id, {
               type: 'UPDATE',
@@ -868,7 +950,9 @@ export class MedicalSuppliesService {
               action: 'discontinue_item',
               assession_no: discontinueItem.AssessionNo,
               item_code: existingItem.order_item_code,
+              order_item_description: existingItem.order_item_description,
               reason: 'Bill cancelled - Discontinue status received. All items with same AssessionNo are discontinued.',
+              user_description: `สถานะเวชภัณฑ์ **${billDiscName}** ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี **AssessionNo : ${billDiscAn}** ถูกยกเลิกแล้ว`,
               cancelled_qty: existingItem.qty,
               original_qty: existingItem.qty,
             });
@@ -1038,6 +1122,14 @@ export class MedicalSuppliesService {
           return { _note: 'payload serialize skipped' };
         }
       })();
+      const createThaiLines = [
+        ...itemsToCreate.map((item) =>
+          this.thaiLogLineAddNewSupply(item.ItemDescription, item.ItemCode, item.AssessionNo),
+        ),
+        ...legacySupplies.map((item) =>
+          this.thaiLogLineAddNewSupply(item.supply_name, item.supply_code, ''),
+        ),
+      ];
       await this.createLog(usage.id, {
         type: 'CREATE',
         status: 'SUCCESS',
@@ -1052,6 +1144,10 @@ export class MedicalSuppliesService {
         supplies_count: legacySupplies.length,
         total_amount: data.billing_total,
         input_payload: inputPayload,
+        new_items_thai_lines: createThaiLines.length ? createThaiLines : undefined,
+        user_description: createThaiLines.length
+          ? this.joinThaiLogLines(createThaiLines)
+          : undefined,
       });
 
       return usage as unknown as MedicalSupplyUsageResponse;
@@ -1802,6 +1898,11 @@ export class MedicalSuppliesService {
                 },
               });
 
+              const patchDiscAn = (discontinueItem.AssessionNo ?? '').toString().trim();
+              const patchDiscName = this.formatSupplyDisplayName(
+                discontinueItem.ItemDescription ?? item.order_item_description,
+                discontinueItem.ItemCode ?? item.order_item_code,
+              );
               // Log the cancellation
               await this.createLog(id, {
                 type: 'UPDATE',
@@ -1811,7 +1912,9 @@ export class MedicalSuppliesService {
                 en: existing.en ?? '',
                 assession_no: discontinueItem.AssessionNo,
                 item_code: item.order_item_code,
+                order_item_description: item.order_item_description,
                 reason: 'Bill cancelled - Discontinue status received via PATCH',
+                user_description: `สถานะเวชภัณฑ์ **${patchDiscName}** ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี **AssessionNo : ${patchDiscAn}** ถูกยกเลิกแล้ว`,
                 cancelled_qty: item.qty,
                 original_qty: item.qty,
                 input_data: data,
@@ -1836,6 +1939,10 @@ export class MedicalSuppliesService {
                 },
               });
 
+              const patchAllName = this.formatSupplyDisplayName(
+                item.order_item_description,
+                item.order_item_code,
+              );
               await this.createLog(id, {
                 type: 'UPDATE',
                 status: 'SUCCESS',
@@ -1843,7 +1950,9 @@ export class MedicalSuppliesService {
                 patient_hn: existing.patient_hn ?? '',
                 en: existing.en ?? '',
                 item_code: item.order_item_code,
+                order_item_description: item.order_item_description,
                 reason: 'Bill cancelled - Discontinue status received via PATCH (all items)',
+                user_description: `สถานะเวชภัณฑ์ **${patchAllName}** ถูกอัปเดตเป็น 'ยกเลิก' (ทุกรายการในบิล)`,
                 cancelled_qty: item.qty,
                 input_data: data,
               });
@@ -1896,12 +2005,18 @@ export class MedicalSuppliesService {
           },
         });
 
+        const patchSummaryLines = discontinueItems.map((di) =>
+          di.AssessionNo
+            ? `สถานะเวชภัณฑ์ **${this.formatSupplyDisplayName(di.ItemDescription, di.ItemCode)}** ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี **AssessionNo : ${(di.AssessionNo ?? '').toString().trim()}** ถูกยกเลิกแล้ว`
+            : 'ยกเลิกทุกรายการเวชภัณฑ์ในบิล (ตามสถานะ Discontinue)',
+        );
         await this.createLog(id, {
           type: 'UPDATE',
           status: 'SUCCESS',
           action: 'patch_medical_supply_usage',
           discontinue_items_count: discontinueItems.length,
           billing_status: updateData.billing_status,
+          user_description: this.joinThaiLogLines(patchSummaryLines),
           input_data: data,
         });
 
@@ -1993,6 +2108,19 @@ export class MedicalSuppliesService {
         },
       });
 
+      let updateUserDescription: string | undefined;
+      if (orderItems.length > 0) {
+        const lines = orderItems.map((item) =>
+          this.thaiLogLineAddNewSupply(item.ItemDescription, item.ItemCode, item.AssessionNo),
+        );
+        updateUserDescription = this.joinThaiLogLines(lines);
+      } else if (data.supplies && data.supplies.length > 0) {
+        const lines = data.supplies.map((item) =>
+          this.thaiLogLineAddNewSupply(item.supply_name, item.supply_code, ''),
+        );
+        updateUserDescription = this.joinThaiLogLines(lines);
+      }
+
       // Create update log
       await this.createLog(updated.id, {
         type: 'UPDATE',
@@ -2002,6 +2130,7 @@ export class MedicalSuppliesService {
         order_items_count: orderItems.length,
         supplies_count: data.supplies?.length || 0,
         input_data: data,
+        ...(updateUserDescription ? { user_description: updateUserDescription } : {}),
       });
 
       return updated as unknown as MedicalSupplyUsageResponse;
@@ -4104,6 +4233,11 @@ export class MedicalSuppliesService {
             updatedItemIds.push(item.id);
             hasUpdates = true;
 
+            const cancelBillAn = (cancelItem.assession_no ?? '').toString().trim() || '—';
+            const cancelBillName = this.formatSupplyDisplayName(
+              item.order_item_description,
+              item.order_item_code ?? item.supply_code,
+            );
             // Log การยกเลิก
             await this.createLog(usage.id, {
               type: 'UPDATE',
@@ -4111,7 +4245,9 @@ export class MedicalSuppliesService {
               action: 'cancel_bill_item',
               assession_no: cancelItem.assession_no,
               item_code: cancelItem.item_code,
+              order_item_description: item.order_item_description,
               reason: `Cancel Bill - ${isSameDay ? 'ภายในวันเดียวกัน' : 'ข้ามวัน'}`,
+              user_description: `สถานะเวชภัณฑ์ **${cancelBillName}** ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี **AssessionNo : ${cancelBillAn}** ถูกยกเลิกแล้ว`,
               cancelled_qty: cancelItem.qty,
               old_print_date: oldPrintDate,
               new_print_date: newPrintDate,
@@ -4173,6 +4309,9 @@ export class MedicalSuppliesService {
           });
         }
 
+        const cancelBillNewLines = newItems.map((ni) =>
+          this.thaiLogLineAddNewSupply(ni.item_description, ni.item_code, ni.assession_no),
+        );
         // Log การสร้างรายการใหม่
         await this.createLog(newUsage.id, {
           type: 'CREATE',
@@ -4182,6 +4321,8 @@ export class MedicalSuppliesService {
           new_items_count: newItems.length,
           old_print_date: oldPrintDate,
           new_print_date: newPrintDate,
+          new_items_thai_lines: cancelBillNewLines,
+          user_description: this.joinThaiLogLines(cancelBillNewLines),
         });
       }
 

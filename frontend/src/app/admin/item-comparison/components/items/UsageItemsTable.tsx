@@ -113,7 +113,7 @@ export function UsageItemsTable({
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm font-medium text-blue-900">
-                พบผู้ป่วยที่ใช้ทั้งหมด: <span className="text-2xl font-bold">{totalItems}</span> ราย
+                พบผู้ป่วยที่ใช้เวชภัณฑ์ทั้งหมด: <span className="text-2xl font-bold">{totalItems}</span> ราย
               </p>
               <p className="text-xs text-blue-700 mt-1">
                 รวมจำนวนที่ใช้: {totalUsed} ชิ้น
