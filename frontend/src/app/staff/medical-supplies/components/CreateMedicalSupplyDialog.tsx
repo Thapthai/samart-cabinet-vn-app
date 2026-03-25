@@ -67,8 +67,6 @@ export default function CreateMedicalSupplyDialog({
   const onSubmit = async (data: FormData) => {
     try {
       setLoading(true);
-    
-      
       toast.success('บันทึกการใช้เวชภัณฑ์เรียบร้อยแล้ว');
       form.reset();
       onOpenChange(false);

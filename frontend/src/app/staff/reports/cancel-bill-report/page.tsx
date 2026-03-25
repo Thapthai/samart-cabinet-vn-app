@@ -12,7 +12,7 @@ import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { vendingReportsApi } from '@/lib/api';
+import { staffVendingReportsApi } from '@/lib/staffApi/vendingReportsApi';
 import { toast } from 'sonner';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
@@ -31,7 +31,7 @@ export default function CancelBillReportPage() {
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
 
-      const result = await vendingReportsApi.getCancelBillReportData(params);
+      const result = await staffVendingReportsApi.getCancelBillReportData(params);
       if (result.success || (result as any).status === 'success') {
         setCancelBillData(result.data || (result as any).data);
       } else {
@@ -151,7 +151,7 @@ export default function CancelBillReportPage() {
                         onClick={async () => {
                           try {
                             setLoading(true);
-                            await vendingReportsApi.downloadCancelBillReportExcel({
+                            await staffVendingReportsApi.downloadCancelBillReportExcel({
                               startDate,
                               endDate,
                             });
@@ -182,7 +182,7 @@ export default function CancelBillReportPage() {
                         onClick={async () => {
                           try {
                             setLoading(true);
-                            await vendingReportsApi.downloadCancelBillReportPdf({
+                            await staffVendingReportsApi.downloadCancelBillReportPdf({
                               startDate,
                               endDate,
                             });

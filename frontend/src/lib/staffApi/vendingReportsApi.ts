@@ -1,38 +1,83 @@
 import staffApi from './index';
 import type { ApiResponse } from '@/types/common';
 
+type NestedFileResponse = {
+  success?: boolean;
+  data?: { buffer?: string; filename?: string; contentType?: string };
+  error?: string;
+};
+
+function nestedDataToBlob(res: NestedFileResponse): Blob {
+  if (!res?.success || !res?.data?.buffer) throw new Error(res?.error || 'ไม่สามารถสร้างไฟล์ได้');
+  const binary = atob(res.data.buffer);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: res.data.contentType || 'application/octet-stream' });
+}
+
+function triggerNestedDownload(res: NestedFileResponse, fallbackFilename: string): void {
+  const blob = nestedDataToBlob(res);
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', res.data?.filename || fallbackFilename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+function triggerFlatBufferDownload(
+  res: { success?: boolean; buffer?: string; contentType?: string; filename?: string; error?: string },
+  fallbackFilename: string,
+): void {
+  if (!res?.success || !res?.buffer) throw new Error(res?.error || 'ไม่สามารถสร้างไฟล์ได้');
+  const binary = atob(res.buffer);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: res.contentType || 'application/octet-stream' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', res.filename || fallbackFilename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export const staffVendingReportsApi = {
-  // Get data (JSON)
   getVendingMappingData: async (params?: { startDate?: string; endDate?: string; printDate?: string }): Promise<ApiResponse<unknown>> => {
-    const queryParams = new URLSearchParams();
-    if (params?.printDate) queryParams.append('printDate', params.printDate);
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    const response = await staffApi.get(`/reports/vending-mapping/data?${queryParams.toString()}`);
+    const response = await staffApi.post('/reports/vending-mapping/data', {
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      printDate: params?.printDate,
+    });
     return response.data;
   },
+
   getUnmappedDispensedData: async (params?: { startDate?: string; endDate?: string; groupBy?: 'day' | 'month' }): Promise<ApiResponse<unknown>> => {
-    const queryParams = new URLSearchParams();
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    if (params?.groupBy) queryParams.append('groupBy', params.groupBy);
-    const response = await staffApi.get(`/reports/unmapped-dispensed/data?${queryParams.toString()}`);
+    const response = await staffApi.post('/reports/unmapped-dispensed/data', {
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      groupBy: params?.groupBy,
+    });
     return response.data;
   },
+
   getUnusedDispensedData: async (params?: { date?: string }): Promise<ApiResponse<unknown>> => {
-    const queryParams = new URLSearchParams();
-    if (params?.date) queryParams.append('date', params.date);
-    const response = await staffApi.get(`/reports/unused-dispensed/data?${queryParams.toString()}`);
+    const response = await staffApi.post('/reports/unused-dispensed/data', { date: params?.date });
     return response.data;
   },
+
   getCancelBillReportData: async (params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<unknown>> => {
-    const queryParams = new URLSearchParams();
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    const response = await staffApi.get(`/reports/cancel-bill/data?${queryParams.toString()}`);
+    const response = await staffApi.post('/reports/cancel-bill/data', {
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+    });
     return response.data;
   },
-  /** ดาวน์โหลดรายงานเบิกใช้กับคนไข้ (Excel/PDF) โดยไม่เปิดแท็บใหม่ */
+
   downloadDispensedItemsForPatientsExcel: async (params?: {
     keyword?: string;
     startDate?: string;
@@ -41,26 +86,20 @@ export const staffVendingReportsApi = {
     departmentCode?: string;
     usageType?: string;
   }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.keyword) queryParams.append('keyword', params.keyword);
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    if (params?.patientHn) queryParams.append('patientHn', params.patientHn);
-    if (params?.departmentCode) queryParams.append('departmentCode', params.departmentCode);
-    if (params?.usageType) queryParams.append('usageType', params.usageType);
-    const response = await staffApi.get(
-      `/reports/dispensed-items-for-patients/export/excel?${queryParams.toString()}`,
-      { responseType: 'blob' },
+    const response = await staffApi.post('/reports/dispensed-items-for-patients/excel', {
+      keyword: params?.keyword,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      patientHn: params?.patientHn,
+      departmentCode: params?.departmentCode,
+      usageType: params?.usageType,
+    });
+    triggerNestedDownload(
+      response.data,
+      `dispensed_items_for_patients_${new Date().toISOString().split('T')[0]}.xlsx`,
     );
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `dispensed_items_for_patients_${new Date().toISOString().split('T')[0]}.xlsx`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
   },
+
   downloadDispensedItemsForPatientsPdf: async (params?: {
     keyword?: string;
     startDate?: string;
@@ -69,66 +108,52 @@ export const staffVendingReportsApi = {
     departmentCode?: string;
     usageType?: string;
   }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.keyword) queryParams.append('keyword', params.keyword);
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    if (params?.patientHn) queryParams.append('patientHn', params.patientHn);
-    if (params?.departmentCode) queryParams.append('departmentCode', params.departmentCode);
-    if (params?.usageType) queryParams.append('usageType', params.usageType);
-    const response = await staffApi.get(
-      `/reports/dispensed-items-for-patients/export/pdf?${queryParams.toString()}`,
-      { responseType: 'blob' },
+    const response = await staffApi.post('/reports/dispensed-items-for-patients/pdf', {
+      keyword: params?.keyword,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      patientHn: params?.patientHn,
+      departmentCode: params?.departmentCode,
+      usageType: params?.usageType,
+    });
+    triggerNestedDownload(
+      response.data,
+      `dispensed_items_for_patients_${new Date().toISOString().split('T')[0]}.pdf`,
     );
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `dispensed_items_for_patients_${new Date().toISOString().split('T')[0]}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
   },
-  // Download reports
+
   downloadVendingMappingExcel: async (params: { startDate?: string; endDate?: string; printDate?: string }) => {
-    const queryParams = new URLSearchParams();
-    if (params.printDate) queryParams.append('printDate', params.printDate);
-    if (params.startDate) queryParams.append('startDate', params.startDate);
-    if (params.endDate) queryParams.append('endDate', params.endDate);
-    const response = await staffApi.get(`/reports/vending-mapping/excel?${queryParams.toString()}`, {
-      responseType: 'blob',
+    const response = await staffApi.post('/reports/vending-mapping/excel', {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      printDate: params.printDate,
     });
-    return response.data;
+    return nestedDataToBlob(response.data);
   },
+
   downloadVendingMappingPDF: async (params: { startDate?: string; endDate?: string; printDate?: string }) => {
-    const queryParams = new URLSearchParams();
-    if (params.printDate) queryParams.append('printDate', params.printDate);
-    if (params.startDate) queryParams.append('startDate', params.startDate);
-    if (params.endDate) queryParams.append('endDate', params.endDate);
-    const response = await staffApi.get(`/reports/vending-mapping/pdf?${queryParams.toString()}`, {
-      responseType: 'blob',
+    const response = await staffApi.post('/reports/vending-mapping/pdf', {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      printDate: params.printDate,
     });
-    return response.data;
+    return nestedDataToBlob(response.data);
   },
+
   downloadUnmappedDispensedExcel: async (params: { startDate?: string; endDate?: string; groupBy?: 'day' | 'month' }) => {
-    const queryParams = new URLSearchParams();
-    if (params.startDate) queryParams.append('startDate', params.startDate);
-    if (params.endDate) queryParams.append('endDate', params.endDate);
-    if (params.groupBy) queryParams.append('groupBy', params.groupBy);
-    const response = await staffApi.get(`/reports/unmapped-dispensed/excel?${queryParams.toString()}`, {
-      responseType: 'blob',
+    const response = await staffApi.post('/reports/unmapped-dispensed/excel', {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      groupBy: params.groupBy,
     });
-    return response.data;
+    return nestedDataToBlob(response.data);
   },
+
   downloadUnusedDispensedExcel: async (params: { date?: string }) => {
-    const queryParams = new URLSearchParams();
-    if (params.date) queryParams.append('date', params.date);
-    const response = await staffApi.get(`/reports/unused-dispensed/excel?${queryParams.toString()}`, {
-      responseType: 'blob',
-    });
-    return response.data;
+    const response = await staffApi.post('/reports/unused-dispensed/excel', { date: params.date });
+    return nestedDataToBlob(response.data);
   },
-  /** Backend POST /reports/return/excel returns JSON { success, buffer (base64), contentType, filename } */
+
   downloadReturnReportExcel: async (params?: {
     date_from?: string;
     date_to?: string;
@@ -136,30 +161,17 @@ export const staffVendingReportsApi = {
     department_code?: string;
     patient_hn?: string;
   }): Promise<void> => {
-    const body = {
+    const response = await staffApi.post('/reports/return/excel', {
       date_from: params?.date_from,
       date_to: params?.date_to,
       return_reason: params?.return_reason,
       department_code: params?.department_code,
       patient_hn: params?.patient_hn,
-    };
-    const response = await staffApi.post('/reports/return/excel', body);
-    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string };
-    if (!res?.success || !res?.buffer) throw new Error((res as any)?.error || 'ไม่สามารถสร้างไฟล์ได้');
-    const binary = atob(res.buffer);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const blob = new Blob([bytes], { type: res.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', res.filename || `return_report_${new Date().toISOString().split('T')[0]}.xlsx`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    });
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string; error?: string };
+    triggerFlatBufferDownload(res, `return_report_${new Date().toISOString().split('T')[0]}.xlsx`);
   },
-  /** Backend POST /reports/return/pdf returns JSON { success, buffer (base64), contentType, filename } */
+
   downloadReturnReportPdf: async (params?: {
     date_from?: string;
     date_to?: string;
@@ -167,107 +179,72 @@ export const staffVendingReportsApi = {
     department_code?: string;
     patient_hn?: string;
   }): Promise<void> => {
-    const body = {
+    const response = await staffApi.post('/reports/return/pdf', {
       date_from: params?.date_from,
       date_to: params?.date_to,
       return_reason: params?.return_reason,
       department_code: params?.department_code,
       patient_hn: params?.patient_hn,
-    };
-    const response = await staffApi.post('/reports/return/pdf', body);
-    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string };
-    if (!res?.success || !res?.buffer) throw new Error((res as any)?.error || 'ไม่สามารถสร้างไฟล์ได้');
-    const binary = atob(res.buffer);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const blob = new Blob([bytes], { type: res.contentType || 'application/pdf' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', res.filename || `return_report_${new Date().toISOString().split('T')[0]}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-  },
-  downloadCancelBillReportExcel: async (params?: {
-    startDate?: string;
-    endDate?: string;
-  }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    const response = await staffApi.get(`/reports/cancel-bill/excel?${queryParams.toString()}`, {
-      responseType: 'blob',
     });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `cancel_bill_report_${new Date().toISOString().split('T')[0]}.xlsx`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string; error?: string };
+    triggerFlatBufferDownload(res, `return_report_${new Date().toISOString().split('T')[0]}.pdf`);
   },
-  downloadCancelBillReportPdf: async (params?: {
-    startDate?: string;
-    endDate?: string;
-  }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    const response = await staffApi.get(`/reports/cancel-bill/pdf?${queryParams.toString()}`, {
-      responseType: 'blob',
+
+  downloadCancelBillReportExcel: async (params?: { startDate?: string; endDate?: string }): Promise<void> => {
+    const response = await staffApi.post('/reports/cancel-bill/excel', {
+      startDate: params?.startDate,
+      endDate: params?.endDate,
     });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `cancel_bill_report_${new Date().toISOString().split('T')[0]}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string; error?: string };
+    triggerFlatBufferDownload(res, `cancel_bill_report_${new Date().toISOString().split('T')[0]}.xlsx`);
   },
+
+  downloadCancelBillReportPdf: async (params?: { startDate?: string; endDate?: string }): Promise<void> => {
+    const response = await staffApi.post('/reports/cancel-bill/pdf', {
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+    });
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string; error?: string };
+    triggerFlatBufferDownload(res, `cancel_bill_report_${new Date().toISOString().split('T')[0]}.pdf`);
+  },
+
   downloadReturnToCabinetReportExcel: async (params?: {
-    itemCode?: string;
+    keyword?: string;
     itemTypeId?: number;
     startDate?: string;
     endDate?: string;
+    departmentId?: string;
+    cabinetId?: string;
   }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.itemCode) queryParams.append('itemCode', params.itemCode);
-    if (params?.itemTypeId) queryParams.append('itemTypeId', params.itemTypeId.toString());
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    const response = await staffApi.get(`/reports/return-to-cabinet/excel?${queryParams.toString()}`, {
-      responseType: 'blob',
+    const response = await staffApi.post('/reports/return-to-cabinet/excel', {
+      keyword: params?.keyword,
+      itemTypeId: params?.itemTypeId,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      departmentId: params?.departmentId,
+      cabinetId: params?.cabinetId,
     });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `return_to_cabinet_report_${new Date().toISOString().split('T')[0]}.xlsx`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string; error?: string };
+    triggerFlatBufferDownload(res, `return_to_cabinet_report_${new Date().toISOString().split('T')[0]}.xlsx`);
   },
+
   downloadReturnToCabinetReportPdf: async (params?: {
-    itemCode?: string;
+    keyword?: string;
     itemTypeId?: number;
     startDate?: string;
     endDate?: string;
+    departmentId?: string;
+    cabinetId?: string;
   }): Promise<void> => {
-    const queryParams = new URLSearchParams();
-    if (params?.itemCode) queryParams.append('itemCode', params.itemCode);
-    if (params?.itemTypeId) queryParams.append('itemTypeId', params.itemTypeId.toString());
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    const response = await staffApi.get(`/reports/return-to-cabinet/pdf?${queryParams.toString()}`, {
-      responseType: 'blob',
+    const response = await staffApi.post('/reports/return-to-cabinet/pdf', {
+      keyword: params?.keyword,
+      itemTypeId: params?.itemTypeId,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      departmentId: params?.departmentId,
+      cabinetId: params?.cabinetId,
     });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `return_to_cabinet_report_${new Date().toISOString().split('T')[0]}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string; error?: string };
+    triggerFlatBufferDownload(res, `return_to_cabinet_report_${new Date().toISOString().split('T')[0]}.pdf`);
   },
 };

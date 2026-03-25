@@ -37,38 +37,6 @@ export default function VendingReportsPage() {
   const [unusedDate, setUnusedDate] = useState('');
   const [unusedData, setUnusedData] = useState<any>(null);
 
-  const handleDownload = async (url: string, filename: string, reportName: string) => {
-    try {
-      setLoading(reportName);
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to download ${reportName}`);
-      }
-
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(downloadUrl);
-
-      toast.success(`ดาวน์โหลด ${reportName} สำเร็จ`);
-    } catch (error: any) {
-      toast.error(`เกิดข้อผิดพลาด: ${error.message}`);
-    } finally {
-      setLoading(null);
-    }
-  };
-
   const fetchMappingData = async () => {
     try {
       setDataLoading('mapping');
@@ -133,43 +101,84 @@ export default function VendingReportsPage() {
     }
   };
 
-  const handleVendingMappingDownload = (format: 'excel' | 'pdf') => {
-    const params = new URLSearchParams();
-    if (mappingPrintDate) {
-      params.append('printDate', mappingPrintDate);
-    } else {
-      if (mappingStartDate) params.append('startDate', mappingStartDate);
-      if (mappingEndDate) params.append('endDate', mappingEndDate);
+  const handleVendingMappingDownload = async (format: 'excel' | 'pdf') => {
+    const reportName = `รายงาน Mapping Vending (${format.toUpperCase()})`;
+    try {
+      setLoading(reportName);
+      const params: { startDate?: string; endDate?: string; printDate?: string } = {};
+      if (mappingPrintDate) params.printDate = mappingPrintDate;
+      else {
+        if (mappingStartDate) params.startDate = mappingStartDate;
+        if (mappingEndDate) params.endDate = mappingEndDate;
+      }
+      const blob =
+        format === 'excel'
+          ? await staffVendingReportsApi.downloadVendingMappingExcel(params)
+          : await staffVendingReportsApi.downloadVendingMappingPDF(params);
+      const extension = format === 'excel' ? 'xlsx' : 'pdf';
+      const filename = `vending_mapping_report_${mappingPrintDate || mappingStartDate || new Date().toISOString().split('T')[0]}.${extension}`;
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success(`ดาวน์โหลด ${reportName} สำเร็จ`);
+    } catch (error: unknown) {
+      toast.error(`เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(null);
     }
-
-    const extension = format === 'excel' ? 'xlsx' : 'pdf';
-    const filename = `vending_mapping_report_${mappingPrintDate || mappingStartDate || new Date().toISOString().split('T')[0]}.${extension}`;
-    const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/reports/vending-mapping/${format}?${params.toString()}`;
-
-    handleDownload(url, filename, `รายงาน Mapping Vending (${format.toUpperCase()})`);
   };
 
-
-  const handleUnmappedDispensedReport = () => {
-    const params = new URLSearchParams();
-    if (unmappedStartDate) params.append('startDate', unmappedStartDate);
-    if (unmappedEndDate) params.append('endDate', unmappedEndDate);
-    if (unmappedGroupBy) params.append('groupBy', unmappedGroupBy);
-
-    const filename = `unmapped_dispensed_report_${unmappedGroupBy}_${unmappedStartDate || new Date().toISOString().split('T')[0]}.xlsx`;
-    const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/reports/unmapped-dispensed/excel?${params.toString()}`;
-
-    handleDownload(url, filename, 'รายงานการเบิกที่ Mapping ไม่ได้');
+  const handleUnmappedDispensedReport = async () => {
+    const reportName = 'รายงานการเบิกที่ Mapping ไม่ได้';
+    try {
+      setLoading(reportName);
+      const params: { startDate?: string; endDate?: string; groupBy?: 'day' | 'month' } = {};
+      if (unmappedStartDate) params.startDate = unmappedStartDate;
+      if (unmappedEndDate) params.endDate = unmappedEndDate;
+      if (unmappedGroupBy) params.groupBy = unmappedGroupBy;
+      const blob = await staffVendingReportsApi.downloadUnmappedDispensedExcel(params);
+      const filename = `unmapped_dispensed_report_${unmappedGroupBy}_${unmappedStartDate || new Date().toISOString().split('T')[0]}.xlsx`;
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success(`ดาวน์โหลด ${reportName} สำเร็จ`);
+    } catch (error: unknown) {
+      toast.error(`เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(null);
+    }
   };
 
-  const handleUnusedDispensedReport = () => {
-    const params = new URLSearchParams();
-    if (unusedDate) params.append('date', unusedDate);
-
-    const filename = `unused_dispensed_report_${unusedDate || new Date().toISOString().split('T')[0]}.xlsx`;
-    const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/reports/unused-dispensed/excel?${params.toString()}`;
-
-    handleDownload(url, filename, 'รายงานรายการที่ไม่ได้ใช้');
+  const handleUnusedDispensedReport = async () => {
+    const reportName = 'รายงานรายการที่ไม่ได้ใช้';
+    try {
+      setLoading(reportName);
+      const blob = await staffVendingReportsApi.downloadUnusedDispensedExcel({ date: unusedDate || undefined });
+      const filename = `unused_dispensed_report_${unusedDate || new Date().toISOString().split('T')[0]}.xlsx`;
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success(`ดาวน์โหลด ${reportName} สำเร็จ`);
+    } catch (error: unknown) {
+      toast.error(`เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(null);
+    }
   };
 
   const formatDate = (dateString: string) => formatUtcDateTime(dateString);

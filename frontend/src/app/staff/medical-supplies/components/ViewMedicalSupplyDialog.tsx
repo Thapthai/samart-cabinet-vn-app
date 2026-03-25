@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Printer, X, Package, User, Calendar, MapPin, DollarSign } from 'lucide-react';
-import { medicalSuppliesApi } from '@/lib/api';
+import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
 import { toast } from 'sonner';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
@@ -87,7 +87,7 @@ export default function ViewMedicalSupplyDialog({
   const fetchSupplyDetail = async () => {
     try {
       setLoading(true);
-      const response = await medicalSuppliesApi.getById(supplyId);
+      const response = await staffMedicalSuppliesApi.getById(supplyId);
       if (response.success && response.data) {
         setSupply(response.data);
       }
