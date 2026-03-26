@@ -7,8 +7,6 @@ import { Package } from 'lucide-react';
 import FilterSection from './components/FilterSection';
 import DispensedTable from './components/DispensedTable';
 import type { DispensedItem, FilterState, SummaryData } from './types';
-import { staffRoleCanSelectAnyDepartment, staffRoleLocksDepartmentToProfile } from '@/lib/staffRolePolicy';
-
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
   const today = new Date();
@@ -18,22 +16,20 @@ const getTodayDate = () => {
   return `${year}-${month}-${day}`;
 };
 
+const DEFAULT_DEPARTMENT_ID = '29';
+const DEFAULT_CABINET_ID = '1';
+
 export default function DispenseFromCabinetPage() {
 
   const [loadingList, setLoadingList] = useState(true);
   const [dispensedList, setDispensedList] = useState<DispensedItem[]>([]);
-  const [staffDepartmentId, setStaffDepartmentId] = useState<string>('');
-  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
-  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
-
-  // Filters (ตู้เริ่มต้น = ทั้งหมด จะดึงรายการตู้ตามแผนกของ staff หลังโหลด department_id)
   const [filters, setFilters] = useState<FilterState>({
     searchItemCode: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
-    departmentId: '',
-    cabinetId: '',
+    departmentId: DEFAULT_DEPARTMENT_ID,
+    cabinetId: DEFAULT_CABINET_ID,
   });
 
 
@@ -43,30 +39,14 @@ export default function DispenseFromCabinetPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  // โหลด staff_user จาก localStorage: ตั้งแผนกตาม department_id ของ staff, ตู้ = ทั้งหมด, แล้วโหลดข้อมูลตามแผนก
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    let departmentId = '';
-    try {
-      const raw = localStorage.getItem('staff_user');
-      if (raw) {
-        const staffUser = JSON.parse(raw.trim());
-        const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-        if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
-        if (staffUser?.department_id && staffRoleLocksDepartmentToProfile(roleCode)) {
-          departmentId = String(staffUser.department_id);
-          setStaffDepartmentId(departmentId);
-          setFilters(prev => ({ ...prev, departmentId, cabinetId: '' }));
-        }
-      }
-    } catch { /* ignore */ }
     const filtersToUse: FilterState = {
       searchItemCode: '',
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId,
-      cabinetId: '',
+      departmentId: DEFAULT_DEPARTMENT_ID,
+      cabinetId: DEFAULT_CABINET_ID,
     };
     fetchDispensedList(1, filtersToUse);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
@@ -129,8 +109,8 @@ export default function DispenseFromCabinetPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId: staffDepartmentId || '',
-      cabinetId: '',
+      departmentId: DEFAULT_DEPARTMENT_ID,
+      cabinetId: DEFAULT_CABINET_ID,
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
@@ -226,7 +206,7 @@ export default function DispenseFromCabinetPage() {
           onClear={handleClearSearch}
           onRefresh={() => fetchDispensedList(currentPage)}
           loading={loadingList}
-          departmentDisabled={!!staffDepartmentId && !canSelectDepartment}
+          departmentDisabled={false}
         />
 
         {/* Dispensed Items Table */}

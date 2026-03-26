@@ -25,8 +25,6 @@ import {
 import MedicalSuppliesTable from './components/MedicalSuppliesTable';
 import CancelBillDialog from './components/CancelBillDialog';
 import { formatPrintDateTime, formatUtcDateTime } from '@/lib/formatThaiDateTime';
-import { staffRoleCanSelectAnyDepartment, staffRoleBypassesDepartmentLock } from '@/lib/staffRolePolicy';
-
 export default function MedicalSuppliesPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -41,10 +39,7 @@ export default function MedicalSuppliesPage() {
     department_id: null,
     department_name: null,
   });
-  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
-  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
   const [departments, setDepartments] = useState<{ ID: number; DepName: string }[]>([]);
-  // โหลด staff_user ก่อนแล้วค่อย fetch เพื่อให้ส่ง department_code ตั้งแต่ครั้งแรก (ข้อมูลอิงแผนกของ staff)
   const [staffUserLoaded, setStaffUserLoaded] = useState(false);
 
   // Get today's date in YYYY-MM-DD format
@@ -151,44 +146,27 @@ export default function MedicalSuppliesPage() {
     }
   };
 
-  // Load staff_user จาก localStorage: department_id, department_name และ role (warehouse = เลือกแผนกได้)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem('staff_user');
-      const trimmed = typeof raw === 'string' ? raw.trim() : '';
-      if (trimmed) {
-        const staffUser = JSON.parse(trimmed);
-        if (staffUser && typeof staffUser === 'object') {
-          const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-          if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
-          if (staffRoleBypassesDepartmentLock(roleCode)) {
-            setStaffDepartment({ department_id: null, department_name: null });
-          } else {
-            setStaffDepartment({
-              department_id: staffUser.department_id ?? null,
-              department_name: staffUser.department_name ?? null,
-            });
-          }
-        }
-      }
-    } catch {
-      // ignore invalid or empty JSON
-    }
     setStaffUserLoaded(true);
   }, []);
 
-  // โหลดรายการแผนกเมื่อ warehouse (ให้เลือกแผนกได้)
   useEffect(() => {
-    if (!canSelectDepartment) return;
-    staffDepartmentApi.getAll({ limit: 1000 }).then((res) => {
-      if (res?.success && Array.isArray(res.data)) {
-        setDepartments(res.data.map((d: any) => ({ ID: d.ID, DepName: d.DepName || d.DepName2 || String(d.ID) })));
-      }
-    }).catch(() => { });
-  }, [canSelectDepartment]);
+    staffDepartmentApi
+      .getAll({ limit: 1000 })
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data)) {
+          setDepartments(
+            res.data.map((d: { ID: number; DepName?: string; DepName2?: string }) => ({
+              ID: d.ID,
+              DepName: d.DepName || d.DepName2 || String(d.ID),
+            })),
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
-  // Fetch หลังโหลด staff_user แล้วเท่านั้น เพื่อให้ข้อมูลอิงแผนกของ staff ตั้งแต่ครั้งแรก
+  // Fetch หลัง mount แล้ว (แผนกเลือกได้ — ไม่ล็อกจากโปรไฟล์)
   useEffect(() => {
     if (!staffUserLoaded) return;
     fetchSupplies(activeFilters, currentPage);
@@ -320,34 +298,33 @@ export default function MedicalSuppliesPage() {
               </div>
               <div className="space-y-2 min-w-0">
                 <Label>แผนก</Label>
-                {canSelectDepartment ? (
-                  <Select
-                    value={staffDepartment.department_id != null ? String(staffDepartment.department_id) : ''}
-                    onValueChange={(value) => {
-                      const id = value ? parseInt(value, 10) : null;
-                      const dept = departments.find((d) => d.ID === id);
-                      setStaffDepartment({
-                        department_id: id,
-                        department_name: dept?.DepName ?? null,
-                      });
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="เลือกแผนก" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments.map((d) => (
-                        <SelectItem key={d.ID} value={String(d.ID)}>
-                          {d.DepName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="text-sm text-slate-600 dark:text-slate-400 py-2 px-3 rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                    {staffDepartment.department_name ?? '-'}
-                  </p>
-                )}
+                <Select
+                  value={staffDepartment.department_id != null ? String(staffDepartment.department_id) : 'all'}
+                  onValueChange={(value) => {
+                    if (value === 'all') {
+                      setStaffDepartment({ department_id: null, department_name: null });
+                      return;
+                    }
+                    const id = parseInt(value, 10);
+                    const dept = departments.find((d) => d.ID === id);
+                    setStaffDepartment({
+                      department_id: Number.isNaN(id) ? null : id,
+                      department_name: dept?.DepName ?? null,
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="เลือกแผนก" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">ทั้งหมด</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.ID} value={String(d.ID)}>
+                        {d.DepName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

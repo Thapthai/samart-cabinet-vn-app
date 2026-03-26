@@ -15,7 +15,6 @@ import ReturnHistoryFilter from './components/ReturnHistoryFilter';
 import ReturnHistoryTable from './components/ReturnHistoryTable';
 import type { ReturnHistoryData } from './types';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
-import { staffRoleCanSelectAnyDepartment } from '@/lib/staffRolePolicy';
 
 const getTodayDate = () => {
   const today = new Date();
@@ -37,19 +36,6 @@ function mapCabinetRow(c: unknown): CabinetFilterOption | null {
     cabinet_name: typeof o.cabinet_name === 'string' ? o.cabinet_name : undefined,
     cabinet_code: typeof o.cabinet_code === 'string' ? o.cabinet_code : undefined,
   };
-}
-
-function readStaffDepartmentIdFromStorage(): string | null {
-  try {
-    const raw = localStorage.getItem('staff_user');
-    if (raw) {
-      const id = JSON.parse(raw.trim())?.department_id;
-      if (id != null && id !== '') return String(id);
-    }
-  } catch {
-    // ignore
-  }
-  return null;
 }
 
 export default function ReturnMedicalSuppliesPage() {
@@ -81,9 +67,6 @@ export default function ReturnMedicalSuppliesPage() {
   });
   const [returnHistoryPage, setReturnHistoryPage] = useState(1);
   const [returnHistoryLimit] = useState(10);
-
-  /** role มีคำว่า warehouse = เลือกแผนกได้ (เหมือนหน้า staff อื่น) */
-  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
   const loadWillReturnItems = useCallback(
     async (override?: {
@@ -178,21 +161,8 @@ export default function ReturnMedicalSuppliesPage() {
   }, []);
 
   useEffect(() => {
-    let canPickDept = false;
-    try {
-      const raw = typeof window !== 'undefined' ? localStorage.getItem('staff_user') : null;
-      if (raw) {
-        const roleCode = (JSON.parse(raw.trim())?.role ?? '').toString().toLowerCase();
-        canPickDept = staffRoleCanSelectAnyDepartment(roleCode);
-      }
-    } catch {
-      // ignore
-    }
-    setCanSelectDepartment(canPickDept);
-
     fetchDepartments();
-    // เลือกแผนกได้ (สาย warehouse / IT-001 / WH-001): ค่าเริ่มต้นเหมือน admin (29)
-    const deptStr = canPickDept ? '29' : (readStaffDepartmentIdFromStorage() ?? '29');
+    const deptStr = '29';
     setFilterDepartmentId(deptStr);
     setFilterCabinetId('1');
     const start = getTodayDate();
@@ -224,7 +194,7 @@ export default function ReturnMedicalSuppliesPage() {
 
   const handleWillReturnFilterReset = () => {
     const start = getTodayDate();
-    const deptStr = canSelectDepartment ? '29' : (readStaffDepartmentIdFromStorage() ?? '29');
+    const deptStr = '29';
     const deptId = parseInt(deptStr, 10);
     setFilterDepartmentId(deptStr);
     setFilterCabinetId('1');
@@ -421,7 +391,7 @@ export default function ReturnMedicalSuppliesPage() {
               onReset={handleWillReturnFilterReset}
               onRefresh={() => loadWillReturnItems()}
               loading={loadingWillReturn}
-              departmentLocked={!canSelectDepartment}
+              departmentLocked={false}
             />
             <StaffReturnFormTab
               willReturnItems={willReturnItems}

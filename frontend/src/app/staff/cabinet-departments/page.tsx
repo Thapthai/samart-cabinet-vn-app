@@ -11,8 +11,6 @@ import CreateMappingDialog from "./components/CreateMappingDialog";
 import EditMappingDialog from "./components/EditMappingDialog";
 import DeleteMappingDialog from "./components/DeleteMappingDialog";
 import CreateCabinetDialog from "@/app/staff/cabinets/components/CreateCabinetDialog";
-import { staffRoleCanSelectAnyDepartment, staffRoleLocksDepartmentToProfile } from "@/lib/staffRolePolicy";
-
 interface CabinetDepartment {
   id: number;
   cabinet_id: number;
@@ -40,9 +38,6 @@ export default function ItemStockDepartmentsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedMapping, setSelectedMapping] = useState<CabinetDepartment | null>(null);
   const [filterVersion, setFilterVersion] = useState(0);
-  const [staffDepartmentId, setStaffDepartmentId] = useState<string>("");
-  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
-  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
   // Active filters (applied after search button click)
   const [activeFilters, setActiveFilters] = useState({
@@ -61,22 +56,6 @@ export default function ItemStockDepartmentsPage() {
 
   useEffect(() => {
     loadData();
-    // โหลด staff_user จาก localStorage: department_id และ role (warehouse = เลือกแผนกได้)
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('staff_user');
-        if (raw) {
-          const staffUser = JSON.parse(raw.trim());
-          const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-          if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
-          if (staffUser?.department_id && staffRoleLocksDepartmentToProfile(roleCode)) {
-            const deptId = String(staffUser.department_id);
-            setStaffDepartmentId(deptId);
-            setActiveFilters(prev => ({ ...prev, departmentId: deptId }));
-          }
-        }
-      } catch { /* ignore */ }
-    }
   }, []);
 
   const loadData = async () => {
@@ -301,8 +280,7 @@ export default function ItemStockDepartmentsPage() {
       <FilterSection
         onSearch={handleSearch}
         key={filterVersion}
-        initialDepartmentId={staffDepartmentId}
-        departmentDisabled={!!staffDepartmentId && !canSelectDepartment}
+        departmentDisabled={false}
       />
 
       <MappingTable

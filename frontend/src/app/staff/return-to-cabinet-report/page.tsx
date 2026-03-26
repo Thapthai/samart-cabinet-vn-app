@@ -8,8 +8,6 @@ import ReturnedTable from './components/ReturnedTable';
 import type { DispensedItem, FilterState, SummaryData } from './types.ts';
 import { returnedItemsApi } from '@/lib/staffApi/returnedItemsApi';
 import { buildReturnedGroups } from '@/lib/returnToCabinet/buildReturnedGroups';
-import { staffRoleCanSelectAnyDepartment, staffRoleLocksDepartmentToProfile } from '@/lib/staffRolePolicy';
-
 const getTodayDate = () => {
   const today = new Date();
   const year = today.getFullYear();
@@ -20,20 +18,19 @@ const getTodayDate = () => {
 
 const GROUPS_PER_PAGE = 10;
 const FETCH_BATCH_LIMIT = 5000;
+const DEFAULT_DEPARTMENT_ID = '29';
+const DEFAULT_CABINET_ID = '1';
 
 export default function ReturnToCabinetReportPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [returnedList, setReturnedList] = useState<DispensedItem[]>([]);
-  const [staffDepartmentId, setStaffDepartmentId] = useState<string>('');
-  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
-
   const [filters, setFilters] = useState<FilterState>({
     searchItemCode: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
-    departmentId: '',
-    cabinetId: '',
+    departmentId: DEFAULT_DEPARTMENT_ID,
+    cabinetId: DEFAULT_CABINET_ID,
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,30 +116,13 @@ export default function ReturnToCabinetReportPage() {
   };
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    let departmentId = '';
-    try {
-      const raw = localStorage.getItem('staff_user');
-      if (raw) {
-        const staffUser = JSON.parse(raw.trim());
-        const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-        if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
-        if (staffUser?.department_id && staffRoleLocksDepartmentToProfile(roleCode)) {
-          departmentId = String(staffUser.department_id);
-          setStaffDepartmentId(departmentId);
-          setFilters((prev) => ({ ...prev, departmentId, cabinetId: '' }));
-        }
-      }
-    } catch {
-      /* ignore */
-    }
     const filtersToUse: FilterState = {
       searchItemCode: '',
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId,
-      cabinetId: '',
+      departmentId: DEFAULT_DEPARTMENT_ID,
+      cabinetId: DEFAULT_CABINET_ID,
     };
     fetchReturnedList(filtersToUse, { resetPage: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
@@ -162,8 +142,8 @@ export default function ReturnToCabinetReportPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId: staffDepartmentId || '',
-      cabinetId: '',
+      departmentId: DEFAULT_DEPARTMENT_ID,
+      cabinetId: DEFAULT_CABINET_ID,
     };
     setFilters(resetFilters);
     fetchReturnedList(resetFilters, { resetPage: true });
@@ -258,7 +238,7 @@ export default function ReturnToCabinetReportPage() {
           onRefresh={() => fetchReturnedList(undefined, { resetPage: false })}
           itemTypes={getItemTypes()}
           loading={loadingList}
-          departmentDisabled={!!staffDepartmentId && !canSelectDepartment}
+          departmentDisabled={false}
         />
 
         <ReturnedTable

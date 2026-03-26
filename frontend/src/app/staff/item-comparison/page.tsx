@@ -14,7 +14,6 @@ import {
 import type { ComparisonItem, UsageItem, FilterState, SummaryData } from './types';
 import { itemComparisonApi } from '@/lib/staffApi/itemComparisonApi';
 import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
-import { staffRoleCanSelectAnyDepartment, staffRoleLocksDepartmentToProfile } from '@/lib/staffRolePolicy';
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = (): string => {
@@ -32,9 +31,6 @@ export default function ItemComparisonPage() {
   const [comparisonList, setComparisonList] = useState<ComparisonItem[]>([]);
   const [filteredList, setFilteredList] = useState<ComparisonItem[]>([]);
   const [departments, setDepartments] = useState<{ ID: number; DepName: string }[]>([]);
-  const [staffDepartmentCode, setStaffDepartmentCode] = useState<string>('');
-  /** ถ้า role มีคำว่า warehouse ให้เลือกแผนกได้ */
-  const [canSelectDepartment, setCanSelectDepartment] = useState(false);
 
   // Filters - default to today's date
   const [filters, setFilters] = useState<FilterState>({
@@ -51,32 +47,13 @@ export default function ItemComparisonPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  // โหลด staff_user จาก localStorage: department_id และ role (warehouse = เลือกแผนกได้)
   useEffect(() => {
-    let deptCode = '';
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('staff_user');
-        if (raw) {
-          const staffUser = JSON.parse(raw.trim());
-          const roleCode = (staffUser?.role ?? '').toString().toLowerCase();
-          if (staffRoleCanSelectAnyDepartment(roleCode)) setCanSelectDepartment(true);
-          if (staffUser?.department_id && staffRoleLocksDepartmentToProfile(roleCode)) {
-            deptCode = String(staffUser.department_id);
-            setStaffDepartmentCode(deptCode);
-            setFilters(prev => ({ ...prev, departmentCode: deptCode }));
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
     const initialFilters: FilterState = {
       searchItemCode: '',
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentCode: deptCode,
+      departmentCode: '',
     };
     fetchComparisonList(1, initialFilters);
     fetchDepartments();
@@ -179,7 +156,7 @@ export default function ItemComparisonPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentCode: staffDepartmentCode, // preserve staff department
+      departmentCode: '',
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
@@ -273,7 +250,7 @@ export default function ItemComparisonPage() {
           departments={departments}
           loading={loadingList}
           items={comparisonList}
-          departmentDisabled={!!staffDepartmentCode && !canSelectDepartment}
+          departmentDisabled={false}
         />
 
         {/* Comparison List Table */}
