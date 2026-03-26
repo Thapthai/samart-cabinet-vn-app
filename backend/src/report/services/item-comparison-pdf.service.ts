@@ -282,7 +282,7 @@ export class ItemComparisonPdfService {
           'Medical Supply Order detail',
         );
 
-        const detailFilterText = `วันที่เริ่ม: ${formatFilterDateOnly(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateOnly(filters.endDate)}  |  แผนก: ${filters.departmentName ?? filters.departmentCode ?? 'ทั้งหมด'}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
+        const detailFilterText = `วันที่เริ่ม: ${formatFilterDateOnly(filters.startDate)}  |  วันที่สิ้นสุด: ${formatFilterDateOnly(filters.endDate)}${filters.itemCode ? `  |  รหัสอุปกรณ์: ${filters.itemCode}` : ''}`;
         doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
         const filterH = Math.max(
           30,
@@ -398,23 +398,6 @@ export class ItemComparisonPdfService {
             ).getTime();
             return ta - tb;
           });
-
-          const first = sorted[0];
-          const categoryLabel =
-            (first.print_location && String(first.print_location).trim()) ||
-            (first.department_name && String(first.department_name).trim()) ||
-            item.itemcode ||
-            'รายการอุปกรณ์';
-
-          doc.fontSize(mFont).font(finalFontBoldName);
-          const catH = Math.max(22, doc.heightOfString(categoryLabel, { width: mCw() - 20 }) + 12);
-          ensureMedicalSpace(catH + 6, true);
-          const catY = doc.y;
-          doc.rect(mMargin, catY, mCw(), catH).fillAndStroke('#1A365D', '#DEE2E6');
-          doc.fontSize(13).font(finalFontBoldName).fillColor('#FFFFFF');
-          doc.text(categoryLabel, mMargin + 10, catY + 6, { width: mCw() - 20 });
-          doc.fillColor('#000000');
-          doc.y = catY + catH;
 
           let groupQty = 0;
           for (const u of sorted) {

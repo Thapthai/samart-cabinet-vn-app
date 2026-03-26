@@ -285,23 +285,6 @@ export class ItemComparisonExcelService {
         return ta - tb;
       });
 
-      const first = sorted[0];
-      const categoryLabel =
-        (first.print_location && String(first.print_location).trim()) ||
-        (first.department_name && String(first.department_name).trim()) ||
-        item.itemcode ||
-        'รายการอุปกรณ์';
-
-      ws.mergeCells(r, 1, r, 10);
-      const catCell = ws.getCell(r, 1);
-      catCell.value = categoryLabel;
-      catCell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-      catCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
-      catCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.navy } };
-      catCell.border = BORDER;
-      ws.getRow(r).height = 24;
-      r++;
-
       let groupQty = 0;
       for (const u of sorted) {
         const dt = (u as any).supply_item_created_at ?? u.usage_datetime;
@@ -313,7 +296,10 @@ export class ItemComparisonExcelService {
         const status = orderStatusLabel(u.order_item_status);
         const hn = (u.patient_hn && String(u.patient_hn).trim()) || '-';
         const en = (u.patient_en && String(u.patient_en).trim()) || '-';
-        const room = (u.twu && String(u.twu).trim()) || (u.print_location && String(u.print_location).trim()) || '-';
+        const dept =
+          (u.department_name && String(u.department_name).trim()) ||
+          (u.department_code && String(u.department_code).trim()) ||
+          '-';
         const patient = (u.patient_name && String(u.patient_name).trim()) || '-';
 
         const bg = dataRowIdx % 2 === 0 ? 'FFFFFFFF' : THEME.rowAlt;
@@ -327,7 +313,7 @@ export class ItemComparisonExcelService {
           status,
           hn,
           en,
-          room,
+          dept,
           patient,
         ]);
         row.height = 22;
