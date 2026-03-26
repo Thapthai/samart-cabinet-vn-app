@@ -374,7 +374,7 @@ export class MedicalSuppliesService {
     if (!code) throw new BadRequestException(`ItemCode ห้ามเป็นค่าว่าง`);
     if (!assessionNo) throw new BadRequestException(`AssessionNo ห้ามเป็นค่าว่าง`);
     if (qtyRaw === undefined || qtyRaw === null || qtyRaw === '')
-      throw new BadRequestException(`Order[${index}].QTY ห้ามเป็นค่าว่าง`);
+      throw new BadRequestException('QTY ห้ามเป็นค่าว่าง');
     const qty = typeof qtyRaw === 'string' ? parseInt(qtyRaw, 10) : Number(qtyRaw);
     if (Number.isNaN(qty) || qty < 0)
       throw new BadRequestException(`Order[${index}].QTY ต้องเป็นตัวเลขที่ไม่ติดลบ`);
