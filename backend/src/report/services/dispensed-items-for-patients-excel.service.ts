@@ -148,7 +148,7 @@ export class DispensedItemsForPatientsExcelService {
           : 'ทั้งหมด',
     ];
     // 11 columns → 4 กลุ่ม: A-C(3), D-F(3), G-I(3), J-K(2)
-    const filterColMap = [['A', 'C'], ['D', 'F'], ['G', 'I'], ['J', 'K']];
+    const filterColMap = [['A', 'C'], ['D', 'F'], ['G', 'H'], ['I', 'J']];
     filterLabels.forEach((lbl, gi) => {
       const cols = filterColMap[gi];
       worksheet.mergeCells(`${cols[0]}4:${cols[1]}4`);
