@@ -472,9 +472,19 @@ export class ItemComparisonPdfService {
           const subY = doc.y;
           doc.rect(mMargin, subY, mCw(), subBarH).fillAndStroke('#E8EDF2', '#DEE2E6');
           doc.fontSize(mFont).font(finalFontBoldName).fillColor('#1A365D');
-          doc.text(`Sub-Total จำนวนรวม: ${groupQty}`, mMargin + 12, subY + 8, {
-            width: mCw() - 24,
-            align: 'right',
+          // เลขรวมให้ตรงคอลัมน์ "จำนวน" (index 3) เหมือนแถวข้อมูล — ไม่ชิดขวาทั้งแผ่น
+          const subCols = calcMedicalColWidths();
+          const xQtyCol = mMargin + subCols[0] + subCols[1] + subCols[2];
+          const wQtyInner = Math.max(4, subCols[3] - 6);
+          const labelLeft = mMargin + 12;
+          const labelWidth = Math.max(80, xQtyCol - labelLeft - 6);
+          doc.text('Sub-Total จำนวนรวม:', labelLeft, subY + 8, {
+            width: labelWidth,
+            align: 'center',
+          });
+          doc.text(String(groupQty), xQtyCol + 3, subY + 8, {
+            width: wQtyInner,
+            align: 'center',
           });
           doc.fillColor('#000000');
           doc.y = subY + subBarH + 8;

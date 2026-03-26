@@ -1,3 +1,6 @@
+/** รายการจาก GET item-stocks/will-return — นิยามเดียวกับ admin/return/types */
+export type { WillReturnItem } from '@/app/admin/return/types';
+
 export interface ReturnHistoryRecord {
   id: number;
   qty_returned: number;

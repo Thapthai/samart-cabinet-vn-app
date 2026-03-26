@@ -86,7 +86,7 @@ export default function AddStaffRoleDialog({
         is_active: true,
       });
       if (response.success) {
-        toast.success(response.message || 'สร้าง Role เรียบร้อยแล้ว');
+        toast.success(response.message || 'สร้าง Role เรียบร้อยแล้ว (มีสิทธิ์เข้า /staff/dashboard อัตโนมัติ)');
         onOpenChange(false);
         await onCreated();
       } else {

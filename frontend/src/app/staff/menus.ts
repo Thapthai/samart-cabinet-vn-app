@@ -127,32 +127,6 @@ export const staffMenuItems = [
             },
         ],
     },
-    // {
-    //     name: 'รายงาน',
-    //     href: '/reports',
-    //     icon: BarChart3,
-    //     description: 'รายงานและสถิติต่างๆ',
-    //     submenu: [
-    //         {
-    //             name: 'รายงาน Vending',
-    //             href: '/staff/reports/vending-reports',
-    //             description: 'รายงานการ Mapping และการเบิกอุปกรณ์จาก Vending',
-    //             icon: TrendingUp,
-    //         },
-    //         {
-    //             name: 'รายงานยกเลิก Bill',
-    //             href: '/staff/reports/cancel-bill-report',
-    //             description: 'รายงานการยกเลิก Bill และใบเสร็จ',
-    //             icon: TrendingUp,
-    //         },
-    //         {
-    //             name: 'คืนเวชภัณฑ์',
-    //             href: '/staff/reports/return-report',
-    //             description: 'รายงานอุปกรณ์ที่ไม่ถูกใช้งาน',
-    //             icon: TrendingUp,
-    //         },
-    //     ],
-    // },
 
     {
         name: 'ตั้งค่า',
@@ -168,17 +142,17 @@ export const staffMenuItems = [
                 description: 'จัดการตู้ Cabinet',
             },
             {
-                name: 'จัดการสิทธิ์',
+                name: 'จัดการ ผู้ใช้งาน Staff',
                 href: '/staff/management/permission-users',
                 icon: Users,
                 description: 'จัดการ User',
                 roles: ['IT-001', 'WH-001', 'it1', 'warehouse1'],
             },
             {
-                name: 'กำหนดสิทธิ์',
+                name: 'กำหนดสิทธิ์ ผู้ใช้งาน Staff',
                 href: '/staff/management/permission-roles',
                 icon: Shield,
-                description: 'กำหนดสิทธิ์การเข้าถึงเมนู',
+                description: 'กำหนดสิทธิ์การเข้าถึงเมนู ผู้ใช้งาน Staff',
                 roles: ['IT-001', 'WH-001', 'it1', 'warehouse1'],
             },
         ],

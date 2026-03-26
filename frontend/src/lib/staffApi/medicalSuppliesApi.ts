@@ -1,6 +1,25 @@
 import staffApi from './index';
 import type { ApiResponse, PaginatedResponse } from '@/types/common';
 
+/** Backend RecordStockReturnDto บังคับ return_by_user_id — staff มักไม่มี NextAuth user */
+function resolveStaffReturnByUserId(explicit?: string): string {
+    if (explicit != null && String(explicit).trim() !== '') return String(explicit).trim();
+    if (typeof window === 'undefined') return 'staff';
+    try {
+        const raw = localStorage.getItem('staff_user');
+        if (raw) {
+            const u = JSON.parse(raw.trim()) as Record<string, unknown>;
+            const id = u.id ?? u.staff_user_id ?? u.user_id;
+            if (id != null && id !== '') return `staff:${id}`;
+            if (typeof u.email === 'string' && u.email.trim()) return u.email.trim();
+            if (typeof u.username === 'string' && u.username.trim()) return u.username.trim();
+        }
+    } catch {
+        /* ignore */
+    }
+    return 'staff';
+}
+
 export const staffMedicalSuppliesApi = {
     create: async (data: Record<string, unknown>): Promise<ApiResponse<any>> => {
         const response = await staffApi.post('/medical-supplies', data);
@@ -129,7 +148,7 @@ export const staffMedicalSuppliesApi = {
         if (filters?.endDate) queryParams.append('endDate', filters.endDate);
         if (filters?.page) queryParams.append('page', String(filters.page));
         if (filters?.limit) queryParams.append('limit', String(filters.limit));
-        const response = await staffApi.get(`/medical-supply-items/return-to-cabinet?${queryParams.toString()}`);
+        const response = await staffApi.get(`/medical-supply-items/for-return-to-cabinet?${queryParams.toString()}`);
         return response.data;
     },
 
@@ -138,7 +157,11 @@ export const staffMedicalSuppliesApi = {
         return_by_user_id?: string;
         stock_id?: number;
     }): Promise<ApiResponse<any>> => {
-        const response = await staffApi.post('/medical-supply-items/record-stock-return', data);
+        const return_by_user_id = resolveStaffReturnByUserId(data.return_by_user_id);
+        const response = await staffApi.post('/medical-supply-items/record-stock-returns', {
+            ...data,
+            return_by_user_id,
+        });
         return response.data;
     },
 

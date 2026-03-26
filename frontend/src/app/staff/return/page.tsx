@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { RotateCcw, History } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { staffItemsApi } from '@/lib/staffApi/itemsApi';
@@ -9,9 +8,9 @@ import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
 import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
 import { staffCabinetApi, staffCabinetDepartmentApi } from '@/lib/staffApi/cabinetApi';
 import { toast } from 'sonner';
-import WillReturnFilterCard from '@/app/admin/return/components/WillReturnFilterCard';
-import ReturnFormTab from '@/app/admin/return/components/ReturnFormTab';
-import type { WillReturnItem } from '@/app/admin/return/types';
+import StaffWillReturnFilterCard from './components/StaffWillReturnFilterCard';
+import StaffReturnFormTab from './components/StaffReturnFormTab';
+import type { WillReturnItem } from './types';
 import ReturnHistoryFilter from './components/ReturnHistoryFilter';
 import ReturnHistoryTable from './components/ReturnHistoryTable';
 import type { ReturnHistoryData } from './types';
@@ -54,7 +53,6 @@ function readStaffDepartmentIdFromStorage(): string | null {
 }
 
 export default function ReturnMedicalSuppliesPage() {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('return');
@@ -291,7 +289,6 @@ export default function ReturnMedicalSuppliesPage() {
 
       const resp: any = await staffMedicalSuppliesApi.recordStockReturn({
         items,
-        return_by_user_id: user?.id != null ? `staff:${user.id}` : undefined,
         ...(selectedItem?.StockID != null && { stock_id: selectedItem.StockID }),
       });
 
@@ -333,6 +330,8 @@ export default function ReturnMedicalSuppliesPage() {
         page?: number;
         limit?: number;
       };
+
+      console.log(result);
       if (result.success === false) {
         toast.error(result.message || 'ไม่สามารถโหลดประวัติการแจ้งคืนได้');
         setReturnHistoryData({ data: [], total: 0, page: 1, limit: returnHistoryLimit });
@@ -405,7 +404,7 @@ export default function ReturnMedicalSuppliesPage() {
           </TabsList>
 
           <TabsContent value="return" className="space-y-4">
-            <WillReturnFilterCard
+            <StaffWillReturnFilterCard
               departmentId={filterDepartmentId}
               cabinetId={filterCabinetId}
               itemCode={filterItemCode}
@@ -424,10 +423,9 @@ export default function ReturnMedicalSuppliesPage() {
               loading={loadingWillReturn}
               departmentLocked={!canSelectDepartment}
             />
-            <ReturnFormTab
+            <StaffReturnFormTab
               willReturnItems={willReturnItems}
               loadingWillReturn={loadingWillReturn}
-              loadWillReturnItems={() => loadWillReturnItems()}
               onSubmit={handleReturnSubmit}
               isSubmitting={loading}
             />

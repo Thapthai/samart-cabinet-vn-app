@@ -319,7 +319,7 @@ export class MedicalSupplyItemController {
         ...query,
         page: query.page != null ? Number(query.page) : undefined,
         limit: query.limit != null ? Number(query.limit) : undefined,
-      }; 
+      };
       const result = await this.medicalSuppliesService.getReturnHistory(normalized as GetReturnHistoryQueryDto);
       return { success: true, ...result };
     } catch (error: any) {
@@ -563,13 +563,5 @@ export class MedicalSupplyController {
     }
   }
 
-  // @Post('handle-cancel-bill')
-  // async handleCancelBill(@Body() data: any) {
-  //   try {
-  //     const result = await this.medicalSuppliesService.handleCancelBill(data);
-  //     return result;
-  //   } catch (error: any) {
-  //     return { success: false, message: error?.message };
-  //   }
-  // }
+
 }

@@ -41,6 +41,14 @@ interface CabinetDepartmentMapping {
   };
 }
 
+/** เหมือน admin/items: ค่าเริ่มต้นแผนก 29 เมื่อไม่ล็อกจากโปรไฟล์ */
+const DEFAULT_DEPARTMENT_ID = "29";
+
+function resolveDepartmentId(prop?: string): string {
+  const t = prop?.trim();
+  return t || DEFAULT_DEPARTMENT_ID;
+}
+
 interface FilterSectionProps {
   onSearch: (filters: {
     searchTerm: string;
@@ -65,16 +73,14 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
   // Form state (local)
   const [formFilters, setFormFilters] = useState({
     searchTerm: "",
-    departmentId: initialDepartmentId ?? "29",
+    departmentId: resolveDepartmentId(initialDepartmentId),
     cabinetId: "1",
     statusFilter: "all",
   });
 
-  // Sync initialDepartmentId ถ้าโหลดมาทีหลัง (จาก localStorage)
+  // Sync initialDepartmentId ถ้าโหลดมาทีหลัง (จาก localStorage) — ว่าง = เหมือน admin ใช้ 29
   useEffect(() => {
-    if (initialDepartmentId) {
-      setFormFilters(prev => ({ ...prev, departmentId: initialDepartmentId }));
-    }
+    setFormFilters((prev) => ({ ...prev, departmentId: resolveDepartmentId(initialDepartmentId) }));
   }, [initialDepartmentId]);
 
   // Load departments with search
@@ -212,7 +218,7 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
   };
 
   const handleReset = () => {
-    const lockedDeptId = departmentDisabled ? (initialDepartmentId ?? "29") : "29";
+    const lockedDeptId = departmentDisabled ? resolveDepartmentId(initialDepartmentId) : DEFAULT_DEPARTMENT_ID;
     const defaultFilters = {
       searchTerm: "",
       departmentId: lockedDeptId,

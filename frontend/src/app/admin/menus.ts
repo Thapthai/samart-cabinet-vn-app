@@ -142,13 +142,13 @@ export const adminMenuItems: StaffMenuItem[] = [
         description: 'จัดการตู้ Cabinet',
       },
       {
-        name: 'จัดการสิทธิ์',
+        name: 'จัดการ ผู้ใช้งาน Staff',
         href: '/admin/management/staff-users',
         icon: Users,
         description: 'จัดการ Staff Users และ Client Credentials',
       },
       {
-        name: 'กำหนดสิทธิ์',
+        name: 'กำหนดสิทธิ์ ผู้ใช้งาน Staff',
         href: '/admin/management/permission-role',
         icon: Shield,
         description: 'จัดการ Staff Permission Role',

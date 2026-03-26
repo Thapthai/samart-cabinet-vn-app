@@ -10,6 +10,9 @@ import {
 } from '../auth/dto/staff-user.dto';
 import { CreateStaffRoleDto, UpdateStaffRoleDto } from '../auth/dto/staff-role.dto';
 
+/** เมนูเริ่มต้นหลังสร้าง role — บันทึกใน app_microservice_staff_role_permissions */
+const STAFF_ENTRY_MENU_HREF = '/staff/dashboard';
+
 @Injectable()
 export class StaffService {
   constructor(
@@ -254,6 +257,17 @@ export class StaffService {
         description: dto.description?.trim() ?? null,
         is_active: dto.is_active ?? true,
       },
+    });
+    await this.prisma.staffRolePermission.upsert({
+      where: {
+        role_menu_href: { role_id: role.id, menu_href: STAFF_ENTRY_MENU_HREF },
+      },
+      create: {
+        role_id: role.id,
+        menu_href: STAFF_ENTRY_MENU_HREF,
+        can_access: true,
+      },
+      update: { can_access: true },
     });
     return { success: true, message: 'Role created', data: role };
   }

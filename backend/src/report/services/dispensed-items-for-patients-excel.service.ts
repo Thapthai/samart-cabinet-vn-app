@@ -92,7 +92,7 @@ export class DispensedItemsForPatientsExcelService {
 
     const reportDate = formatReportDateTime(new Date());
 
-    // ---- แถว 1-2: โลโก้ (A1:A2) + ชื่อรายงาน (B1:K2) ----
+    // ---- แถว 1-2: โลโก้ (A1:A2) + ชื่อรายงาน (B1:J2) ----
     worksheet.mergeCells('A1:A2');
     worksheet.getCell('A1').fill = {
       type: 'pattern',
@@ -116,7 +116,7 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.getRow(2).height = 25;
     worksheet.getColumn(1).width = 12;
 
-    worksheet.mergeCells('B1:K2');
+    worksheet.mergeCells('B1:J2');
     const headerCell = worksheet.getCell('B1');
     headerCell.value = 'รายการเบิกอุปกรณ์ใช้กับคนไข้\nDispensed Items for Patients Report';
     headerCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: THEME.navy } };
@@ -129,7 +129,7 @@ export class DispensedItemsForPatientsExcelService {
     };
 
     // ---- แถว 3: วันที่รายงาน ----
-    worksheet.mergeCells('A3:K3');
+    worksheet.mergeCells('A3:J3');
     const dateCell = worksheet.getCell('A3');
     dateCell.value = `วันที่รายงาน: ${reportDate}`;
     dateCell.font = { name: 'Tahoma', size: 12, color: { argb: THEME.textMuted } };
@@ -164,7 +164,7 @@ export class DispensedItemsForPatientsExcelService {
     });
     worksheet.getRow(4).height = 26;
 
-    // ---- แถว 5: Table header (11 คอลัมน์) ----
+    // ---- แถว 5: Table header (10 คอลัมน์) ----
     const tableStartRow = 5;
     const tableHeaders = [
       'ลำดับ',        // 1
@@ -173,11 +173,10 @@ export class DispensedItemsForPatientsExcelService {
       'แผนก',         // 4
       'ประเภท',       // 5
       'วันที่เบิก',   // 6
-      'รหัสอุปกรณ์',  // 7
-      'ชื่ออุปกรณ์',  // 8
-      'จำนวนอุปกรณ์', // 9
-      'Assession No', // 10
-      'สถานะ',        // 11
+      'ชื่ออุปกรณ์',  // 7
+      'จำนวนอุปกรณ์', // 8
+      'Assession No', // 9
+      'สถานะ',        // 10
     ];
     const headerRow = worksheet.getRow(tableStartRow);
     tableHeaders.forEach((h, i) => {
@@ -187,7 +186,7 @@ export class DispensedItemsForPatientsExcelService {
       cell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.navy } };
       cell.alignment = {
-        horizontal: i === 1 || i === 2 || i === 7 ? 'left' : 'center',
+        horizontal: i === 1 || i === 2 || i === 6 ? 'left' : 'center',
         vertical: 'middle',
         wrapText: true,
       };
@@ -217,7 +216,7 @@ export class DispensedItemsForPatientsExcelService {
         usage.department_name ?? usage.department_code ?? '-',
         usageTypeLabel,
         formatReportDateTime(usage.dispensed_date),
-        '', '', totalQty, '', '',
+        '', totalQty, '', '',
       ];
       const excelRow = worksheet.getRow(dataRowIndex);
       mainCells.forEach((val, colIndex) => {
@@ -226,7 +225,7 @@ export class DispensedItemsForPatientsExcelService {
         cell.font = { name: 'Tahoma', size: 11, color: { argb: THEME.textBody } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
         cell.alignment = {
-          horizontal: colIndex === 1 || colIndex === 2 || colIndex === 7 ? 'left' : 'center',
+          horizontal: colIndex === 1 || colIndex === 2 || colIndex === 6 ? 'left' : 'center',
           vertical: 'middle',
         };
         cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -240,7 +239,6 @@ export class DispensedItemsForPatientsExcelService {
         const statusLabel = getStatusLabel(item.order_item_status);
         const subCells: (string | number)[] = [
           '', '', '', '', '', '',
-          '└ ' + (item.itemcode ?? '-'),
           item.itemname ?? '-',
           item.qty ?? 0,
           item.assession_no ?? '-',
@@ -249,7 +247,7 @@ export class DispensedItemsForPatientsExcelService {
         subCells.forEach((val, colIndex) => {
           const cell = subRow.getCell(colIndex + 1);
           cell.value = val;
-          if (colIndex === 10) {
+          if (colIndex === 9) {
             const statusLower = String(val).toLowerCase();
             if (statusLower === 'ยืนยันแล้ว' || statusLower === 'verified') {
               cell.font = { name: 'Tahoma', size: 11, color: { argb: THEME.ok }, bold: true };
@@ -263,7 +261,7 @@ export class DispensedItemsForPatientsExcelService {
           }
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.subRowBg } };
           cell.alignment = {
-            horizontal: colIndex === 7 ? 'left' : 'center',
+            horizontal: colIndex === 6 ? 'left' : 'center',
             vertical: 'middle',
           };
           cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -277,7 +275,7 @@ export class DispensedItemsForPatientsExcelService {
 
     // ---- Footer + หมายเหตุ ----
     const footerRow = dataRowIndex + 1;
-    worksheet.mergeCells(`A${footerRow}:K${footerRow}`);
+    worksheet.mergeCells(`A${footerRow}:J${footerRow}`);
     const footerCell = worksheet.getCell(`A${footerRow}`);
     footerCell.value = 'เอกสารนี้สร้างจากระบบรายงานอัตโนมัติ';
     footerCell.font = { name: 'Tahoma', size: 11, color: { argb: THEME.footer } };
@@ -285,7 +283,7 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.getRow(footerRow).height = 18;
 
     const noteRow = footerRow + 1;
-    worksheet.mergeCells(`A${noteRow}:K${noteRow}`);
+    worksheet.mergeCells(`A${noteRow}:J${noteRow}`);
     const noteCell = worksheet.getCell(`A${noteRow}`);
     noteCell.value = `จำนวนรายการทั้งหมด: ${data.summary?.total_records ?? 0} รายการ | จำนวนคนไข้: ${data.summary?.total_patients ?? 0} ราย`;
     noteCell.font = { name: 'Tahoma', size: 11, color: { argb: THEME.textMuted } };
@@ -299,11 +297,10 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.getColumn(4).width = 14;
     worksheet.getColumn(5).width = 14;
     worksheet.getColumn(6).width = 22;
-    worksheet.getColumn(7).width = 16;
-    worksheet.getColumn(8).width = 34;
-    worksheet.getColumn(9).width = 10;
-    worksheet.getColumn(10).width = 16;
-    worksheet.getColumn(11).width = 12;
+    worksheet.getColumn(7).width = 34;
+    worksheet.getColumn(8).width = 20;
+    worksheet.getColumn(9).width = 16;
+    worksheet.getColumn(10).width = 12;
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);

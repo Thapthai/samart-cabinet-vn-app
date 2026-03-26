@@ -2809,7 +2809,7 @@ export class MedicalSuppliesService {
       const page = Math.max(1, Number(query.page) || 1);
       const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
       const skip = (page - 1) * limit;
- 
+
       // Build where clause
       const where: any = {};
 
@@ -4375,148 +4375,6 @@ export class MedicalSuppliesService {
     }
   }
 
-  // Handle Cancel Bill (เลือกจาก MedicalSupplyUsage และ SupplyUsageItem)
-  // async handleCancelBill(data: {
-  //   usageId: number;
-  //   supplyItemIds: number[];
-  //   oldPrintDate: string;
-  //   newPrintDate: string;
-  //   newItems?: Array<{
-  //     item_code: string;
-  //     item_description: string;
-  //     assession_no: string;
-  //     qty: number;
-  //     uom: string;
-  //     item_status?: string;
-  //   }>;
-  // }) {
-  //   try {
-  //     const { usageId, supplyItemIds, oldPrintDate, newPrintDate, newItems } = data;
-  //     const isSameDay = oldPrintDate === newPrintDate;
-
-  //     // 1. ค้นหา Usage Record ที่เลือก
-  //     const usage = await this.prisma.medicalSupplyUsage.findUnique({
-  //       where: { id: usageId },
-  //       include: {
-  //         supply_items: true,
-  //       },
-  //     });
-
-  //     if (!usage) {
-  //       throw new Error(`ไม่พบ Usage Record ที่ ID: ${usageId}`);
-  //     }
-
-  //     // 2. อัปเดต SupplyUsageItems ที่เลือกให้เป็น Discontinue
-  //     const updatedItemIds: number[] = [];
-  //     for (const itemId of supplyItemIds) {
-  //       const item = usage.supply_items.find(si => si.id === itemId);
-  //       // Normalize status: Always use 'Discontinue' (not 'Discontinued')
-  //       if (item && item.order_item_status?.toLowerCase() !== 'discontinue') {
-  //         await this.prisma.supplyUsageItem.update({
-  //           where: { id: itemId },
-  //           data: {
-  //             order_item_status: 'Discontinue', // Always use 'Discontinue' (not 'Discontinued')
-  //             qty_used_with_patient: 0,
-  //           },
-  //         });
-
-  //         updatedItemIds.push(itemId);
-
-  //         // Log การยกเลิก
-  //         await this.createLog(usageId, {
-  //           type: 'UPDATE',
-  //           status: 'SUCCESS',
-  //           action: 'cancel_bill_item',
-  //           assession_no: item.assession_no,
-  //           item_code: item.order_item_code || item.supply_code,
-  //           reason: `Cancel Bill - ${isSameDay ? 'ภายในวันเดียวกัน' : 'ข้ามวัน'}`,
-  //           cancelled_qty: item.qty,
-  //           old_print_date: oldPrintDate,
-  //           new_print_date: newPrintDate,
-  //         });
-  //       }
-  //     }
-
-  //     if (updatedItemIds.length === 0) {
-  //       throw new Error('ไม่พบรายการที่สามารถยกเลิกได้');
-  //     }
-
-  //     // 3. อัปเดต billing_status เป็น CANCELLED
-  //     await this.prisma.medicalSupplyUsage.update({
-  //       where: { id: usageId },
-  //       data: {
-  //         billing_status: 'CANCELLED',
-  //       },
-  //     });
-
-  //     // 4. สร้างรายการใหม่ (Verified) ถ้ามี newItems
-  //     let newUsageId: number | null = null;
-  //     if (newItems && newItems.length > 0) {
-  //       // สร้าง Usage Record ใหม่
-  //       const newUsage = await this.prisma.medicalSupplyUsage.create({
-  //         data: {
-  //           en: usage.en,
-  //           patient_hn: usage.patient_hn,
-  //           first_name: usage.first_name || '',
-  //           lastname: usage.lastname || '',
-  //           department_code: usage.department_code || '',
-  //           usage_datetime: new Date(newPrintDate + 'T00:00:00.000Z').toISOString(),
-  //           billing_status: 'PENDING',
-  //           created_at: new Date(newPrintDate + 'T00:00:00.000Z'),
-  //         },
-  //       });
-
-  //       newUsageId = newUsage.id;
-
-  //       // สร้าง SupplyUsageItems สำหรับรายการใหม่
-  //       for (const newItem of newItems) {
-  //         await this.prisma.supplyUsageItem.create({
-  //           data: {
-  //             medical_supply_usage_id: newUsage.id,
-  //             order_item_code: newItem.item_code,
-  //             order_item_description: newItem.item_description,
-  //             assession_no: newItem.assession_no,
-  //             qty: newItem.qty,
-  //             uom: newItem.uom,
-  //             order_item_status: newItem.item_status || 'Verified',
-  //             qty_used_with_patient: 0,
-  //             qty_returned_to_cabinet: 0,
-  //           },
-  //         });
-  //       }
-
-  //       // Log การสร้างรายการใหม่
-  //       await this.createLog(newUsage.id, {
-  //         type: 'CREATE',
-  //         status: 'SUCCESS',
-  //         action: 'cancel_bill_new_items',
-  //         reason: `Cancel Bill - สร้างรายการใหม่ (${isSameDay ? 'ภายในวันเดียวกัน' : 'ข้ามวัน'})`,
-  //         new_items_count: newItems.length,
-  //         old_print_date: oldPrintDate,
-  //         new_print_date: newPrintDate,
-  //       });
-  //     }
-
-  //     return {
-  //       success: true,
-  //       cancelled_usage_id: usageId,
-  //       updated_item_ids: updatedItemIds,
-  //       new_usage_id: newUsageId,
-  //       is_same_day: isSameDay,
-  //       message: `จัดการ Cancel Bill สำเร็จ${isSameDay ? ' (ภายในวันเดียวกัน)' : ' (ข้ามวัน)'}`,
-  //     };
-  //   } catch (error) {
-  //     await this.createLog(null, {
-  //       type: 'UPDATE',
-  //       status: 'ERROR',
-  //       action: 'cancel_bill',
-  //       error_message: error.message,
-  //       error_code: error.code,
-  //     });
-  //     throw error;
-  //   }
-  // }
-
   /**
    * Get ItemStocks with StockID = 0 for returning to cabinet
    */
@@ -4682,6 +4540,9 @@ export class MedicalSuppliesService {
               return_reason: item.return_reason,
               return_by_user_id: data.return_by_user_id,
               return_note: item.return_note ?? null,
+              return_datetime: this.nowBangkokUtcTrueForPrisma(),
+              created_at: this.nowBangkokUtcTrueForPrisma(),
+              updated_at: this.nowBangkokUtcTrueForPrisma(),
             },
           });
         }

@@ -203,32 +203,13 @@ export default function ItemsPage() {
               <p className="text-sm text-gray-500">รายการอุปกรณ์ทั้งหมดในระบบ</p>
             </div>
           </div>
-          {/* ให้เหมือน admin: ไม่แสดงปุ่มรีเฟรช/เพิ่มอุปกรณ์ */}
-          {/* <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchItems()}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              รีเฟรช
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setShowCreateDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              เพิ่มอุปกรณ์
-            </Button>
-          </div> */}
         </div>
 
         {/* Filter Section */}
         <FilterSection
           onSearch={handleSearch}
           onBeforeSearch={() => setCurrentPage(1)}
-          initialDepartmentId={staffDepartmentId}
+          initialDepartmentId={staffDepartmentId || undefined}
           departmentDisabled={!!staffDepartmentId && !canSelectDepartment}
         />
 
@@ -243,8 +224,8 @@ export default function ItemsPage() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onUpdateMinMax={handleUpdateMinMax}
-            onPageChange={handlePageChange}
-            headerActions={
+          onPageChange={handlePageChange}
+          headerActions={
             <div className="flex flex-wrap items-center gap-2">
               {/* <span className="text-sm text-gray-600">รายงานสต๊อกอุปกรณ์ในตู้:</span> */}
               <Button

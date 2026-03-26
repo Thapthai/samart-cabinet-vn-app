@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Shield, Save, Loader2, CornerDownRight } from "lucide-react";
+import { Shield, Save, Loader2, CornerDownRight, Plus } from "lucide-react";
+import { AdminAddStaffRoleDialog } from "./components/AdminAddStaffRoleDialog";
 import { toast } from "sonner";
 import { staffMenuItems, type StaffMenuSubItem } from "@/app/staff/menus";
 
@@ -81,6 +82,8 @@ export default function ManageStaffRolesPage() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [addRoleOpen, setAddRoleOpen] = useState(false);
+  const [allRoleCodes, setAllRoleCodes] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
@@ -105,6 +108,9 @@ export default function ManageStaffRolesPage() {
         : (rolesResponse as any)?.success !== false && (rolesResponse as any)?.data
           ? (rolesResponse as any).data
           : [];
+      const allCodes = (rolesData as Role[]).map((r) => r.code).filter(Boolean);
+      setAllRoleCodes(allCodes);
+
       const activeRoles = (rolesData as Role[]).filter((r) => r.is_active !== false);
       setRoles(activeRoles);
 
@@ -141,6 +147,7 @@ export default function ManageStaffRolesPage() {
       }
     } catch (error: any) {
       console.error("Load data error:", error);
+      setAllRoleCodes([]);
       toast.error(error.message || "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์");
       initializeDefaultPermissions();
     } finally {
@@ -262,117 +269,100 @@ export default function ManageStaffRolesPage() {
 
           {/* Permissions Table */}
           <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>ตารางกำหนดสิทธิ์</CardTitle>
-                <CardDescription>
-                  เลือกเมนูที่แต่ละ Role สามารถเข้าถึงได้
-                </CardDescription>
-              </div>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    กำลังบันทึก...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    บันทึก
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="min-w-[200px]">เมนู</TableHead>
-                    {roles.map((role) => (
-                      <TableHead
-                        key={role.code}
-                        className="text-center min-w-[150px]"
-                      >
-                        <div>
-                          <Badge
-                            variant={getRoleBadgeVariant(role.code)}
-                            className="mb-1"
-                          >
-                            {role.name}
-                          </Badge>
-                          {role.description && (
-                            <div className="text-xs text-gray-500 font-normal mt-1">
-                              {role.description}
-                            </div>
-                          )}
-                        </div>
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {menuItems.map((menu) => {
-                    // Detect submenu by checking if its value exists in any submenu of staffMenuItems
-                    const isSubmenu = staffMenuItems.some((main) =>
-                      main.submenu && main.submenu.some((sub) => sub.href === menu.value)
-                    );
-                    return (
-                      <TableRow key={menu.value}>
-                        <TableCell className={isSubmenu ? 'font-medium pl-8 flex items-center gap-2' : 'font-medium'}>
-                          {isSubmenu && <CornerDownRight className="inline-block w-4 h-4 text-gray-400 mr-1" />}
-                          {menu.label}
-                        </TableCell>
-                        {roles.map((role) => {
-                          const isDashboard = menu.value === '/staff/dashboard';
-                          return (
-                            <TableCell key={role.code} className="text-center">
-                              <Checkbox
-                                checked={permissions[role.code]?.[menu.value] || false}
-                                onCheckedChange={isDashboard ? undefined : (checked: boolean) =>
-                                  handlePermissionChange(role.code, menu.value, checked)
-                                }
-                                disabled={isDashboard}
-                              />
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-          {/* Info Card */}
-          <Card>
             <CardHeader>
-              <CardTitle>ข้อมูลการใช้งาน</CardTitle>
-              <CardDescription>
-                หน้านี้สำหรับกำหนดสิทธิ์การเข้าถึงเมนูตามบทบาท
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>ตารางกำหนดสิทธิ์</CardTitle>
+                  <CardDescription>
+                    เลือกเมนูที่แต่ละ Role สามารถเข้าถึงได้
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" variant="outline" onClick={() => setAddRoleOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    เพิ่ม Role
+                  </Button>
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        กำลังบันทึก...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        บันทึก
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">
-                  • <strong>IT 1:</strong> เห็นทุกเมนู รวมถึงเมนูจัดการสิทธิ์และกำหนดสิทธิ์
-                </p>
-                <p className="text-sm text-gray-600">
-                  • <strong>IT 2, IT 3, Warehouse 1-3:</strong> เห็นทุกเมนู ยกเว้นเมนูจัดการสิทธิ์และกำหนดสิทธิ์ (สามารถกำหนดเองได้)
-                </p>
-                <p className="text-sm text-gray-600">
-                  • สามารถเปิด/ปิดสิทธิ์การเข้าถึงเมนูแต่ละเมนูได้
-                </p>
-                <p className="text-sm text-gray-600">
-                  • คลิก <strong>บันทึก</strong> เพื่อบันทึกการเปลี่ยนแปลง
-                </p>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[200px]">เมนู</TableHead>
+                      {roles.map((role) => (
+                        <TableHead
+                          key={role.code}
+                          className="text-center min-w-[150px]"
+                        >
+                          <div>
+                            <Badge
+                              variant={getRoleBadgeVariant(role.code)}
+                              className="mb-1"
+                            >
+                              {role.name}
+                            </Badge>
+
+                          </div>
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {menuItems.map((menu) => {
+                      // Detect submenu by checking if its value exists in any submenu of staffMenuItems
+                      const isSubmenu = staffMenuItems.some((main) =>
+                        main.submenu && main.submenu.some((sub) => sub.href === menu.value)
+                      );
+                      return (
+                        <TableRow key={menu.value}>
+                          <TableCell className={isSubmenu ? 'font-medium pl-8 flex items-center gap-2' : 'font-medium'}>
+                            {isSubmenu && <CornerDownRight className="inline-block w-4 h-4 text-gray-400 mr-1" />}
+                            {menu.label}
+                          </TableCell>
+                          {roles.map((role) => {
+                            const isDashboard = menu.value === '/staff/dashboard';
+                            return (
+                              <TableCell key={role.code} className="text-center">
+                                <Checkbox
+                                  checked={permissions[role.code]?.[menu.value] || false}
+                                  onCheckedChange={isDashboard ? undefined : (checked: boolean) =>
+                                    handlePermissionChange(role.code, menu.value, checked)
+                                  }
+                                  disabled={isDashboard}
+                                />
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
+
+          <AdminAddStaffRoleDialog
+            open={addRoleOpen}
+            onOpenChange={setAddRoleOpen}
+            existingCodes={allRoleCodes}
+            onCreated={loadData}
+          />
         </div>
       </AppLayout>
     </ProtectedRoute>

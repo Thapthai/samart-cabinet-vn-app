@@ -211,7 +211,7 @@ export class ReturnReportExcelService {
     // ---- ความกว้างคอลัมน์ ----
     worksheet.getColumn(1).width = 13;
     worksheet.getColumn(2).width = 18;
-    worksheet.getColumn(3).width = 30;
+    worksheet.getColumn(3).width = 40;
     worksheet.getColumn(4).width = 22;
     worksheet.getColumn(5).width = 18;
     worksheet.getColumn(6).width = 10;

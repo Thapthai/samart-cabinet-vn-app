@@ -365,9 +365,7 @@ export class ItemComparisonExcelService {
         cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: THEME.navy } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.navyLight } };
         cell.border = BORDER;
-        if (c === 3) cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        else if (c === 4) cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        else cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
       }
       r++;
     }

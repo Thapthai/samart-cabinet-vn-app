@@ -49,16 +49,21 @@ function maxRoleNumericSuffix(existingRoleCodes: readonly string[], pattern: Reg
 /**
  * รหัส IT-00N ถัดไป จากรายการ code ทั้งหมด (รวม inactive)
  * role ย่อยไม่ใช้เลข 001 (สงวนหัวหน้า) — ถ้ามีแค่ IT-001 จะได้ IT-002
+ * นับทั้ง IT-00n และ legacy itN (ไม่มีขีด)
  */
 export function suggestNextItRoleCode(existingRoleCodes: readonly string[]): string {
-  const max = maxRoleNumericSuffix(existingRoleCodes, /^it-(\d+)$/);
+  const maxDash = maxRoleNumericSuffix(existingRoleCodes, /^it-(\d+)$/);
+  const maxLegacy = maxRoleNumericSuffix(existingRoleCodes, /^it(\d+)$/);
+  const max = Math.max(maxDash, maxLegacy);
   const next = Math.max(max + 1, 2);
   return `IT-${String(next).padStart(3, '0')}`;
 }
 
-/** รหัส WH-00N ถัดไป — เช่น มี WH-002 จะได้ WH-003 */
+/** รหัส WH-00N ถัดไป — เช่น มี WH-002 จะได้ WH-003; นับ warehouseN legacy ด้วย */
 export function suggestNextWhRoleCode(existingRoleCodes: readonly string[]): string {
-  const max = maxRoleNumericSuffix(existingRoleCodes, /^wh-(\d+)$/);
+  const maxDash = maxRoleNumericSuffix(existingRoleCodes, /^wh-(\d+)$/);
+  const maxLegacy = maxRoleNumericSuffix(existingRoleCodes, /^warehouse(\d+)$/);
+  const max = Math.max(maxDash, maxLegacy);
   const next = Math.max(max + 1, 2);
   return `WH-${String(next).padStart(3, '0')}`;
 }
