@@ -74,11 +74,7 @@ export function CreateStaffUserDialog({
         password: formData.password,
         expires_at: formData.expires_at || undefined,
       };
-      const response = (await staffUserApi.createStaffUser(payload)) as {
-        success?: boolean;
-        data?: { client_id?: string; client_secret?: string };
-        message?: string;
-      };
+      const response = await staffUserApi.createStaffUser(payload);
       if (response?.success && response?.data) {
         toast.success('สร้าง Staff User เรียบร้อยแล้ว');
         const creds = {
@@ -88,7 +84,7 @@ export function CreateStaffUserDialog({
         setIssued(creds);
         onSuccess();
       } else {
-        toast.error((response as { message?: string })?.message || 'ไม่สามารถสร้าง Staff User ได้');
+        toast.error(response?.message || 'ไม่สามารถสร้าง Staff User ได้');
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string | string[] } }; message?: string };

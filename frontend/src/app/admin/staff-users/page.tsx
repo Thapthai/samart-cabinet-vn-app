@@ -98,11 +98,11 @@ export default function StaffUsersPage() {
     e.preventDefault();
     try {
       const response = await staffUserApi.createStaffUser(formData);
-      if (response.success) {
+      if (response.success && response.data) {
         showNotification('สำเร็จ!', 'สร้าง Staff User เรียบร้อยแล้ว');
         setClientCredentials({
-          client_id: response.data.client_id,
-          client_secret: response.data.client_secret,
+          client_id: response.data.client_id ?? '',
+          client_secret: response.data.client_secret ?? '',
         });
         fetchStaffUsers();
         setFormData({ email: '', fname: '', lname: '', role: '', password: 'password123', expires_at: '' });

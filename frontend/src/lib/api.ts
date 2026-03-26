@@ -1386,19 +1386,20 @@ export const staffUserApi = {
     email: string;
     fname: string;
     lname: string;
-    role: string;
+    role?: string;
     role_code?: string;
     department_id?: number | null;
     password?: string;
     expires_at?: string;
     is_active?: boolean;
-  }): Promise<ApiResponse<any>> => {
+  }): Promise<ApiResponse<{ client_id?: string; client_secret?: string }>> => {
+    const roleCode = (data.role_code ?? data.role)?.trim();
     const body: Record<string, unknown> = {
       email: data.email.trim(),
       fname: data.fname.trim(),
       lname: data.lname.trim(),
-      role_code: data.role_code ?? data.role,
     };
+    if (roleCode) body.role_code = roleCode;
     if (data.department_id != null) body.department_id = Number(data.department_id);
     if (data.password && String(data.password).length >= 8) body.password = data.password;
     if (data.expires_at?.trim()) body.expires_at = data.expires_at.trim();
