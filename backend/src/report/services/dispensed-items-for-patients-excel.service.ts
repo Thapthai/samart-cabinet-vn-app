@@ -85,7 +85,7 @@ export class DispensedItemsForPatientsExcelService {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Report Service';
     workbook.created = new Date();
-    const worksheet = workbook.addWorksheet('รายการเบิกอุปกรณ์ใช้กับคนไข้', {
+    const worksheet = workbook.addWorksheet('บันทึกใช้อุปกรณ์กับคนไข้', {
       pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true },
       properties: { defaultRowHeight: 20 },
     });
@@ -118,7 +118,7 @@ export class DispensedItemsForPatientsExcelService {
 
     worksheet.mergeCells('B1:J2');
     const headerCell = worksheet.getCell('B1');
-    headerCell.value = 'รายการเบิกอุปกรณ์ใช้กับคนไข้\nDispensed Items for Patients Report';
+    headerCell.value = 'บันทึกใช้อุปกรณ์กับคนไข้\nDispensed Items for Patients Report';
     headerCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: THEME.navy } };
     headerCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.pageBg } };

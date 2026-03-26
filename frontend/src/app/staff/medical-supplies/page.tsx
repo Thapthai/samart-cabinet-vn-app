@@ -246,7 +246,7 @@ export default function MedicalSuppliesPage() {
             </div>
             <div className="min-w-0">
               <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white truncate">
-                รายการเบิกอุปกรณ์ใช้กับคนไข้
+                บันทึกใช้อุปกรณ์กับคนไข้
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                 ประวัติการเบิกจากตู้ SmartCabinet — ค้นหา ดูรายละเอียด และส่งออกรายงาน

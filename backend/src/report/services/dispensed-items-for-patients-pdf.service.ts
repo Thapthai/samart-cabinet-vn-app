@@ -107,7 +107,7 @@ export class DispensedItemsForPatientsPdfService {
         }
 
         doc.fontSize(20).font(finalFontBoldName).fillColor('#1A365D');
-        doc.text('รายการเบิกอุปกรณ์ใช้กับคนไข้', margin, headerTop + 6, {
+        doc.text('บันทึกใช้อุปกรณ์กับคนไข้', margin, headerTop + 6, {
           width: contentWidth,
           align: 'center',
         });

@@ -107,7 +107,7 @@ export const staffMenuItems = [
                 icon: FileBarChart,
             },
             {
-                name: 'รายการเบิกอุปกรณ์ใช้กับคนไข้',
+                name: 'บันทึกใช้อุปกรณ์กับคนไข้',
                 href: '/staff/medical-supplies',
                 description: 'ประวัติการเบิกจากตู้ SmartCabinet — ค้นหา ดูรายละเอียด และส่งออกรายงาน',
                 icon: History,

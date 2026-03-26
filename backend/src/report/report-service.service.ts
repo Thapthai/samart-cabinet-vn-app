@@ -3398,7 +3398,7 @@ export class ReportServiceService {
   }
 
   /**
-   * Generate Dispensed Items for Patients Report (รายการเบิกอุปกรณ์ใช้กับคนไข้) - Excel
+   * Generate Dispensed Items for Patients Report (บันทึกใช้อุปกรณ์กับคนไข้) - Excel
    */
   async generateDispensedItemsForPatientsExcel(params: {
     keyword?: string;
@@ -3422,7 +3422,7 @@ export class ReportServiceService {
   }
 
   /**
-   * Generate Dispensed Items for Patients Report (รายการเบิกอุปกรณ์ใช้กับคนไข้) - PDF
+   * Generate Dispensed Items for Patients Report (บันทึกใช้อุปกรณ์กับคนไข้) - PDF
    */
   async generateDispensedItemsForPatientsPdf(params: {
     keyword?: string;
