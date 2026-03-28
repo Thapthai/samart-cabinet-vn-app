@@ -7,6 +7,10 @@
     "build": "next build",
     "start": "next start -p 4100",
     "start:30100": "next start -p 30100",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:reload": "pm2 reload samart-cabinet-frontend",
+    "pm2:stop": "pm2 stop samart-cabinet-frontend",
+    "pm2:logs": "pm2 logs samart-cabinet-frontend",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },

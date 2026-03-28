@@ -26,6 +26,7 @@ async function bootstrap() {
         'http://10.11.9.84:3100',
         'http://10.11.9.84:4100',  
         'https://phc.dyndns.biz/medical-supplies',
+        'https://www.poseintelligence.co.th/med-supplies'
       ];
   app.enableCors({
     origin: allowedOrigins,
