@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "next dev -p 3100",
     "build": "next build",
-    "start": "next start -p 4100",
+    "start": "next start -p 7200",
     "start:30100": "next start -p 30100",
     "pm2:start": "pm2 start ecosystem.config.cjs",
-    "pm2:reload": "pm2 reload samart-cabinet-frontend",
-    "pm2:stop": "pm2 stop samart-cabinet-frontend",
-    "pm2:logs": "pm2 logs samart-cabinet-frontend",
+    "pm2:reload": "pm2 reload ecosystem.config.cjs --update-env",
+    "pm2:stop": "pm2 stop med-supplies-vtn-next-app",
+    "pm2:logs": "pm2 logs med-supplies-vtn-next-app",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },
