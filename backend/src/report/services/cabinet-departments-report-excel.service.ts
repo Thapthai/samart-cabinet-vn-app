@@ -200,7 +200,7 @@ export class CabinetDepartmentsReportExcelService {
       const subRows = row.subRows ?? [];
       const totalChips = subRows.reduce((sum, s) => sum + s.totalQty, 0);
       const labelRow = worksheet.getRow(dataRowIndex);
-      worksheet.mergeCells(dataRowIndex, 1, dataRowIndex, 5);
+      worksheet.mergeCells(dataRowIndex, 1, dataRowIndex, 6);
       const labelCell = labelRow.getCell(1);
       labelCell.value = `  รายการอุปกรณ์ในตู้ (${subRows.length} รายการ, รวม ${totalChips} ชิ้น)`;
       labelCell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF000000' } };
