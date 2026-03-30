@@ -13,6 +13,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:start:build": "npm run build && pm2 start ecosystem.config.cjs",
     "pm2:reload": "pm2 reload ecosystem.config.cjs --update-env",
     "pm2:stop": "pm2 stop med-supplies-vtn-backend",
     "pm2:logs": "pm2 logs med-supplies-vtn-backend",

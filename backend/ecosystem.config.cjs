@@ -41,6 +41,14 @@ if (!env.PORT || String(env.PORT).trim() === '') {
   env.PORT = process.env.PORT || '7100';
 }
 
+const mainEntry = path.join(__dirname, 'dist', 'main.js');
+if (!fs.existsSync(mainEntry)) {
+  console.error(
+    '\n[ecosystem] ยังไม่มี dist/main.js — รัน `npm run build` ในโฟลเดอร์ backend ก่อน แล้วค่อย `pm2 start ecosystem.config.cjs`\n',
+  );
+  process.exit(1);
+}
+
 module.exports = {
   apps: [
     {
