@@ -12,7 +12,7 @@
 - [Tech Stack](#-tech-stack)
 - [โครงสร้างโปรเจกต์](#-โครงสร้างโปรเจกต์)
 - [Quick Start](#-quick-start)
-- [Deployment](#-deployment)
+- [Deployment](#-deployment) · [PM2](README-DEPLOY-PM2.md)
 - [API](#-api)
 - [ตัวแปรสภาพแวดล้อม](#-ตัวแปรสภาพแวดล้อม)
 - [เอกสารเพิ่มเติม](#-เอกสารเพิ่มเติม)
@@ -244,6 +244,12 @@ Frontend จะรันที่ **http://localhost:3100**
 ---
 
 ## Deployment
+
+### PM2 (Frontend + Backend)
+
+รัน **Next.js** (`frontend/`) และ **NestJS** (`backend/`) ด้วย PM2 แยก process — ดูขั้นตอนเต็ม ตัวอย่าง `.env` ฝั่ง frontend (NextAuth, `NEXT_PUBLIC_*`, reverse proxy) และ troubleshooting ใน **[README-DEPLOY-PM2.md](README-DEPLOY-PM2.md)**
+
+ย่อหน้า Frontend: `cd frontend && npm ci && npm run build && pm2 start ecosystem.config.cjs` — แก้ `NEXT_PUBLIC_*` ต้อง `build` ใหม่ทุกครั้ง; แก้ `NEXTAUTH_*` / `BACKEND_API_URL` reload ด้วย `npm run pm2:reload`
 
 ### Docker (Frontend)
 
