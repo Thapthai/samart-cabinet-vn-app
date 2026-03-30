@@ -8,8 +8,9 @@
  *   pm2 start ecosystem.config.cjs
  *   pm2 save && pm2 startup
  *
- * รีโหลดหลังแก้ env (รัน time):
+ * รีโหลดหลังแก้ .env — อย่าใช้แค่ `pm2 restart` เพราะมักถือ env เก่า
  *   pm2 reload ecosystem.config.cjs --update-env
+ *   หรือ pm2 delete med-supplies-vtn-next-app && pm2 start ecosystem.config.cjs
  *
  * สำคัญ:
  * - NEXTAUTH_URL ต้องตรงกับ URL ที่ผู้ใช้เปิด (เช่น http://10.1.1.10:7200/med-supplies ไม่ใช่แค่ localhost)
@@ -18,9 +19,10 @@
 const fs = require('fs');
 const path = require('path');
 
-/** โหลด KEY=VALUE จาก .env (ไม่ทับค่าที่ตั้งใน shell อยู่แล้ว) */
-function loadEnvFile(filePath) {
-  if (!fs.existsSync(filePath)) return;
+/** อ่าน .env เป็น object — ค่าจากไฟล์ใช้เป็นหลักเวลา merge เข้า PM2 (แก้ .env แล้ว reload ได้ค่าใหม่) */
+function parseEnvFile(filePath) {
+  const out = {};
+  if (!fs.existsSync(filePath)) return out;
   const text = fs.readFileSync(filePath, 'utf8');
   for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -35,12 +37,16 @@ function loadEnvFile(filePath) {
     ) {
       val = val.slice(1, -1);
     }
-    if (process.env[key] === undefined) process.env[key] = val;
+    out[key] = val;
   }
+  return out;
 }
 
-loadEnvFile(path.join(__dirname, '.env.production'));
-loadEnvFile(path.join(__dirname, '.env'));
+// .env ทับ .env.production สำหรับ key ซ้ำ
+const fileEnv = {
+  ...parseEnvFile(path.join(__dirname, '.env.production')),
+  ...parseEnvFile(path.join(__dirname, '.env')),
+};
 
 const passthroughKeys = [
   'NEXTAUTH_URL',
@@ -59,12 +65,19 @@ const passthroughKeys = [
 
 const env = {
   NODE_ENV: 'production',
-  PORT: process.env.PORT || '7200',
+  PORT: fileEnv.PORT || process.env.PORT || '7200',
 };
 
 for (const key of passthroughKeys) {
-  const v = process.env[key];
-  if (v !== undefined && v !== '') env[key] = v;
+  const fromFile = fileEnv[key];
+  const fromShell = process.env[key];
+  const v =
+    fromFile !== undefined && fromFile !== ''
+      ? fromFile
+      : fromShell !== undefined && fromShell !== ''
+        ? fromShell
+        : undefined;
+  if (v !== undefined) env[key] = v;
 }
 
 module.exports = {

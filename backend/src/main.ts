@@ -14,8 +14,8 @@ async function bootstrap() {
     }),
   );
 
-// </Location>
-  // CORS: อนุญาตให้ frontend (origin จาก env หรือ default ด้านล่าง) เรียก API ได้
+  // CORS: ค่า origin = scheme + host (+ พอร์ตถ้าไม่ใช่ 80/443) เท่านั้น ห้ามใส่ path — คนละกับ URL ของหน้าเว็บ
+  // หน้าเว็บที่ https://poseintelligence.co.th เรียก API ที่ https://www.poseintelligence.co.th = cross-origin ต้องอนุญาตทั้งสอง host
   const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
     : [
@@ -24,9 +24,10 @@ async function bootstrap() {
         'http://localhost:4100',
         'http://127.0.0.1:4100',
         'http://10.11.9.84:3100',
-        'http://10.11.9.84:4100',  
-        'https://phc.dyndns.biz/medical-supplies',
-        'https://www.poseintelligence.co.th/med-supplies'
+        'http://10.11.9.84:4100',
+        'https://phc.dyndns.biz',
+        'https://poseintelligence.co.th',
+        'https://www.poseintelligence.co.th',
       ];
   app.enableCors({
     origin: allowedOrigins,
