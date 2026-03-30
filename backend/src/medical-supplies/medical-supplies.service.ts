@@ -3176,16 +3176,16 @@ export class MedicalSuppliesService {
           app_microservice_cabinets.cabinet_code AS cabinetCode
         FROM itemstock ist
         LEFT JOIN item i ON ist.ItemCode = i.itemcode
-        LEFT JOIN (
-              SELECT uc.*
-              FROM user_cabinet uc
-              INNER JOIN (
-                  SELECT cabinet_finger_id, MAX(id) AS max_id
-                  FROM user_cabinet
-                  GROUP BY cabinet_finger_id
-              ) x ON x.max_id = uc.id
-          ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_finger_id
-        LEFT JOIN users ON user_cabinet.user_id = users.ID
+        -- LEFT JOIN (
+        --       SELECT uc.*
+        --       FROM user_cabinet uc
+        --       INNER JOIN (
+        --           SELECT cabinet_finger_id, MAX(id) AS max_id
+        --           FROM user_cabinet
+        --           GROUP BY cabinet_finger_id
+        --       ) x ON x.max_id = uc.id
+        --   ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_finger_id
+        LEFT JOIN users ON users.ID = ist.CabinetUserID
         LEFT JOIN employee ON employee.EmpCode = users.EmpCode
         LEFT JOIN app_microservice_cabinets on app_microservice_cabinets.stock_id = ist.StockID
         LEFT JOIN app_microservice_cabinet_departments on app_microservice_cabinet_departments.cabinet_id = app_microservice_cabinets.ID
@@ -3326,16 +3326,16 @@ export class MedicalSuppliesService {
           department.DepName AS departmentName
         FROM itemstock ist
         INNER JOIN item i ON ist.ItemCode = i.itemcode
-        LEFT JOIN (
-              SELECT uc.*
-              FROM user_cabinet uc
-              INNER JOIN (
-                  SELECT cabinet_finger_id, MAX(id) AS max_id
-                  FROM user_cabinet
-                  GROUP BY cabinet_finger_id
-              ) x ON x.max_id = uc.id
-          ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_finger_id
-        LEFT JOIN users ON user_cabinet.user_id = users.ID
+        -- LEFT JOIN (
+        --       SELECT uc.*
+        --       FROM user_cabinet uc
+        --       INNER JOIN (
+        --           SELECT cabinet_finger_id, MAX(id) AS max_id
+        --           FROM user_cabinet
+        --           GROUP BY cabinet_finger_id
+        --       ) x ON x.max_id = uc.id
+        --   ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_finger_id
+        LEFT JOIN users ON users.ID = ist.CabinetUserID
         LEFT JOIN employee ON employee.EmpCode = users.EmpCode
         LEFT JOIN app_microservice_cabinets on app_microservice_cabinets.stock_id = ist.StockID
         LEFT JOIN app_microservice_cabinet_departments on app_microservice_cabinet_departments.cabinet_id = app_microservice_cabinets.ID
