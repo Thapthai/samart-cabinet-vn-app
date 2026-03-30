@@ -68,6 +68,16 @@ export function suggestNextWhRoleCode(existingRoleCodes: readonly string[]): str
   return `WH-${String(next).padStart(3, '0')}`;
 }
 
+/** รหัส STF-00N ถัดไป (สำหรับแสดงตัวอย่าง — ค่าจริงตอนบันทึกมาจาก backend) */
+export function suggestNextAutoStaffRoleCode(existingRoleCodes: readonly string[]): string {
+  let max = 0;
+  for (const raw of existingRoleCodes) {
+    const m = normalizeStaffRoleCode(raw).match(/^stf-(\d+)$/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return `STF-${String(max + 1).padStart(3, '0')}`;
+}
+
 /** หัวหน้าสาย IT หรือ Warehouse */
 export function staffRoleIsStaffPermissionHead(roleCode: string): boolean {
   const r = normalizeStaffRoleCode(roleCode);

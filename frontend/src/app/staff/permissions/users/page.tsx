@@ -2,14 +2,7 @@
 
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { staffUserApi, staffRoleApi } from '@/lib/api';
-import {
-  readStaffRoleCodeFromStorage,
-  staffRoleIsStrictDash001Head,
-  staffRoleCanAssignStaffRole,
-  staffRoleCanManageStaffUserRow,
-  staffRoleVisibleInPermissionRolesTable,
-  staffRoleDisplayLabel,
-} from '@/lib/staffRolePolicy';
+import { staffRoleDisplayLabel } from '@/lib/staffRolePolicy';
 import { toast } from 'sonner';
 import {
   emptyCreateStaffUserForm,
@@ -39,12 +32,7 @@ export default function ManageUsersPage() {
     is_active: true,
   });
 
-  const [viewerRole, setViewerRole] = useState('');
   const [rolesCatalog, setRolesCatalog] = useState<StaffRoleOption[]>([]);
-
-  useEffect(() => {
-    setViewerRole(readStaffRoleCodeFromStorage());
-  }, []);
 
   useEffect(() => {
     (async () => {
@@ -67,15 +55,7 @@ export default function ManageUsersPage() {
     fetchStaffUsers();
   }, []);
 
-  const assignableRoles = useMemo(
-    () => rolesCatalog.filter((r) => staffRoleCanAssignStaffRole(viewerRole, r.code)),
-    [rolesCatalog, viewerRole],
-  );
-
-  const visibleUsers = useMemo(() => {
-    if (!staffRoleIsStrictDash001Head(viewerRole)) return [];
-    return filteredUsers.filter((u) => staffRoleVisibleInPermissionRolesTable(viewerRole, u.role));
-  }, [filteredUsers, viewerRole]);
+  const assignableRoles = useMemo(() => rolesCatalog, [rolesCatalog]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -112,11 +92,8 @@ export default function ManageUsersPage() {
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
-    if (
-      !staffRoleIsStrictDash001Head(viewerRole) ||
-      !staffRoleCanAssignStaffRole(viewerRole, formData.role)
-    ) {
-      toast.error('ไม่มีสิทธิ์สร้าง User ด้วย Role นี้');
+    if (!formData.role?.trim()) {
+      toast.error('กรุณาเลือก Role');
       return;
     }
     try {
@@ -135,14 +112,6 @@ export default function ManageUsersPage() {
   };
 
   const handleEditRole = (user: StaffUser) => {
-    if (!staffRoleIsStrictDash001Head(viewerRole)) {
-      toast.error('แก้ไขได้เฉพาะบัญชีที่มี Role IT-001 หรือ WH-001');
-      return;
-    }
-    if (!staffRoleCanManageStaffUserRow(viewerRole, user.role)) {
-      toast.error('ไม่มีสิทธิ์แก้ไข User นี้ (เช่น บัญชีหัวหน้าสาย)');
-      return;
-    }
     setSelectedStaff(user);
     setEditRoleData({ role: user.role, is_active: user.is_active });
     setIsEditRoleDialogOpen(true);
@@ -151,16 +120,8 @@ export default function ManageUsersPage() {
   const handleUpdateRole = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedStaff) return;
-    if (!staffRoleIsStrictDash001Head(viewerRole)) {
-      toast.error('แก้ไขได้เฉพาะบัญชีที่มี Role IT-001 หรือ WH-001');
-      return;
-    }
-    if (!staffRoleCanManageStaffUserRow(viewerRole, selectedStaff.role)) {
-      toast.error('ไม่มีสิทธิ์แก้ไข User นี้');
-      return;
-    }
-    if (!staffRoleCanAssignStaffRole(viewerRole, editRoleData.role)) {
-      toast.error('ไม่มีสิทธิ์มอบหมาย Role นี้');
+    if (!editRoleData.role?.trim()) {
+      toast.error('กรุณาเลือก Role');
       return;
     }
 
@@ -190,8 +151,7 @@ export default function ManageUsersPage() {
       </div>
 
       <PermissionUsersTableCard
-        viewerRole={viewerRole}
-        visibleUsers={visibleUsers}
+        visibleUsers={filteredUsers}
         loading={loading}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
@@ -204,7 +164,7 @@ export default function ManageUsersPage() {
             setFormData={setFormData}
             assignableRoles={assignableRoles}
             onSubmit={handleCreate}
-            addDisabled={!staffRoleIsStrictDash001Head(viewerRole)}
+            addDisabled={false}
           />
         }
       />

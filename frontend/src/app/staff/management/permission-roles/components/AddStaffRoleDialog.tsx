@@ -16,18 +16,11 @@ import {
 } from '@/components/ui/dialog';
 import { Shield, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  staffRoleCanCreateRoleCode,
-  staffRoleIsHeadIt,
-  staffRoleIsHeadWh,
-  suggestNextItRoleCode,
-  suggestNextWhRoleCode,
-} from '@/lib/staffRolePolicy';
+import { suggestNextAutoStaffRoleCode } from '@/lib/staffRolePolicy';
 
 export interface AddStaffRoleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  viewerRole: string;
   allRoleCodes: readonly string[];
   onCreated: () => void | Promise<void>;
 }
@@ -35,13 +28,14 @@ export interface AddStaffRoleDialogProps {
 export default function AddStaffRoleDialog({
   open,
   onOpenChange,
-  viewerRole,
   allRoleCodes,
   onCreated,
 }: AddStaffRoleDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+
+  const previewCode = useMemo(() => suggestNextAutoStaffRoleCode(allRoleCodes), [allRoleCodes]);
 
   useEffect(() => {
     if (!open) {
@@ -50,43 +44,27 @@ export default function AddStaffRoleDialog({
     }
   }, [open]);
 
-  const suggestedNextRoleCode = useMemo(() => {
-    if (!open) return '';
-    if (staffRoleIsHeadIt(viewerRole)) return suggestNextItRoleCode(allRoleCodes);
-    if (staffRoleIsHeadWh(viewerRole)) return suggestNextWhRoleCode(allRoleCodes);
-    return '';
-  }, [open, viewerRole, allRoleCodes]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedName = name.trim();
-    const code = staffRoleIsHeadIt(viewerRole)
-      ? suggestNextItRoleCode(allRoleCodes)
-      : staffRoleIsHeadWh(viewerRole)
-        ? suggestNextWhRoleCode(allRoleCodes)
-        : '';
-    if (!code) {
-      toast.error('เฉพาะหัวหน้าสาย IT-001 หรือ WH-001 เท่านั้นที่สร้าง Role ย่อยได้');
-      return;
-    }
     if (trimmedName.length < 2) {
       toast.error('ชื่อ Role ต้องมีอย่างน้อย 2 ตัวอักษร');
-      return;
-    }
-    if (!staffRoleCanCreateRoleCode(viewerRole, code)) {
-      toast.error('คุณสร้างได้เฉพาะ Role ในสายงานของคุณ (ไม่รวมระดับหัวหน้าสาย)');
       return;
     }
     try {
       setSubmitting(true);
       const response = await staffRoleApi.create({
-        code,
         name: trimmedName,
         description: description.trim() || undefined,
         is_active: true,
       });
       if (response.success) {
-        toast.success(response.message || 'สร้าง Role เรียบร้อยแล้ว (มีสิทธิ์เข้า /staff/dashboard อัตโนมัติ)');
+        const created = response.data as { code?: string } | undefined;
+        toast.success(
+          created?.code
+            ? `สร้าง Role ${created.code} เรียบร้อย — มีสิทธิ์เข้า /staff/dashboard อัตโนมัติ`
+            : response.message || 'สร้าง Role เรียบร้อย — มีสิทธิ์เข้า /staff/dashboard อัตโนมัติ',
+        );
         onOpenChange(false);
         await onCreated();
       } else {
@@ -113,19 +91,20 @@ export default function AddStaffRoleDialog({
             เพิ่ม Role ใหม่
           </DialogTitle>
           <DialogDescription>
-            ระบบสร้างรหัสอัตโนมัติ
+            ระบบสร้างรหัสอัตโนมัติ (เช่น <span className="font-mono">STF-001</span>) — กรอกชื่อที่แสดงและคำอธิบาย
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-            <span className="text-muted-foreground">รหัสที่จะสร้าง: </span>
-            <span className="font-mono font-semibold text-slate-900">{suggestedNextRoleCode || '—'}</span>
+            <span className="text-muted-foreground">รหัสโดยประมาณถัดไป: </span>
+            <span className="font-mono font-semibold text-slate-900">{previewCode}</span>
+            <p className="mt-1 text-xs text-muted-foreground">ค่าจริงตอนบันทึกมาจากเซิร์ฟเวอร์</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="new-role-name">ชื่อแสดง *</Label>
             <Input
               id="new-role-name"
-              placeholder="เช่น IT ทีมสนับสนุน 3"
+              placeholder="เช่น ทีมสนับสนุน"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -144,7 +123,7 @@ export default function AddStaffRoleDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
               ยกเลิก
             </Button>
-            <Button type="submit" disabled={submitting || !suggestedNextRoleCode}>
+            <Button type="submit" disabled={submitting}>
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

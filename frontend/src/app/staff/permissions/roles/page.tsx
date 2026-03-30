@@ -11,8 +11,6 @@ import { Shield, Save, Loader2, CornerDownRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { staffMenuItems, StaffMenuSubItem } from '@/app/staff/menus';
 import {
-  readStaffRoleCodeFromStorage,
-  staffRoleCanManageRoleColumn,
   staffRoleIsStaffPermissionHead,
   normalizeStaffRoleCode,
   staffRoleIsItFamily,
@@ -62,12 +60,6 @@ export default function ManageRolesPage() {
   const [menuItems, setMenuItems] = useState<Array<{ value: string; label: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [viewerRole, setViewerRole] = useState('');
-
-  useEffect(() => {
-    setViewerRole(readStaffRoleCodeFromStorage());
-  }, []);
-
   useEffect(() => {
     loadData();
   }, []);
@@ -272,7 +264,6 @@ export default function ManageRolesPage() {
                       </TableCell>
                       {roles.map((role) => {
                         const isDashboard = menu.value === '/staff/dashboard';
-                        const canEditCol = staffRoleCanManageRoleColumn(viewerRole, role.code);
                         return (
                           <TableCell key={role.code} className="text-center">
                             <Checkbox
@@ -280,7 +271,7 @@ export default function ManageRolesPage() {
                               onCheckedChange={isDashboard ? undefined : (checked: boolean) =>
                                 handlePermissionChange(role.code, menu.value, checked)
                               }
-                              disabled={isDashboard || !canEditCol}
+                              disabled={isDashboard}
                             />
                           </TableCell>
                         );
@@ -303,13 +294,10 @@ export default function ManageRolesPage() {
         <CardContent>
           <div className="space-y-2">
             <p className="text-sm text-gray-600">
-              • <strong>IT-001:</strong> แก้สิทธิ์เมนูได้เฉพาะ Role สาย IT ที่ไม่ใช่ IT-001
+              • แสดงทุก Role — ใครเข้าหน้านี้ได้ขึ้นกับสิทธิ์เมนู Staff
             </p>
             <p className="text-sm text-gray-600">
-              • <strong>WH-001:</strong> แก้สิทธิ์เมนูได้เฉพาะ Role สาย Warehouse / WH-* ที่ไม่ใช่ WH-001
-            </p>
-            <p className="text-sm text-gray-600">
-              • หัวหน้าสายไม่แก้คอลัมน์ของอีกฝ่ายหรือของตนเองระดับหัวหน้า
+              • เมนู <strong>Dashboard</strong> ล็อกเปิดเสมอ (ไม่ให้ปิด)
             </p>
             <p className="text-sm text-gray-600">
               • คลิก <strong>บันทึก</strong> เพื่อบันทึกการเปลี่ยนแปลง

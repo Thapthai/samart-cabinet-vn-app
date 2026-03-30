@@ -9,10 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Edit, Search, X } from 'lucide-react';
 import {
   staffRoleDisplayLabel,
-  staffRoleIsHeadIt,
-  staffRoleIsHeadWh,
-  staffRoleIsStrictDash001Head,
-  staffRoleCanManageStaffUserRow,
   normalizeStaffRoleCode,
   staffRoleIsItFamily,
   staffRoleIsWarehouseFamily,
@@ -21,7 +17,6 @@ import type { StaffUser } from '../types';
 import PermissionUsersPageLoading from './PermissionUsersPageLoading';
 
 export interface PermissionUsersTableCardProps {
-  viewerRole: string;
   visibleUsers: StaffUser[];
   loading: boolean;
   searchQuery: string;
@@ -38,7 +33,6 @@ function roleBadgeVariant(role: string) {
 }
 
 export default function PermissionUsersTableCard({
-  viewerRole,
   visibleUsers,
   loading,
   searchQuery,
@@ -46,22 +40,13 @@ export default function PermissionUsersTableCard({
   onEditUser,
   createDialog,
 }: PermissionUsersTableCardProps) {
-  const allowed = staffRoleIsStrictDash001Head(viewerRole);
-
   return (
     <Card className="mb-6">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>รายการ User</CardTitle>
-            <CardDescription>
-              {staffRoleIsHeadIt(viewerRole) && (
-                <span className="mt-1 block text-muted-foreground">แสดงเฉพาะผู้ใช้ที่มี Role สาย IT</span>
-              )}
-              {staffRoleIsHeadWh(viewerRole) && (
-                <span className="mt-1 block text-muted-foreground">แสดงเฉพาะผู้ใช้ที่มี Role สาย Warehouse</span>
-              )}
-            </CardDescription>
+            <CardDescription>แสดงผู้ใช้งาน Staff ทั้งหมด — สิทธิ์เข้าหน้านี้ควบคุมจากเมนู Staff</CardDescription>
           </div>
           {createDialog}
         </div>
@@ -92,13 +77,9 @@ export default function PermissionUsersTableCard({
 
         {loading ? (
           <PermissionUsersPageLoading />
-        ) : !allowed ? (
-          <div className="py-8 text-center text-gray-500">
-            หน้านี้ใช้ได้เฉพาะบัญชีที่มี Role <strong>IT-001</strong> หรือ <strong>WH-001</strong> เท่านั้น
-          </div>
         ) : visibleUsers.length === 0 ? (
           <div className="py-8 text-center text-gray-500">
-            {searchQuery ? 'ไม่พบข้อมูลที่ค้นหา' : 'ไม่มีข้อมูล User ในสายงานที่คุณดูแล'}
+            {searchQuery ? 'ไม่พบข้อมูลที่ค้นหา' : 'ไม่มีข้อมูล User'}
           </div>
         ) : (
           <Table>
@@ -109,47 +90,38 @@ export default function PermissionUsersTableCard({
                 <TableHead>อีเมล</TableHead>
                 <TableHead>บทบาท</TableHead>
                 <TableHead>สถานะ</TableHead>
-                <TableHead className="text-right">จัดการ</TableHead>
+                {/* <TableHead className="text-right">จัดการ</TableHead> */}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleUsers.map((user) => {
-                const canManageRow =
-                  staffRoleIsStrictDash001Head(viewerRole) && staffRoleCanManageStaffUserRow(viewerRole, user.role);
-                return (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.id}</TableCell>
-                    <TableCell className="font-medium">
-                      {user.fname} {user.lname}
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={roleBadgeVariant(user.role)}>{staffRoleDisplayLabel(user.role)}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.is_active ? 'default' : 'secondary'}>
-                        {user.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        type="button"
-                        disabled={!canManageRow}
-                        onClick={() => onEditUser(user)}
-                        title={
-                          canManageRow
-                            ? 'แก้ไข Role และสถานะใช้งาน'
-                            : 'แก้ไขได้เฉพาะ Role ย่อยในสาย (ไม่รวมบัญชีหัวหน้าสาย)'
-                        }
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {visibleUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.id}</TableCell>
+                  <TableCell className="font-medium">
+                    {user.fname} {user.lname}
+                  </TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Badge variant={roleBadgeVariant(user.role)}>{staffRoleDisplayLabel(user.role)}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={user.is_active ? 'default' : 'secondary'}>
+                      {user.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      type="button"
+                      onClick={() => onEditUser(user)}
+                      title="แก้ไข Role และสถานะใช้งาน"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}

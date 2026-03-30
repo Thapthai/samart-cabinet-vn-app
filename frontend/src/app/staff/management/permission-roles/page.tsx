@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { staffRolePermissionApi, staffRoleApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { readStaffRoleCodeFromStorage, staffRoleIsStaffPermissionHead } from '@/lib/staffRolePolicy';
+import { staffRoleIsStaffPermissionHead } from '@/lib/staffRolePolicy';
 import { getStaffPermissionMenuItems } from './getStaffPermissionMenuItems';
 import type { StaffPermissionRole, StaffRolePermissionRow } from './types';
 import PermissionRolesPageLoading from './components/PermissionRolesPageLoading';
@@ -16,13 +16,8 @@ export default function ManageRolesPage() {
   const [menuItems, setMenuItems] = useState<Array<{ value: string; label: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [viewerRole, setViewerRole] = useState('');
   const [addRoleOpen, setAddRoleOpen] = useState(false);
   const [allRoleCodes, setAllRoleCodes] = useState<string[]>([]);
-
-  useEffect(() => {
-    setViewerRole(readStaffRoleCodeFromStorage());
-  }, []);
 
   useEffect(() => {
     loadData();
@@ -158,7 +153,6 @@ export default function ManageRolesPage() {
         roles={roles}
         menuItems={menuItems}
         permissions={permissions}
-        viewerRole={viewerRole}
         saving={saving}
         onSave={handleSave}
         onOpenAddRole={() => setAddRoleOpen(true)}
@@ -168,7 +162,6 @@ export default function ManageRolesPage() {
       <AddStaffRoleDialog
         open={addRoleOpen}
         onOpenChange={setAddRoleOpen}
-        viewerRole={viewerRole}
         allRoleCodes={allRoleCodes}
         onCreated={loadData}
       />

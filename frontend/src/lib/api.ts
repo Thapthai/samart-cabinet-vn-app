@@ -1529,7 +1529,8 @@ export const staffRoleApi = {
   },
 
   create: async (data: {
-    code: string;
+    /** ไม่ส่ง = backend สร้างอัตโนมัติ (เช่น STF-001) */
+    code?: string;
     name: string;
     description?: string;
     is_active?: boolean;

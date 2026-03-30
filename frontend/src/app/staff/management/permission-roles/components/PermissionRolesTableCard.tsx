@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,22 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Save, Loader2, CornerDownRight, Plus } from 'lucide-react';
 import { staffMenuItems } from '@/app/staff/menus';
-import {
-  staffRoleCanManageRoleColumn,
-  staffRoleIsHeadIt,
-  staffRoleIsHeadWh,
-  normalizeStaffRoleCode,
-  staffRoleIsItFamily,
-  staffRoleIsWarehouseFamily,
-  staffRoleVisibleInPermissionRolesTable,
-} from '@/lib/staffRolePolicy';
+import { normalizeStaffRoleCode, staffRoleIsItFamily, staffRoleIsWarehouseFamily } from '@/lib/staffRolePolicy';
 import type { StaffPermissionRole } from '../types';
 
 export interface PermissionRolesTableCardProps {
   roles: StaffPermissionRole[];
   menuItems: Array<{ value: string; label: string }>;
   permissions: Record<string, Record<string, boolean>>;
-  viewerRole: string;
   saving: boolean;
   onSave: () => void;
   onOpenAddRole: () => void;
@@ -41,41 +31,24 @@ export default function PermissionRolesTableCard({
   roles,
   menuItems,
   permissions,
-  viewerRole,
   saving,
   onSave,
   onOpenAddRole,
   onPermissionChange,
 }: PermissionRolesTableCardProps) {
-  const visibleRoles = useMemo(
-    () => roles.filter((r) => staffRoleVisibleInPermissionRolesTable(viewerRole, r.code)),
-    [roles, viewerRole],
-  );
-
   return (
     <Card className="mb-6">
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>ตารางกำหนดสิทธิ์</CardTitle>
-            <CardDescription>
-
-              {(staffRoleIsHeadIt(viewerRole) || staffRoleIsHeadWh(viewerRole)) && (
-                <span className="mt-1 block text-muted-foreground">
-                  {staffRoleIsHeadIt(viewerRole)
-                    ? 'แสดงเฉพาะ Role สาย IT'
-                    : 'แสดงเฉพาะ Role สาย Warehouse'}
-                </span>
-              )}
-            </CardDescription>
+            <CardDescription>เลือกเมนูที่แต่ละ Role เข้าถึงได้ — แสดงทุก Role (ควบคุมการเห็นเมนูนี้จากสิทธิ์เมนู Staff)</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {staffRoleIsHeadIt(viewerRole) || staffRoleIsHeadWh(viewerRole) ? (
-              <Button type="button" variant="outline" onClick={onOpenAddRole}>
-                <Plus className="mr-2 h-4 w-4" />
-                เพิ่ม Role
-              </Button>
-            ) : null}
+            <Button type="button" variant="outline" onClick={onOpenAddRole}>
+              <Plus className="mr-2 h-4 w-4" />
+              เพิ่ม Role
+            </Button>
             <Button onClick={onSave} disabled={saving}>
               {saving ? (
                 <>
@@ -98,7 +71,7 @@ export default function PermissionRolesTableCard({
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">เมนู</TableHead>
-                {visibleRoles.map((role) => (
+                {roles.map((role) => (
                   <TableHead key={role.code} className="min-w-[150px] text-center">
                     <div>
                       <Badge variant={roleBadgeVariant(role.code)} className="mb-1">
@@ -120,9 +93,8 @@ export default function PermissionRolesTableCard({
                       {isSubmenu && <CornerDownRight className="mr-1 inline-block h-4 w-4 text-gray-400" />}
                       {menu.label}
                     </TableCell>
-                    {visibleRoles.map((role) => {
+                    {roles.map((role) => {
                       const isDashboard = menu.value === '/staff/dashboard';
-                      const canEditCol = staffRoleCanManageRoleColumn(viewerRole, role.code);
                       return (
                         <TableCell key={role.code} className="text-center">
                           <Checkbox
@@ -132,7 +104,7 @@ export default function PermissionRolesTableCard({
                                 ? undefined
                                 : (checked) => onPermissionChange(role.code, menu.value, checked === true)
                             }
-                            disabled={isDashboard || !canEditCol}
+                            disabled={isDashboard}
                           />
                         </TableCell>
                       );

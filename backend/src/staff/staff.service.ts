@@ -247,12 +247,27 @@ export class StaffService {
     return { success: true, data: role };
   }
 
+  /** รหัสอัตโนมัติสำหรับ Role ที่สร้างจากแอดมิน — STF-001, STF-002, … */
+  private async allocateNextStfRoleCode(): Promise<string> {
+    const rows = await this.prisma.staffRole.findMany({ select: { code: true } });
+    let max = 0;
+    for (const { code } of rows) {
+      const m = /^stf-(\d+)$/i.exec(code.trim());
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    return `STF-${String(max + 1).padStart(3, '0')}`;
+  }
+
   async createStaffRole(dto: CreateStaffRoleDto) {
-    const existing = await this.prisma.staffRole.findUnique({ where: { code: dto.code.trim() } });
+    let code = dto.code?.trim() ?? '';
+    if (!code) {
+      code = await this.allocateNextStfRoleCode();
+    }
+    const existing = await this.prisma.staffRole.findUnique({ where: { code } });
     if (existing) throw new BadRequestException('Role code already exists');
     const role = await this.prisma.staffRole.create({
       data: {
-        code: dto.code.trim(),
+        code,
         name: dto.name.trim(),
         description: dto.description?.trim() ?? null,
         is_active: dto.is_active ?? true,

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Shield, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { suggestNextItRoleCode, suggestNextWhRoleCode } from '@/lib/staffRolePolicy';
+import { suggestNextAutoStaffRoleCode } from '@/lib/staffRolePolicy';
 
 export interface AdminAddStaffRoleDialogProps {
   open: boolean;
@@ -26,30 +25,15 @@ export interface AdminAddStaffRoleDialogProps {
   onCreated: () => void | Promise<void>;
 }
 
-type StaffFamily = 'it' | 'wh' | '';
-
 export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onCreated }: AdminAddStaffRoleDialogProps) {
   const [submitting, setSubmitting] = useState(false);
-  const [family, setFamily] = useState<StaffFamily>('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
 
-  const suggestedCode = useMemo(() => {
-    if (family === 'it') return suggestNextItRoleCode(existingCodes);
-    if (family === 'wh') return suggestNextWhRoleCode(existingCodes);
-    return '';
-  }, [family, existingCodes]);
-
-  /** แสดงรหัสที่จะสร้างได้เมื่อเช็คแล้วว่ายังไม่มีในระบบ */
-  const isSuggestedCodeAvailable = useMemo(() => {
-    if (!suggestedCode.trim()) return false;
-    const norm = suggestedCode.trim().toLowerCase();
-    return !existingCodes.some((c) => String(c).trim().toLowerCase() === norm);
-  }, [suggestedCode, existingCodes]);
+  const previewCode = useMemo(() => suggestNextAutoStaffRoleCode(existingCodes), [existingCodes]);
 
   useEffect(() => {
     if (!open) {
-      setFamily('');
       setName('');
       setDescription('');
     }
@@ -57,32 +41,25 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedCode =
-      family === 'it' ? suggestNextItRoleCode(existingCodes) : family === 'wh' ? suggestNextWhRoleCode(existingCodes) : '';
     const trimmedName = name.trim();
-    if (!family || !trimmedCode) {
-      toast.error('กรุณาเลือกสาย IT หรือ Warehouse');
-      return;
-    }
     if (trimmedName.length < 2) {
       toast.error('ชื่อ Role ต้องมีอย่างน้อย 2 ตัวอักษร');
-      return;
-    }
-    const norm = trimmedCode.toLowerCase();
-    if (existingCodes.some((c) => String(c).trim().toLowerCase() === norm)) {
-      toast.error('รหัส Role นี้มีในระบบแล้ว — ลองโหลดหน้าใหม่แล้วสร้างอีกครั้ง');
       return;
     }
     try {
       setSubmitting(true);
       const response = await staffRoleApi.create({
-        code: trimmedCode,
         name: trimmedName,
         description: description.trim() || undefined,
         is_active: true,
       });
       if (response.success) {
-        toast.success(response.message || 'สร้าง Role เรียบร้อยแล้ว (มีสิทธิ์เข้า /staff/dashboard อัตโนมัติ)');
+        const created = response.data as { code?: string } | undefined;
+        toast.success(
+          created?.code
+            ? `สร้าง Role ${created.code} เรียบร้อย — มีสิทธิ์เข้า /staff/dashboard อัตโนมัติ`
+            : response.message || 'สร้าง Role เรียบร้อย — มีสิทธิ์เข้า /staff/dashboard อัตโนมัติ',
+        );
         onOpenChange(false);
         await onCreated();
       } else {
@@ -108,37 +85,21 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
             <Shield className="h-5 w-5" />
             เพิ่ม Staff Role ใหม่
           </DialogTitle>
-          <DialogDescription>เลือกสายงาน ระบบจะสร้างรหัส ถัดไปให้อัตโนมัติ</DialogDescription>
+          <DialogDescription>
+            ระบบจะสร้างรหัส Role อัตโนมัติ (รูปแบบ <span className="font-mono">STF-001</span>) เมื่อบันทึก — คุณกรอกเฉพาะชื่อที่แสดงและคำอธิบาย
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>ประเภทของ ผู้ใช้งาน Staff *</Label>
-            <Select value={family || undefined} onValueChange={(v) => setFamily(v as 'it' | 'wh')}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="เลือกสาย IT หรือ Warehouse" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="it">IT</SelectItem>
-                <SelectItem value="wh">Warehouse</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">รหัสโดยประมาณถัดไป: </span>
+            <span className="font-mono font-semibold text-slate-900">{previewCode}</span>
+            <p className="mt-1 text-xs text-muted-foreground">ค่าจริงอาจต่างได้เล็กน้อยถ้ามีคนสร้างพร้อมกัน — ใช้รหัสที่ API ตอบกลับเป็นหลัก</p>
           </div>
-          {family && suggestedCode && isSuggestedCodeAvailable ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-              <span className="text-muted-foreground">รหัสที่จะสร้าง: </span>
-              <span className="font-mono font-semibold text-slate-900">{suggestedCode}</span>
-            </div>
-          ) : null}
-          {family && suggestedCode && !isSuggestedCodeAvailable ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              รหัส <span className="font-mono font-semibold">{suggestedCode}</span> มีในระบบแล้ว — ปิด dialog แล้วเปิดใหม่หรือรีเฟรชหน้าเพื่อโหลดรายการ Role ล่าสุด
-            </div>
-          ) : null}
           <div className="space-y-2">
             <Label htmlFor="admin-new-role-name">ชื่อแสดง *</Label>
             <Input
               id="admin-new-role-name"
-              placeholder="เช่น IT ทีมสนับสนุน 4"
+              placeholder="เช่น ทีมสนับสนุน 4"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -157,7 +118,7 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
               ยกเลิก
             </Button>
-            <Button type="submit" disabled={submitting || !family || !suggestedCode || !isSuggestedCodeAvailable}>
+            <Button type="submit" disabled={submitting}>
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
