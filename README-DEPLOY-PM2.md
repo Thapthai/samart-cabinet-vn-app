@@ -36,7 +36,7 @@
 
 ### ครั้งแรก / อัปเดตโค้ด
 
-**ต้องมี `dist/main.js` ก่อน** — มาจาก `nest build` ถ้ายังไม่รัน `npm run build` จะได้ error `Script not found: ...\dist\main.js`
+**ต้องมี `dist/src/main.js` ก่อน** — มาจาก `nest build` ถ้ายังไม่รัน `npm run build` จะได้ error `Script not found` จาก PM2
 
 ```bash
 cd backend
@@ -184,7 +184,7 @@ pm2 logs med-supplies-vtn-next-app --lines 80
 
 ## 5) ปัญหาที่พบบ่อย
 
-- **`Script not found: ...\dist\main.js` (Backend)** — ยังไม่ build; รัน `npm run build` ใน `backend` ก่อน หรือใช้ `npm run pm2:start:build` (ไฟล์ `ecosystem.config.cjs` จะเตือนถ้าไม่มี `dist/main.js` ก่อน start)
+- **`Script not found` / ไม่มี entry (Backend)** — ยังไม่ build; ไฟล์รันคือ `dist/src/main.js` รัน `npm run build` ใน `backend` ก่อน หรือ `npm run pm2:start:build` (ecosystem จะเตือนถ้าไม่มี `dist/src/main.js`)
 - **แก้ `.env` แล้วค่าไม่เปลี่ยน** — ใช้ `pm2 reload ecosystem.config.cjs --update-env` ไม่ใช่แค่ `restart` เปล่า ๆ
 - **Login NextAuth 401** — ตรวจ `BACKEND_API_URL` ให้ Node บนเครื่องเดียวกับ backend ยิงถึง API ได้ และ `NEXTAUTH_URL` ตรงกับ URL ในเบราว์เซอร์ (https / www ให้สอดคล้อง)
 - **CORS ในเบราว์เซอร์** — แก้ที่ backend `CORS_ORIGIN` เป็น origin แบบไม่มี path และรวมทั้ง host ที่หน้าเว็บใช้ (เช่น ทั้ง apex และ `www`)

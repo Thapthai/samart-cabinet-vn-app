@@ -41,10 +41,11 @@ if (!env.PORT || String(env.PORT).trim() === '') {
   env.PORT = process.env.PORT || '7100';
 }
 
-const mainEntry = path.join(__dirname, 'dist', 'main.js');
+/** Nest `nest build` ผลิต `dist/src/main.js` (ไม่ใช่ dist/main.js) */
+const mainEntry = path.join(__dirname, 'dist', 'src', 'main.js');
 if (!fs.existsSync(mainEntry)) {
   console.error(
-    '\n[ecosystem] ยังไม่มี dist/main.js — รัน `npm run build` ในโฟลเดอร์ backend ก่อน แล้วค่อย `pm2 start ecosystem.config.cjs`\n',
+    '\n[ecosystem] ยังไม่มี dist/src/main.js — รัน `npm run build` ในโฟลเดอร์ backend ก่อน แล้วค่อย `pm2 start ecosystem.config.cjs`\n',
   );
   process.exit(1);
 }
@@ -54,7 +55,7 @@ module.exports = {
     {
       name: 'med-supplies-vtn-backend',
       cwd: __dirname,
-      script: path.join(__dirname, 'dist', 'main.js'),
+      script: mainEntry,
       interpreter: 'node',
       instances: 1,
       exec_mode: 'fork',
