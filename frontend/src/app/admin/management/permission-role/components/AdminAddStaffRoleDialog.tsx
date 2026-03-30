@@ -16,7 +16,13 @@ import {
 } from '@/components/ui/dialog';
 import { Shield, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { suggestNextAutoStaffRoleCode } from '@/lib/staffRolePolicy';
+import {
+  suggestNextAutoStaffRoleCode,
+  staffRoleHierarchyLabel,
+  STAFF_ROLE_LEVEL_MIN,
+  STAFF_ROLE_LEVEL_MAX,
+} from '@/lib/staffRolePolicy';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface AdminAddStaffRoleDialogProps {
   open: boolean;
@@ -29,6 +35,7 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [hierarchyLevel, setHierarchyLevel] = useState(STAFF_ROLE_LEVEL_MAX);
 
   const previewCode = useMemo(() => suggestNextAutoStaffRoleCode(existingCodes), [existingCodes]);
 
@@ -36,6 +43,7 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
     if (!open) {
       setName('');
       setDescription('');
+      setHierarchyLevel(STAFF_ROLE_LEVEL_MAX);
     }
   }, [open]);
 
@@ -52,6 +60,7 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
         name: trimmedName,
         description: description.trim() || undefined,
         is_active: true,
+        hierarchy_level: hierarchyLevel,
       });
       if (response.success) {
         const created = response.data as { code?: string } | undefined;
@@ -113,6 +122,25 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="admin-new-role-level">ระดับสิทธิ์ Role</Label>
+            <Select value={String(hierarchyLevel)} onValueChange={(v) => setHierarchyLevel(parseInt(v, 10))}>
+              <SelectTrigger id="admin-new-role-level" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: STAFF_ROLE_LEVEL_MAX - STAFF_ROLE_LEVEL_MIN + 1 }, (_, i) => {
+                  const n = STAFF_ROLE_LEVEL_MIN + i;
+                  return (
+                    <SelectItem key={n} value={String(n)}>
+                      {staffRoleHierarchyLabel(n)}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">1 = สูงสุด · Staff ระดับต่ำกว่า Role นี้จะแก้ไขไม่ได้</p>
           </div>
           <DialogFooter className="gap-3 sm:gap-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>

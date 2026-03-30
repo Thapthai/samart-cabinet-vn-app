@@ -114,12 +114,15 @@ export default function StaffUsersPage() {
     toast.success(`คัดลอก ${label} เรียบร้อยแล้ว`);
   }, []);
 
-  const filteredUsers = searchTerm.trim()
+  const q = searchTerm.trim().toLowerCase();
+  const filteredUsers = q
     ? staffUsers.filter(
         (u) =>
-          `${u.fname} ${u.lname}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          u.client_id?.toLowerCase().includes(searchTerm.toLowerCase()),
+          `${u.fname} ${u.lname}`.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q) ||
+          u.client_id?.toLowerCase().includes(q) ||
+          u.role?.toLowerCase().includes(q) ||
+          (u.role_name?.trim().toLowerCase().includes(q) ?? false),
       )
     : staffUsers;
 

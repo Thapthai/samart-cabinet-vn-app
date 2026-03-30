@@ -26,29 +26,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Shield, Save, Loader2, CornerDownRight, Plus } from "lucide-react";
 import { AdminAddStaffRoleDialog } from "./components/AdminAddStaffRoleDialog";
 import { toast } from "sonner";
-import { staffMenuItems, type StaffMenuSubItem } from "@/app/staff/menus";
-
-
-// Flatten staffMenuItems (and submenus) from menus.ts for permission table.
-// Dedupe by href so the same path (e.g. parent + sub both /staff/items) appears only once.
-const getMenuItems = (): Array<{ value: string; label: string }> => {
-  const seen = new Set<string>();
-  const menuItems: Array<{ value: string; label: string }> = [];
-  staffMenuItems.forEach((menu) => {
-    if (!seen.has(menu.href)) {
-      seen.add(menu.href);
-      menuItems.push({ value: menu.href, label: menu.name });
-    }
-    if (menu.submenu) {
-      menu.submenu.forEach((submenu: StaffMenuSubItem) => {
-        if (seen.has(submenu.href)) return;
-        seen.add(submenu.href);
-        menuItems.push({ value: submenu.href, label: submenu.name });
-      });
-    }
-  });
-  return menuItems;
-};
+import {
+  getAllStaffPermissionHrefs,
+  getStaffPermissionTableRows,
+} from "@/lib/staffPermissionTable";
 
 interface Role {
   id: number;
@@ -77,9 +58,6 @@ export default function ManageStaffRolesPage() {
     Record<string, Record<string, boolean>>
   >({});
   const [roles, setRoles] = useState<Role[]>([]);
-  const [menuItems, setMenuItems] = useState<
-    Array<{ value: string; label: string }>
-  >([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [addRoleOpen, setAddRoleOpen] = useState(false);
@@ -99,9 +77,6 @@ export default function ManageStaffRolesPage() {
         staffRolePermissionApi.getAll(),
       ]);
 
-      // Set menu items
-      setMenuItems(getMenuItems());
-
       // Set roles (support both success+data and plain array from backend)
       const rolesData = Array.isArray(rolesResponse?.data)
         ? rolesResponse.data
@@ -116,10 +91,11 @@ export default function ManageStaffRolesPage() {
 
       // Initialize permissions map: all roles × all menus = false
       const permissionsMap: Record<string, Record<string, boolean>> = {};
+      const hrefs = getAllStaffPermissionHrefs();
       activeRoles.forEach((role) => {
         permissionsMap[role.code] = {};
-        getMenuItems().forEach((menu) => {
-          permissionsMap[role.code][menu.value] = false;
+        hrefs.forEach((href) => {
+          permissionsMap[role.code][href] = false;
         });
       });
 
@@ -157,18 +133,26 @@ export default function ManageStaffRolesPage() {
 
   const initializeDefaultPermissions = () => {
     const defaultPermissions: Record<string, Record<string, boolean>> = {};
-    const menuItemsList = getMenuItems();
+    const hrefs = getAllStaffPermissionHrefs();
+    const manageUserPaths = [
+      "/staff/management/permission-users",
+      "/staff/permissions/users",
+    ];
+    const manageRolePaths = [
+      "/staff/management/permission-roles",
+      "/staff/management/staff-roles",
+      "/staff/permissions/roles",
+    ];
 
     roles.forEach((role) => {
       defaultPermissions[role.code] = {};
-      menuItemsList.forEach((menu) => {
-        // Default: หัวหน้าสาย (IT-001 / WH-001 หรือ legacy it1) เห็นทุกเมนู
+      hrefs.forEach((href) => {
         if (staffRoleIsStaffPermissionHead(role.code)) {
-          defaultPermissions[role.code][menu.value] = true;
+          defaultPermissions[role.code][href] = true;
         } else {
-          defaultPermissions[role.code][menu.value] =
-            menu.value !== "/staff/permissions/users" &&
-            menu.value !== "/staff/permissions/roles";
+          const isManageUsers = manageUserPaths.includes(href);
+          const isManageRoles = manageRolePaths.includes(href);
+          defaultPermissions[role.code][href] = !isManageUsers && !isManageRoles;
         }
       });
     });
@@ -323,31 +307,57 @@ export default function ManageStaffRolesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {menuItems.map((menu) => {
-                      // Detect submenu by checking if its value exists in any submenu of staffMenuItems
-                      const isSubmenu = staffMenuItems.some((main) =>
-                        main.submenu && main.submenu.some((sub) => sub.href === menu.value)
-                      );
+                    {getStaffPermissionTableRows().map((row, rowIdx) => {
+                      if (row.type === "section") {
+                        return (
+                          <TableRow
+                            key={`section-${rowIdx}-${row.label}`}
+                            className="bg-slate-50/90 hover:bg-slate-50/90"
+                          >
+                            <TableCell
+                              colSpan={1 + roles.length}
+                              className="py-2.5 font-semibold text-slate-800"
+                            >
+                              {row.label}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+                      const isDashboard = row.href === "/staff/dashboard";
                       return (
-                        <TableRow key={menu.value}>
-                          <TableCell className={isSubmenu ? 'font-medium pl-8 flex items-center gap-2' : 'font-medium'}>
-                            {isSubmenu && <CornerDownRight className="inline-block w-4 h-4 text-gray-400 mr-1" />}
-                            {menu.label}
+                        <TableRow key={`${row.href}-${rowIdx}`}>
+                          <TableCell
+                            className={
+                              row.indent
+                                ? "font-medium pl-8 flex items-center gap-2"
+                                : "font-medium"
+                            }
+                          >
+                            {row.indent ? (
+                              <CornerDownRight className="inline-block h-4 w-4 shrink-0 text-gray-400" />
+                            ) : null}
+                            {row.label}
                           </TableCell>
-                          {roles.map((role) => {
-                            const isDashboard = menu.value === '/staff/dashboard';
-                            return (
-                              <TableCell key={role.code} className="text-center">
-                                <Checkbox
-                                  checked={permissions[role.code]?.[menu.value] || false}
-                                  onCheckedChange={isDashboard ? undefined : (checked: boolean) =>
-                                    handlePermissionChange(role.code, menu.value, checked)
-                                  }
-                                  disabled={isDashboard}
-                                />
-                              </TableCell>
-                            );
-                          })}
+                          {roles.map((role) => (
+                            <TableCell key={role.code} className="text-center">
+                              <Checkbox
+                                checked={
+                                  permissions[role.code]?.[row.href] || false
+                                }
+                                onCheckedChange={
+                                  isDashboard
+                                    ? undefined
+                                    : (checked: boolean) =>
+                                        handlePermissionChange(
+                                          role.code,
+                                          row.href,
+                                          checked,
+                                        )
+                                }
+                                disabled={isDashboard}
+                              />
+                            </TableCell>
+                          ))}
                         </TableRow>
                       );
                     })}

@@ -15,6 +15,10 @@ import {
   normalizeStaffRoleCode,
   staffRoleIsItFamily,
   staffRoleIsWarehouseFamily,
+  readStaffHierarchyLevelFromStorage,
+  readStaffRoleCodeFromStorage,
+  staffPortalCanEditPermissionColumn,
+  clampStaffRoleHierarchyLevel,
 } from '@/lib/staffRolePolicy';
 
 
@@ -38,6 +42,7 @@ interface Role {
   name: string;
   description: string | null;
   is_active: boolean;
+  hierarchy_level: number;
 }
 
 interface Permission {
@@ -79,7 +84,12 @@ export default function ManageRolesPage() {
 
       // Set roles
       if (rolesResponse.success && rolesResponse.data) {
-        const activeRoles = (rolesResponse.data as Role[]).filter(role => role.is_active);
+        const activeRoles = (rolesResponse.data as Role[])
+          .filter((role) => role.is_active)
+          .map((r) => ({
+            ...r,
+            hierarchy_level: clampStaffRoleHierarchyLevel(r.hierarchy_level),
+          }));
         setRoles(activeRoles);
         
         // Initialize permissions map
@@ -125,7 +135,11 @@ export default function ManageRolesPage() {
       defaultPermissions[role.code] = {};
       menuItemsList.forEach((menu) => {
         const manageUserPaths = ['/staff/management/permission-users', '/staff/permissions/users'];
-        const manageRolePaths = ['/staff/management/permission-roles', '/staff/permissions/roles'];
+        const manageRolePaths = [
+          '/staff/management/permission-roles',
+          '/staff/management/staff-roles',
+          '/staff/permissions/roles',
+        ];
         const isManageUsers = manageUserPaths.includes(menu.value);
         const isManageRoles = manageRolePaths.includes(menu.value);
         if (staffRoleIsStaffPermissionHead(role.code)) {
@@ -151,16 +165,20 @@ export default function ManageRolesPage() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      
-      // Convert permissions to API format
+
+      const viewerLevel = readStaffHierarchyLevelFromStorage();
+      const viewerRoleCode = readStaffRoleCodeFromStorage();
       const permissionsArray: Array<{ role_code: string; menu_href: string; can_access: boolean }> = [];
-      
-      Object.keys(permissions).forEach((role) => {
-        Object.keys(permissions[role]).forEach((menu) => {
+
+      Object.keys(permissions).forEach((roleCode) => {
+        const roleMeta = roles.find((x) => x.code === roleCode);
+        const targetLevel = roleMeta?.hierarchy_level ?? 3;
+        if (!staffPortalCanEditPermissionColumn(viewerLevel, viewerRoleCode, roleCode, targetLevel)) return;
+        Object.keys(permissions[roleCode]).forEach((menu) => {
           permissionsArray.push({
-            role_code: role, // Use role_code instead of role
+            role_code: roleCode,
             menu_href: menu,
-            can_access: permissions[role][menu],
+            can_access: permissions[roleCode][menu],
           });
         });
       });
@@ -189,6 +207,9 @@ export default function ManageRolesPage() {
     return 'outline';
   };
 
+  const viewerHierarchyLevel = readStaffHierarchyLevelFromStorage();
+  const viewerRoleCode = readStaffRoleCodeFromStorage();
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -204,7 +225,14 @@ export default function ManageRolesPage() {
     <>
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-800">กำหนดสิทธิ์</h2>
-        <p className="text-gray-600 mt-1">กำหนดสิทธิ์การเข้าถึงเมนูตามบทบาท (Role)</p>
+        <p className="text-gray-600 mt-1">
+          ระดับ {viewerHierarchyLevel}:{' '}
+          {viewerHierarchyLevel === 1
+            ? 'แก้สิทธิ์คอลัมน์ Role ระดับ 1–3 ได้'
+            : viewerHierarchyLevel === 2
+              ? 'แก้ได้เฉพาะคอลัมน์ Role ระดับ 2–3'
+              : 'แก้ได้เฉพาะคอลัมน์ Role ระดับ 3'}
+        </p>
       </div>
 
       {/* Permissions Table */}
@@ -242,6 +270,7 @@ export default function ManageRolesPage() {
                         <Badge variant={getRoleBadgeVariant(role.code)} className="mb-1">
                           {role.name}
                         </Badge>
+                        <div className="text-xs font-normal text-gray-500">ระดับ {role.hierarchy_level}</div>
                         {role.description && (
                           <div className="text-xs text-gray-500 font-normal mt-1">{role.description}</div>
                         )}
@@ -264,14 +293,22 @@ export default function ManageRolesPage() {
                       </TableCell>
                       {roles.map((role) => {
                         const isDashboard = menu.value === '/staff/dashboard';
+                        const canEditCol = staffPortalCanEditPermissionColumn(
+                          viewerHierarchyLevel,
+                          viewerRoleCode,
+                          role.code,
+                          role.hierarchy_level,
+                        );
                         return (
                           <TableCell key={role.code} className="text-center">
                             <Checkbox
                               checked={permissions[role.code]?.[menu.value] || false}
-                              onCheckedChange={isDashboard ? undefined : (checked: boolean) =>
-                                handlePermissionChange(role.code, menu.value, checked)
+                              onCheckedChange={
+                                isDashboard || !canEditCol
+                                  ? undefined
+                                  : (checked: boolean) => handlePermissionChange(role.code, menu.value, checked)
                               }
-                              disabled={isDashboard}
+                              disabled={isDashboard || !canEditCol}
                             />
                           </TableCell>
                         );
@@ -294,7 +331,7 @@ export default function ManageRolesPage() {
         <CardContent>
           <div className="space-y-2">
             <p className="text-sm text-gray-600">
-              • แสดงทุก Role — ใครเข้าหน้านี้ได้ขึ้นกับสิทธิ์เมนู Staff
+              • ระดับ 1 แก้คอลัมน์ 1–3 · ระดับ 2 แก้คอลัมน์ 2–3 · ระดับ 3 แก้ได้เฉพาะคอลัมน์ระดับ 3
             </p>
             <p className="text-sm text-gray-600">
               • เมนู <strong>Dashboard</strong> ล็อกเปิดเสมอ (ไม่ให้ปิด)

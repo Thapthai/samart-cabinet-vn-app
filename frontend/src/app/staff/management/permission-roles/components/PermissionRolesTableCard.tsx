@@ -6,13 +6,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Save, Loader2, CornerDownRight, Plus } from 'lucide-react';
-import { staffMenuItems } from '@/app/staff/menus';
-import { normalizeStaffRoleCode, staffRoleIsItFamily, staffRoleIsWarehouseFamily } from '@/lib/staffRolePolicy';
+import { getStaffPermissionTableRows } from '@/lib/staffPermissionTable';
+import {
+  normalizeStaffRoleCode,
+  staffRoleIsItFamily,
+  staffRoleIsWarehouseFamily,
+  staffPortalCanEditPermissionColumn,
+} from '@/lib/staffRolePolicy';
 import type { StaffPermissionRole } from '../types';
 
 export interface PermissionRolesTableCardProps {
   roles: StaffPermissionRole[];
-  menuItems: Array<{ value: string; label: string }>;
+  /** ระดับผู้ใช้ที่ล็อกอิน (1 = สูงสุด) — ใช้จำกัดการแก้ไขคอลัมน์ Role */
+  viewerHierarchyLevel: number;
+  viewerRoleCode: string;
+  canCreateRole: boolean;
   permissions: Record<string, Record<string, boolean>>;
   saving: boolean;
   onSave: () => void;
@@ -29,7 +37,9 @@ function roleBadgeVariant(roleCode: string) {
 
 export default function PermissionRolesTableCard({
   roles,
-  menuItems,
+  viewerHierarchyLevel,
+  viewerRoleCode,
+  canCreateRole,
   permissions,
   saving,
   onSave,
@@ -42,10 +52,10 @@ export default function PermissionRolesTableCard({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>ตารางกำหนดสิทธิ์</CardTitle>
-            <CardDescription>เลือกเมนูที่แต่ละ Role เข้าถึงได้ — แสดงทุก Role (ควบคุมการเห็นเมนูนี้จากสิทธิ์เมนู Staff)</CardDescription>
+            <CardDescription>เลือกเมนูที่แต่ละ Role สามารถเข้าถึงได้</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={onOpenAddRole}>
+            <Button type="button" variant="outline" onClick={onOpenAddRole} disabled={!canCreateRole}>
               <Plus className="mr-2 h-4 w-4" />
               เพิ่ม Role
             </Button>
@@ -77,34 +87,62 @@ export default function PermissionRolesTableCard({
                       <Badge variant={roleBadgeVariant(role.code)} className="mb-1">
                         {role.name}
                       </Badge>
+                      <div className="text-xs font-normal text-muted-foreground">ระดับ {role.hierarchy_level}</div>
                     </div>
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {menuItems.map((menu) => {
-                const isSubmenu = staffMenuItems.some(
-                  (main) => main.submenu && main.submenu.some((sub) => sub.href === menu.value),
-                );
+              {getStaffPermissionTableRows().map((row, rowIdx) => {
+                if (row.type === 'section') {
+                  return (
+                    <TableRow
+                      key={`section-${rowIdx}-${row.label}`}
+                      className="bg-slate-50/90 hover:bg-slate-50/90"
+                    >
+                      <TableCell
+                        colSpan={1 + roles.length}
+                        className="py-2.5 font-semibold text-slate-800"
+                      >
+                        {row.label}
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+                const isDashboard = row.href === '/staff/dashboard';
                 return (
-                  <TableRow key={menu.value}>
-                    <TableCell className={isSubmenu ? 'flex items-center gap-2 pl-8 font-medium' : 'font-medium'}>
-                      {isSubmenu && <CornerDownRight className="mr-1 inline-block h-4 w-4 text-gray-400" />}
-                      {menu.label}
+                  <TableRow key={`${row.href}-${rowIdx}`}>
+                    <TableCell
+                      className={
+                        row.indent
+                          ? 'flex items-center gap-2 pl-8 font-medium'
+                          : 'font-medium'
+                      }
+                    >
+                      {row.indent ? (
+                        <CornerDownRight className="inline-block h-4 w-4 shrink-0 text-gray-400" />
+                      ) : null}
+                      {row.label}
                     </TableCell>
                     {roles.map((role) => {
-                      const isDashboard = menu.value === '/staff/dashboard';
+                      const canEditCol = staffPortalCanEditPermissionColumn(
+                        viewerHierarchyLevel,
+                        viewerRoleCode,
+                        role.code,
+                        role.hierarchy_level,
+                      );
                       return (
                         <TableCell key={role.code} className="text-center">
                           <Checkbox
-                            checked={permissions[role.code]?.[menu.value] || false}
+                            checked={permissions[role.code]?.[row.href] || false}
                             onCheckedChange={
-                              isDashboard
+                              isDashboard || !canEditCol
                                 ? undefined
-                                : (checked) => onPermissionChange(role.code, menu.value, checked === true)
+                                : (checked) =>
+                                    onPermissionChange(role.code, row.href, checked === true)
                             }
-                            disabled={isDashboard}
+                            disabled={isDashboard || !canEditCol}
                           />
                         </TableCell>
                       );

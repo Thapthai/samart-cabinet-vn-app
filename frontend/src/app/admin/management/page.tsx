@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield } from 'lucide-react';
+import { Package, Users, Shield, UserCog } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,17 @@ const managementMenus = [
     borderColor: 'border-emerald-200',
     iconBg: 'bg-emerald-100',
     iconColor: 'text-emerald-600',
+  },
+  {
+    name: 'จัดการ Staff Role',
+    href: '/admin/management/staff-roles',
+    icon: UserCog,
+    description: 'แก้ไขชื่อ คำอธิบาย สถานะ และลบ Role',
+    color: 'from-indigo-500 to-violet-600',
+    bgLight: 'bg-indigo-50',
+    borderColor: 'border-indigo-200',
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-700',
   },
   {
     name: 'Staff Permission Role',

@@ -11,6 +11,7 @@ import {
   Network,
   RotateCcw,
   ClipboardList,
+  UserCog,
 } from 'lucide-react';
 
 // Type definitions for menu and submenu
@@ -146,6 +147,12 @@ export const adminMenuItems: StaffMenuItem[] = [
         href: '/admin/management/staff-users',
         icon: Users,
         description: 'จัดการ Staff Users และ Client Credentials',
+      },
+      {
+        name: 'จัดการ Staff Role',
+        href: '/admin/management/staff-roles',
+        icon: UserCog,
+        description: 'แก้ไขชื่อ คำอธิบาย สถานะ และลบ Role',
       },
       {
         name: 'กำหนดสิทธิ์ ผู้ใช้งาน Staff',

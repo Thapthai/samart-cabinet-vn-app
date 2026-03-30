@@ -34,7 +34,7 @@ export class StaffService {
   async loginStaffUser(email: string, password: string) {
     const staff = await this.prisma.staffUser.findUnique({
       where: { email: email.trim() },
-      include: { role: { select: { id: true, code: true, name: true } } },
+      include: { role: { select: { id: true, code: true, name: true, hierarchy_level: true } } },
     });
     if (!staff) return { success: false, message: 'Invalid credentials' };
     if (!staff.is_active) return { success: false, message: 'Account is deactivated' };
@@ -56,6 +56,7 @@ export class StaffService {
           role: staff.role?.code ?? null,
           role_id: staff.role_id,
           department_id: staff.department_id,
+          hierarchy_level: staff.role?.hierarchy_level ?? 3,
         },
         token,
       },
@@ -95,6 +96,7 @@ export class StaffService {
       fname: u.fname,
       lname: u.lname,
       role: u.role?.code ?? null,
+      role_name: u.role?.name ?? null,
       role_id: u.role_id,
       department_id: u.department_id,
       department_name: u.department?.DepName ?? u.department?.DepName2 ?? null,
@@ -175,6 +177,7 @@ export class StaffService {
         fname: user.fname,
         lname: user.lname,
         role: user.role?.code ?? null,
+        role_name: user.role?.name ?? null,
         department_id: user.department_id,
         department_name: user.department?.DepName ?? user.department?.DepName2 ?? null,
         client_id: user.client_id,
@@ -247,6 +250,13 @@ export class StaffService {
     return { success: true, data: role };
   }
 
+  private normalizeHierarchyLevel(v: unknown): number {
+    const n = typeof v === 'number' ? v : parseInt(String(v ?? ''), 10);
+    if (!Number.isFinite(n) || n < 1) return 3;
+    if (n > 3) return 3;
+    return n;
+  }
+
   /** รหัสอัตโนมัติสำหรับ Role ที่สร้างจากแอดมิน — STF-001, STF-002, … */
   private async allocateNextStfRoleCode(): Promise<string> {
     const rows = await this.prisma.staffRole.findMany({ select: { code: true } });
@@ -265,12 +275,14 @@ export class StaffService {
     }
     const existing = await this.prisma.staffRole.findUnique({ where: { code } });
     if (existing) throw new BadRequestException('Role code already exists');
+    const level = this.normalizeHierarchyLevel(dto.hierarchy_level);
     const role = await this.prisma.staffRole.create({
       data: {
         code,
         name: dto.name.trim(),
         description: dto.description?.trim() ?? null,
         is_active: dto.is_active ?? true,
+        hierarchy_level: level,
       },
     });
     await this.prisma.staffRolePermission.upsert({
@@ -294,6 +306,7 @@ export class StaffService {
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.description !== undefined) data.description = dto.description?.trim() ?? null;
     if (dto.is_active !== undefined) data.is_active = dto.is_active;
+    if (dto.hierarchy_level !== undefined) data.hierarchy_level = this.normalizeHierarchyLevel(dto.hierarchy_level);
     await this.prisma.staffRole.update({ where: { id }, data });
     return { success: true, message: 'Role updated' };
   }
@@ -309,7 +322,7 @@ export class StaffService {
     const list = await this.prisma.staffRolePermission.findMany({
       orderBy: [{ role_id: 'asc' }, { menu_href: 'asc' }],
       include: {
-        role: { select: { id: true, code: true, name: true } },
+        role: { select: { id: true, code: true, name: true, hierarchy_level: true } },
       },
     });
     const data = list.map((p) => ({
@@ -320,7 +333,9 @@ export class StaffService {
       can_access: p.can_access,
       created_at: p.created_at?.toISOString?.() ?? null,
       updated_at: p.updated_at?.toISOString?.() ?? null,
-      role: p.role ? { code: p.role.code, name: p.role.name } : null,
+      role: p.role
+        ? { code: p.role.code, name: p.role.name, hierarchy_level: p.role.hierarchy_level }
+        : null,
     }));
     return { success: true, data };
   }

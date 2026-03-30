@@ -5,19 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Edit, Search, X } from 'lucide-react';
 import {
   staffRoleDisplayLabel,
-  normalizeStaffRoleCode,
-  staffRoleIsItFamily,
-  staffRoleIsWarehouseFamily,
+  staffPortalCanManageStaffUserRow,
+  readStaffHierarchyLevelFromStorage,
+  readStaffUserIdFromStorage,
+  clampStaffRoleHierarchyLevel,
 } from '@/lib/staffRolePolicy';
-import type { StaffUser } from '../types';
+import type { StaffUser, StaffRoleOption } from '../types';
 import PermissionUsersPageLoading from './PermissionUsersPageLoading';
 
 export interface PermissionUsersTableCardProps {
   visibleUsers: StaffUser[];
+  rolesCatalog: StaffRoleOption[];
   loading: boolean;
   searchQuery: string;
   onSearchQueryChange: (q: string) => void;
@@ -25,21 +26,29 @@ export interface PermissionUsersTableCardProps {
   createDialog: ReactNode;
 }
 
-function roleBadgeVariant(role: string) {
-  const r = normalizeStaffRoleCode(role);
-  if (staffRoleIsItFamily(r)) return 'default' as const;
-  if (staffRoleIsWarehouseFamily(r)) return 'secondary' as const;
-  return 'outline' as const;
+function targetRoleLevel(rolesCatalog: StaffRoleOption[], roleCode: string): number {
+  const row = rolesCatalog.find((r) => r.code === roleCode);
+  return clampStaffRoleHierarchyLevel(row?.hierarchy_level);
+}
+
+function roleDisplayName(user: StaffUser): string {
+  const n = user.role_name?.trim();
+  if (n) return n;
+  return staffRoleDisplayLabel(user.role);
 }
 
 export default function PermissionUsersTableCard({
   visibleUsers,
+  rolesCatalog,
   loading,
   searchQuery,
   onSearchQueryChange,
   onEditUser,
   createDialog,
 }: PermissionUsersTableCardProps) {
+  const viewerLevel = readStaffHierarchyLevelFromStorage();
+  const viewerUserId = readStaffUserIdFromStorage();
+
   return (
     <Card className="mb-6">
       <CardHeader>
@@ -85,29 +94,36 @@ export default function PermissionUsersTableCard({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>ชื่อ-นามสกุล</TableHead>
-                <TableHead>อีเมล</TableHead>
-                <TableHead>บทบาท</TableHead>
-                <TableHead>สถานะ</TableHead>
+                <TableHead className="text-sm font-medium">ID</TableHead>
+                <TableHead className="text-sm font-medium">ชื่อ-นามสกุล</TableHead>
+                <TableHead className="text-sm font-medium">อีเมล</TableHead>
+                <TableHead className="text-sm font-medium">บทบาท</TableHead>
+                <TableHead className="text-sm font-medium">สถานะ</TableHead>
                 {/* <TableHead className="text-right">จัดการ</TableHead> */}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleUsers.map((user) => (
+              {visibleUsers.map((user) => {
+                const canEdit = staffPortalCanManageStaffUserRow(
+                  viewerLevel,
+                  viewerUserId,
+                  user.id,
+                  targetRoleLevel(rolesCatalog, user.role),
+                );
+                return (
                 <TableRow key={user.id}>
-                  <TableCell>{user.id}</TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className="text-sm text-foreground">{user.id}</TableCell>
+                  <TableCell className="text-sm text-foreground">
                     {user.fname} {user.lname}
                   </TableCell>
-                  <TableCell>{user.email}</TableCell>
+                  <TableCell className="text-sm text-foreground">{user.email}</TableCell>
                   <TableCell>
-                    <Badge variant={roleBadgeVariant(user.role)}>{staffRoleDisplayLabel(user.role)}</Badge>
+                    <span className="inline-block max-w-[220px] truncate rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm text-foreground dark:border-slate-700 dark:bg-slate-900/40">
+                      {roleDisplayName(user)}
+                    </span>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={user.is_active ? 'default' : 'secondary'}>
-                      {user.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
-                    </Badge>
+                  <TableCell className="text-sm text-foreground">
+                    {user.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
@@ -115,13 +131,19 @@ export default function PermissionUsersTableCard({
                       size="icon"
                       type="button"
                       onClick={() => onEditUser(user)}
-                      title="แก้ไข Role และสถานะใช้งาน"
+                      disabled={!canEdit}
+                      title={
+                        canEdit
+                          ? 'แก้ไข Role และสถานะใช้งาน'
+                          : 'ไม่มีสิทธิ์แก้ไขผู้ใช้รายนี้ (แก้ได้เมื่อระดับ Role ของผู้ใช้ไม่ต่ำกว่าระดับของคุณ)'
+                      }
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         )}

@@ -4,10 +4,15 @@ import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Pencil, Trash2, Key, Loader2, Plus } from 'lucide-react';
 import type { StaffUser, StaffRoleOption } from './types';
 import { CreateStaffUserDialog } from './CreateStaffUserDialog';
+
+function staffRoleDisplayCell(staff: { role_name?: string | null; role: string }): string {
+  const n = staff.role_name?.trim();
+  if (n) return n;
+  return staff.role?.trim() || '-';
+}
 
 interface StaffUsersTableProps {
   loading: boolean;
@@ -93,11 +98,13 @@ export function StaffUsersTable({
                     <TableCell>{`${staff.fname} ${staff.lname}`}</TableCell>
                     <TableCell>{staff.email}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{staff.role || '-'}</Badge>
+                      <span className="inline-block max-w-[220px] truncate rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm text-foreground dark:border-slate-700 dark:bg-slate-900/40">
+                        {staffRoleDisplayCell(staff)}
+                      </span>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{staff.client_id?.substring(0, 20)}...</TableCell>
-                    <TableCell>
-                      <Badge variant={staff.is_active ? 'default' : 'secondary'}>{staff.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}</Badge>
+                    <TableCell className="text-sm text-foreground">
+                      {staff.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
                     </TableCell>
                     <TableCell>{staff.created_at ? formatUtcDateTime(String(staff.created_at)) : '-'}</TableCell>
                     <TableCell className="text-right">
