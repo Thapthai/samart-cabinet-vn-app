@@ -38,7 +38,7 @@ const env = {
 };
 
 if (!env.PORT || String(env.PORT).trim() === '') {
-  env.PORT = process.env.PORT || '3000';
+  env.PORT = process.env.PORT || '7100';
 }
 
 module.exports = {
