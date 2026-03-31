@@ -62,7 +62,64 @@ export class MedicalSuppliesService {
 
   /** รวมหลายบรรทัดสำหรับ log สร้าง/เพิ่มหลายรายการ */
   private joinThaiLogLines(lines: string[]): string {
-    return lines.filter(Boolean).join(' · ').slice(0, 1024);
+    const normalized = lines
+      .map((x) => String(x ?? '').trim())
+      .filter(Boolean)
+      .map((x) => (x.startsWith('- ') ? x : `- ${x}`));
+    return normalized.join('\n').slice(0, 1024);
+  }
+
+  /** stringify ค่าแบบอ่านง่ายสำหรับ log diff */
+  private formatLogDiffValue(v: unknown): string {
+    if (v == null) return '-';
+    if (v instanceof Date) return v.toISOString();
+    const s = String(v).trim();
+    return s === '' ? '-' : s;
+  }
+
+  /** สรุปเฉพาะค่าที่เปลี่ยนจริงจากคู่ old_* / new_* */
+  private buildChangedFieldsSummary(actionData: any): string[] {
+    if (actionData == null || typeof actionData !== 'object') return [];
+
+    const labelMap: Record<string, string> = {
+      status: 'สถานะ',
+      qty: 'จำนวน',
+      print_date: 'วันที่พิมพ์บิล',
+      billing_status: 'Billing Status',
+      usage_type: 'ประเภทการใช้งาน',
+      department_code: 'แผนก',
+      total_amount: 'ยอดรวม',
+      item_code: 'ItemCode',
+    };
+
+    const lines: string[] = [];
+    const handledKeys = new Set<string>();
+
+    Object.keys(actionData).forEach((k) => {
+      if (!k.startsWith('old_')) return;
+      const suffix = k.slice(4);
+      const newKey = `new_${suffix}`;
+      if (!(newKey in actionData)) return;
+      handledKeys.add(suffix);
+      const oldVal = this.formatLogDiffValue(actionData[k]);
+      const newVal = this.formatLogDiffValue(actionData[newKey]);
+      if (oldVal === newVal) return;
+      const label = labelMap[suffix] ?? suffix;
+      lines.push(`${label}: ${oldVal} -> ${newVal}`);
+    });
+
+    // รองรับบาง log ที่ใส่แค่ new_* โดยไม่มี old_ (แสดงเฉพาะกรณีมีค่า)
+    Object.keys(actionData).forEach((k) => {
+      if (!k.startsWith('new_')) return;
+      const suffix = k.slice(4);
+      if (handledKeys.has(suffix)) return;
+      const val = this.formatLogDiffValue(actionData[k]);
+      if (val === '-') return;
+      const label = labelMap[suffix] ?? suffix;
+      lines.push(`${label}: ${val}`);
+    });
+
+    return lines;
   }
 
   /**
@@ -169,8 +226,11 @@ export class MedicalSuppliesService {
         return 'ยกเลิกทุกรายการเวชภัณฑ์ในบิล (ตามสถานะ Discontinue)';
       if (action === 'discontinue_item')
         return "สถานะเวชภัณฑ์ถูกอัปเดตเป็น 'ยกเลิก' - รายการที่มี AssessionNo เดียวกันถูกยกเลิกแล้ว";
-      if (action === 'patch_medical_supply_usage')
-        return 'อัปเดตข้อมูลการใช้เวชภัณฑ์ (รวมการยกเลิกบิล)';
+      if (action === 'patch_medical_supply_usage') {
+        const changed = this.buildChangedFieldsSummary(actionData);
+        if (changed.length > 0) return this.joinThaiLogLines(changed);
+        return 'อัปเดตข้อมูลการใช้เวชภัณฑ์';
+      }
       if (type === 'CREATE' && !action) {
         const cl = actionData.new_items_thai_lines;
         if (Array.isArray(cl) && cl.length)
@@ -179,7 +239,11 @@ export class MedicalSuppliesService {
       }
       if (type === 'UPDATE' && (actionData.order_items_count > 0 || actionData.supplies_count > 0))
         return 'อัปเดตรายการ Order / รายการเวชภัณฑ์';
-      if (type === 'UPDATE') return 'อัปเดตข้อมูลการใช้เวชภัณฑ์';
+      if (type === 'UPDATE') {
+        const changed = this.buildChangedFieldsSummary(actionData);
+        if (changed.length > 0) return this.joinThaiLogLines(changed);
+        return 'อัปเดตข้อมูลการใช้เวชภัณฑ์';
+      }
       if (type === 'CREATE') return 'สร้างเคสผู้ป่วย / บันทึกรายการ';
       if (type === 'DELETE') return 'ลบเคสการใช้เวชภัณฑ์';
     }
@@ -211,8 +275,23 @@ export class MedicalSuppliesService {
   // Create Log - เก็บ log ทุกกรณี รวม error (คอลัมน์แยก + JSON เต็ม + description ภาษาไทย)
   private async createLog(usageId: number | null, actionData: any) {
     try {
-      const idx = this.extractLogIndexFields(actionData);
-      const description = this.buildLogUserDescription(actionData);
+      const normalizedAction =
+        actionData && typeof actionData === 'object' ? { ...actionData } : actionData ?? {};
+
+      if (
+        normalizedAction &&
+        typeof normalizedAction === 'object' &&
+        typeof normalizedAction.user_description === 'string'
+      ) {
+        const lines = normalizedAction.user_description
+          .split(/\r?\n/)
+          .map((x: string) => x.trim())
+          .filter(Boolean);
+        if (lines.length > 0) normalizedAction.user_description_lines = lines;
+      }
+
+      const idx = this.extractLogIndexFields(normalizedAction);
+      const description = this.buildLogUserDescription(normalizedAction);
       await this.prisma.medicalSupplyUsageLog.create({
         data: {
           usage_id: usageId,
@@ -221,7 +300,7 @@ export class MedicalSuppliesService {
           log_type: idx.log_type,
           log_status: idx.log_status,
           description,
-          action: actionData ?? {},
+          action: normalizedAction ?? {},
           created_at: this.nowBangkokUtcTrueForPrisma(),
         },
       });
@@ -712,6 +791,9 @@ export class MedicalSuppliesService {
         const itemsToCreate: typeof orderItems = [];
         const discontinueItemsInOrder: typeof orderItems = [];
         const discontinueAffectedUsageIds = new Set<number>();
+        const mergedUpdateSummaryLines: string[] = [];
+        let mergedCompareCount: number | undefined;
+        let mergedNonCompareCount: number | undefined;
 
         for (const orderItem of orderItems) {
           // Check if this is a discontinue item (รับได้หลายรูปแบบ: discontinue, discontinued, cancel, cancelled)
@@ -753,21 +835,9 @@ export class MedicalSuppliesService {
                 item.order_item_description ?? orderItem.ItemDescription,
                 item.order_item_code ?? orderItem.ItemCode,
               );
-              await this.createLog(item.medical_supply_usage_id, {
-                type: 'UPDATE',
-                status: 'SUCCESS',
-                action: 'discontinue_item',
-                patient_hn: data.HN || data.patient_hn || '',
-                en: data.EN || '',
-                assession_no: assessionNo,
-                item_code: item.order_item_code,
-                order_item_description: item.order_item_description,
-                old_status: item.order_item_status,
-                new_status: 'Discontinue',
-                reason: 'ItemStatus updated to Discontinue - all items with same AssessionNo are discontinued',
-                user_description: `สถานะเวชภัณฑ์ **${discontinueDisplayName}** ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี **AssessionNo : ${assessionNo}** ถูกยกเลิกแล้ว`,
-                input_data: data,
-              });
+              mergedUpdateSummaryLines.push(
+                `สถานะเวชภัณฑ์ **${discontinueDisplayName}** ถูกอัปเดตเป็น 'ยกเลิก' - เวชภัณฑ์ทั้งหมดที่มี **AssessionNo : ${assessionNo}** ถูกยกเลิกแล้ว`,
+              );
             }
             // บันทึกรายการ Discontinue เสมอ: ถ้ามีแถวเดิมที่อัปเดตได้ก็ push; ถ้าไม่มีแถวเดิมก็ push เพื่อสร้างรายการใหม่ใน usage ปัจจุบัน (ให้ทุก AssessionNo ที่เป็น Discontinue ถูกบันทึก)
             if (itemsToDiscontinueNow.length > 0) {
@@ -836,27 +906,11 @@ export class MedicalSuppliesService {
           );
           const qtyChanged = (item.qty ?? 0) !== newQty;
           const statusChanged = (item.order_item_status ?? '') !== newStatus;
-          await this.createLog(existingUsage.id, {
-            type: 'UPDATE',
-            status: 'SUCCESS',
-            action: qtyChanged ? 'update_item_status_and_qty' : 'update_item_status',
-            patient_hn: existingUsage.patient_hn ?? '',
-            en: existingUsage.en ?? '',
-            assession_no: item.assession_no,
-            item_code: item.order_item_code,
-            order_item_description: item.order_item_description,
-            old_status: item.order_item_status,
-            new_status: newStatus,
-            old_qty: item.qty,
-            new_qty: newQty,
-            reason: qtyChanged
-              ? 'ItemStatus and QTY updated based on AssessionNo + ItemCode match'
-              : 'ItemStatus updated based on AssessionNo match',
-            user_description: qtyChanged
+          mergedUpdateSummaryLines.push(
+            qtyChanged
               ? `เวชภัณฑ์ **${statusDisplayName}** (AssessionNo : ${statusAn}) — อัปเดตจำนวนจาก **${item.qty ?? 0}** เป็น **${newQty}** ชิ้น${statusChanged ? ` และสถานะเป็น ${newStatus}` : ''}`
               : `สถานะเวชภัณฑ์ **${statusDisplayName}** ที่มี **AssessionNo : ${statusAn}** ถูกอัปเดต`,
-            input_data: data,
-          });
+          );
         }
 
         // Add new items if any
@@ -893,23 +947,9 @@ export class MedicalSuppliesService {
           const newItemCodesForCount = itemsToCreate.map((it) => it.ItemCode).filter(Boolean) as string[];
           const { compareCount, nonCompareCount } =
             await this.countItemCodesCompareVsNonCompare(newItemCodesForCount);
-          await this.createLog(existingUsage.id, {
-            type: 'UPDATE',
-            status: 'SUCCESS',
-            action: 'add_new_items',
-            hospital: hospital,
-            en: episodeNumber,
-            patient_hn: patientHn,
-            first_name: firstName,
-            lastname: lastname,
-            new_items_count: itemsToCreate.length,
-            compare_item_code_count: compareCount,
-            non_compare_item_code_count: nonCompareCount,
-            reason: 'New items added based on new AssessionNo',
-            new_items_thai_lines: newItemsThaiLines,
-            user_description: this.joinThaiLogLines(newItemsThaiLines),
-            input_data: data,
-          });
+          mergedCompareCount = compareCount;
+          mergedNonCompareCount = nonCompareCount;
+          mergedUpdateSummaryLines.push(...newItemsThaiLines);
         }
 
         // Update usage metadata if provided (billing, print_date, time_print_date, department_code)
@@ -953,6 +993,26 @@ export class MedicalSuppliesService {
           include: {
             supply_items: true,
           },
+        });
+
+        await this.createLog(existingUsage.id, {
+          type: 'UPDATE',
+          status: 'SUCCESS',
+          action: 'update_existing_usage_from_order',
+          hospital: hospital,
+          en: episodeNumber,
+          patient_hn: patientHn,
+          first_name: firstName,
+          lastname: lastname,
+          updated_items_count: itemsToUpdate.length,
+          discontinue_items_count: discontinueItemsInOrder.length,
+          new_items_count: itemsToCreate.length,
+          ...(mergedCompareCount !== undefined ? { compare_item_code_count: mergedCompareCount } : {}),
+          ...(mergedNonCompareCount !== undefined ? { non_compare_item_code_count: mergedNonCompareCount } : {}),
+          user_description: mergedUpdateSummaryLines.length
+            ? this.joinThaiLogLines(mergedUpdateSummaryLines)
+            : 'อัปเดตรายการเวชภัณฑ์',
+          input_data: data,
         });
 
         return updatedUsage as unknown as MedicalSupplyUsageResponse;

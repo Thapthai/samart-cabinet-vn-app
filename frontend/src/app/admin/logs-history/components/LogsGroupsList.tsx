@@ -116,7 +116,9 @@ export function LogsGroupsList({
                                 <ActionStatusBadge action={row.action} />
                               </span>
                             </div>
-                            <p className="text-muted-foreground line-clamp-3">{getLogDescription(row)}</p>
+                            <p className="text-muted-foreground whitespace-pre-line break-words">
+                              {getLogDescription(row)}
+                            </p>
                             {logActionHasCompareCounts(row.action) && (
                               <div className="flex flex-wrap gap-2">
                                 <div className={logCompareOrangeMobileChipClass}>
@@ -182,7 +184,7 @@ export function LogsGroupsList({
                                   <ActionStatusBadge action={row.action} />
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground max-w-md">
-                                  <span className="line-clamp-3">{getLogDescription(row)}</span>
+                                  <span className="whitespace-pre-line break-words">{getLogDescription(row)}</span>
                                 </TableCell>
                                 <TableCell className="align-middle p-2 text-center">
                                   <span className={logCompareOrangeValueClass}>

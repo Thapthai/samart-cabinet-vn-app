@@ -21,6 +21,13 @@ function inDateRange(dateStr: string, startDate: string, endDate: string): boole
   return true;
 }
 
+function toMillis(v: unknown): number {
+  if (!v) return 0;
+  const d = new Date(String(v));
+  const t = d.getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
 function OrderItemStatusCell({ statusRaw }: { statusRaw: string }) {
   const status = statusRaw || '-';
   const statusLower = status.toLowerCase();
@@ -72,6 +79,29 @@ export default function MedicalSupplySelectedDetailSection({
     return inDateRange(createdStr, startDate, endDate);
   });
 
+  // Group by assession_no + item_code และเลือกแถวเวลาล่าสุด
+  const groupedLatest = (() => {
+    const byKey = new Map<string, Record<string, unknown>>();
+    for (const item of filteredByDate) {
+      const assessionNo = String(item.assession_no ?? '').trim();
+      const itemCode = String(item.order_item_code ?? item.supply_code ?? '').trim();
+      const key = `${assessionNo}|${itemCode}`;
+      const prev = byKey.get(key);
+      if (!prev) {
+        byKey.set(key, item);
+        continue;
+      }
+      const prevTs = Math.max(toMillis(prev.updated_at), toMillis(prev.created_at));
+      const currTs = Math.max(toMillis(item.updated_at), toMillis(item.created_at));
+      if (currTs >= prevTs) byKey.set(key, item);
+    }
+    return [...byKey.values()].sort((a, b) => {
+      const ta = Math.max(toMillis(a.updated_at), toMillis(a.created_at));
+      const tb = Math.max(toMillis(b.updated_at), toMillis(b.created_at));
+      return tb - ta;
+    });
+  })();
+
   const formatDate = (v: string | null | undefined) => formatUtcDateTime(v);
 
   return (
@@ -108,7 +138,7 @@ export default function MedicalSupplySelectedDetailSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredByDate.length === 0 ? (
+                {groupedLatest.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="text-center py-6 sm:py-8 text-gray-500 text-sm">
                       {supplyItems.length === 0
@@ -117,7 +147,7 @@ export default function MedicalSupplySelectedDetailSection({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredByDate.map((item: Record<string, unknown>, index: number) => (
+                  groupedLatest.map((item: Record<string, unknown>, index: number) => (
                     <TableRow key={index}>
                       <TableCell className="text-center text-xs sm:text-sm py-2 sm:py-3">{index + 1}</TableCell>
                       <TableCell className="font-mono text-xs sm:text-sm py-2 sm:py-3">
