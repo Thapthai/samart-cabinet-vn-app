@@ -11,6 +11,14 @@ import {
   rowEn,
   rowHn,
 } from '../utils';
+import {
+  formatLogCompareItemCodeCount,
+  logActionHasCompareCounts,
+  logCompareOrangeMobileChipClass,
+  logCompareOrangeValueClass,
+  logCompareRedMobileChipClass,
+  logCompareRedValueClass,
+} from '@/lib/medicalSupplyLogCompareCounts';
 import type { LogGroupRow } from '../types';
 import { ActionStatusBadge, MethodTypeBadge } from './LogActionBadges';
 
@@ -109,6 +117,26 @@ export function LogsGroupsList({
                               </span>
                             </div>
                             <p className="text-muted-foreground line-clamp-3">{getLogDescription(row)}</p>
+                            {logActionHasCompareCounts(row.action) && (
+                              <div className="flex flex-wrap gap-2">
+                                <div className={logCompareOrangeMobileChipClass}>
+                                  <span className="text-[10px] font-normal text-orange-800/90 dark:text-orange-200/90">
+                                    รายการที่ Compare
+                                  </span>
+                                  <span className="font-semibold tabular-nums">
+                                    {formatLogCompareItemCodeCount(row.action, 'compare_item_code_count')}
+                                  </span>
+                                </div>
+                                <div className={logCompareRedMobileChipClass}>
+                                  <span className="text-[10px] font-normal text-red-800/90 dark:text-red-200/90">
+                                    รายการที่ไม่ Compare
+                                  </span>
+                                  <span className="font-semibold tabular-nums">
+                                    {formatLogCompareItemCodeCount(row.action, 'non_compare_item_code_count')}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -130,6 +158,12 @@ export function LogsGroupsList({
                               <TableHead className="w-[120px]">ประเภท</TableHead>
                               <TableHead className="w-[80px]">สถานะ</TableHead>
                               <TableHead>รายละเอียด</TableHead>
+                              <TableHead className="w-[100px] text-center whitespace-normal leading-tight">
+                                รายการที่ Compare
+                              </TableHead>
+                              <TableHead className="w-[100px] text-center whitespace-normal leading-tight">
+                                รายการที่ไม่ Compare
+                              </TableHead>
                               <TableHead className="w-[100px] text-center">ดู</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -149,6 +183,16 @@ export function LogsGroupsList({
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground max-w-md">
                                   <span className="line-clamp-3">{getLogDescription(row)}</span>
+                                </TableCell>
+                                <TableCell className="align-middle p-2 text-center">
+                                  <span className={logCompareOrangeValueClass}>
+                                    {formatLogCompareItemCodeCount(row.action, 'compare_item_code_count')}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="align-middle p-2 text-center">
+                                  <span className={logCompareRedValueClass}>
+                                    {formatLogCompareItemCodeCount(row.action, 'non_compare_item_code_count')}
+                                  </span>
                                 </TableCell>
                                 <TableCell className="text-center">
                                   <Button

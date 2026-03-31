@@ -8,6 +8,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatActionJson, formatLogDate, getHnEnFromAction } from '../utils';
+import {
+  formatLogCompareItemCodeCount,
+  logActionHasCompareCounts,
+  logCompareOrangeDialogRowClass,
+  logCompareRedDialogRowClass,
+} from '@/lib/medicalSupplyLogCompareCounts';
 import type { SelectedLog } from '../types';
 import { ActionStatusBadge, MethodTypeBadge } from './LogActionBadges';
 
@@ -57,6 +63,26 @@ export function LogDetailDialog({ selectedLog, onClose }: Props) {
                   <ActionStatusBadge action={selectedLog.action} />
                 </span>
               </div>
+              {logActionHasCompareCounts(selectedLog.action) && (
+                <>
+                  <div className={logCompareOrangeDialogRowClass}>
+                    <span className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                      รายการที่ Compare
+                    </span>
+                    <span className="font-mono text-lg font-semibold tabular-nums text-orange-950 dark:text-orange-50">
+                      {formatLogCompareItemCodeCount(selectedLog.action, 'compare_item_code_count')}
+                    </span>
+                  </div>
+                  <div className={logCompareRedDialogRowClass}>
+                    <span className="text-sm font-medium text-red-900 dark:text-red-100">
+                      รายการที่ไม่ Compare
+                    </span>
+                    <span className="font-mono text-lg font-semibold tabular-nums text-red-950 dark:text-red-50">
+                      {formatLogCompareItemCodeCount(selectedLog.action, 'non_compare_item_code_count')}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
             <div className="space-y-1.5 sm:space-y-2 min-h-0 flex flex-col">
               <p className="text-sm font-medium text-foreground shrink-0">ข้อมูล action (JSON)</p>

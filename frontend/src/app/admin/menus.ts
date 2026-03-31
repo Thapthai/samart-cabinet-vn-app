@@ -12,6 +12,7 @@ import {
   RotateCcw,
   ClipboardList,
   UserCog,
+  Boxes,
 } from 'lucide-react';
 
 // Type definitions for menu and submenu
@@ -136,6 +137,12 @@ export const adminMenuItems: StaffMenuItem[] = [
     description: 'ตั้งค่าระบบ',
     noHref: true,
     submenu: [
+      {
+        name: 'จัดการ Item (Master)',
+        href: '/admin/management/items',
+        icon: Boxes,
+        description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
+      },
       {
         name: 'จัดการตู้ Cabinet',
         href: '/admin/management/cabinets',

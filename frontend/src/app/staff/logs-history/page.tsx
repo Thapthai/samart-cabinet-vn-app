@@ -27,6 +27,16 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
+import {
+  formatLogCompareItemCodeCount,
+  logActionHasCompareCounts,
+  logCompareOrangeDialogRowClass,
+  logCompareOrangeMobileChipClass,
+  logCompareOrangeValueClass,
+  logCompareRedDialogRowClass,
+  logCompareRedMobileChipClass,
+  logCompareRedValueClass,
+} from '@/lib/medicalSupplyLogCompareCounts';
 
 export default function LogsPage() {
   const [loading, setLoading] = useState(true);
@@ -395,6 +405,26 @@ export default function LogsPage() {
                                 </span>
                               </div>
                               <p className="text-muted-foreground line-clamp-2">{getActionSummary(row.action)}</p>
+                              {logActionHasCompareCounts(row.action) && (
+                                <div className="flex flex-wrap gap-2">
+                                  <div className={logCompareOrangeMobileChipClass}>
+                                    <span className="text-[10px] font-normal text-orange-800/90 dark:text-orange-200/90">
+                                      รายการที่ Compare
+                                    </span>
+                                    <span className="font-semibold tabular-nums">
+                                      {formatLogCompareItemCodeCount(row.action, 'compare_item_code_count')}
+                                    </span>
+                                  </div>
+                                  <div className={logCompareRedMobileChipClass}>
+                                    <span className="text-[10px] font-normal text-red-800/90 dark:text-red-200/90">
+                                      รายการที่ไม่ Compare
+                                    </span>
+                                    <span className="font-semibold tabular-nums">
+                                      {formatLogCompareItemCodeCount(row.action, 'non_compare_item_code_count')}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -416,6 +446,12 @@ export default function LogsPage() {
                                 <TableHead>ประเภท</TableHead>
                                 <TableHead>สถานะ</TableHead>
                                 <TableHead>คำอธิบาย</TableHead>
+                                <TableHead className="w-[100px] text-center whitespace-normal leading-tight">
+                                  รายการที่ Compare
+                                </TableHead>
+                                <TableHead className="w-[100px] text-center whitespace-normal leading-tight">
+                                  รายการที่ไม่ Compare
+                                </TableHead>
                                 <TableHead className="w-[80px] text-center">ดู</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -431,6 +467,16 @@ export default function LogsPage() {
                                   <TableCell>{getStatusBadge(row.action)}</TableCell>
                                   <TableCell className="text-sm text-muted-foreground max-w-[220px]">
                                     <span className="line-clamp-3">{getLogDescription(row)}</span>
+                                  </TableCell>
+                                  <TableCell className="align-middle p-2 text-center">
+                                    <span className={logCompareOrangeValueClass}>
+                                      {formatLogCompareItemCodeCount(row.action, 'compare_item_code_count')}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="align-middle p-2 text-center">
+                                    <span className={logCompareRedValueClass}>
+                                      {formatLogCompareItemCodeCount(row.action, 'non_compare_item_code_count')}
+                                    </span>
                                   </TableCell>
                                   <TableCell className="text-center">
                                     <Button variant="outline" size="sm" className="h-8" onClick={() => setSelectedLog(row)}>
@@ -531,6 +577,26 @@ export default function LogsPage() {
                   <span className="text-muted-foreground shrink-0 w-24 sm:w-auto">สถานะ</span>
                   <span className="text-right sm:text-left">{getStatusBadge(selectedLog.action)}</span>
                 </div>
+                {logActionHasCompareCounts(selectedLog.action) && (
+                  <>
+                    <div className={logCompareOrangeDialogRowClass}>
+                      <span className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                        รายการที่ Compare
+                      </span>
+                      <span className="font-mono text-lg font-semibold tabular-nums text-orange-950 dark:text-orange-50">
+                        {formatLogCompareItemCodeCount(selectedLog.action, 'compare_item_code_count')}
+                      </span>
+                    </div>
+                    <div className={logCompareRedDialogRowClass}>
+                      <span className="text-sm font-medium text-red-900 dark:text-red-100">
+                        รายการที่ไม่ Compare
+                      </span>
+                      <span className="font-mono text-lg font-semibold tabular-nums text-red-950 dark:text-red-50">
+                        {formatLogCompareItemCodeCount(selectedLog.action, 'non_compare_item_code_count')}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
               <div className="space-y-1.5 sm:space-y-2 min-h-0 flex flex-col">
                 <p className="text-sm font-medium text-foreground shrink-0">ข้อมูล action (JSON)</p>

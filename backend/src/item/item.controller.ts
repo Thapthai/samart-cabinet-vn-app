@@ -101,6 +101,26 @@ export class ItemController {
     );
   }
 
+  /** รายการ master จากตาราง Item (ทุกรายการ รวมที่ยังไม่มีสต็อกในตู้) — สำหรับหน้าจัดการ Item */
+  @Get('master')
+  async findAllMaster(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('keyword') keyword?: string,
+    @Query('sort_by') sort_by?: string,
+    @Query('sort_order') sort_order?: string,
+    @Query('item_status_filter') item_status_filter?: string,
+  ) {
+    return this.itemService.findAllItemsMaster(
+      page,
+      limit,
+      keyword,
+      sort_by || 'itemcode',
+      sort_order || 'asc',
+      item_status_filter,
+    );
+  }
+
   @Get(':itemcode')
   async findOne(@Param('itemcode') itemcode: string) {
     return this.itemService.findOneItem(itemcode);

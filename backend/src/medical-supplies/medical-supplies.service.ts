@@ -439,6 +439,70 @@ export class MedicalSuppliesService {
     }
   }
 
+  /**
+   * สร้างแถว `item` ขั้นต่ำสำหรับ ItemCode ที่ยังไม่มีใน master — ให้นำรายการ Order เข้าระบบได้เหมือนกรณี Success
+   * (รายการที่ไม่มีใน itemstock จะไม่ถูกนำไป Compare ใน compareDispensedVsUsage)
+   */
+  private async ensureItemsForIncomingOrderLines(
+    lines: Array<{ ItemCode?: string; ItemDescription?: string; supply_code?: string; supply_name?: string }>,
+  ): Promise<void> {
+    const descByCode = new Map<string, string>();
+    for (const it of lines) {
+      const c = (it.ItemCode ?? it.supply_code ?? '').toString().trim();
+      if (!c) continue;
+      const d = (it.ItemDescription ?? it.supply_name ?? c).toString().trim();
+      if (!descByCode.has(c)) descByCode.set(c, (d || c).slice(0, 255));
+    }
+    if (descByCode.size === 0) return;
+
+    const codes = [...descByCode.keys()];
+    const existing = await this.prisma.item.findMany({
+      where: { itemcode: { in: codes } },
+      select: { itemcode: true },
+    });
+    const have = new Set(existing.map((e) => e.itemcode));
+    for (const code of codes) {
+      if (have.has(code)) continue;
+      const safeCode = code.slice(0, 25);
+      const name = (descByCode.get(code) ?? safeCode).slice(0, 255);
+      try {
+        await this.prisma.item.create({
+          data: { itemcode: safeCode, itemname: name },
+        });
+      } catch {
+        // race / duplicate — ignore
+      }
+    }
+  }
+
+  /** นับจำนวน ItemCode ที่ต่างกัน: มีใน itemstock (Compare ได้) vs ไม่มีใน itemstock */
+  private async countItemCodesCompareVsNonCompare(
+    itemCodes: string[],
+  ): Promise<{ compareCount: number; nonCompareCount: number }> {
+    const unique = [
+      ...new Set(
+        itemCodes.map((c) => (c != null ? String(c).trim() : '')).filter((c) => c.length > 0),
+      ),
+    ];
+    if (unique.length === 0) return { compareCount: 0, nonCompareCount: 0 };
+
+    const rows = await this.prisma.itemStock.groupBy({
+      by: ['ItemCode'],
+      where: { ItemCode: { in: unique } },
+    });
+    const inStock = new Set(
+      rows.map((r) => r.ItemCode).filter((c): c is string => typeof c === 'string' && c.length > 0),
+    );
+
+    let compareCount = 0;
+    let nonCompareCount = 0;
+    for (const c of unique) {
+      if (inStock.has(c)) compareCount++;
+      else nonCompareCount++;
+    }
+    return { compareCount, nonCompareCount };
+  }
+
   // Check Staff User by client_id
   async checkStaffUser(client_id: string): Promise<{ user: any; userType: string } | null> {
     try {
@@ -797,18 +861,7 @@ export class MedicalSuppliesService {
 
         // Add new items if any
         if (itemsToCreate.length > 0) {
-          // Validate ItemCodes for new items
-          const newItemCodes = itemsToCreate.map((item) => item.ItemCode).filter((code) => code);
-          if (newItemCodes.length > 0) {
-            const validation = await this.validateItemCodes(newItemCodes);
-            if (validation.invalid.length > 0) {
-              throw new BadRequestException({
-                message: 'Invalid ItemCodes found',
-                invalidCodes: validation.invalid,
-                validCodes: validation.valid,
-              });
-            }
-          }
+          await this.ensureItemsForIncomingOrderLines(itemsToCreate);
 
           // Create new supply items
           const itemTs = this.nowBangkokUtcTrueForPrisma();
@@ -837,6 +890,9 @@ export class MedicalSuppliesService {
           const newItemsThaiLines = itemsToCreate.map((it) =>
             this.thaiLogLineAddNewSupply(it.ItemDescription, it.ItemCode, it.AssessionNo),
           );
+          const newItemCodesForCount = itemsToCreate.map((it) => it.ItemCode).filter(Boolean) as string[];
+          const { compareCount, nonCompareCount } =
+            await this.countItemCodesCompareVsNonCompare(newItemCodesForCount);
           await this.createLog(existingUsage.id, {
             type: 'UPDATE',
             status: 'SUCCESS',
@@ -847,6 +903,8 @@ export class MedicalSuppliesService {
             first_name: firstName,
             lastname: lastname,
             new_items_count: itemsToCreate.length,
+            compare_item_code_count: compareCount,
+            non_compare_item_code_count: nonCompareCount,
             reason: 'New items added based on new AssessionNo',
             new_items_thai_lines: newItemsThaiLines,
             user_description: this.joinThaiLogLines(newItemsThaiLines),
@@ -1021,24 +1079,8 @@ export class MedicalSuppliesService {
           })
           : orderItems;
 
-      // Validate ItemCodes ก่อนสร้าง usage (only for items to be created, not Discontinue)
-      const allItemCodes = [
-        ...itemsToCreate.map(item => item.ItemCode),
-        ...legacySupplies.map(item => item.supply_code),
-      ].filter(code => code); // Remove empty codes
-
-      if (allItemCodes.length > 0) {
-        const validation = await this.validateItemCodes(allItemCodes);
-
-        if (validation.invalid.length > 0) {
-          throw new BadRequestException({
-            message: 'Invalid ItemCodes found',
-            invalidCodes: validation.invalid,
-            validCodes: validation.valid,
-          });
-        }
-
-      }
+      // สร้าง master item ขั้นต่ำถ้ายังไม่มี — ไม่บล็อก Order เหมือนเดิมที่ throw Invalid ItemCodes
+      await this.ensureItemsForIncomingOrderLines([...itemsToCreate, ...legacySupplies]);
 
       // If no items to create at all, return error (should not happen)
       if (itemsToCreate.length === 0 && legacySupplies.length === 0) {
@@ -1160,6 +1202,12 @@ export class MedicalSuppliesService {
           this.thaiLogLineAddNewSupply(item.supply_name, item.supply_code, ''),
         ),
       ];
+      const createItemCodes = [
+        ...itemsToCreate.map((item) => item.ItemCode),
+        ...legacySupplies.map((item) => item.supply_code),
+      ].filter(Boolean) as string[];
+      const { compareCount: createCompareCount, nonCompareCount: createNonCompareCount } =
+        await this.countItemCodesCompareVsNonCompare(createItemCodes);
       await this.createLog(usage.id, {
         type: 'CREATE',
         status: 'SUCCESS',
@@ -1173,6 +1221,8 @@ export class MedicalSuppliesService {
         discontinue_items_count: discontinueItems.length,
         supplies_count: legacySupplies.length,
         total_amount: data.billing_total,
+        compare_item_code_count: createCompareCount,
+        non_compare_item_code_count: createNonCompareCount,
         input_payload: inputPayload,
         new_items_thai_lines: createThaiLines.length ? createThaiLines : undefined,
         user_description: createThaiLines.length
@@ -4033,7 +4083,7 @@ export class MedicalSuppliesService {
       const countResult: any[] = await this.prisma.$queryRaw`
             SELECT COUNT(DISTINCT x.itemcode) AS total
               FROM (
-                  /* เอา itemcode จากทั้ง 2 ฝั่ง */
+                  /* เอา itemcode จากทั้ง 2 ฝั่ง — ฝั่ง usage เฉพาะรหัสที่มีใน itemstock จึง Compare dispensed ได้ */
                   SELECT ItemCode AS itemcode
                   FROM itemstock
                   WHERE ${whereClauseDispensed}
@@ -4041,8 +4091,9 @@ export class MedicalSuppliesService {
                   UNION
 
                   SELECT order_item_code AS itemcode
-                  FROM app_microservice_supply_usage_items
+                  FROM app_microservice_supply_usage_items sui
                   WHERE ${whereClauseUsage}
+                  AND EXISTS (SELECT 1 FROM itemstock ist WHERE ist.ItemCode = sui.order_item_code)
               ) x
               JOIN item i ON i.itemcode = x.itemcode
               ${whereKeyword}
@@ -4082,7 +4133,7 @@ export class MedicalSuppliesService {
                         ELSE 'MATCHED'
                     END AS status
                     FROM (
-                          /* เอา itemcode จากทั้ง 2 ฝั่ง */
+                          /* เอา itemcode จากทั้ง 2 ฝั่ง — ฝั่ง usage เฉพาะรหัสที่มีใน itemstock */
                           SELECT ItemCode AS itemcode
                           FROM itemstock
                           WHERE ${whereClauseDispensed}
@@ -4090,8 +4141,9 @@ export class MedicalSuppliesService {
                           UNION
 
                           SELECT order_item_code AS itemcode
-                          FROM app_microservice_supply_usage_items
+                          FROM app_microservice_supply_usage_items sui
                           WHERE ${whereClauseUsage}
+                          AND EXISTS (SELECT 1 FROM itemstock ist WHERE ist.ItemCode = sui.order_item_code)
                       ) x
                       JOIN item i ON i.itemcode = x.itemcode
                       LEFT JOIN (
@@ -4106,11 +4158,12 @@ export class MedicalSuppliesService {
 
                         LEFT JOIN (
                             SELECT
-                                order_item_code,
-                                SUM(qty) AS total_usage_items
-                            FROM app_microservice_supply_usage_items
+                                sui.order_item_code,
+                                SUM(sui.qty) AS total_usage_items
+                            FROM app_microservice_supply_usage_items sui
                             WHERE ${whereClauseUsage}
-                            GROUP BY order_item_code
+                            AND EXISTS (SELECT 1 FROM itemstock ist WHERE ist.ItemCode = sui.order_item_code)
+                            GROUP BY sui.order_item_code
                         ) u ON u.order_item_code = x.itemcode
 
                         LEFT JOIN (

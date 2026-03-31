@@ -467,6 +467,84 @@ export class ItemService {
     }
   }
 
+  /**
+   * รายการ Item จากตาราง master โดยตรง (แบ่งหน้า, ค้นหา)
+   * ไม่กรองเฉพาะรายการที่มี RFID ในตู้ — ใช้สำหรับหน้า Item Management
+   */
+  async findAllItemsMaster(
+    page: number,
+    limit: number,
+    keyword?: string,
+    sort_by: string = 'itemcode',
+    sort_order: string = 'asc',
+    item_status_filter?: string,
+  ) {
+    try {
+      const skip = (page - 1) * limit;
+      const take = Math.min(Math.max(limit, 1), 100);
+      const where: Prisma.ItemWhereInput = {};
+
+      const kw = keyword?.trim();
+      if (kw) {
+        where.OR = [
+          { itemname: { contains: kw } },
+          { itemcode: { contains: kw } },
+          { Barcode: { contains: kw } },
+        ];
+      }
+
+      const f = (item_status_filter ?? '').trim().toLowerCase();
+      if (f === 'active' || f === '0') {
+        where.item_status = 0;
+      } else if (f === 'inactive' || f === '1') {
+        where.NOT = { item_status: 0 };
+      }
+
+      const validSortFields = ['itemcode', 'itemname', 'CreateDate', 'CostPrice'];
+      const field = validSortFields.includes(sort_by) ? sort_by : 'itemcode';
+      const order: 'asc' | 'desc' = sort_order === 'desc' ? 'desc' : 'asc';
+
+      const [total, data] = await Promise.all([
+        this.prisma.item.count({ where }),
+        this.prisma.item.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { [field]: order },
+          select: {
+            itemcode: true,
+            itemname: true,
+            Barcode: true,
+            Alternatename: true,
+            item_status: true,
+            CreateDate: true,
+            CostPrice: true,
+            SalePrice: true,
+            Minimum: true,
+            Maximum: true,
+            IsStock: true,
+            Note: true,
+          },
+        }),
+      ]);
+
+      return {
+        success: true,
+        data,
+        total,
+        page,
+        limit: take,
+        lastPage: Math.max(1, Math.ceil(total / take)),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to fetch master items',
+        error: (error as Error).message,
+      };
+    }
+  }
+
   async getItemsStats(cabinet_id?: number, department_id?: number) {
     try {
       // Build itemStocks where clause

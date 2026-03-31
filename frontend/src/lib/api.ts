@@ -198,6 +198,19 @@ export const itemsApi = {
     return response.data;
   },
 
+  /** รายการ master จากตาราง Item (ทุกรายการ รวมที่ยังไม่มีในตู้) */
+  getMasterList: async (query?: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    sort_by?: string;
+    sort_order?: string;
+    item_status_filter?: 'all' | 'active' | 'inactive' | string;
+  }): Promise<PaginatedResponse<Item>> => {
+    const response = await api.get('/items/master', { params: query });
+    return response.data;
+  },
+
   getStats: async (query?: { cabinet_id?: number; department_id?: number }): Promise<ApiResponse<ItemsStats>> => {
     const response = await api.get('/items/stats', { params: query });
     return response.data;

@@ -1,12 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield, UserCog } from 'lucide-react';
+import { Package, Users, Shield, UserCog, Boxes } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const managementMenus = [
+  {
+    name: 'จัดการ Item (Master)',
+    href: '/admin/management/items',
+    icon: Boxes,
+    description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล ค้นหา เพิ่ม แก้ไข ลบ',
+    color: 'from-amber-500 to-orange-600',
+    bgLight: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-700',
+  },
   {
     name: 'จัดการตู้ Cabinet',
     href: '/admin/management/cabinets',
