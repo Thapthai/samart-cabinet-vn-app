@@ -168,48 +168,10 @@ export function staffRoleCanCreateRoleCode(viewerRoleCode: string, newRoleCode: 
   return staffRoleCanManageRoleColumn(viewerRoleCode, newRoleCode);
 }
 
-/** ระดับสิทธิ์ Role: 1 = สูงสุด, 3 = ต่ำสุด */
-export const STAFF_ROLE_LEVEL_MIN = 1;
-export const STAFF_ROLE_LEVEL_MAX = 3;
-
-export function clampStaffRoleHierarchyLevel(n: unknown): number {
-  const v = typeof n === 'number' ? n : parseInt(String(n ?? ''), 10);
-  if (!Number.isFinite(v)) return STAFF_ROLE_LEVEL_MAX;
-  return Math.min(STAFF_ROLE_LEVEL_MAX, Math.max(STAFF_ROLE_LEVEL_MIN, v));
-}
-
-/**
- * viewer ไม่ต่ำกว่าเป้าหมาย (เลขผู้ใช้ <= เลขระดับเป้าหมาย — 1=สูงสุด)
- * พอร์ทัล /staff ใช้ {@link staffPortalCanManageByTargetHierarchy} (กฎเดียวกัน)
- */
-export function staffRoleCanManageByHierarchy(viewerLevel: number, targetRoleLevel: number): boolean {
-  return clampStaffRoleHierarchyLevel(viewerLevel) <= clampStaffRoleHierarchyLevel(targetRoleLevel);
-}
-
-export const STAFF_ROLE_LEVEL_LABELS: Record<number, string> = {
-  1: 'สูงสุด (1)',
-  2: 'กลาง (2)',
-  3: 'ต่ำสุด (3)',
-};
-
-export function staffRoleHierarchyLabel(level: number): string {
-  const k = clampStaffRoleHierarchyLevel(level);
-  return STAFF_ROLE_LEVEL_LABELS[k] ?? `ระดับ ${k}`;
-}
-
-/** อ่านระดับจาก staff_user หลัง login — ไม่มีฟิลด์ = ถือว่า 3 (จำกัดสิทธิ์สูงสุดจนกว่าจะ login ใหม่) */
-export function readStaffHierarchyLevelFromStorage(): number {
-  if (typeof window === 'undefined') return STAFF_ROLE_LEVEL_MAX;
-  try {
-    const raw = localStorage.getItem('staff_user');
-    if (!raw?.trim()) return STAFF_ROLE_LEVEL_MAX;
-    const u = JSON.parse(raw.trim()) as { hierarchy_level?: unknown; hierarchyLevel?: unknown };
-    if (u.hierarchy_level != null) return clampStaffRoleHierarchyLevel(u.hierarchy_level);
-    if (u.hierarchyLevel != null) return clampStaffRoleHierarchyLevel(u.hierarchyLevel);
-    return STAFF_ROLE_LEVEL_MAX;
-  } catch {
-    return STAFF_ROLE_LEVEL_MAX;
-  }
+function sameNormalizedStaffRole(a: string, b: string): boolean {
+  const x = normalizeStaffRoleCode(a);
+  const y = normalizeStaffRoleCode(b);
+  return x !== '' && x === y;
 }
 
 /** id ของ staff ที่ล็อกอิน */
@@ -227,96 +189,41 @@ export function readStaffUserIdFromStorage(): number | null {
 }
 
 /**
- * พอร์ทัล /staff — จัดการเป้าหมายที่มี hierarchy ของ Role = targetLevel
- * 1=สูงสุด: แก้ได้เมื่อเลขระดับผู้ดู <= เลขระดับเป้าหมาย (1→แก้ 1–3, 2→แก้ 2–3, 3→แก้แค่ 3)
+ * พอร์ทัล /staff — แก้คอลัมน์สิทธิ์เมนู: หัวสายจัดการลูกสาย หรือแก้คอลัมน์ของ role ตัวเอง
  */
-export function staffPortalCanManageByTargetHierarchy(viewerLevel: number, targetHierarchyLevel: number): boolean {
-  return (
-    clampStaffRoleHierarchyLevel(viewerLevel) <= clampStaffRoleHierarchyLevel(targetHierarchyLevel)
-  );
+export function staffPortalCanEditPermissionColumn(viewerRoleCode: string, targetRoleCode: string): boolean {
+  if (staffRoleCanManageRoleColumn(viewerRoleCode, targetRoleCode)) return true;
+  return sameNormalizedStaffRole(viewerRoleCode, targetRoleCode);
 }
 
 /**
- * พอร์ทัล /staff — แก้ไขคอลัมน์สิทธิ์ของ Role ในตารางเมนู (permission-roles)
- * พารามิเตอร์ role code คงไว้เพื่อความเข้ากันได้กับจุดเรียกเดิม
- */
-export function staffPortalCanEditPermissionColumn(
-  viewerLevel: number,
-  _viewerRoleCode: string,
-  _targetRoleCode: string,
-  targetRoleLevel: number,
-): boolean {
-  return staffPortalCanManageByTargetHierarchy(viewerLevel, targetRoleLevel);
-}
-
-/**
- * พอร์ทัล /staff — แก้ไขแถว staff user ตามระดับ Role ของผู้ใช้แถวนั้น
+ * พอร์ทัล /staff — แก้ไขแถว staff user (มอบ role / สถานะ): หัวสายจัดการลูกสาย หรือผู้ที่มี role เดียวกับแถวเป้าหมาย
  */
 export function staffPortalCanManageStaffUserRow(
-  viewerLevel: number,
+  viewerRoleCode: string,
   _viewerUserId: number | null,
   _targetUserId: number,
-  targetUserRoleLevel: number,
+  targetUserRoleCode: string,
 ): boolean {
-  return staffPortalCanManageByTargetHierarchy(viewerLevel, targetUserRoleLevel);
+  if (staffRoleCanManageRoleColumn(viewerRoleCode, targetUserRoleCode)) return true;
+  return sameNormalizedStaffRole(viewerRoleCode, targetUserRoleCode);
 }
 
-/**
- * พอร์ทัล /staff — เลือก/มอบ Role นี้เมื่อสร้างหรือแก้ user
- */
-export function staffPortalCanPickAssignableRole(viewerLevel: number, targetRoleLevel: number): boolean {
-  return staffPortalCanManageByTargetHierarchy(viewerLevel, targetRoleLevel);
+/** พอร์ทัล /staff — เลือก/มอบ Role นี้เมื่อสร้างหรือแก้ user */
+export function staffPortalCanPickAssignableRole(viewerRoleCode: string, targetRoleCode: string): boolean {
+  if (staffRoleCanAssignStaffRole(viewerRoleCode, targetRoleCode)) return true;
+  return sameNormalizedStaffRole(viewerRoleCode, targetRoleCode);
 }
 
-/**
- * พอร์ทัล /staff — แก้ไขเรคคอร์ด Staff Role (ชื่อ/คำอธิบาย/ระดับ/สถานะ)
- * กฎเดียวกับแก้คอลัมน์สิทธิ์เมนูของ Role นั้น
- */
-export function staffPortalCanManageStaffRoleRecord(
-  viewerLevel: number,
-  viewerRoleCode: string,
-  targetRoleCode: string,
-  targetHierarchyLevel: number,
-): boolean {
-  return staffPortalCanEditPermissionColumn(
-    viewerLevel,
-    viewerRoleCode,
-    targetRoleCode,
-    targetHierarchyLevel,
-  );
+/** พอร์ทัล /staff — แก้ไขเรคคอร์ด Staff Role (ชื่อ/คำอธิบาย/สถานะ) */
+export function staffPortalCanManageStaffRoleRecord(viewerRoleCode: string, targetRoleCode: string): boolean {
+  if (staffRoleCanManageRoleColumn(viewerRoleCode, targetRoleCode)) return true;
+  return sameNormalizedStaffRole(viewerRoleCode, targetRoleCode);
 }
 
-/** พอร์ทัล /staff — ลบ Role ได้เมื่อจัดการเรคคอร์ดนั้นได้ (กฎเดียวกับแก้ไข) */
-export function staffPortalCanDeleteStaffRole(viewerLevel: number, targetHierarchyLevel: number): boolean {
-  return staffPortalCanManageByTargetHierarchy(viewerLevel, targetHierarchyLevel);
-}
-
-/** ระดับ hierarchy ที่ตั้งได้เมื่อสร้าง/แก้ Role: ตั้งแต่ระดับผู้ใช้ถึง 3 */
-export function staffPortalAllowedHierarchyLevelsForViewer(viewerLevel: number): number[] {
-  const v = clampStaffRoleHierarchyLevel(viewerLevel);
-  return Array.from({ length: STAFF_ROLE_LEVEL_MAX - v + 1 }, (_, i) => v + i);
-}
-
-/**
- * ระดับ hierarchy ที่เลือกได้ตอนแก้ไข Role (หน้าจัดการ Staff Role)
- */
-export function staffPortalAllowedRoleHierarchyWhenEditing(
-  viewerLevel: number,
-  _targetRoleCurrentLevel: number,
-): number[] {
-  return staffPortalAllowedHierarchyLevelsForViewer(viewerLevel);
-}
-
-/** พอร์ทัล /staff — สร้าง Role ใหม่ได้ทุกระดับ (จำกัดแค่ค่า hierarchy ที่เลือกได้) */
-export function staffPortalCanCreateNewStaffRole(_viewerLevel: number): boolean {
-  return true;
-}
-
-/**
- * ระดับ hierarchy ที่อนุญาตตอนสร้าง Role ใหม่: 1→[1,2,3] · 2→[2,3] · 3→[3]
- */
-export function staffPortalAllowedNewRoleHierarchyLevels(viewerLevel: number): number[] {
-  return staffPortalAllowedHierarchyLevelsForViewer(viewerLevel);
+/** พอร์ทัล /staff — ลบ Role: เฉพาะหัวสายลบลูกสายในสายตัวเองได้ */
+export function staffPortalCanDeleteStaffRole(viewerRoleCode: string, targetRoleCode: string): boolean {
+  return staffRoleCanManageRoleColumn(viewerRoleCode, targetRoleCode);
 }
 
 export function readStaffRoleCodeFromStorage(): string {

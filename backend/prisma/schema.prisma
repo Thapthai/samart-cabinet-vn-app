@@ -46,8 +46,6 @@ model StaffRole {
   code        String   @unique // e.g. IT-001, WH-001, it2, warehouse2
   name        String // 'IT 1', 'IT 2', 'Warehouse 1', etc.
   description String?  @db.Text // Description of the role
-  /** 1 = สูงสุด, 3 = ต่ำสุด — แก้ไข Role อื่นได้เมื่อระดับตัวเอง <= ระดับเป้าหมาย */
-  hierarchy_level Int  @default(3) @map("hierarchy_level")
   is_active   Boolean  @default(true) @map("is_active")
   created_at  DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at  DateTime @updatedAt @map("updated_at")

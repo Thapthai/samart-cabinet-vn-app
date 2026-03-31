@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Plus } from 'lucide-react';
-import { staffRoleDisplayLabel, staffRoleHierarchyLabel } from '@/lib/staffRolePolicy';
+import { staffRoleDisplayLabel } from '@/lib/staffRolePolicy';
 import type { CreateStaffUserFormData, StaffRoleOption } from '../types';
 
 export interface CreateStaffUserDialogProps {
@@ -84,7 +84,7 @@ export default function CreateStaffUserDialog({
               <SelectContent>
                 {assignableRoles.map((r) => (
                   <SelectItem key={r.code} value={r.code}>
-                    {r.name || staffRoleDisplayLabel(r.code)} · {staffRoleHierarchyLabel(r.hierarchy_level)}
+                    {r.name || staffRoleDisplayLabel(r.code)}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { staffRoleApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,41 +9,28 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Shield, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  suggestNextAutoStaffRoleCode,
-  staffRoleHierarchyLabel,
-  STAFF_ROLE_LEVEL_MIN,
-  STAFF_ROLE_LEVEL_MAX,
-} from '@/lib/staffRolePolicy';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface AdminAddStaffRoleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  existingCodes: readonly string[];
   onCreated: () => void | Promise<void>;
 }
 
-export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onCreated }: AdminAddStaffRoleDialogProps) {
+export function AdminAddStaffRoleDialog({ open, onOpenChange, onCreated }: AdminAddStaffRoleDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [hierarchyLevel, setHierarchyLevel] = useState(STAFF_ROLE_LEVEL_MAX);
-
-  const previewCode = useMemo(() => suggestNextAutoStaffRoleCode(existingCodes), [existingCodes]);
 
   useEffect(() => {
     if (!open) {
       setName('');
       setDescription('');
-      setHierarchyLevel(STAFF_ROLE_LEVEL_MAX);
     }
   }, [open]);
 
@@ -60,7 +47,6 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
         name: trimmedName,
         description: description.trim() || undefined,
         is_active: true,
-        hierarchy_level: hierarchyLevel,
       });
       if (response.success) {
         const created = response.data as { code?: string } | undefined;
@@ -94,16 +80,8 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
             <Shield className="h-5 w-5" />
             เพิ่ม Staff Role ใหม่
           </DialogTitle>
-          <DialogDescription>
-            ระบบจะสร้างรหัส Role อัตโนมัติ (รูปแบบ <span className="font-mono">STF-001</span>) เมื่อบันทึก — คุณกรอกเฉพาะชื่อที่แสดงและคำอธิบาย
-          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-            <span className="text-muted-foreground">รหัสโดยประมาณถัดไป: </span>
-            <span className="font-mono font-semibold text-slate-900">{previewCode}</span>
-            <p className="mt-1 text-xs text-muted-foreground">ค่าจริงอาจต่างได้เล็กน้อยถ้ามีคนสร้างพร้อมกัน — ใช้รหัสที่ API ตอบกลับเป็นหลัก</p>
-          </div>
           <div className="space-y-2">
             <Label htmlFor="admin-new-role-name">ชื่อแสดง *</Label>
             <Input
@@ -123,25 +101,9 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, existingCodes, onC
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="admin-new-role-level">ระดับสิทธิ์ Role</Label>
-            <Select value={String(hierarchyLevel)} onValueChange={(v) => setHierarchyLevel(parseInt(v, 10))}>
-              <SelectTrigger id="admin-new-role-level" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: STAFF_ROLE_LEVEL_MAX - STAFF_ROLE_LEVEL_MIN + 1 }, (_, i) => {
-                  const n = STAFF_ROLE_LEVEL_MIN + i;
-                  return (
-                    <SelectItem key={n} value={String(n)}>
-                      {staffRoleHierarchyLabel(n)}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">1 = สูงสุด · Staff ระดับต่ำกว่า Role นี้จะแก้ไขไม่ได้</p>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            รหัส Role สร้างอัตโนมัติ (เช่น STF-001) — ค่าจริงจากเซิร์ฟเวอร์เมื่อบันทึก
+          </p>
           <DialogFooter className="gap-3 sm:gap-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
               ยกเลิก

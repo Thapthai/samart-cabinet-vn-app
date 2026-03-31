@@ -9,9 +9,8 @@ import { Edit, Search, X } from 'lucide-react';
 import {
   staffRoleDisplayLabel,
   staffPortalCanManageStaffUserRow,
-  readStaffHierarchyLevelFromStorage,
+  readStaffRoleCodeFromStorage,
   readStaffUserIdFromStorage,
-  clampStaffRoleHierarchyLevel,
 } from '@/lib/staffRolePolicy';
 import type { StaffUser, StaffRoleOption } from '../types';
 import PermissionUsersPageLoading from './PermissionUsersPageLoading';
@@ -24,11 +23,6 @@ export interface PermissionUsersTableCardProps {
   onSearchQueryChange: (q: string) => void;
   onEditUser: (user: StaffUser) => void;
   createDialog: ReactNode;
-}
-
-function targetRoleLevel(rolesCatalog: StaffRoleOption[], roleCode: string): number {
-  const row = rolesCatalog.find((r) => r.code === roleCode);
-  return clampStaffRoleHierarchyLevel(row?.hierarchy_level);
 }
 
 function roleDisplayName(user: StaffUser): string {
@@ -46,7 +40,7 @@ export default function PermissionUsersTableCard({
   onEditUser,
   createDialog,
 }: PermissionUsersTableCardProps) {
-  const viewerLevel = readStaffHierarchyLevelFromStorage();
+  const viewerRoleCode = readStaffRoleCodeFromStorage();
   const viewerUserId = readStaffUserIdFromStorage();
 
   return (
@@ -105,10 +99,10 @@ export default function PermissionUsersTableCard({
             <TableBody>
               {visibleUsers.map((user) => {
                 const canEdit = staffPortalCanManageStaffUserRow(
-                  viewerLevel,
+                  viewerRoleCode,
                   viewerUserId,
                   user.id,
-                  targetRoleLevel(rolesCatalog, user.role),
+                  user.role,
                 );
                 return (
                 <TableRow key={user.id}>
@@ -135,7 +129,7 @@ export default function PermissionUsersTableCard({
                       title={
                         canEdit
                           ? 'แก้ไข Role และสถานะใช้งาน'
-                          : 'ไม่มีสิทธิ์แก้ไขผู้ใช้รายนี้ (แก้ได้เมื่อระดับ Role ของผู้ใช้ไม่ต่ำกว่าระดับของคุณ)'
+                          : 'ไม่มีสิทธิ์แก้ไขผู้ใช้รายนี้ (หัวหน้าสายจัดการลูกสาย หรือผู้ที่มี Role เดียวกับแถว)'
                       }
                     >
                       <Edit className="h-4 w-4" />

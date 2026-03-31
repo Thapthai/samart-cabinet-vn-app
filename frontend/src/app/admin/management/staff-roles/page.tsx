@@ -50,21 +50,13 @@ export default function AdminStaffRolesManagementPage() {
       }
       const data = Array.isArray(res.data) ? res.data : [];
       setRows(
-        data.map((r: Record<string, unknown>) => {
-          const hl = r.hierarchy_level;
-          const hierarchy_level =
-            typeof hl === 'number' && Number.isFinite(hl)
-              ? Math.min(3, Math.max(1, hl))
-              : 3;
-          return {
-            id: Number(r.id),
-            code: String(r.code ?? ''),
-            name: String(r.name ?? ''),
-            description: r.description != null ? String(r.description) : null,
-            is_active: r.is_active !== false,
-            hierarchy_level,
-          };
-        }),
+        data.map((r: Record<string, unknown>) => ({
+          id: Number(r.id),
+          code: String(r.code ?? ''),
+          name: String(r.name ?? ''),
+          description: r.description != null ? String(r.description) : null,
+          is_active: r.is_active !== false,
+        })),
       );
     } catch (e) {
       const m = messageFromAxios(e) || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ';
@@ -113,7 +105,7 @@ export default function AdminStaffRolesManagementPage() {
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">จัดการ Staff Role</h1>
                 <p className="text-sm text-slate-500">
-                  แก้ไขชื่อแสดง คำอธิบาย ระดับสิทธิ์ สถานะ — กำหนดสิทธิ์เมนูแต่ละ Role ได้ที่{' '}
+                  แก้ไขชื่อแสดง คำอธิบาย สถานะ — กำหนดสิทธิ์เมนูแต่ละ Role ได้ที่{' '}
                   <Link
                     href="/admin/management/permission-role"
                     className="text-violet-600 underline-offset-2 hover:underline"
@@ -169,7 +161,6 @@ export default function AdminStaffRolesManagementPage() {
                         <TableHead className="w-[120px] font-mono">รหัส</TableHead>
                         <TableHead className="min-w-[160px]">ชื่อแสดง</TableHead>
                         <TableHead className="hidden md:table-cell min-w-[200px]">คำอธิบาย</TableHead>
-                        <TableHead className="w-[88px] text-center">ระดับ</TableHead>
                         <TableHead className="w-[100px]">สถานะ</TableHead>
                         <TableHead className="w-[120px] text-right">จัดการ</TableHead>
                       </TableRow>
@@ -182,7 +173,6 @@ export default function AdminStaffRolesManagementPage() {
                           <TableCell className="hidden max-w-md truncate text-muted-foreground md:table-cell">
                             {r.description || '—'}
                           </TableCell>
-                          <TableCell className="text-center text-sm tabular-nums">{r.hierarchy_level}</TableCell>
                           <TableCell>
                             {r.is_active ? (
                               <Badge className="bg-emerald-600">ใช้งาน</Badge>
@@ -228,7 +218,6 @@ export default function AdminStaffRolesManagementPage() {
         <AdminAddStaffRoleDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
-          existingCodes={allCodes}
           onCreated={load}
         />
         <EditStaffRoleDialog

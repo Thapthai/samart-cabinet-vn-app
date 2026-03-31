@@ -17,8 +17,6 @@ import {
 } from '@/components/ui/dialog';
 import { Pencil, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { staffRoleHierarchyLabel, STAFF_ROLE_LEVEL_MIN, STAFF_ROLE_LEVEL_MAX } from '@/lib/staffRolePolicy';
 
 export type StaffRoleRow = {
   id: number;
@@ -26,8 +24,6 @@ export type StaffRoleRow = {
   name: string;
   description: string | null;
   is_active: boolean;
-  /** 1 = สูงสุด, 3 = ต่ำสุด */
-  hierarchy_level: number;
 };
 
 function messageFromAxios(err: unknown): string | undefined {
@@ -49,14 +45,12 @@ export function EditStaffRoleDialog({ open, onOpenChange, role, onSaved }: EditS
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
-  const [hierarchyLevel, setHierarchyLevel] = useState(3);
 
   useEffect(() => {
     if (!open || !role) return;
     setName(role.name);
     setDescription(role.description ?? '');
     setIsActive(role.is_active !== false);
-    setHierarchyLevel(role.hierarchy_level);
   }, [open, role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,7 +67,6 @@ export function EditStaffRoleDialog({ open, onOpenChange, role, onSaved }: EditS
         name: trimmed,
         description: description.trim(),
         is_active: isActive,
-        hierarchy_level: hierarchyLevel,
       });
       if (res.success === false) {
         toast.error((res as { message?: string }).message || 'บันทึกไม่สำเร็จ');
@@ -98,7 +91,8 @@ export function EditStaffRoleDialog({ open, onOpenChange, role, onSaved }: EditS
             แก้ไข Staff Role
           </DialogTitle>
           <DialogDescription>
-            รหัส <span className="font-mono font-medium text-foreground">{role?.code}</span> แก้ไขไม่ได้ — ปรับชื่อแสดง คำอธิบาย ระดับสิทธิ์ และสถานะใช้งาน
+            รหัส <span className="font-mono font-medium text-foreground">{role?.code}</span> แก้ไขไม่ได้ — ปรับชื่อแสดง
+            คำอธิบาย และสถานะใช้งาน
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -120,31 +114,6 @@ export function EditStaffRoleDialog({ open, onOpenChange, role, onSaved }: EditS
               onChange={(e) => setDescription(e.target.value)}
               disabled={!role}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="edit-role-hierarchy">ระดับสิทธิ์ Role</Label>
-            <Select
-              value={String(hierarchyLevel)}
-              onValueChange={(v) => setHierarchyLevel(parseInt(v, 10))}
-              disabled={!role}
-            >
-              <SelectTrigger id="edit-role-hierarchy" className="w-full">
-                <SelectValue placeholder="เลือกระดับ" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: STAFF_ROLE_LEVEL_MAX - STAFF_ROLE_LEVEL_MIN + 1 }, (_, i) => {
-                  const n = STAFF_ROLE_LEVEL_MIN + i;
-                  return (
-                    <SelectItem key={n} value={String(n)}>
-                      {staffRoleHierarchyLabel(n)}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              1 = สูงสุด · Staff ที่ระดับต่ำกว่า (เลขใหญ่กว่า) จะแก้ไข Role นี้ไม่ได้
-            </p>
           </div>
           <div className="flex items-center justify-between rounded-lg border px-3 py-2">
             <Label htmlFor="edit-role-active" className="cursor-pointer">

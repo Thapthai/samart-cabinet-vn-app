@@ -1534,8 +1534,6 @@ export const staffRoleApi = {
     name: string;
     description?: string;
     is_active?: boolean;
-    /** 1 = สูงสุด … 3 = ต่ำสุด */
-    hierarchy_level?: number;
   }): Promise<ApiResponse<any>> => {
     const response = await api.post('/staff-roles', data);
     return response.data;
@@ -1547,7 +1545,6 @@ export const staffRoleApi = {
       name?: string;
       description?: string;
       is_active?: boolean;
-      hierarchy_level?: number;
     },
   ): Promise<ApiResponse<any>> => {
     const response = await api.put(`/staff-roles/${id}`, data);

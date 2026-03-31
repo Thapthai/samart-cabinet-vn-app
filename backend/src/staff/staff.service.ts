@@ -34,7 +34,7 @@ export class StaffService {
   async loginStaffUser(email: string, password: string) {
     const staff = await this.prisma.staffUser.findUnique({
       where: { email: email.trim() },
-      include: { role: { select: { id: true, code: true, name: true, hierarchy_level: true } } },
+      include: { role: { select: { id: true, code: true, name: true } } },
     });
     if (!staff) return { success: false, message: 'Invalid credentials' };
     if (!staff.is_active) return { success: false, message: 'Account is deactivated' };
@@ -56,7 +56,6 @@ export class StaffService {
           role: staff.role?.code ?? null,
           role_id: staff.role_id,
           department_id: staff.department_id,
-          hierarchy_level: staff.role?.hierarchy_level ?? 3,
         },
         token,
       },
@@ -275,14 +274,12 @@ export class StaffService {
     }
     const existing = await this.prisma.staffRole.findUnique({ where: { code } });
     if (existing) throw new BadRequestException('Role code already exists');
-    const level = this.normalizeHierarchyLevel(dto.hierarchy_level);
     const role = await this.prisma.staffRole.create({
       data: {
         code,
         name: dto.name.trim(),
         description: dto.description?.trim() ?? null,
         is_active: dto.is_active ?? true,
-        hierarchy_level: level,
       },
     });
     await this.prisma.staffRolePermission.upsert({
@@ -306,7 +303,6 @@ export class StaffService {
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.description !== undefined) data.description = dto.description?.trim() ?? null;
     if (dto.is_active !== undefined) data.is_active = dto.is_active;
-    if (dto.hierarchy_level !== undefined) data.hierarchy_level = this.normalizeHierarchyLevel(dto.hierarchy_level);
     await this.prisma.staffRole.update({ where: { id }, data });
     return { success: true, message: 'Role updated' };
   }
@@ -322,7 +318,7 @@ export class StaffService {
     const list = await this.prisma.staffRolePermission.findMany({
       orderBy: [{ role_id: 'asc' }, { menu_href: 'asc' }],
       include: {
-        role: { select: { id: true, code: true, name: true, hierarchy_level: true } },
+        role: { select: { id: true, code: true, name: true } },
       },
     });
     const data = list.map((p) => ({
@@ -333,9 +329,7 @@ export class StaffService {
       can_access: p.can_access,
       created_at: p.created_at?.toISOString?.() ?? null,
       updated_at: p.updated_at?.toISOString?.() ?? null,
-      role: p.role
-        ? { code: p.role.code, name: p.role.name, hierarchy_level: p.role.hierarchy_level }
-        : null,
+      role: p.role ? { code: p.role.code, name: p.role.name } : null,
     }));
     return { success: true, data };
   }

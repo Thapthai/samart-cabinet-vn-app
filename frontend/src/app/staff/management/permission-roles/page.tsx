@@ -5,10 +5,8 @@ import { staffRolePermissionApi, staffRoleApi } from '@/lib/api';
 import { toast } from 'sonner';
 import {
   staffRoleIsStaffPermissionHead,
-  readStaffHierarchyLevelFromStorage,
   readStaffRoleCodeFromStorage,
   staffPortalCanEditPermissionColumn,
-  clampStaffRoleHierarchyLevel,
 } from '@/lib/staffRolePolicy';
 import { getAllStaffPermissionHrefs } from '@/lib/staffPermissionTable';
 import type { StaffPermissionRole, StaffRolePermissionRow } from './types';
@@ -22,7 +20,6 @@ export default function ManageRolesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [addRoleOpen, setAddRoleOpen] = useState(false);
-  const [allRoleCodes, setAllRoleCodes] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
@@ -39,13 +36,7 @@ export default function ManageRolesPage() {
 
       if (rolesResponse.success && rolesResponse.data) {
         const rawRoles = rolesResponse.data as StaffPermissionRole[];
-        setAllRoleCodes(rawRoles.map((r) => r.code));
-        const activeRoles = rawRoles
-          .filter((role) => role.is_active)
-          .map((r) => ({
-            ...r,
-            hierarchy_level: clampStaffRoleHierarchyLevel(r.hierarchy_level),
-          }));
+        const activeRoles = rawRoles.filter((role) => role.is_active);
         setRoles(activeRoles);
 
         const permissionsMap: Record<string, Record<string, boolean>> = {};
@@ -69,13 +60,11 @@ export default function ManageRolesPage() {
 
         setPermissions(permissionsMap);
       } else {
-        setAllRoleCodes([]);
         toast.error(rolesResponse.message || 'ไม่สามารถโหลดข้อมูล Roles ได้');
         initializeDefaultPermissions();
       }
     } catch (error: unknown) {
       console.error('Load data error:', error);
-      setAllRoleCodes([]);
       toast.error(error instanceof Error ? error.message : 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์');
       initializeDefaultPermissions();
     } finally {
@@ -122,14 +111,11 @@ export default function ManageRolesPage() {
     try {
       setSaving(true);
 
-      const viewerLevel = readStaffHierarchyLevelFromStorage();
       const viewerRoleCode = readStaffRoleCodeFromStorage();
       const permissionsArray: Array<{ role_code: string; menu_href: string; can_access: boolean }> = [];
 
       Object.keys(permissions).forEach((roleCode) => {
-        const roleMeta = roles.find((x) => x.code === roleCode);
-        const targetLevel = roleMeta?.hierarchy_level ?? 3;
-        if (!staffPortalCanEditPermissionColumn(viewerLevel, viewerRoleCode, roleCode, targetLevel)) return;
+        if (!staffPortalCanEditPermissionColumn(viewerRoleCode, roleCode)) return;
         Object.keys(permissions[roleCode]).forEach((menu) => {
           permissionsArray.push({
             role_code: roleCode,
@@ -155,7 +141,6 @@ export default function ManageRolesPage() {
     }
   };
 
-  const viewerHierarchyLevel = readStaffHierarchyLevelFromStorage();
   const viewerRoleCode = readStaffRoleCodeFromStorage();
 
   if (loading) {
@@ -167,20 +152,14 @@ export default function ManageRolesPage() {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-800">กำหนดสิทธิ์</h2>
         <p className="mt-1 text-gray-600">
-          ระดับ {viewerHierarchyLevel}:{' '}
-          {viewerHierarchyLevel === 1
-            ? 'แก้สิทธิ์คอลัมน์ Role ระดับ 1–3 ได้'
-            : viewerHierarchyLevel === 2
-              ? 'แก้ได้เฉพาะคอลัมน์ Role ระดับ 2–3'
-              : 'แก้ได้เฉพาะคอลัมน์ Role ระดับ 3'}
+          หัวหน้าสายแก้สิทธิ์ของลูกสายในสายเดียวกันได้ — หรือแก้เฉพาะคอลัมน์ของ Role ที่ตรงกับบทบาทคุณ
         </p>
       </div>
 
       <PermissionRolesTableCard
         roles={roles}
-        viewerHierarchyLevel={viewerHierarchyLevel}
         viewerRoleCode={viewerRoleCode}
-        canCreateRole
+        canCreateRole={staffRoleIsStaffPermissionHead(viewerRoleCode)}
         permissions={permissions}
         saving={saving}
         onSave={handleSave}
@@ -191,7 +170,7 @@ export default function ManageRolesPage() {
       <AddStaffRoleDialog
         open={addRoleOpen}
         onOpenChange={setAddRoleOpen}
-        allRoleCodes={allRoleCodes}
+        viewerRoleCode={viewerRoleCode}
         onCreated={loadData}
       />
 

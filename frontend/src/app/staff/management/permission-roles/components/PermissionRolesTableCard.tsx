@@ -17,8 +17,6 @@ import type { StaffPermissionRole } from '../types';
 
 export interface PermissionRolesTableCardProps {
   roles: StaffPermissionRole[];
-  /** ระดับผู้ใช้ที่ล็อกอิน (1 = สูงสุด) — ใช้จำกัดการแก้ไขคอลัมน์ Role */
-  viewerHierarchyLevel: number;
   viewerRoleCode: string;
   canCreateRole: boolean;
   permissions: Record<string, Record<string, boolean>>;
@@ -37,7 +35,6 @@ function roleBadgeVariant(roleCode: string) {
 
 export default function PermissionRolesTableCard({
   roles,
-  viewerHierarchyLevel,
   viewerRoleCode,
   canCreateRole,
   permissions,
@@ -87,7 +84,6 @@ export default function PermissionRolesTableCard({
                       <Badge variant={roleBadgeVariant(role.code)} className="mb-1">
                         {role.name}
                       </Badge>
-                      <div className="text-xs font-normal text-muted-foreground">ระดับ {role.hierarchy_level}</div>
                     </div>
                   </TableHead>
                 ))}
@@ -126,12 +122,7 @@ export default function PermissionRolesTableCard({
                       {row.label}
                     </TableCell>
                     {roles.map((role) => {
-                      const canEditCol = staffPortalCanEditPermissionColumn(
-                        viewerHierarchyLevel,
-                        viewerRoleCode,
-                        role.code,
-                        role.hierarchy_level,
-                      );
+                      const canEditCol = staffPortalCanEditPermissionColumn(viewerRoleCode, role.code);
                       return (
                         <TableCell key={role.code} className="text-center">
                           <Checkbox

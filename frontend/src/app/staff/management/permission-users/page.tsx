@@ -6,9 +6,8 @@ import {
   staffRoleDisplayLabel,
   staffPortalCanPickAssignableRole,
   staffPortalCanManageStaffUserRow,
-  readStaffHierarchyLevelFromStorage,
+  readStaffRoleCodeFromStorage,
   readStaffUserIdFromStorage,
-  clampStaffRoleHierarchyLevel,
 } from '@/lib/staffRolePolicy';
 import { toast } from 'sonner';
 import { emptyCreateStaffUserForm, type CreateStaffUserFormData, type StaffRoleOption, type StaffUser } from './types';
@@ -40,12 +39,11 @@ export default function ManageUsersPage() {
         const res = await staffRoleApi.getAll();
         if (res.success && Array.isArray(res.data)) {
           setRolesCatalog(
-            (res.data as { code: string; name: string; is_active?: boolean; hierarchy_level?: unknown }[])
+            (res.data as { code: string; name: string; is_active?: boolean }[])
               .filter((r) => r.is_active !== false)
               .map((r) => ({
                 code: r.code,
                 name: r.name,
-                hierarchy_level: clampStaffRoleHierarchyLevel(r.hierarchy_level),
               })),
           );
         }
@@ -59,10 +57,10 @@ export default function ManageUsersPage() {
     fetchStaffUsers();
   }, []);
 
-  const viewerLevel = readStaffHierarchyLevelFromStorage();
+  const viewerRoleCode = readStaffRoleCodeFromStorage();
   const assignableRoles = useMemo(
-    () => rolesCatalog.filter((r) => staffPortalCanPickAssignableRole(viewerLevel, r.hierarchy_level)),
-    [rolesCatalog, viewerLevel],
+    () => rolesCatalog.filter((r) => staffPortalCanPickAssignableRole(viewerRoleCode, r.code)),
+    [rolesCatalog, viewerRoleCode],
   );
 
   useEffect(() => {
@@ -106,7 +104,7 @@ export default function ManageUsersPage() {
       return;
     }
     const chosen = rolesCatalog.find((r) => r.code === formData.role);
-    if (!chosen || !staffPortalCanPickAssignableRole(readStaffHierarchyLevelFromStorage(), chosen.hierarchy_level)) {
+    if (!chosen || !staffPortalCanPickAssignableRole(readStaffRoleCodeFromStorage(), chosen.code)) {
       toast.error('ไม่มีสิทธิ์สร้างผู้ใช้ด้วย Role นี้');
       return;
     }
@@ -126,13 +124,12 @@ export default function ManageUsersPage() {
   };
 
   const handleEditRole = (user: StaffUser) => {
-    const targetLvl = rolesCatalog.find((r) => r.code === user.role)?.hierarchy_level ?? 3;
     if (
       !staffPortalCanManageStaffUserRow(
-        readStaffHierarchyLevelFromStorage(),
+        readStaffRoleCodeFromStorage(),
         readStaffUserIdFromStorage(),
         user.id,
-        targetLvl,
+        user.role,
       )
     ) {
       toast.error('ไม่มีสิทธิ์แก้ไขผู้ใช้รายนี้');
@@ -150,20 +147,18 @@ export default function ManageUsersPage() {
       toast.error('กรุณาเลือก Role');
       return;
     }
-    const oldLvl = rolesCatalog.find((r) => r.code === selectedStaff.role)?.hierarchy_level ?? 3;
     if (
       !staffPortalCanManageStaffUserRow(
-        readStaffHierarchyLevelFromStorage(),
+        readStaffRoleCodeFromStorage(),
         readStaffUserIdFromStorage(),
         selectedStaff.id,
-        oldLvl,
+        selectedStaff.role,
       )
     ) {
       toast.error('ไม่มีสิทธิ์แก้ไขผู้ใช้รายนี้');
       return;
     }
-    const newLvl = rolesCatalog.find((r) => r.code === editRoleData.role)?.hierarchy_level ?? 3;
-    if (!staffPortalCanPickAssignableRole(readStaffHierarchyLevelFromStorage(), newLvl)) {
+    if (!staffPortalCanPickAssignableRole(readStaffRoleCodeFromStorage(), editRoleData.role)) {
       toast.error('ไม่มีสิทธิ์มอบ Role นี้');
       return;
     }

@@ -16,8 +16,6 @@ export interface StaffUser {
 export interface StaffRoleOption {
   code: string;
   name: string;
-  /** 1 = สูงสุด, 3 = ต่ำสุด */
-  hierarchy_level: number;
 }
 
 export interface CreateStaffUserFormData {

@@ -370,7 +370,6 @@ export default function ManageStaffRolesPage() {
           <AdminAddStaffRoleDialog
             open={addRoleOpen}
             onOpenChange={setAddRoleOpen}
-            existingCodes={allRoleCodes}
             onCreated={loadData}
           />
         </div>
