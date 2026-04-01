@@ -110,7 +110,7 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
       setLoadingCabinets(true);
       const response = await staffCabinetDepartmentApi.getAll({
         departmentId: parseInt(departmentId),
-        keyword: keyword || formFilters.searchTerm || undefined,
+        keyword: keyword || undefined,
       });
 
       if (response.success && response.data) {
@@ -211,9 +211,11 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
 
   const handleSearch = () => {
     onBeforeSearch?.(); // รีเซ็ตเป็นหน้า 1 ก่อนค้นหา
+    const kw = formFilters.searchTerm.trim();
     onSearch({
       ...formFilters,
-      keyword: formFilters.searchTerm,
+      searchTerm: kw,
+      keyword: kw,
     });
   };
 
@@ -244,6 +246,23 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
         </div>
       </CardHeader>
       <CardContent>
+        <div className="space-y-2 mb-4">
+          <Label htmlFor="item-keyword">รหัส/ชื่อเวชภัณฑ์</Label>
+          <Input
+            id="item-keyword"
+            placeholder="ค้นหา"
+            value={formFilters.searchTerm}
+            onChange={(e) =>
+              setFormFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSearch();
+              }
+            }}
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
           <SearchableSelect
             label="แผนก"
@@ -251,8 +270,8 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
             value={formFilters.departmentId}
             onValueChange={(value) => {
               if (departmentDisabled) return;
-              setFormFilters({ 
-                ...formFilters, 
+              setFormFilters({
+                ...formFilters,
                 departmentId: value,
                 cabinetId: "", // Reset cabinet when department changes
               });
@@ -297,6 +316,8 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
             disabled={!formFilters.departmentId}
           />
         </div>
+
+
 
         <div className="flex gap-4">
           <Button onClick={handleSearch} className="flex-1">

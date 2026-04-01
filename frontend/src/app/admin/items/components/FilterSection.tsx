@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, RotateCcw, Filter } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
 import { cabinetApi, departmentApi, cabinetDepartmentApi } from "@/lib/api";
@@ -93,16 +92,16 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
 
     try {
       setLoadingCabinets(true);
-      const response = await cabinetDepartmentApi.getAll({ 
+      const response = await cabinetDepartmentApi.getAll({
         departmentId: parseInt(departmentId),
-        keyword: keyword || formFilters.searchTerm || undefined
+        keyword: keyword || undefined,
       });
-      
+
       if (response.success && response.data) {
         // Extract unique cabinets from mappings (only ACTIVE mappings)
         const mappings = response.data as CabinetDepartmentMapping[];
         const uniqueCabinets = new Map<number, Cabinet>();
-        
+
         mappings
           .filter((mapping) => mapping.status === "ACTIVE") // Filter only ACTIVE mappings
           .forEach((mapping) => {
@@ -115,7 +114,7 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
               });
             }
           });
-        
+
         setCabinets(Array.from(uniqueCabinets.values()));
       } else {
         setCabinets([]);
@@ -189,18 +188,22 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
       !loadingCabinets
     ) {
       hasInitialSearch.current = true;
+      const kw = formFilters.searchTerm.trim();
       onSearch({
         ...formFilters,
-        keyword: formFilters.searchTerm,
+        searchTerm: kw,
+        keyword: kw,
       });
     }
   }, [cabinets, loadingCabinets, formFilters, onSearch]);
 
   const handleSearch = () => {
     onBeforeSearch?.(); // รีเซ็ตเป็นหน้า 1 ก่อนค้นหา
+    const kw = formFilters.searchTerm.trim();
     onSearch({
       ...formFilters,
-      keyword: formFilters.searchTerm,
+      searchTerm: kw,
+      keyword: kw,
     });
   };
 
@@ -231,14 +234,31 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
         </div>
       </CardHeader>
       <CardContent>
+        <div className="space-y-2 mb-4">
+          <Label htmlFor="item-keyword">รหัส/ชื่อเวชภัณฑ์</Label>
+          <Input
+            id="item-keyword"
+            placeholder="ค้นหา"
+            value={formFilters.searchTerm}
+            onChange={(e) =>
+              setFormFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSearch();
+              }
+            }}
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
           <SearchableSelect
             label="แผนก"
             placeholder="เลือกแผนก"
             value={formFilters.departmentId}
             onValueChange={(value) => {
-              setFormFilters({ 
-                ...formFilters, 
+              setFormFilters({
+                ...formFilters,
                 departmentId: value,
                 cabinetId: "", // Reset cabinet when department changes
               });
@@ -264,10 +284,10 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
             options={[
               { value: "", label: "ทั้งหมด" },
               ...cabinets.map((cabinet) => ({
-                  value: cabinet.id.toString(),
-                  label: cabinet.cabinet_name || "",
-                  subLabel: cabinet.cabinet_code || "",
-                })),
+                value: cabinet.id.toString(),
+                label: cabinet.cabinet_name || "",
+                subLabel: cabinet.cabinet_code || "",
+              })),
             ]}
             loading={loadingCabinets}
             onSearch={(searchKeyword) => {
@@ -283,6 +303,8 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
           />
 
         </div>
+
+
 
         <div className="flex gap-4">
           <Button onClick={handleSearch} className="flex-1">
