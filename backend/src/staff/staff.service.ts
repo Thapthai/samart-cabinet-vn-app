@@ -10,7 +10,7 @@ import {
 } from '../auth/dto/staff-user.dto';
 import { CreateStaffRoleDto, UpdateStaffRoleDto } from '../auth/dto/staff-role.dto';
 
-/** เมนูเริ่มต้นหลังสร้าง role — บันทึกใน app_microservice_staff_role_permissions */
+/** เมนูเริ่มต้นหลังสร้าง role — บันทึกใน app_staff_role_permissions */
 const STAFF_ENTRY_MENU_HREF = '/staff/dashboard';
 
 @Injectable()

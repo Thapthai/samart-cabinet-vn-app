@@ -96,7 +96,7 @@ export class ItemService {
 
       // Filter by cabinet_id if provided (เก็บ cabinetStockId สำหรับอ้างอิงจำนวนชุดรุดต่อตู้)
       let cabinetStockId: number | null = null;
-      // department_codes สำหรับกรอง qty_in_use (จาก MedicalSupplyUsage.department_code)
+      // department id สำหรับกรอง qty_in_use (จาก MedicalSupplyUsage.department_id)
       let deptCodesForUsage: string[] | null = null;
 
       if (cabinet_id) {
@@ -114,7 +114,7 @@ export class ItemService {
           cabinetStockId = cabinet.stock_id;
           itemStocksWhere.StockID = cabinet.stock_id;
         }
-        // รวบรวม department_code จาก cabinetDepartments ของตู้นี้
+        // รวบรวม department_id จาก cabinetDepartments ของตู้นี้
         if (cabinet?.cabinetDepartments?.length) {
           deptCodesForUsage = cabinet.cabinetDepartments
             .map((cd) => String(cd.department_id))
@@ -198,14 +198,16 @@ export class ItemService {
       });
 
       // จำนวนอุปกรณ์ที่ถูกใช้งานในปัจจุบัน (จาก supply_usage_items: qty - qty_used_with_patient - qty_returned_to_cabinet)
-      // นับเฉพาะรายการที่ไม่เป็น Discontinue และกรองตาม department_code ของ MedicalSupplyUsage
+      // นับเฉพาะรายการที่ไม่เป็น Discontinue และกรองตาม department_id ของ MedicalSupplyUsage
       const itemCodes = filteredItems.map((i: any) => i.itemcode).filter(Boolean);
       const qtyInUseMap = new Map<string, number>();
       if (itemCodes.length > 0) {
-        // สร้าง condition สำหรับ department_code (JOIN กับ MedicalSupplyUsage)
+        // สร้าง condition สำหรับ department_id (JOIN กับ MedicalSupplyUsage)
+        const deptInts =
+          deptCodesForUsage?.map((c) => parseInt(c, 10)).filter((n) => !Number.isNaN(n)) ?? [];
         const deptCondition =
-          deptCodesForUsage && deptCodesForUsage.length > 0
-            ? Prisma.sql`AND msu.department_code IN (${Prisma.join(deptCodesForUsage.map((c) => Prisma.sql`${c}`))})`
+          deptInts.length > 0
+            ? Prisma.sql`AND msu.department_id IN (${Prisma.join(deptInts.map((id) => Prisma.sql`${id}`))})`
             : Prisma.empty;
 
         const qtyInUseRows = await this.prisma.$queryRaw<
@@ -213,8 +215,8 @@ export class ItemService {
         >`SELECT
             sui.order_item_code,
             SUM(COALESCE(sui.qty, 0) - COALESCE(sui.qty_used_with_patient, 0) - COALESCE(sui.qty_returned_to_cabinet, 0)) AS qty_in_use
-          FROM app_microservice_supply_usage_items sui
-          INNER JOIN app_microservice_medical_supply_usages msu
+          FROM app_supply_usage_items sui
+          INNER JOIN app_medical_supply_usages msu
             ON sui.medical_supply_usage_id = msu.id
           WHERE sui.order_item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
             AND sui.order_item_code IS NOT NULL
@@ -239,7 +241,7 @@ export class ItemService {
           >` SELECT
               srr.item_code,
               SUM(COALESCE(srr.qty_returned, 0)) AS total_returned
-            FROM app_microservice_supply_item_return_records srr
+            FROM app_supply_item_return_records srr
             WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
               AND srr.item_code IS NOT NULL
               AND srr.item_code != ''
@@ -259,7 +261,7 @@ export class ItemService {
               srr.item_code,
               srr.stock_id,
               SUM(COALESCE(srr.qty_returned, 0)) AS total_returned
-            FROM app_microservice_supply_item_return_records srr
+            FROM app_supply_item_return_records srr
             WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
               AND srr.item_code IS NOT NULL
               AND srr.item_code != ''
@@ -1177,10 +1179,10 @@ export class ItemService {
                 GROUP BY ist.StockID,
                 ist.ItemCode
             ) w
-            LEFT JOIN app_microservice_cabinets c ON c.stock_id = w.StockID
+            LEFT JOIN app_cabinets c ON c.stock_id = w.StockID
             LEFT JOIN (
                 SELECT cabinet_id, MIN(department_id) AS department_id
-                FROM app_microservice_cabinet_departments
+                FROM app_cabinet_departments
                 WHERE status = 'ACTIVE'
                 GROUP BY cabinet_id
             ) cd ON cd.cabinet_id = c.id
@@ -1188,20 +1190,20 @@ export class ItemService {
             LEFT JOIN (
                 SELECT
                     sui.order_item_code AS ItemCode,
-                    msu.department_code,
+                    msu.department_id,
                     SUM(sui.qty) AS used_qty
-                FROM app_microservice_supply_usage_items sui
-                INNER JOIN app_microservice_medical_supply_usages msu ON msu.id = sui.medical_supply_usage_id
+                FROM app_supply_usage_items sui
+                INNER JOIN app_medical_supply_usages msu ON msu.id = sui.medical_supply_usage_id
                 WHERE DATE(sui.created_at) = DATE(NOW())
                   AND (sui.order_item_status IS NULL OR sui.order_item_status != 'Discontinue')
-                GROUP BY sui.order_item_code, msu.department_code
-            ) u ON u.ItemCode = w.ItemCode AND (u.department_code COLLATE utf8mb4_unicode_ci = CAST(cd.department_id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                GROUP BY sui.order_item_code, msu.department_id
+            ) u ON u.ItemCode = w.ItemCode AND u.department_id = cd.department_id
             LEFT JOIN (
                 SELECT
                     srr.item_code AS ItemCode,
                     srr.stock_id AS StockID,
                     SUM(srr.qty_returned) AS return_qty
-                FROM app_microservice_supply_item_return_records srr
+                FROM app_supply_item_return_records srr
                 WHERE DATE(srr.return_datetime) = DATE(NOW())
                 GROUP BY srr.item_code, srr.stock_id
             ) r ON r.ItemCode = w.ItemCode AND r.StockID = w.StockID

@@ -179,7 +179,7 @@ export default function ViewMedicalSupplyDialog({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InfoItem label="วันที่ใช้งาน" value={supply.usage_datetime} />
-                <InfoItem label="ประเภทการใช้" value={supply.usage_type} />
+                <InfoItem label="แผนกย่อย (รหัส)" value={supply.usage_type} />
                 <InfoItem label="วัตถุประสงค์" value={supply.purpose} className="md:col-span-2" />
                 <InfoItem label="รหัสแผนก" value={supply.department_code} />
                 <InfoItem label="อัพเดทล่าสุด" value={supply.update} />

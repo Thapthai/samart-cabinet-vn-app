@@ -103,6 +103,7 @@ export class DepartmentService {
       if (department_id) {
         const department = await this.prisma.department.findUnique({
           where: { ID: department_id },
+          select: { ID: true },
         });
         if (department) {
           await this.prisma.cabinetDepartment.create({
@@ -308,7 +309,11 @@ export class DepartmentService {
     try {
       const [cabinet, department, currentMapping] = await Promise.all([
         this.prisma.cabinet.findUnique({ where: { id: data.cabinet_id } }),
-        this.prisma.department.findUnique({ where: { ID: data.department_id } }),
+        // อย่าโหลดทุกคอลัมน์ของ department — บาง DB มีค่าใน IsCancel ฯลฯ ที่ Prisma แปลงเป็น Int ไม่ได้
+        this.prisma.department.findUnique({
+          where: { ID: data.department_id },
+          select: { ID: true, DepName: true, DepName2: true },
+        }),
         this.prisma.cabinetDepartment.findUnique({ where: { id } }),
       ]);
       if (!cabinet || !department) return { success: false, message: 'Cabinet or Department not found' };

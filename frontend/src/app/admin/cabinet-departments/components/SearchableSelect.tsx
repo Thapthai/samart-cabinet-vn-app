@@ -52,6 +52,8 @@ export default function SearchableSelect({
     left: number;
     width: number;
     isFixed?: boolean;
+    /** ในโหมด portal: จำกัดความสูง + inset จากขอบ modal */
+    maxHeight?: number;
   };
   const [position, setPosition] = useState<PositionState | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -64,10 +66,26 @@ export default function SearchableSelect({
     const tr = triggerRef.current.getBoundingClientRect();
     if (portalTargetRef?.current) {
       const cr = portalTargetRef.current.getBoundingClientRect();
+      const inset = 12;
+      const gap = 6;
+      const relLeft = tr.left - cr.left;
+      let width = Math.min(tr.width, cr.width - inset * 2);
+      let left = relLeft;
+      if (left + width > cr.width - inset) {
+        left = Math.max(inset, cr.width - inset - width);
+      }
+      if (left < inset) {
+        left = inset;
+      }
+      width = Math.min(width, cr.width - left - inset);
+      const top = tr.bottom - cr.top + gap;
+      const spaceBelow = cr.bottom - tr.bottom - gap - inset;
+      const maxHeight = Math.max(160, Math.min(300, spaceBelow));
       setPosition({
-        top: tr.bottom - cr.top + 4,
-        left: tr.left - cr.left,
-        width: tr.width,
+        top,
+        left,
+        width,
+        maxHeight,
       });
       return;
     }
@@ -163,33 +181,44 @@ export default function SearchableSelect({
   // Use initialDisplay if value exists but not found in options yet
   const displayValue = selectedOption || (value && initialDisplay ? initialDisplay : null);
 
+  const panelMaxHeight = position?.maxHeight ?? 300;
+  const listMaxHeight =
+    position?.maxHeight != null ? Math.max(72, panelMaxHeight - 56) : 240;
+
   const dropdownContent = position ? (
     <div
       ref={portalRef}
-      className="z-[9999] bg-white border border-slate-200 rounded-lg shadow-lg max-h-[300px] overflow-hidden"
+      className={cn(
+        "z-[9999] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg",
+        position.maxHeight == null && "max-h-[300px]",
+      )}
       style={{
         position: position.isFixed ? "fixed" : "absolute",
         left: position.left,
         width: position.width,
         minWidth: 200,
+        maxHeight: panelMaxHeight,
         ...(position.isFixed && position.bottom != null
           ? { bottom: position.bottom }
           : { top: position.top ?? 0 }),
       }}
     >
-      <div className="p-2 border-b border-slate-100 bg-slate-50/50 shrink-0">
+      <div className="border-b border-slate-100 bg-slate-50/50 p-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder={searchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-9 pl-8 border-slate-200 bg-white text-sm"
+            className="h-9 border-slate-200 bg-white pl-8 text-sm"
             autoFocus
           />
         </div>
       </div>
-      <div className="overflow-y-auto max-h-[240px] overscroll-contain">
+      <div
+        className="overflow-y-auto overscroll-contain"
+        style={{ maxHeight: listMaxHeight }}
+      >
         {loading ? (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-4 w-4 animate-spin text-slate-500" />

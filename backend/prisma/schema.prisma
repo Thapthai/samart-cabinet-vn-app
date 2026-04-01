@@ -38,7 +38,7 @@ model User {
   refreshTokens      RefreshToken[]
   two_factor_tokens  TwoFactorToken[]
 
-  @@map("app_microservice_users")
+  @@map("app_users")
 }
 
 model StaffRole {
@@ -56,7 +56,7 @@ model StaffRole {
 
   @@index([code], name: "idx_code")
   @@index([is_active], name: "idx_is_active")
-  @@map("app_microservice_staff_roles")
+  @@map("app_staff_roles")
 }
 
 model StaffUser {
@@ -82,7 +82,7 @@ model StaffUser {
   @@index([email], name: "idx_email")
   @@index([is_active], name: "idx_is_active")
   @@index([department_id], name: "idx_department_id")
-  @@map("app_microservice_staff_users")
+  @@map("app_staff_users")
 }
 
 model StaffRolePermission {
@@ -99,7 +99,7 @@ model StaffRolePermission {
   @@unique([role_id, menu_href], name: "role_menu_href")
   @@index([role_id], name: "idx_role_id")
   @@index([menu_href], name: "idx_menu_href")
-  @@map("app_microservice_staff_role_permissions")
+  @@map("app_staff_role_permissions")
 }
 
 model OAuthAccount {
@@ -118,7 +118,7 @@ model OAuthAccount {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([provider, provider_id])
-  @@map("app_microservice_oauth_accounts")
+  @@map("app_oauth_accounts")
 }
 
 model ApiKey {
@@ -136,7 +136,7 @@ model ApiKey {
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@map("app_microservice_api_keys")
+  @@map("app_api_keys")
 }
 
 model ClientCredential {
@@ -155,7 +155,7 @@ model ClientCredential {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([client_id])
-  @@map("app_microservice_client_credentials")
+  @@map("app_client_credentials")
 }
 
 model RefreshToken {
@@ -168,7 +168,7 @@ model RefreshToken {
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@map("app_microservice_refresh_tokens")
+  @@map("app_refresh_tokens")
 }
 
 model TwoFactorToken {
@@ -183,7 +183,7 @@ model TwoFactorToken {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, type])
-  @@map("app_microservice_two_factor_tokens")
+  @@map("app_two_factor_tokens")
 }
 
 model Category {
@@ -196,7 +196,7 @@ model Category {
   created_at  DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at  DateTime @updatedAt @map("updated_at")
 
-  @@map("app_microservice_categories")
+  @@map("app_categories")
 }
 
 model Item {
@@ -326,62 +326,65 @@ model Item {
   @@map("item")
 }
 
+/// แผนกย่อยภายใต้แผนกหลัก (เช่น emergency-opd, emergency-ipd) — master ต่อ (department_id + code)
+model MedicalSupplySubDepartment {
+  id            Int      @id @default(autoincrement())
+  department_id Int      @map("department_id")
+  code          String   @map("code") @db.VarChar(64)
+  name          String?  @map("name") @db.VarChar(255)
+  description   String?  @map("description") @db.Text
+  status        Boolean  @default(true) @map("status")
+  created_at    DateTime @default(dbgenerated("NOW()")) @map("created_at") @db.DateTime(3)
+  updated_at    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  department          Department           @relation(fields: [department_id], references: [ID], onDelete: Cascade)
+  medicalSupplyUsages MedicalSupplyUsage[]
+
+  @@index([department_id])
+  @@map("app_sub_departments")
+}
+
 // Medical Supplies Usage
 model MedicalSupplyUsage {
-  id Int @id @default(autoincrement())
-
-  // Hospital & Episode Info
-  hospital String? @map("hospital") // VTN01
-  en       String? @default("") @map("en") // Episode Number (EZ5-000584)
-
-  // Patient Information
-  patient_hn String  @map("patient_hn") // HN Hospital Number (20-010334)
-  first_name String? @default("") @map("first_name") // ชื่อจริง
-  lastname   String? @default("") @map("lastname") // นามสกุล
-
-  // Legacy fields (for backward compatibility)
-  patient_name_th String? @map("patient_name_th")
-  patient_name_en String? @map("patient_name_en")
-
-  // Usage Details
-  usage_datetime String? @map("usage_datetime")
-  usage_type     String? @map("usage_type")
-  purpose        String? @map("purpose")
-
-  // Location
-  department_code String? @map("department_code")
-
-  // Personnel
-  recorded_by_user_id String? @map("recorded_by_user_id")
-
-  // Billing
-  billing_status   String? @map("billing_status")
-  billing_subtotal Float?  @map("billing_subtotal")
-  billing_tax      Float?  @map("billing_tax")
-  billing_total    Float?  @map("billing_total")
-  billing_currency String? @default("THB") @map("billing_currency")
-
-  // Print Information (ข้อมูลการ Print - ระดับ Usage Record)
-  twu             String? @map("twu") // Patient Location when Ordered (แผนก/จุดที่ Print ตาม Location ที่ผู้ป่วยได้รับการ Key รายการ Order)
-  print_location  String? @map("print_location") // Print Location when Ordered (Emergency)
-  print_date      String? @map("print_date") // Print Date (14/11/2025)
-  time_print_date String? @map("time_print_date") // Time Print Date (14/11/2025 09:30:00)
-  update          String? @map("update") // Print Date - วันที่ของการ Print แยกจากวันที่ Receipt /Invoice
-
-  // Timestamps (DateTime(6) = เก็บเศษวินาทีได้เหมือน 2026-03-19 15:20:36.333000)
-  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at") @db.DateTime(3)
-  updated_at DateTime @updatedAt @map("updated_at")
+  id                  Int      @id @default(autoincrement())
+  hospital            String?  @map("hospital") // VTN01
+  en                  String?  @default("") @map("en") // Episode Number (EZ5-000584)
+  patient_hn          String   @map("patient_hn") // HN Hospital Number (20-010334)
+  first_name          String?  @default("") @map("first_name") // ชื่อจริง
+  lastname            String?  @default("") @map("lastname") // นามสกุล
+  patient_name_th     String?  @map("patient_name_th")
+  patient_name_en     String?  @map("patient_name_en")
+  usage_datetime      String?  @map("usage_datetime")
+  sub_department_id   Int?     @map("sub_department_id")
+  purpose             String?  @map("purpose")
+  department_id       Int?     @map("department_id")
+  recorded_by_user_id String?  @map("recorded_by_user_id")
+  billing_status      String?  @map("billing_status")
+  billing_subtotal    Float?   @map("billing_subtotal")
+  billing_tax         Float?   @map("billing_tax")
+  billing_total       Float?   @map("billing_total")
+  billing_currency    String?  @default("THB") @map("billing_currency")
+  twu                 String?  @map("twu") // Patient Location when Ordered (แผนก/จุดที่ Print ตาม Location ที่ผู้ป่วยได้รับการ Key รายการ Order)
+  print_location      String?  @map("print_location") // Print Location when Ordered (Emergency)
+  print_date          String?  @map("print_date") // Print Date (14/11/2025)
+  time_print_date     String?  @map("time_print_date") // Time Print Date (14/11/2025 09:30:00)
+  update              String?  @map("update") // Print Date - วันที่ของการ Print แยกจากวันที่ Receipt /Invoice
+  created_at          DateTime @default(dbgenerated("NOW()")) @map("created_at") @db.DateTime(3)
+  updated_at          DateTime @updatedAt @map("updated_at")
 
   // Relations
-  supply_items SupplyUsageItem[]
-  logs         MedicalSupplyUsageLog[]
+  supply_items  SupplyUsageItem[]
+  logs          MedicalSupplyUsageLog[]
+  subDepartment MedicalSupplySubDepartment? @relation(fields: [sub_department_id], references: [id], onDelete: SetNull)
+  department    Department?                 @relation("MedicalSupplyUsageMainDepartment", fields: [department_id], references: [ID], onDelete: SetNull)
 
   @@index([patient_hn])
   @@index([en])
   @@index([usage_datetime])
-  @@index([department_code])
+  @@index([sub_department_id])
+  @@index([department_id])
   @@index([billing_status])
-  @@map("app_microservice_medical_supply_usages")
+  @@map("app_medical_supply_usages")
 }
 
 // Supply Usage Items (Order Items)
@@ -427,7 +430,7 @@ model SupplyUsageItem {
   @@index([assession_no])
   @@index([supply_code])
   @@index([item_status])
-  @@map("app_microservice_supply_usage_items")
+  @@map("app_supply_usage_items")
 }
 
 // Supply Item Return Records - บันทึกรายการคืนอุปกรณ์แต่ละครั้ง
@@ -452,7 +455,7 @@ model SupplyItemReturnRecord {
 
   @@index([itemCode], map: "idx_return_itemCode")
   @@index([stock_id])
-  @@map("app_microservice_supply_item_return_records")
+  @@map("app_supply_item_return_records")
 }
 
 // Medical Supplies Usage Logs
@@ -490,7 +493,7 @@ model MedicalSupplyUsageLog {
   @@index([en])
   @@index([log_type])
   @@index([log_status])
-  @@map("app_microservice_medical_supply_usages_logs")
+  @@map("app_medical_supply_usages_logs")
 }
 
 // Item Stock (Inventory Management)
@@ -616,8 +619,10 @@ model Department {
   RefDepID          String? @map("RefDepID") @db.VarChar(50)
 
   // Relations
-  staffUsers         StaffUser[]
-  cabinetDepartments cabinetDepartment[]
+  staffUsers                  StaffUser[]
+  cabinetDepartments          cabinetDepartment[]
+  medicalSupplySubDepartments MedicalSupplySubDepartment[]
+  medicalSupplyUsages         MedicalSupplyUsage[]         @relation("MedicalSupplyUsageMainDepartment")
 
   @@map("department")
 }
@@ -638,7 +643,7 @@ model cabinet {
   cabinetItemSettings     CabinetItemSetting[]
   itemSlotInCabinet       ItemSlotInCabinet[]
 
-  @@map("app_microservice_cabinets")
+  @@map("app_cabinets")
 }
 
 // Min/Max ต่อตู้ — override ของ item.stock_min/stock_max เมื่อมีแถวสำหรับ (cabinet_id, item_code)
@@ -656,7 +661,7 @@ model CabinetItemSetting {
   @@unique([cabinet_id, item_code])
   @@index([cabinet_id])
   @@index([item_code])
-  @@map("app_microservice_cabinet_item_settings")
+  @@map("app_cabinet_item_settings")
 }
 
 model cabinetDepartment {
@@ -672,7 +677,7 @@ model cabinetDepartment {
   cabinet    cabinet?    @relation(fields: [cabinet_id], references: [id])
   department Department? @relation(fields: [department_id], references: [ID])
 
-  @@map("app_microservice_cabinet_departments")
+  @@map("app_cabinet_departments")
 }
 
 model ItemSlotInCabinet {
@@ -707,19 +712,19 @@ model ItemSlotInCabinetDetail {
 
   // Relations
   itemSlotInCabinet ItemSlotInCabinet @relation("DetailToSlot", fields: [itemcode], references: [itemcode], map: "detail_to_slot_fkey")
-  item             Item?             @relation("DetailToItem", fields: [itemcode], references: [itemcode], map: "detail_to_item_fkey")
-  userCabinet      UserCabinet?      @relation(fields: [UserID], references: [cabinet_finger_id])
+  item              Item?             @relation("DetailToItem", fields: [itemcode], references: [itemcode], map: "detail_to_item_fkey")
+  userCabinet       UserCabinet?      @relation(fields: [UserID], references: [cabinet_finger_id])
 
   @@map("itemslotincabinet_detail")
 }
 
 // user_cabinet: links cabinet_finger_id (UserID in detail) to user_id -> users -> employee
 model UserCabinet {
-  id                Int    @id @default(autoincrement())
-  cabinet_finger_id Int    @unique @map("cabinet_finger_id")
-  user_id           Int    @map("user_id")
+  id                Int @id @default(autoincrement())
+  cabinet_finger_id Int @unique @map("cabinet_finger_id")
+  user_id           Int @map("user_id")
 
-  legacyUser        LegacyUsers           @relation(fields: [user_id], references: [id])
+  legacyUser              LegacyUsers               @relation(fields: [user_id], references: [id])
   itemSlotInCabinetDetail ItemSlotInCabinetDetail[]
 
   @@map("user_cabinet")
@@ -727,17 +732,17 @@ model UserCabinet {
 
 // users (legacy) - links to employee by EmpCode
 model LegacyUsers {
-  id       Int     @id @default(autoincrement())
-  EmpCode  String? @unique @map("EmpCode") @db.VarChar(20)
+  id      Int     @id @default(autoincrement())
+  EmpCode String? @unique @map("EmpCode") @db.VarChar(20)
 
   userCabinet UserCabinet[]
-  employee    Employee?   @relation(fields: [EmpCode], references: [EmpCode])
+  employee    Employee?     @relation(fields: [EmpCode], references: [EmpCode])
 
   @@map("users")
 }
 
 model Employee {
-  EmpCode   String @id @map("EmpCode") @db.VarChar(20)
+  EmpCode   String  @id @map("EmpCode") @db.VarChar(20)
   FirstName String? @map("FirstName") @db.VarChar(100)
   LastName  String? @map("LastName") @db.VarChar(100)
 

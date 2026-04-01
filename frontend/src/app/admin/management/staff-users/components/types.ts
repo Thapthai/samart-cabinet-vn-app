@@ -4,7 +4,7 @@ export interface StaffUser {
   fname: string;
   lname: string;
   role: string;
-  /** ชื่อแสดงจาก app_microservice_staff_roles.name */
+  /** ชื่อแสดงจาก app_staff_roles.name */
   role_name?: string | null;
   department_id?: number | null;
   department_name?: string | null;

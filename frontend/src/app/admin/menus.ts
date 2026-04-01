@@ -13,6 +13,8 @@ import {
   ClipboardList,
   UserCog,
   Boxes,
+  Tags,
+  Building2,
 } from 'lucide-react';
 
 // Type definitions for menu and submenu
@@ -142,6 +144,12 @@ export const adminMenuItems: StaffMenuItem[] = [
         href: '/admin/management/items',
         icon: Boxes,
         description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
+      },
+      {
+        name: 'แผนกย่อย (Sub department)',
+        href: '/admin/management/sub-departments',
+        icon: Building2,
+        description: 'Master แผนกย่อย เช่น emergency-opd ผูกแผนกหลัก',
       },
       {
         name: 'จัดการตู้ Cabinet',

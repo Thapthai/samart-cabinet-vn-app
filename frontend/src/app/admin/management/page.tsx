@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield, UserCog, Boxes } from 'lucide-react';
+import { Package, Users, Shield, UserCog, Boxes, Building2 } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,17 @@ const managementMenus = [
     borderColor: 'border-amber-200',
     iconBg: 'bg-amber-100',
     iconColor: 'text-amber-700',
+  },
+  {
+    name: 'แผนกย่อย (Sub department)',
+    href: '/admin/management/sub-departments',
+    icon: Building2,
+    description: 'Master แผนกย่อย (เช่น emergency-opd) ผูกกับแผนกหลัก',
+    color: 'from-cyan-500 to-teal-600',
+    bgLight: 'bg-cyan-50',
+    borderColor: 'border-cyan-200',
+    iconBg: 'bg-cyan-100',
+    iconColor: 'text-cyan-700',
   },
   {
     name: 'จัดการตู้ Cabinet',

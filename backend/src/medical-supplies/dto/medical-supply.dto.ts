@@ -23,7 +23,7 @@ export interface OrderItemInput {
   ItemStatus?: string;       // Order Item Status (Verified, Update, etc.)
   QTY: string | number;      // Quantity (can be string or number)
   UOM: string;               // Unit of Measure (Each)
-  PatientLocationwhenOrdered?: string; // แผนก/จุดที่สั่ง - ใช้เช็คกับ department.DepName2 เพื่อดึง ID → department_code
+  PatientLocationwhenOrdered?: string; // DepName2-code → จับคู่ MedicalSupplySubDepartment.code แล้วได้ department_id + sub_department_id
 }
 
 // Legacy Supply Item Input (for backward compatibility)
@@ -139,9 +139,15 @@ export class CreateMedicalSupplyUsageDto {
   usage_type?: string;
 
   @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  department_id?: number;
+
+  @IsOptional()
   @IsString()
   purpose?: string;
 
+  @IsOptional()
   @IsString()
   department_code?: string;
 
@@ -214,6 +220,11 @@ export class UpdateMedicalSupplyUsageDto {
   @IsOptional()
   @IsString()
   usage_type?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  department_id?: number;
 
   @IsOptional()
   @IsString()

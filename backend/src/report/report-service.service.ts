@@ -2313,11 +2313,11 @@ export class ReportServiceService {
             MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= CURDATE() AND ist.ExpireDate <= DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
           FROM item i
           INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
-          INNER JOIN app_microservice_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
-          INNER JOIN app_microservice_cabinet_departments cd_filter ON cd_filter.cabinet_id = c.id AND cd_filter.department_id = ${params.departmentId} AND cd_filter.status = 'ACTIVE'
+          INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
+          INNER JOIN app_cabinet_departments cd_filter ON cd_filter.cabinet_id = c.id AND cd_filter.department_id = ${params.departmentId} AND cd_filter.status = 'ACTIVE'
           LEFT JOIN (
             SELECT cd.cabinet_id, MIN(d.DepName) AS DepName
-            FROM app_microservice_cabinet_departments cd
+            FROM app_cabinet_departments cd
             INNER JOIN department d ON d.ID = cd.department_id
             WHERE cd.department_id = ${params.departmentId} AND cd.status = 'ACTIVE'
             GROUP BY cd.cabinet_id
@@ -2343,10 +2343,10 @@ export class ReportServiceService {
             MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= CURDATE() AND ist.ExpireDate <= DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
           FROM item i
           INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
-          INNER JOIN app_microservice_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
+          INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
           LEFT JOIN (
             SELECT cd.cabinet_id, MIN(d.DepName) AS DepName
-            FROM app_microservice_cabinet_departments cd
+            FROM app_cabinet_departments cd
             INNER JOIN department d ON d.ID = cd.department_id
             GROUP BY cd.cabinet_id
           ) dept ON dept.cabinet_id = c.id
@@ -2371,10 +2371,10 @@ export class ReportServiceService {
             MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= CURDATE() AND ist.ExpireDate <= DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
           FROM item i
           INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
-          INNER JOIN app_microservice_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
+          INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
           LEFT JOIN (
             SELECT cd.cabinet_id, MIN(d.DepName) AS DepName
-            FROM app_microservice_cabinet_departments cd
+            FROM app_cabinet_departments cd
             INNER JOIN department d ON d.ID = cd.department_id
             GROUP BY cd.cabinet_id
           ) dept ON dept.cabinet_id = c.id
@@ -2428,20 +2428,22 @@ export class ReportServiceService {
         deptCodesForUsage = [String(params.departmentId)];
       }
 
-      // จำนวนอุปกรณ์ที่ถูกใช้งานวันนี้ (จาก supply_usage_items JOIN MedicalSupplyUsage) — กรองตาม department_code ให้ตรงกับหน้าเว็บ
+      // จำนวนอุปกรณ์ที่ถูกใช้งานวันนี้ (จาก supply_usage_items JOIN MedicalSupplyUsage) — กรองตาม department_id
       const qtyInUseMap = new Map<string, number>();
       if (itemCodes.length > 0) {
+        const deptInts =
+          deptCodesForUsage?.map((c) => parseInt(c, 10)).filter((n) => !Number.isNaN(n)) ?? [];
         const deptCondition =
-          deptCodesForUsage && deptCodesForUsage.length > 0
-            ? Prisma.sql`AND msu.department_code IN (${Prisma.join(deptCodesForUsage.map((c) => Prisma.sql`${c}`))})`
+          deptInts.length > 0
+            ? Prisma.sql`AND msu.department_id IN (${Prisma.join(deptInts.map((id) => Prisma.sql`${id}`))})`
             : Prisma.empty;
 
         const qtyInUseRows = await this.prisma.$queryRaw<{ order_item_code: string; qty_in_use: bigint }[]>`
           SELECT
             sui.order_item_code,
             SUM(COALESCE(sui.qty, 0) - COALESCE(sui.qty_used_with_patient, 0) - COALESCE(sui.qty_returned_to_cabinet, 0)) AS qty_in_use
-          FROM app_microservice_supply_usage_items sui
-          INNER JOIN app_microservice_medical_supply_usages msu
+          FROM app_supply_usage_items sui
+          INNER JOIN app_medical_supply_usages msu
             ON sui.medical_supply_usage_id = msu.id
           WHERE sui.order_item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
             AND sui.order_item_code IS NOT NULL
@@ -2466,8 +2468,8 @@ export class ReportServiceService {
         if (hasCabinetFilter) {
           const cabinetRow = await this.prisma.$queryRaw<{ stock_id: number }[]>(
             params?.cabinetId != null
-              ? Prisma.sql`SELECT stock_id FROM app_microservice_cabinets WHERE id = ${params.cabinetId} AND stock_id IS NOT NULL LIMIT 1`
-              : Prisma.sql`SELECT stock_id FROM app_microservice_cabinets WHERE cabinet_code = ${params!.cabinetCode!} AND stock_id IS NOT NULL LIMIT 1`,
+              ? Prisma.sql`SELECT stock_id FROM app_cabinets WHERE id = ${params.cabinetId} AND stock_id IS NOT NULL LIMIT 1`
+              : Prisma.sql`SELECT stock_id FROM app_cabinets WHERE cabinet_code = ${params!.cabinetCode!} AND stock_id IS NOT NULL LIMIT 1`,
           );
           const stockId = cabinetRow?.[0]?.stock_id;
           if (stockId != null) {
@@ -2475,7 +2477,7 @@ export class ReportServiceService {
               { item_code: string; total_returned: bigint }[]
             >`
               SELECT srr.item_code, SUM(COALESCE(srr.qty_returned, 0)) AS total_returned
-              FROM app_microservice_supply_item_return_records srr
+              FROM app_supply_item_return_records srr
               WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
                 AND srr.item_code IS NOT NULL AND srr.item_code != ''
                 AND DATE(srr.return_datetime) = CURDATE()
@@ -2491,8 +2493,8 @@ export class ReportServiceService {
         } else if (hasDeptFilter) {
           // ให้ตรง item-service: ไม่ sum หลายตู้ — ใช้แค่ตู้แรกต่อ item_code (กรองแผนกแล้วก็ใช้ตู้แรกเท่านั้น)
           const stockIdRows = await this.prisma.$queryRaw<{ stock_id: number }[]>`
-            SELECT c.stock_id FROM app_microservice_cabinets c
-            INNER JOIN app_microservice_cabinet_departments cd ON cd.cabinet_id = c.id AND cd.status = 'ACTIVE' AND cd.department_id = ${params!.departmentId!}
+            SELECT c.stock_id FROM app_cabinets c
+            INNER JOIN app_cabinet_departments cd ON cd.cabinet_id = c.id AND cd.status = 'ACTIVE' AND cd.department_id = ${params!.departmentId!}
             WHERE c.stock_id IS NOT NULL
           `;
           const stockIds = stockIdRows.map((r) => r.stock_id).filter((id): id is number => id != null);
@@ -2501,7 +2503,7 @@ export class ReportServiceService {
               { item_code: string; stock_id: number; total_returned: bigint }[]
             >`
               SELECT srr.item_code, srr.stock_id, SUM(COALESCE(srr.qty_returned, 0)) AS total_returned
-              FROM app_microservice_supply_item_return_records srr
+              FROM app_supply_item_return_records srr
               WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
                 AND srr.item_code IS NOT NULL AND srr.item_code != ''
                 AND DATE(srr.return_datetime) = CURDATE()
@@ -2520,7 +2522,7 @@ export class ReportServiceService {
             { item_code: string; stock_id: number; total_returned: bigint }[]
           >`
             SELECT srr.item_code, srr.stock_id, SUM(COALESCE(srr.qty_returned, 0)) AS total_returned
-            FROM app_microservice_supply_item_return_records srr
+            FROM app_supply_item_return_records srr
             WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
               AND srr.item_code IS NOT NULL AND srr.item_code != ''
               AND DATE(srr.return_datetime) = CURDATE()
@@ -2529,8 +2531,8 @@ export class ReportServiceService {
           `;
           const cabinetToDept = await this.prisma.$queryRaw<{ stock_id: number; DepName: string }[]>`
             SELECT c.stock_id, MIN(d.DepName) AS DepName
-            FROM app_microservice_cabinets c
-            INNER JOIN app_microservice_cabinet_departments cd ON cd.cabinet_id = c.id AND cd.status = 'ACTIVE'
+            FROM app_cabinets c
+            INNER JOIN app_cabinet_departments cd ON cd.cabinet_id = c.id AND cd.status = 'ACTIVE'
             INNER JOIN department d ON d.ID = cd.department_id
             WHERE c.stock_id IS NOT NULL
             GROUP BY c.stock_id
@@ -3275,10 +3277,13 @@ export class ReportServiceService {
         baseWhere.patient_hn = params.patientHn;
       }
       if (params?.departmentCode) {
-        baseWhere.department_code = params.departmentCode;
+        const di = parseInt(params.departmentCode, 10);
+        if (!Number.isNaN(di)) {
+          baseWhere.department_id = di;
+        }
       }
-      if (params?.usageType) {
-        baseWhere.usage_type = { contains: params.usageType };
+      if (params?.usageType?.trim()) {
+        baseWhere.subDepartment = { code: { contains: params.usageType.trim() } };
       }
       if (params?.keyword?.trim()) {
         const keyword = params.keyword.trim();
@@ -3306,6 +3311,7 @@ export class ReportServiceService {
           where: baseWhere,
           include: {
             supply_items: true,
+            subDepartment: { select: { code: true } },
           },
           orderBy: {
             created_at: 'desc',
@@ -3315,10 +3321,9 @@ export class ReportServiceService {
       ]);
 
       // Lookup ชื่อแผนกจาก Department table
-      const uniqueDeptCodes = [...new Set(
-        data.map((u) => u.department_code).filter((c): c is string => !!c)
+      const deptIds = [...new Set(
+        data.map((u) => u.department_id).filter((id): id is number => id != null),
       )];
-      const deptIds = uniqueDeptCodes.map((c: string) => parseInt(c, 10)).filter((n) => !isNaN(n));
       const departments = deptIds.length > 0
         ? await this.prisma.department.findMany({
           where: { ID: { in: deptIds } },
@@ -3341,17 +3346,17 @@ export class ReportServiceService {
         }));
         const patientName = [usage.first_name, usage.lastname].filter(Boolean).join(' ').trim()
           || (usage.patient_name_th ?? usage.patient_name_en ?? '-');
-        const deptCodeInt = usage.department_code ? parseInt(usage.department_code, 10) : NaN;
-        const resolvedDeptName = !isNaN(deptCodeInt) ? (deptMap.get(deptCodeInt) || usage.department_code) : (usage.department_code ?? undefined);
+        const deptCodeInt = usage.department_id ?? NaN;
+        const resolvedDeptName = !isNaN(deptCodeInt) ? (deptMap.get(deptCodeInt) || String(deptCodeInt)) : undefined;
         return {
           usage_id: usage.id,
           seq: index + 1,
           patient_hn: usage.patient_hn ?? '-',
           patient_name: patientName,
           en: usage.en ?? undefined,
-          department_code: usage.department_code ?? undefined,
+          department_code: usage.department_id != null ? String(usage.department_id) : undefined,
           department_name: resolvedDeptName ?? undefined,
-          usage_type: (usage as any).usage_type ?? undefined,
+          usage_type: usage.subDepartment?.code ?? undefined,
           dispensed_date: usage.usage_datetime ?? usage.created_at?.toISOString() ?? '',
           supply_items,
         };

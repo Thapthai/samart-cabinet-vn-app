@@ -1611,6 +1611,78 @@ export const categoriesApi = {
   },
 };
 
+/** Master แผนกย่อย (เช่น emergency-opd) ต่อแผนกหลัก — backend รองรับทั้ง /medical-supply-sub-departments และ /medical-supply-usage-types */
+export const medicalSupplySubDepartmentsApi = {
+  getAll: async (): Promise<{
+    success: boolean;
+    data?: Array<{
+      id: number;
+      department_id: number;
+      code: string;
+      name: string | null;
+      description?: string | null;
+      status: boolean;
+      department?: { ID: number; DepName?: string; DepName2?: string };
+      _count?: { medicalSupplyUsages: number };
+    }>;
+    message?: string;
+  }> => {
+    const response = await api.get('/medical-supply-sub-departments');
+    return response.data;
+  },
+
+  getById: async (
+    id: number,
+  ): Promise<{
+    success: boolean;
+    data?: {
+      id: number;
+      department_id: number;
+      code: string;
+      name: string | null;
+      description?: string | null;
+      status: boolean;
+      department?: { ID: number; DepName?: string; DepName2?: string };
+    };
+  }> => {
+    const response = await api.get(`/medical-supply-sub-departments/${id}`);
+    return response.data;
+  },
+
+  create: async (data: {
+    department_id: number;
+    code: string;
+    name?: string;
+    description?: string | null;
+    status?: boolean;
+  }): Promise<{ success: boolean; data?: unknown; message?: string }> => {
+    const response = await api.post('/medical-supply-sub-departments', data);
+    return response.data;
+  },
+
+  update: async (
+    id: number,
+    data: {
+      department_id?: number;
+      code?: string;
+      name?: string;
+      description?: string | null;
+      status?: boolean;
+    },
+  ): Promise<{ success: boolean; data?: unknown; message?: string }> => {
+    const response = await api.put(`/medical-supply-sub-departments/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<{ success: boolean; message?: string }> => {
+    const response = await api.delete(`/medical-supply-sub-departments/${id}`);
+    return response.data;
+  },
+};
+
+/** ชื่อเก่า — ชี้ไปที่ medicalSupplySubDepartmentsApi */
+export const medicalSupplyUsageTypesApi = medicalSupplySubDepartmentsApi;
+
 // Department API
 export const departmentApi = {
   getAll: async (params?: { page?: number; limit?: number; keyword?: string; isCancel?: boolean }): Promise<ApiResponse<any[]>> => {
