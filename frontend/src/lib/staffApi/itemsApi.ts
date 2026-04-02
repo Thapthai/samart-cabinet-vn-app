@@ -30,7 +30,7 @@ export const staffItemsApi = {
     },
 
     getAll: async (query?: GetItemsQuery): Promise<PaginatedResponse<Item>> => {
-        const response = await staffApi.get('/items', { params: query });
+        const response = await staffApi.get('/staff/items', { params: query });
         return response.data;
     },
 
@@ -90,7 +90,7 @@ export const staffItemsApi = {
         start_date?: string;
         end_date?: string;
     }): Promise<{ success: boolean; data: any[] }> => {
-        const response = await staffApi.get('/item-stocks/will-return', {
+        const response = await staffApi.get('/staff/item-stocks/will-return', {
             params: params && Object.keys(params).length > 0 ? params : undefined,
         });
         return response.data as { success: boolean; data: any[] };

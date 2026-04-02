@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { DispensedItemsApi } from '@/lib/staffApi/dispensedItemsApi';
 import { toast } from 'sonner';
 import { Package } from 'lucide-react';
@@ -16,20 +16,17 @@ const getTodayDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-const DEFAULT_DEPARTMENT_ID = '29';
-const DEFAULT_CABINET_ID = '1';
-
 export default function DispenseFromCabinetPage() {
 
-  const [loadingList, setLoadingList] = useState(true);
+  const [loadingList, setLoadingList] = useState(false);
   const [dispensedList, setDispensedList] = useState<DispensedItem[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     searchItemCode: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
-    departmentId: DEFAULT_DEPARTMENT_ID,
-    cabinetId: DEFAULT_CABINET_ID,
+    departmentId: '',
+    cabinetId: '',
   });
 
 
@@ -39,23 +36,17 @@ export default function DispenseFromCabinetPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  useEffect(() => {
-    const filtersToUse: FilterState = {
-      searchItemCode: '',
-      startDate: getTodayDate(),
-      endDate: getTodayDate(),
-      itemTypeFilter: 'all',
-      departmentId: DEFAULT_DEPARTMENT_ID,
-      cabinetId: DEFAULT_CABINET_ID,
-    };
-    fetchDispensedList(1, filtersToUse);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
-  }, []);
-
   const fetchDispensedList = async (page: number = 1, customFilters?: FilterState) => {
+    const activeFilters = customFilters || filters;
+    if (!activeFilters.departmentId?.trim() || !activeFilters.cabinetId?.trim()) {
+      setDispensedList([]);
+      setTotalItems(0);
+      setTotalPages(0);
+      setLoadingList(false);
+      return;
+    }
     try {
       setLoadingList(true);
-      const activeFilters = customFilters || filters;
       const params: Record<string, string | number> = {
         page,
         limit: itemsPerPage,
@@ -99,6 +90,14 @@ export default function DispenseFromCabinetPage() {
   };
 
   const handleSearch = () => {
+    if (!filters.departmentId?.trim()) {
+      toast.error('กรุณาเลือกแผนก');
+      return;
+    }
+    if (!filters.cabinetId?.trim()) {
+      toast.error('กรุณาเลือกตู้ Cabinet');
+      return;
+    }
     setCurrentPage(1);
     fetchDispensedList(1);
   };
@@ -109,12 +108,14 @@ export default function DispenseFromCabinetPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId: DEFAULT_DEPARTMENT_ID,
-      cabinetId: DEFAULT_CABINET_ID,
+      departmentId: '',
+      cabinetId: '',
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
-    fetchDispensedList(1, clearedFilters);
+    setDispensedList([]);
+    setTotalItems(0);
+    setTotalPages(0);
   };
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
@@ -122,6 +123,14 @@ export default function DispenseFromCabinetPage() {
   };
 
   const handleExportReport = async (format: 'excel' | 'pdf') => {
+    if (!filters.departmentId?.trim()) {
+      toast.error('กรุณาเลือกแผนกก่อนส่งออกรายงาน');
+      return;
+    }
+    if (!filters.cabinetId?.trim()) {
+      toast.error('กรุณาเลือกตู้ Cabinet ก่อนส่งออกรายงาน');
+      return;
+    }
     try {
       toast.info(`กำลังสร้างรายงาน ${format.toUpperCase()}...`);
       const params = {
@@ -129,7 +138,7 @@ export default function DispenseFromCabinetPage() {
         startDate: filters.startDate || undefined,
         endDate: filters.endDate || undefined,
         departmentId: filters.departmentId || undefined,
-        cabinetId: filters.cabinetId || undefined,
+        cabinetId: filters.cabinetId,
       };
       if (format === 'excel') {
         await DispensedItemsApi.downloadDispensedItemsExcel(params);
@@ -151,6 +160,7 @@ export default function DispenseFromCabinetPage() {
   };
 
   const handlePageChange = (newPage: number) => {
+    if (!filters.departmentId?.trim() || !filters.cabinetId?.trim()) return;
     setCurrentPage(newPage);
     fetchDispensedList(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });

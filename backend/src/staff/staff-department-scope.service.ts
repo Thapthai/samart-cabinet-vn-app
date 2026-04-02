@@ -1,0 +1,143 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { PrismaService } from '../prisma/prisma.service';
+
+type RequestLike = { headers: Record<string, string | string[] | undefined> };
+
+/**
+ * กำหนดขอบเขตแผนกหลักสำหรับ Staff portal
+ * - null = ไม่จำกัด (ไม่ใช่ staff หรือ role ไม่มีแถวใน app_staff_role_permission_departments)
+ * - number[] (length >= 1) = เห็นได้เฉพาะแผนกเหล่านี้
+ */
+@Injectable()
+export class StaffDepartmentScopeService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+  ) {}
+
+  /** Staff ที่ล็อกอินอยู่ (JWT staff / client_id) — ไม่ใช่ staff คืน null */
+  async resolveActiveStaffUser(req: RequestLike): Promise<{ id: number; role_id: number } | null> {
+    return this.resolveStaffFromRequest(req);
+  }
+
+  async resolveAllowedDepartmentIds(req: RequestLike): Promise<number[] | null> {
+    const staff = await this.resolveStaffFromRequest(req);
+    if (!staff) return null;
+
+    const rows = await this.prisma.staffRolePermissionDepartment.findMany({
+      where: { role_id: staff.role_id },
+      select: { department_id: true },
+    });
+    if (rows.length === 0) return null;
+
+    return [...new Set(rows.map((r) => r.department_id))].sort((a, b) => a - b);
+  }
+
+  /**
+   * Staff portal: ตู้ที่เลือกต้องผูกแผนก ACTIVE อย่างน้อยหนึ่งแผนก
+   * และถ้า role จำกัดแผนก ต้องมีแผนกร่วมกับที่ role อนุญาต
+   * departmentId (optional) ต้องเป็นแผนกที่ผูกกับตู้นี้
+   */
+  async assertStaffCabinetAccess(
+    req: RequestLike,
+    cabinetId: number,
+    departmentId?: number,
+  ): Promise<void> {
+    const staff = await this.resolveStaffFromRequest(req);
+    if (!staff) {
+      throw new UnauthorizedException('ต้องล็อกอิน Staff');
+    }
+
+    const cabinet = await this.prisma.cabinet.findUnique({
+      where: { id: cabinetId },
+      select: {
+        id: true,
+        cabinetDepartments: {
+          where: { status: 'ACTIVE' },
+          select: { department_id: true },
+        },
+      },
+    });
+    if (!cabinet) {
+      throw new NotFoundException('ไม่พบตู้');
+    }
+
+    const deptIds = cabinet.cabinetDepartments
+      .map((cd) => cd.department_id)
+      .filter((id): id is number => typeof id === 'number' && Number.isFinite(id));
+    if (deptIds.length === 0) {
+      throw new BadRequestException('ตู้นี้ยังไม่ผูกแผนกที่ใช้งาน');
+    }
+
+    if (departmentId != null && !deptIds.includes(departmentId)) {
+      throw new BadRequestException('แผนกที่เลือกไม่ตรงกับตู้นี้');
+    }
+
+    const allowed = await this.resolveAllowedDepartmentIds(req);
+    if (allowed != null) {
+      const intersects = deptIds.some((id) => allowed.includes(id));
+      if (!intersects) {
+        throw new ForbiddenException('ตู้นี้อยู่นอกแผนกที่คุณได้รับอนุญาต');
+      }
+      if (departmentId != null && !allowed.includes(departmentId)) {
+        throw new ForbiddenException('แผนกนี้อยู่นอกขอบเขตที่คุณได้รับอนุญาต');
+      }
+    }
+  }
+
+  private async resolveStaffFromRequest(req: RequestLike): Promise<{ id: number; role_id: number } | null> {
+    const h = req.headers;
+    const authHeader = this.headerString(h['authorization']);
+    const bearer = this.extractBearerToken(authHeader);
+    if (bearer) {
+      try {
+        const payload = this.jwt.verify<{ sub?: number | string; staff?: boolean }>(bearer);
+        if (payload.staff === true) {
+          const sub =
+            typeof payload.sub === 'string' ? parseInt(payload.sub, 10) : Number(payload.sub);
+          if (Number.isFinite(sub) && sub >= 1) {
+            const u = await this.prisma.staffUser.findFirst({
+              where: { id: sub, is_active: true },
+              select: { id: true, role_id: true },
+            });
+            if (u) return u;
+          }
+        }
+      } catch {
+        /* ไม่ใช่ staff JWT */
+      }
+    }
+
+    const clientId = this.headerString(h['client_id'])?.trim();
+    if (clientId) {
+      const u = await this.prisma.staffUser.findFirst({
+        where: { client_id: clientId, is_active: true },
+        select: { id: true, role_id: true },
+      });
+      if (u) return u;
+    }
+
+    return null;
+  }
+
+  private headerString(v: string | string[] | undefined): string | undefined {
+    if (v == null) return undefined;
+    return Array.isArray(v) ? v[0] : v;
+  }
+
+  private extractBearerToken(authHeader?: string): string {
+    if (!authHeader?.trim()) return '';
+    const s = authHeader.trim();
+    const m = /^Bearer\s+(.+)$/i.exec(s);
+    if (m) return m[1].trim();
+    if (/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_.+/=-]+\./i.test(s)) return s;
+    return '';
+  }
+}

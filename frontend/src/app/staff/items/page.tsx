@@ -27,8 +27,8 @@ export default function ItemsPage() {
   // Active filters (after search button clicked)
   const [activeFilters, setActiveFilters] = useState({
     searchTerm: '',
-    departmentId: '29',
-    cabinetId: '1',
+    departmentId: '',
+    cabinetId: '',
     statusFilter: 'all',
     keyword: '',
   });
@@ -40,6 +40,14 @@ export default function ItemsPage() {
   const itemsPerPage = 10; // Table layout
 
   useEffect(() => {
+    if (!activeFilters.departmentId?.trim() || !activeFilters.cabinetId?.trim()) {
+      setItems([]);
+      setFilteredItems([]);
+      setTotalItems(0);
+      setTotalPages(1);
+      setLoading(false);
+      return;
+    }
     fetchItems();
   }, [currentPage, activeFilters]);
 
@@ -135,9 +143,17 @@ export default function ItemsPage() {
   };
 
   const handleDownloadCabinetStockExcel = async () => {
+    if (!activeFilters.departmentId?.trim()) {
+      toast.error('กรุณาเลือกแผนกก่อนดาวน์โหลดรายงาน');
+      return;
+    }
+    if (!activeFilters.cabinetId?.trim()) {
+      toast.error('กรุณาเลือกตู้ Cabinet ก่อนดาวน์โหลดรายงาน');
+      return;
+    }
     try {
       setReportLoading('excel');
-      const cabinetId = activeFilters.cabinetId ? parseInt(activeFilters.cabinetId, 10) : undefined;
+      const cabinetId = parseInt(activeFilters.cabinetId, 10);
       const departmentId = activeFilters.departmentId ? parseInt(activeFilters.departmentId, 10) : undefined;
       await staffReportApi.downloadCabinetStockExcel({ cabinetId, departmentId });
       toast.success('ดาวน์โหลดรายงาน Excel สำเร็จ');
@@ -150,9 +166,17 @@ export default function ItemsPage() {
   };
 
   const handleDownloadCabinetStockPdf = async () => {
+    if (!activeFilters.departmentId?.trim()) {
+      toast.error('กรุณาเลือกแผนกก่อนดาวน์โหลดรายงาน');
+      return;
+    }
+    if (!activeFilters.cabinetId?.trim()) {
+      toast.error('กรุณาเลือกตู้ Cabinet ก่อนดาวน์โหลดรายงาน');
+      return;
+    }
     try {
       setReportLoading('pdf');
-      const cabinetId = activeFilters.cabinetId ? parseInt(activeFilters.cabinetId, 10) : undefined;
+      const cabinetId = parseInt(activeFilters.cabinetId, 10);
       const departmentId = activeFilters.departmentId ? parseInt(activeFilters.departmentId, 10) : undefined;
       await staffReportApi.downloadCabinetStockPdf({ cabinetId, departmentId });
       toast.success('ดาวน์โหลดรายงาน PDF สำเร็จ');

@@ -1529,6 +1529,36 @@ export const staffRolePermissionApi = {
   },
 };
 
+/** จำกัดแผนกหลักต่อ Staff Role — ไม่มีแถว = ไม่จำกัด */
+export const staffRolePermissionDepartmentApi = {
+  getByRole: async (params: { role_id?: number; role_code?: string }): Promise<{
+    success?: boolean;
+    data?: {
+      role_id: number;
+      role_code: string;
+      role_name: string;
+      unrestricted: boolean;
+      departments: Array<{
+        id: number;
+        department_name: string | null;
+      }>;
+    };
+    message?: string;
+  }> => {
+    const response = await api.get('/staff-role-permission-departments', { params });
+    return response.data;
+  },
+
+  set: async (body: {
+    role_id?: number;
+    role_code?: string;
+    department_ids: number[];
+  }): Promise<{ success?: boolean; message?: string; data?: unknown }> => {
+    const response = await api.put('/staff-role-permission-departments', body);
+    return response.data;
+  },
+};
+
 // =========================== Staff Roles API ===========================
 export const staffRoleApi = {
   getAll: async (): Promise<ApiResponse<any[]>> => {

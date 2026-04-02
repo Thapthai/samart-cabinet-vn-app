@@ -15,6 +15,7 @@ import {
   Boxes,
   Tags,
   Building2,
+  Layers,
 } from 'lucide-react';
 
 // Type definitions for menu and submenu
@@ -174,6 +175,12 @@ export const adminMenuItems: StaffMenuItem[] = [
         href: '/admin/management/permission-role',
         icon: Shield,
         description: 'จัดการ Staff Permission Role',
+      },
+      {
+        name: 'แผนกหลักตาม Staff Role',
+        href: '/admin/management/staff-role-permission-department',
+        icon: Layers,
+        description: 'จำกัดแผนกหลักที่แต่ละ Role เห็นได้ (ว่าง = เห็นทุกแผนก)',
       },
     ],
   },

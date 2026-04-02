@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,6 +9,8 @@ import {
   RegenerateClientSecretDto,
 } from '../auth/dto/staff-user.dto';
 import { CreateStaffRoleDto, UpdateStaffRoleDto } from '../auth/dto/staff-role.dto';
+import { SetStaffRolePermissionDepartmentsDto } from '../auth/dto/staff-role-permission-department.dto';
+import { StaffDepartmentScopeService } from './staff-department-scope.service';
 
 /** เมนูเริ่มต้นหลังสร้าง role — บันทึกใน app_staff_role_permissions */
 const STAFF_ENTRY_MENU_HREF = '/staff/dashboard';
@@ -19,6 +21,7 @@ export class StaffService {
     private readonly prisma: PrismaService,
     private readonly clientCredentialStrategy: ClientCredentialStrategy,
     private readonly jwt: JwtService,
+    private readonly staffDepartmentScope: StaffDepartmentScopeService,
   ) {}
 
   private async resolveRoleId(role_code?: string, role_id?: number): Promise<number | null> {
@@ -56,6 +59,8 @@ export class StaffService {
           role: staff.role?.code ?? null,
           role_id: staff.role_id,
           department_id: staff.department_id,
+          /** ส่งไปเก็บใน localStorage — ใช้คู่กับ Bearer สำหรับ GET /staff/me/departments เมื่อ JWT หมดอายุหรือ verify ไม่ผ่าน */
+          client_id: staff.client_id,
         },
         token,
       },
@@ -366,5 +371,137 @@ export class StaffService {
       updated++;
     }
     return { success: true, message: 'Permissions updated', updatedCount: updated };
+  }
+
+  /** ไม่มีแถว = role นั้นไม่จำกัดแผนกหลัก (เห็นทุกแผนก) */
+  async findStaffRolePermissionDepartments(role_code?: string, role_id?: number) {
+    const roleId = await this.resolveRoleId(role_code, role_id);
+    if (roleId == null) {
+      throw new BadRequestException('role_code or role_id is required and must match an existing role');
+    }
+    const role = await this.prisma.staffRole.findUnique({ where: { id: roleId }, select: { id: true, code: true, name: true } });
+    if (!role) throw new BadRequestException('Staff role not found');
+
+    const rows = await this.prisma.staffRolePermissionDepartment.findMany({
+      where: { role_id: roleId },
+      include: {
+        department: { select: { ID: true, DepName: true, DepName2: true } },
+      },
+      orderBy: { department_id: 'asc' },
+    });
+
+    const unrestricted = rows.length === 0;
+    return {
+      success: true,
+      data: {
+        role_id: role.id,
+        role_code: role.code,
+        role_name: role.name,
+        unrestricted,
+        departments: rows.map((r) => ({
+          id: r.department.ID,
+          department_name: r.department.DepName ?? r.department.DepName2 ?? null,
+        })),
+      },
+    };
+  }
+
+  /** แทนที่รายการแผนกหลักทั้งชุด — ส่งว่างหรือลบทั้งหมด = ไม่จำกัดแผนก */
+  async setStaffRolePermissionDepartments(dto: SetStaffRolePermissionDepartmentsDto) {
+    const roleId = await this.resolveRoleId(dto.role_code, dto.role_id);
+    if (roleId == null) {
+      throw new BadRequestException('role_code or role_id is required and must match an existing role');
+    }
+    const role = await this.prisma.staffRole.findUnique({ where: { id: roleId }, select: { id: true } });
+    if (!role) throw new BadRequestException('Staff role not found');
+
+    const raw = dto.department_ids ?? [];
+    for (const n of raw) {
+      const v = Number(n);
+      if (!Number.isInteger(v) || v < 1) {
+        throw new BadRequestException('department_ids must be positive integers');
+      }
+    }
+    const ids = [...new Set(raw.map((n) => Number(n)))];
+
+    if (ids.length > 0) {
+      const found = await this.prisma.department.findMany({
+        where: { ID: { in: ids } },
+        select: { ID: true },
+      });
+      if (found.length !== ids.length) {
+        throw new BadRequestException('One or more department_id not found');
+      }
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.staffRolePermissionDepartment.deleteMany({ where: { role_id: roleId } }),
+      ...(ids.length > 0
+        ? [
+            this.prisma.staffRolePermissionDepartment.createMany({
+              data: ids.map((department_id) => ({ role_id: roleId, department_id })),
+            }),
+          ]
+        : []),
+    ]);
+
+    return {
+      success: true,
+      message: 'Department permissions updated',
+      data: { role_id: roleId, unrestricted: ids.length === 0, department_ids: ids },
+    };
+  }
+
+  /**
+   * Staff ปัจจุบัน → role → app_staff_role_permission_departments → department
+   * ไม่มีแถวใน permission_departments = unrestricted (เห็นทุกแผนก)
+   */
+  async findMyPermissionDepartments(req: { headers: Record<string, string | string[] | undefined> }) {
+    const staff = await this.staffDepartmentScope.resolveActiveStaffUser(req);
+    if (!staff) {
+      throw new UnauthorizedException('ต้องล็อกอิน Staff (Bearer token หรือ client_id)');
+    }
+
+    const rows = await this.prisma.staffRolePermissionDepartment.findMany({
+      where: { role_id: staff.role_id },
+      include: {
+        department: {
+          select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
+        },
+      },
+      orderBy: { department_id: 'asc' },
+    });
+
+    if (rows.length === 0) {
+      return {
+        success: true,
+        data: {
+          unrestricted: true,
+          staff_user_id: staff.id,
+          role_id: staff.role_id,
+          departments: [] as Array<{
+            ID: number;
+            DepName: string | null;
+            DepName2: string | null;
+            RefDepID: string | null;
+          }>,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        unrestricted: false,
+        staff_user_id: staff.id,
+        role_id: staff.role_id,
+        departments: rows.map((r) => ({
+          ID: r.department.ID,
+          DepName: r.department.DepName,
+          DepName2: r.department.DepName2,
+          RefDepID: r.department.RefDepID,
+        })),
+      },
+    };
   }
 }

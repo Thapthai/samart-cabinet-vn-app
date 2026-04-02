@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export type DepartmentOption = { ID: number; DepName: string | null; DepName2: string | null };
+export type DepartmentOption = { ID: number; DepName?: string | null; DepName2?: string | null };
 
 /** ฟิลด์ที่ฟอร์มค้นหานี้แก้ไขได้ */
 export type MedicalSuppliesSearchFilterFields = {
@@ -118,17 +118,6 @@ export default function MedicalSuppliesSearchFilters({
                   />
                 </div>
                 <div className="max-h-60 overflow-auto">
-                  <button
-                    type="button"
-                    className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                    onClick={() => {
-                      patch({ departmentCode: '' });
-                      onDepartmentDropdownOpenChange(false);
-                      onDepartmentSearchChange('');
-                    }}
-                  >
-                    -- ทุกแผนก --
-                  </button>
                   {departments
                     .filter(
                       (d) =>

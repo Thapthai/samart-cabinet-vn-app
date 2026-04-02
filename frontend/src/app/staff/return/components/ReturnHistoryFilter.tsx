@@ -105,7 +105,7 @@ export default function ReturnHistoryFilter({
                   type="button"
                 >
                   <span className="truncate">
-                    {selectedDeptName ?? 'ทุกแผนก'}
+                    {selectedDeptName ?? 'เลือกแผนก...'}
                   </span>
                   <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
                 </Button>
@@ -124,17 +124,6 @@ export default function ReturnHistoryFilter({
                   />
                 </div>
                 <div className="max-h-60 overflow-auto">
-                  <button
-                    type="button"
-                    className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                    onClick={() => {
-                      onDepartmentChange('');
-                      setDepartmentDropdownOpen(false);
-                      setDepartmentSearch('');
-                    }}
-                  >
-                    -- ทุกแผนก --
-                  </button>
                   {filteredDepartments.map((dept) => (
                     <button
                       key={dept.ID}

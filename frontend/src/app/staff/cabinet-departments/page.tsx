@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
+import { getStaffAllowedDepartmentIds } from "@/lib/staffDepartmentScope";
 import { Loader2, Network } from "lucide-react";
 import { toast } from "sonner";
 import FilterSection from "./components/FilterSection";
@@ -38,6 +40,10 @@ export default function ItemStockDepartmentsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedMapping, setSelectedMapping] = useState<CabinetDepartment | null>(null);
   const [filterVersion, setFilterVersion] = useState(0);
+  /** แสดงตารางเฉพาะหลังกดค้นหาและมีแผนก */
+  const [filtersApplied, setFiltersApplied] = useState(false);
+  /** undefined = ยังโหลดขอบเขตแผนกตาม role */
+  const [allowedDepartmentIds, setAllowedDepartmentIds] = useState<number[] | null | undefined>(undefined);
 
   // Active filters (applied after search button click)
   const [activeFilters, setActiveFilters] = useState({
@@ -58,6 +64,10 @@ export default function ItemStockDepartmentsPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    getStaffAllowedDepartmentIds().then(setAllowedDepartmentIds);
+  }, []);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -75,10 +85,16 @@ export default function ItemStockDepartmentsPage() {
   };
 
   const handleSearch = (filters: { cabinetId: string; departmentId: string; status: string }) => {
+    if (!filters.departmentId?.trim()) {
+      toast.error("กรุณาเลือกแผนก");
+      return;
+    }
     setActiveFilters(filters);
+    setFiltersApplied(true);
   };
 
   const resetFilters = () => {
+    setFiltersApplied(false);
     setActiveFilters({
       cabinetId: "",
       departmentId: "",
@@ -86,6 +102,15 @@ export default function ItemStockDepartmentsPage() {
     });
     // บังคับให้ FilterSection รีเซ็ต state ภายใน (dropdown/search) เฉพาะตอน reset จริง ๆ
     setFilterVersion((prev) => prev + 1);
+  };
+
+  const handleFilterFormReset = () => {
+    setFiltersApplied(false);
+    setActiveFilters({
+      cabinetId: "",
+      departmentId: "",
+      status: "ALL",
+    });
   };
 
   const handleCreate = () => {
@@ -220,17 +245,19 @@ export default function ItemStockDepartmentsPage() {
     }
   };
 
-  // Filter mappings based on active filters
+  // Filter mappings: ขอบเขตแผนกตาม role แล้วค่อยตามตัวกรองค้นหา
   const filteredMappings = mappings.filter((mapping) => {
-    // Filter by cabinet ID (exact match)
-    const matchesCabinet = activeFilters.cabinetId === "" ||
-      mapping.cabinet_id.toString() === activeFilters.cabinetId;
+    if (allowedDepartmentIds === undefined) return false;
+    if (allowedDepartmentIds !== null && !allowedDepartmentIds.includes(mapping.department_id)) {
+      return false;
+    }
 
-    // Filter by department ID (exact match)
-    const matchesDepartment = activeFilters.departmentId === "" ||
-      mapping.department_id.toString() === activeFilters.departmentId;
+    const matchesCabinet =
+      activeFilters.cabinetId === "" || mapping.cabinet_id.toString() === activeFilters.cabinetId;
 
-    // Filter by status
+    const matchesDepartment =
+      activeFilters.departmentId === "" || mapping.department_id.toString() === activeFilters.departmentId;
+
     const matchesStatus = activeFilters.status === "ALL" || mapping.status === activeFilters.status;
 
     return matchesCabinet && matchesDepartment && matchesStatus;
@@ -279,17 +306,26 @@ export default function ItemStockDepartmentsPage() {
 
       <FilterSection
         onSearch={handleSearch}
+        onReset={handleFilterFormReset}
         key={filterVersion}
         departmentDisabled={false}
       />
 
-      <MappingTable
-        mappings={filteredMappings}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onExportExcel={() => handleExportReport("excel")}
-        onExportPdf={() => handleExportReport("pdf")}
-      />
+      {filtersApplied ? (
+        <MappingTable
+          mappings={filteredMappings}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onExportExcel={() => handleExportReport("excel")}
+          onExportPdf={() => handleExportReport("pdf")}
+        />
+      ) : (
+        <Card className="border-slate-200/80 shadow-sm rounded-xl">
+          <CardContent className="py-16 text-center text-slate-500 text-sm">
+            เลือกแผนก (และตู้ถ้าต้องการ) แล้วกดค้นหาเพื่อดูรายการเชื่อมโยง
+          </CardContent>
+        </Card>
+      )}
 
       <CreateMappingDialog
         open={showCreateDialog}

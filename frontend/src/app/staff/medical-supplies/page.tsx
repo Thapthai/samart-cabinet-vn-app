@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
 import { staffVendingReportsApi } from '@/lib/staffApi/vendingReportsApi';
-import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
+import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 import { toast } from 'sonner';
 import { History } from 'lucide-react';
 import MedicalSuppliesTable from './components/MedicalSuppliesTable';
-import MedicalSuppliesSearchFilters from './components/MedicalSuppliesSearchFilters';
+import MedicalSuppliesSearchFilters, { type DepartmentOption } from './components/MedicalSuppliesSearchFilters';
 import MedicalSupplySelectedDetailSection from './components/MedicalSupplySelectedDetailSection';
 import { todayYyyyMmDdUtc } from '@/lib/formatThaiDateTime';
 
@@ -19,7 +19,7 @@ export default function MedicalSuppliesPage() {
   const [exportLoading, setExportLoading] = useState<'excel' | 'pdf' | null>(null);
 
   /** รายการแผนกสำหรับ filter — โหลดผ่าน staffApi */
-  const [departments, setDepartments] = useState<Array<{ ID: number; DepName: string | null; DepName2: string | null }>>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [departmentSearch, setDepartmentSearch] = useState('');
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
 
@@ -137,14 +137,21 @@ export default function MedicalSuppliesPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await staffDepartmentApi.getAll({ limit: 500 });
-        if (res?.data && Array.isArray(res.data)) setDepartments(res.data);
+        const list = await fetchStaffDepartmentsForFilter({ limit: 500 });
+        if (list.length > 0) setDepartments(list);
       } catch {
         // ignore
       }
     };
     load();
   }, []);
+
+  useEffect(() => {
+    if (departments.length === 0) return;
+    const first = String(departments[0].ID);
+    setFormFilters((prev) => (prev.departmentCode ? prev : { ...prev, departmentCode: first }));
+    setActiveFilters((prev) => (prev.departmentCode ? prev : { ...prev, departmentCode: first }));
+  }, [departments]);
 
   /** Staff ใช้ staff_token — ไม่ต้องรอ NextAuth user */
   useEffect(() => {
@@ -168,6 +175,7 @@ export default function MedicalSuppliesPage() {
   };
 
   const handleReset = () => {
+    const defaultDept = departments[0] ? String(departments[0].ID) : '';
     const resetFilters = {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
@@ -179,7 +187,7 @@ export default function MedicalSuppliesPage() {
       lastName: '',
       assessionNo: '',
       itemName: '',
-      departmentCode: '',
+      departmentCode: defaultDept,
       usageType: '',
       printDate: '',
       timePrintDate: '',

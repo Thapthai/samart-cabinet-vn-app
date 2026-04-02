@@ -15,7 +15,11 @@ export class DepartmentService {
 
   constructor(private prisma: PrismaService) { }
 
-  async getAllDepartments(query?: { page?: number; limit?: number; keyword?: string }) {
+  async getAllDepartments(
+    query?: { page?: number; limit?: number; keyword?: string },
+    /** Staff role จำกัดแผนก — null/undefined = ไม่กรอง (admin / staff ไม่จำกัด) */
+    allowedDepartmentIds?: number[] | null,
+  ) {
     try {
       const page = query?.page || 1;
       const limit = Math.min(500, Math.max(1, query?.limit || 10));
@@ -27,6 +31,12 @@ export class DepartmentService {
           { DepName: { contains: keyword } },
           { DepName2: { contains: keyword } },
         ];
+      }
+      if (allowedDepartmentIds != null) {
+        if (allowedDepartmentIds.length === 0) {
+          return { success: true, data: [], total: 0, page, limit, lastPage: 0 };
+        }
+        where.ID = { in: allowedDepartmentIds };
       }
       const [departments, total] = await Promise.all([
         this.prisma.department.findMany({
@@ -192,7 +202,10 @@ export class DepartmentService {
     }
   }
 
-  async getAllCabinets(query?: { page?: number; limit?: number; keyword?: string }) {
+  async getAllCabinets(
+    query?: { page?: number; limit?: number; keyword?: string },
+    allowedDepartmentIds?: number[] | null,
+  ) {
     const page = query?.page || 1;
     const limit = query?.limit || 10;
     const skip = (page - 1) * limit;
@@ -202,6 +215,25 @@ export class DepartmentService {
         { cabinet_name: { contains: query.keyword } },
         { cabinet_code: { contains: query.keyword } },
       ];
+    }
+    if (allowedDepartmentIds != null) {
+      if (allowedDepartmentIds.length === 0) {
+        return { success: true, data: [], total: 0, page, limit, lastPage: 0 };
+      }
+      const links = await this.prisma.cabinetDepartment.findMany({
+        where: { department_id: { in: allowedDepartmentIds } },
+        select: { cabinet_id: true },
+      });
+      const scopedCabinetIds = [...new Set(links.map((l) => l.cabinet_id))];
+      if (scopedCabinetIds.length === 0) {
+        return { success: true, data: [], total: 0, page, limit, lastPage: 0 };
+      }
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { id: { in: scopedCabinetIds } }];
+        delete where.OR;
+      } else {
+        where.id = { in: scopedCabinetIds };
+      }
     }
     const [cabinets, total] = await Promise.all([
       this.prisma.cabinet.findMany({
@@ -286,10 +318,26 @@ export class DepartmentService {
     }
   }
 
-  async getCabinetDepartments(query?: { cabinet_id?: number; department_id?: number; status?: string; keyword?: string; only_weighing_cabinets?: boolean }) {
+  async getCabinetDepartments(
+    query?: { cabinet_id?: number; department_id?: number; status?: string; keyword?: string; only_weighing_cabinets?: boolean },
+    allowedDepartmentIds?: number[] | null,
+  ) {
     try {
       const where: any = {};
-      if (query?.department_id) where.department_id = query.department_id;
+      if (allowedDepartmentIds != null && allowedDepartmentIds.length > 0) {
+        if (query?.department_id != null && query.department_id > 0) {
+          if (!allowedDepartmentIds.includes(query.department_id)) {
+            return { success: true, data: [], total: 0, page: 1, limit: 10, lastPage: 0 };
+          }
+          where.department_id = query.department_id;
+        } else {
+          where.department_id = { in: allowedDepartmentIds };
+        }
+      } else if (allowedDepartmentIds != null && allowedDepartmentIds.length === 0) {
+        return { success: true, data: [], total: 0, page: 1, limit: 10, lastPage: 0 };
+      } else if (query?.department_id) {
+        where.department_id = query.department_id;
+      }
       if (query?.status) where.status = query.status;
       if (query?.only_weighing_cabinets) {
         const slotStockIds = await this.prisma.itemSlotInCabinet.findMany({

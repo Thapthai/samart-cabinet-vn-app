@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { staffMedicalSupplySubDepartmentsApi } from '@/lib/staffApi/medicalSupplySubDepartmentsApi';
 import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
+import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 import { toast } from 'sonner';
 import { Building2, Plus, RefreshCw, RotateCcw, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -84,13 +85,11 @@ export default function StaffDepartmentManagementPage() {
   const loadFilterDepartments = useCallback(async () => {
     try {
       setFilterDeptLoading(true);
-      const response = await staffDepartmentApi.getAll({ limit: 500 });
-      if (response.success && response.data) {
-        const list = (response.data as DeptRow[]).slice().sort((a, b) =>
-          (a.DepName || a.DepName2 || '').localeCompare(b.DepName || b.DepName2 || ''),
-        );
-        setFilterDepartments(list);
-      }
+      const raw = await fetchStaffDepartmentsForFilter({ limit: 500 });
+      const list = (raw as DeptRow[]).slice().sort((a, b) =>
+        (a.DepName || a.DepName2 || '').localeCompare(b.DepName || b.DepName2 || ''),
+      );
+      setFilterDepartments(list);
     } catch {
       toast.error('โหลดรายการแผนกไม่สำเร็จ');
     } finally {
@@ -221,10 +220,8 @@ export default function StaffDepartmentManagementPage() {
   const loadDepartments = async (keyword?: string) => {
     try {
       setFormDeptLoading(true);
-      const response = await staffDepartmentApi.getAll({ limit: 10, keyword });
-      if (response.success && response.data) {
-        setDepartments(response.data as DeptRow[]);
-      }
+      const list = await fetchStaffDepartmentsForFilter({ keyword, limit: 50 });
+      setDepartments(list as DeptRow[]);
     } catch {
       toast.error('โหลดรายการแผนกไม่สำเร็จ');
       setDepartments([]);

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield, UserCog, Boxes, Building2 } from 'lucide-react';
+import { Package, Users, Shield, UserCog, Boxes, Building2, Layers } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,6 +72,17 @@ const managementMenus = [
     borderColor: 'border-violet-200',
     iconBg: 'bg-violet-100',
     iconColor: 'text-violet-600',
+  },
+  {
+    name: 'แผนกหลักตาม Staff Role',
+    href: '/admin/management/staff-role-permission-department',
+    icon: Layers,
+    description: 'จำกัดแผนกหลักที่แต่ละ Role เห็นได้',
+    color: 'from-fuchsia-500 to-indigo-600',
+    bgLight: 'bg-fuchsia-50',
+    borderColor: 'border-fuchsia-200',
+    iconBg: 'bg-fuchsia-100',
+    iconColor: 'text-fuchsia-800',
   },
 ];
 

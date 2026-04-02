@@ -51,8 +51,10 @@ model StaffRole {
   updated_at  DateTime @updatedAt @map("updated_at")
 
   // Relations
-  staffUsers      StaffUser[]
-  rolePermissions StaffRolePermission[]
+  staffUsers            StaffUser[]
+  rolePermissions       StaffRolePermission[]
+  /// ว่าง = role นี้เห็นข้อมูลทุกแผนกหลัก; มีแถว = เห็นเฉพาะแผนกหลักที่ระบุ (หลายแถวได้)
+  permissionDepartments StaffRolePermissionDepartment[]
 
   @@index([code], name: "idx_code")
   @@index([is_active], name: "idx_is_active")
@@ -100,6 +102,23 @@ model StaffRolePermission {
   @@index([role_id], name: "idx_role_id")
   @@index([menu_href], name: "idx_menu_href")
   @@map("app_staff_role_permissions")
+}
+
+/// จำกัดแผนกหลักที่ Staff (ผ่าน StaffRole) ใช้ดูข้อมูล — ไม่มีแถวสำหรับ role = ไม่จำกัด (เห็นทุกแผนก)
+/// มีแถว = เห็นเฉพาะแผนกหลัก (department.ID) ที่ระบุ; role เดียวเลือกได้หลายแผนกหลัก
+model StaffRolePermissionDepartment {
+  id            Int      @id @default(autoincrement())
+  role_id       Int      @map("role_id")
+  department_id Int      @map("department_id")
+  created_at    DateTime @default(dbgenerated("NOW()")) @map("created_at")
+  updated_at    DateTime @updatedAt @map("updated_at")
+
+  role       StaffRole  @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [department_id], references: [ID], onDelete: Cascade)
+
+  @@unique([role_id, department_id], name: "uniq_role_department")
+  @@index([role_id], name: "idx_srpd_role_id")
+  @@map("app_staff_role_permission_departments")
 }
 
 model OAuthAccount {
@@ -337,7 +356,7 @@ model MedicalSupplySubDepartment {
   created_at    DateTime @default(dbgenerated("NOW()")) @map("created_at") @db.DateTime(3)
   updated_at    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
-  department          Department           @relation(fields: [department_id], references: [ID], onDelete: Cascade)
+  department          Department             @relation(fields: [department_id], references: [ID], onDelete: Cascade)
   medicalSupplyUsages MedicalSupplyUsage[]
 
   @@unique([code])
@@ -620,10 +639,11 @@ model Department {
   RefDepID          String? @map("RefDepID") @db.VarChar(50)
 
   // Relations
-  staffUsers                  StaffUser[]
-  cabinetDepartments          cabinetDepartment[]
-  medicalSupplySubDepartments MedicalSupplySubDepartment[]
-  medicalSupplyUsages         MedicalSupplyUsage[]         @relation("MedicalSupplyUsageMainDepartment")
+  staffUsers                       StaffUser[]
+  cabinetDepartments               cabinetDepartment[]
+  medicalSupplySubDepartments      MedicalSupplySubDepartment[]
+  medicalSupplyUsages              MedicalSupplyUsage[]                 @relation("MedicalSupplyUsageMainDepartment")
+  staffRolePermissionDepartments   StaffRolePermissionDepartment[]
 
   @@map("department")
 }

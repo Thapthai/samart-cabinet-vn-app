@@ -23,9 +23,9 @@ staffApi.interceptors.request.use((config) => {
     try {
         const staffUser = localStorage.getItem('staff_user');
         if (staffUser) {
-            const parsed = JSON.parse(staffUser);
-            clientId = parsed.client_id || '';
-            clientSecret = parsed.client_secret || '';
+            const parsed = JSON.parse(staffUser) as { client_id?: string; clientId?: string; client_secret?: string; clientSecret?: string };
+            clientId = parsed.client_id || parsed.clientId || '';
+            clientSecret = parsed.client_secret || parsed.clientSecret || '';
         }
     } catch {}
     // fallback (legacy)

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { cabinetApi } from '@/lib/api';
-import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
+import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,9 +31,9 @@ export default function CreateCabinetDialog({
 
   useEffect(() => {
     if (open) {
-      staffDepartmentApi.getAll({ limit: 500 }).then((res) => {
-        if (res.data && Array.isArray(res.data)) setDepartments(res.data as Dept[]);
-      }).catch(() => setDepartments([]));
+      fetchStaffDepartmentsForFilter({ limit: 500 })
+        .then((list) => setDepartments(list as Dept[]))
+        .catch(() => setDepartments([]));
     }
   }, [open]);
 

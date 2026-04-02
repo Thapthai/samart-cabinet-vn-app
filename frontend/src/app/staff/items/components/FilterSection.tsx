@@ -6,9 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Search, RotateCcw, Filter } from "lucide-react";
+import { toast } from "sonner";
 import SearchableSelect from "./SearchableSelect";
-import { staffCabinetApi, staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
-import { staffDepartmentApi } from "@/lib/staffApi/departmentApi";
+import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
+import {
+  clampDepartmentIdString,
+  fetchStaffDepartmentsForFilter,
+  getStaffAllowedDepartmentIds,
+} from "@/lib/staffDepartmentScope";
 
 interface Department {
   ID: number;
@@ -41,14 +46,6 @@ interface CabinetDepartmentMapping {
   };
 }
 
-/** เหมือน admin/items: ค่าเริ่มต้นแผนก 29 เมื่อไม่ล็อกจากโปรไฟล์ */
-const DEFAULT_DEPARTMENT_ID = "29";
-
-function resolveDepartmentId(prop?: string): string {
-  const t = prop?.trim();
-  return t || DEFAULT_DEPARTMENT_ID;
-}
-
 interface FilterSectionProps {
   onSearch: (filters: {
     searchTerm: string;
@@ -68,29 +65,32 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
-  const hasInitialized = useRef(false);
+  const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
 
-  // Form state (local)
+  // Form state (local) — แผนก/ตู้ ไม่มีค่าเริ่มต้น (ยกเว้นโหมดล็อกแผนก)
   const [formFilters, setFormFilters] = useState({
     searchTerm: "",
-    departmentId: resolveDepartmentId(initialDepartmentId),
-    cabinetId: "1",
+    departmentId: departmentDisabled ? (initialDepartmentId?.trim() || "") : "",
+    cabinetId: "",
     statusFilter: "all",
   });
 
-  // Sync initialDepartmentId ถ้าโหลดมาทีหลัง (จาก localStorage) — ว่าง = เหมือน admin ใช้ 29
   useEffect(() => {
-    setFormFilters((prev) => ({ ...prev, departmentId: resolveDepartmentId(initialDepartmentId) }));
-  }, [initialDepartmentId]);
+    if (!departmentDisabled) return;
+    const d = initialDepartmentId?.trim() || "";
+    setFormFilters((prev) => ({ ...prev, departmentId: d }));
+  }, [initialDepartmentId, departmentDisabled]);
 
-  // Load departments with search
   const loadDepartments = async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const response = await staffDepartmentApi.getAll({ page: 1, limit: 50, keyword });
-      if (response.success && response.data) {
-        setDepartments(response.data as Department[]);
-      }
+      const list = await fetchStaffDepartmentsForFilter({
+        keyword,
+        page: 1,
+        limit: 50,
+        allowedDepartmentIds: allowedDepartmentIdsRef.current,
+      });
+      setDepartments(list as Department[]);
     } catch (error) {
       console.error("Failed to load departments:", error);
     } finally {
@@ -101,25 +101,23 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
   // Load cabinets based on selected department (Select Chain)
   const loadCabinetsByDepartment = async (departmentId: string, keyword?: string) => {
     if (!departmentId || departmentId === "") {
-      // If no department selected, load all cabinets
-      loadAllCabinets(keyword);
+      setCabinets([]);
       return;
     }
 
     try {
       setLoadingCabinets(true);
       const response = await staffCabinetDepartmentApi.getAll({
-        departmentId: parseInt(departmentId),
+        departmentId: parseInt(departmentId, 10),
         keyword: keyword || undefined,
       });
 
       if (response.success && response.data) {
-        // Extract unique cabinets from mappings (only ACTIVE mappings)
         const mappings = response.data as CabinetDepartmentMapping[];
         const uniqueCabinets = new Map<number, Cabinet>();
 
         mappings
-          .filter((mapping) => mapping.status === "ACTIVE") // Filter only ACTIVE mappings
+          .filter((mapping) => mapping.status === "ACTIVE")
           .forEach((mapping) => {
             if (mapping.cabinet && !uniqueCabinets.has(mapping.cabinet.id)) {
               uniqueCabinets.set(mapping.cabinet.id, {
@@ -143,35 +141,37 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
     }
   };
 
-  // Load all cabinets (fallback when no department selected)
-  const loadAllCabinets = async (keyword?: string) => {
-    try {
-      setLoadingCabinets(true);
-      const response = await staffCabinetApi.getAll({ page: 1, limit: 50, keyword });
-      if (response.success && response.data) {
-        // Filter cabinets that have at least one ACTIVE cabinetDepartment mapping
-        const allCabinets = response.data as Cabinet[];
-        const filteredCabinets = allCabinets.filter((cabinet) => {
-          // If cabinet has cabinetDepartments, check if any has status === "ACTIVE"
-          if (cabinet.cabinetDepartments && cabinet.cabinetDepartments.length > 0) {
-            return cabinet.cabinetDepartments.some((cd) => cd.status === "ACTIVE");
-          }
-          // If no cabinetDepartments, filter by cabinet_status === "ACTIVE"
-          return cabinet.cabinet_status === "ACTIVE";
-        });
-        setCabinets(filteredCabinets);
-      }
-    } catch (error) {
-      console.error("Failed to load cabinets:", error);
-    } finally {
-      setLoadingCabinets(false);
-    }
-  };
-
-  // Load departments on mount
   useEffect(() => {
-    loadDepartments();
-  }, []);
+    let cancelled = false;
+    (async () => {
+      const allowed = await getStaffAllowedDepartmentIds();
+      if (cancelled) return;
+      allowedDepartmentIdsRef.current = allowed;
+      try {
+        setLoadingDepartments(true);
+        const list = await fetchStaffDepartmentsForFilter({
+          page: 1,
+          limit: 50,
+          allowedDepartmentIds: allowed,
+        });
+        if (cancelled) return;
+        setDepartments(list as Department[]);
+      } catch (error) {
+        console.error("Failed to load departments:", error);
+      } finally {
+        if (!cancelled) setLoadingDepartments(false);
+      }
+      if (cancelled) return;
+      setFormFilters((prev) => {
+        if (departmentDisabled) return prev;
+        const nextDept = clampDepartmentIdString(prev.departmentId, allowed, "");
+        return { ...prev, departmentId: nextDept, cabinetId: nextDept !== prev.departmentId ? "" : prev.cabinetId };
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [departmentDisabled]);
 
   // Load cabinets when department changes
   useEffect(() => {
@@ -194,22 +194,15 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
     }
   }, [cabinets, formFilters.cabinetId]);
 
-  // Auto-trigger search on mount with default values (only once)
-  useEffect(() => {
-    if (!hasInitialized.current && formFilters.departmentId && formFilters.cabinetId && cabinets.length > 0) {
-      // Wait a bit to ensure cabinets are loaded, then trigger search
-      const timer = setTimeout(() => {
-        onSearch({
-          ...formFilters,
-          keyword: formFilters.searchTerm,
-        });
-        hasInitialized.current = true;
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [formFilters.departmentId, formFilters.cabinetId, cabinets.length]);
-
   const handleSearch = () => {
+    if (!formFilters.departmentId?.trim()) {
+      toast.error("กรุณาเลือกแผนก");
+      return;
+    }
+    if (!formFilters.cabinetId?.trim()) {
+      toast.error("กรุณาเลือกตู้ Cabinet");
+      return;
+    }
     onBeforeSearch?.(); // รีเซ็ตเป็นหน้า 1 ก่อนค้นหา
     const kw = formFilters.searchTerm.trim();
     onSearch({
@@ -220,18 +213,18 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
   };
 
   const handleReset = () => {
-    const lockedDeptId = departmentDisabled ? resolveDepartmentId(initialDepartmentId) : DEFAULT_DEPARTMENT_ID;
+    const lockedDeptId = departmentDisabled ? (initialDepartmentId?.trim() || "") : "";
     const defaultFilters = {
       searchTerm: "",
       departmentId: lockedDeptId,
-      cabinetId: "1",
+      cabinetId: "",
       statusFilter: "all",
       keyword: "",
     };
     setFormFilters({
       searchTerm: "",
       departmentId: lockedDeptId,
-      cabinetId: "1",
+      cabinetId: "",
       statusFilter: "all",
     });
     onSearch(defaultFilters);
@@ -277,7 +270,6 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
               });
             }}
             options={[
-              { value: "", label: "ทั้งหมด" },
               ...departments.map((dept) => ({
                 value: dept.ID.toString(),
                 label: dept.DepName || "",
@@ -292,11 +284,12 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
 
           <SearchableSelect
             label="ตู้ Cabinet"
-            placeholder={formFilters.departmentId ? "เลือกตู้ Cabinet" : "กรุณาเลือกแผนกก่อน"}
+            placeholder={
+              formFilters.departmentId ? "เลือกตู้ (บังคับ)" : "กรุณาเลือกแผนกก่อน"
+            }
             value={formFilters.cabinetId}
             onValueChange={(value) => setFormFilters({ ...formFilters, cabinetId: value })}
             options={[
-              { value: "", label: "ทั้งหมด" },
               ...cabinets.map((cabinet) => ({
                 value: cabinet.id.toString(),
                 label: cabinet.cabinet_name || "",
@@ -305,12 +298,7 @@ export default function FilterSection({ onSearch, onBeforeSearch, initialDepartm
             ]}
             loading={loadingCabinets}
             onSearch={(searchKeyword) => {
-              // When searching in cabinet dropdown, load based on selected department
-              if (formFilters.departmentId) {
-                loadCabinetsByDepartment(formFilters.departmentId, searchKeyword);
-              } else {
-                loadAllCabinets(searchKeyword);
-              }
+              loadCabinetsByDepartment(formFilters.departmentId || "", searchKeyword);
             }}
             searchPlaceholder={formFilters.departmentId ? "ค้นหารหัสหรือชื่อตู้..." : "กรุณาเลือกแผนกก่อน"}
             disabled={!formFilters.departmentId}

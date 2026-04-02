@@ -107,9 +107,9 @@ export default function StaffWillReturnFilterCard({
                 </div>
               ) : (
                 <Select
-                  value={departmentId || 'all'}
+                  value={departmentId || undefined}
                   onValueChange={(v) => {
-                    onDepartmentChange(v === 'all' ? '' : v);
+                    onDepartmentChange(v);
                     onCabinetChange('');
                   }}
                 >
@@ -117,7 +117,6 @@ export default function StaffWillReturnFilterCard({
                     <SelectValue placeholder="เลือกแผนก" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">ทั้งหมด</SelectItem>
                     {departments.map((d) => (
                       <SelectItem key={d.ID} value={String(d.ID)}>
                         {d.DepName}
@@ -129,18 +128,23 @@ export default function StaffWillReturnFilterCard({
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">ตู้ Cabinet</label>
-              <Select value={cabinetId || 'all'} onValueChange={(v) => onCabinetChange(v === 'all' ? '' : v)}>
+              <Select
+                value={cabinetId || undefined}
+                onValueChange={(v) => onCabinetChange(v)}
+                disabled={!departmentLocked && !departmentId}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue
                     placeholder={
-                      departmentId && cabinets.length === 0
-                        ? 'ไม่มีตู้ในแผนกนี้'
-                        : 'เลือกตู้ Cabinet'
+                      !departmentId && !departmentLocked
+                        ? 'กรุณาเลือกแผนกก่อน'
+                        : departmentId && cabinets.length === 0
+                          ? 'ไม่มีตู้ในแผนกนี้'
+                          : 'เลือกตู้ (บังคับ)'
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">ทั้งหมด</SelectItem>
                   {cabinets.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       {c.cabinet_code || c.cabinet_name || `ตู้ ${c.id}`}

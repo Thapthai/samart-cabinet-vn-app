@@ -8,8 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { DatePickerBE } from '@/components/ui/date-picker-be';
 import type { FilterState } from '../types';
 import SearchableSelect from '@/app/admin/items/components/SearchableSelect';
-import { staffCabinetApi } from '@/lib/staffApi/cabinetApi';
-import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
+import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 import { staffCabinetDepartmentApi } from '@/lib/staffApi/cabinetApi';
 
 interface Department {
@@ -71,10 +70,8 @@ export default function FilterSection({
   const loadDepartments = async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const response = await staffDepartmentApi.getAll({ limit: 50, keyword });
-      if (response.success && response.data) {
-        setDepartments(response.data as Department[]);
-      }
+      const list = await fetchStaffDepartmentsForFilter({ keyword, page: 1, limit: 50 });
+      setDepartments(list as Department[]);
     } catch (error) {
       console.error('Failed to load departments:', error);
     } finally {
@@ -84,7 +81,7 @@ export default function FilterSection({
 
   const loadCabinetsByDepartment = async (departmentId: string, keyword?: string) => {
     if (!departmentId || departmentId === '') {
-      loadAllCabinets(keyword);
+      setCabinets([]);
       return;
     }
     try {
@@ -115,27 +112,6 @@ export default function FilterSection({
     } catch (error) {
       console.error('Failed to load cabinets by department:', error);
       setCabinets([]);
-    } finally {
-      setLoadingCabinets(false);
-    }
-  };
-
-  const loadAllCabinets = async (keyword?: string) => {
-    try {
-      setLoadingCabinets(true);
-      const response = await staffCabinetApi.getAll({ page: 1, limit: 50, keyword });
-      if (response.success && response.data) {
-        const allCabinets = response.data as Cabinet[];
-        const filteredCabinets = allCabinets.filter((cabinet) => {
-          if (cabinet.cabinetDepartments && cabinet.cabinetDepartments.length > 0) {
-            return cabinet.cabinetDepartments.some((cd) => cd.status === 'ACTIVE');
-          }
-          return cabinet.cabinet_status === 'ACTIVE';
-        });
-        setCabinets(filteredCabinets);
-      }
-    } catch (error) {
-      console.error('Failed to load cabinets:', error);
     } finally {
       setLoadingCabinets(false);
     }
@@ -202,7 +178,6 @@ export default function FilterSection({
                 onFilterChange('cabinetId', '');
               }}
               options={[
-                { value: '', label: 'ทั้งหมด' },
                 ...departments.map((dept) => ({
                   value: dept.ID.toString(),
                   label: dept.DepName || '',
@@ -216,11 +191,10 @@ export default function FilterSection({
             />
             <SearchableSelect
               label="ตู้ Cabinet"
-              placeholder={filters.departmentId ? 'เลือกตู้ Cabinet' : 'กรุณาเลือกแผนกก่อน'}
+              placeholder={filters.departmentId ? 'เลือกตู้ (บังคับ)' : 'กรุณาเลือกแผนกก่อน'}
               value={filters.cabinetId}
               onValueChange={(value) => onFilterChange('cabinetId', value)}
               options={[
-                { value: '', label: 'ทั้งหมด' },
                 ...cabinets.map((cabinet) => ({
                   value: cabinet.id.toString(),
                   label: cabinet.cabinet_name || '',
@@ -231,8 +205,6 @@ export default function FilterSection({
               onSearch={(searchKeyword) => {
                 if (filters.departmentId) {
                   loadCabinetsByDepartment(filters.departmentId, searchKeyword);
-                } else {
-                  loadAllCabinets(searchKeyword);
                 }
               }}
               searchPlaceholder={filters.departmentId ? 'ค้นหารหัสหรือชื่อตู้...' : 'กรุณาเลือกแผนกก่อน'}

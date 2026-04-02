@@ -1,5 +1,7 @@
-import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, ParseIntPipe, Post, Put, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { DepartmentService } from './department.service';
+import { StaffDepartmentScopeService } from '../staff/staff-department-scope.service';
 import {
   CreateCabinetDepartmentDto,
   CreateDepartmentDto,
@@ -10,21 +12,26 @@ import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
 
 @Controller('departments')
 export class DepartmentController {
-  constructor(private readonly departmentService: DepartmentService) {}
+  constructor(
+    private readonly departmentService: DepartmentService,
+    private readonly staffDepartmentScope: StaffDepartmentScopeService,
+  ) {}
 
   @Get()
   async getAllDepartments(
+    @Req() req: Request,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('keyword') keyword?: string,
   ) {
+    const allowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
     const params = {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       keyword: typeof keyword === 'string' && keyword.trim() ? keyword.trim() : undefined,
     };
     try {
-      return await this.departmentService.getAllDepartments(params);
+      return await this.departmentService.getAllDepartments(params, allowedDepartmentIds);
     } catch (err: any) {
       const message = err?.message ?? String(err);
       throw new HttpException(
@@ -47,7 +54,10 @@ export class DepartmentController {
 
 @Controller('cabinets')
 export class CabinetController {
-  constructor(private readonly departmentService: DepartmentService) {}
+  constructor(
+    private readonly departmentService: DepartmentService,
+    private readonly staffDepartmentScope: StaffDepartmentScopeService,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateCabinetDto) {
@@ -55,17 +65,19 @@ export class CabinetController {
   }
 
   @Get()
-  getAll(
+  async getAll(
+    @Req() req: Request,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('keyword') keyword?: string,
   ) {
+    const allowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
     const query = {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       keyword,
     };
-    return this.departmentService.getAllCabinets(query);
+    return this.departmentService.getAllCabinets(query, allowedDepartmentIds);
   }
 
   @Get(':id')
@@ -86,7 +98,10 @@ export class CabinetController {
 
 @Controller('cabinet-departments')
 export class CabinetDepartmentController {
-  constructor(private readonly departmentService: DepartmentService) {}
+  constructor(
+    private readonly departmentService: DepartmentService,
+    private readonly staffDepartmentScope: StaffDepartmentScopeService,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateCabinetDepartmentDto) {
@@ -94,13 +109,15 @@ export class CabinetDepartmentController {
   }
 
   @Get()
-  getAll(
+  async getAll(
+    @Req() req: Request,
     @Query('cabinet_id') cabinet_id?: string,
     @Query('department_id') department_id?: string,
     @Query('status') status?: string,
     @Query('keyword') keyword?: string,
     @Query('only_weighing_cabinets') only_weighing_cabinets?: string,
   ) {
+    const allowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
     const query = {
       cabinet_id: cabinet_id ? parseInt(cabinet_id, 10) : undefined,
       department_id: department_id ? parseInt(department_id, 10) : undefined,
@@ -108,7 +125,7 @@ export class CabinetDepartmentController {
       keyword,
       only_weighing_cabinets: only_weighing_cabinets === 'true' || only_weighing_cabinets === '1',
     };
-    return this.departmentService.getCabinetDepartments(query);
+    return this.departmentService.getCabinetDepartments(query, allowedDepartmentIds);
   }
 
   @Put(':id')

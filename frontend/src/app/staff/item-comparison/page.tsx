@@ -13,7 +13,7 @@ import {
 } from './components';
 import type { ComparisonItem, UsageItem, FilterState, SummaryData } from './types';
 import { itemComparisonApi } from '@/lib/staffApi/itemComparisonApi';
-import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
+import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = (): string => {
@@ -48,27 +48,30 @@ export default function ItemComparisonPage() {
   const [totalPages, setTotalPages] = useState(0);
 
   useEffect(() => {
-    const initialFilters: FilterState = {
-      searchItemCode: '',
-      startDate: getTodayDate(),
-      endDate: getTodayDate(),
-      itemTypeFilter: 'all',
-      departmentCode: '',
-    };
-    fetchComparisonList(1, initialFilters);
-    fetchDepartments();
-  }, []);
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await staffDepartmentApi.getAll({ limit: 1000 });
-      if (res.success && Array.isArray(res.data)) {
-        setDepartments(res.data.map((d: any) => ({ ID: d.ID, DepName: d.DepName || d.DepName2 || String(d.ID) })));
+    (async () => {
+      let mapped: { ID: number; DepName: string }[] = [];
+      try {
+        const list = await fetchStaffDepartmentsForFilter({ limit: 500 });
+        if (list.length > 0) {
+          mapped = list.map((d) => ({ ID: d.ID, DepName: d.DepName || d.DepName2 || String(d.ID) }));
+          setDepartments(mapped);
+        }
+      } catch {
+        // ไม่แสดง error ถ้าโหลดแผนกไม่ได้
       }
-    } catch {
-      // ไม่แสดง error ถ้าโหลดแผนกไม่ได้
-    }
-  };
+      const deptCode = mapped[0] ? String(mapped[0].ID) : '';
+      const initialFilters: FilterState = {
+        searchItemCode: '',
+        startDate: getTodayDate(),
+        endDate: getTodayDate(),
+        itemTypeFilter: 'all',
+        departmentCode: deptCode,
+      };
+      setFilters(initialFilters);
+      fetchComparisonList(1, initialFilters);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
+  }, []);
 
   const fetchComparisonList = async (page: number = 1, customFilters?: FilterState) => {
     try {
@@ -151,12 +154,13 @@ export default function ItemComparisonPage() {
   };
 
   const handleClearSearch = () => {
+    const defaultDept = departments[0] ? String(departments[0].ID) : '';
     const clearedFilters: FilterState = {
       searchItemCode: '',
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentCode: '',
+      departmentCode: defaultDept,
     };
     setFilters(clearedFilters);
     setCurrentPage(1);

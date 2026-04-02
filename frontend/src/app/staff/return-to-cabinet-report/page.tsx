@@ -18,19 +18,16 @@ const getTodayDate = () => {
 
 const GROUPS_PER_PAGE = 10;
 const FETCH_BATCH_LIMIT = 5000;
-const DEFAULT_DEPARTMENT_ID = '29';
-const DEFAULT_CABINET_ID = '1';
-
 export default function ReturnToCabinetReportPage() {
-  const [loadingList, setLoadingList] = useState(true);
+  const [loadingList, setLoadingList] = useState(false);
   const [returnedList, setReturnedList] = useState<DispensedItem[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     searchItemCode: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
-    departmentId: DEFAULT_DEPARTMENT_ID,
-    cabinetId: DEFAULT_CABINET_ID,
+    departmentId: '',
+    cabinetId: '',
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,9 +44,15 @@ export default function ReturnToCabinetReportPage() {
     overrideFilters?: FilterState,
     options?: { resetPage?: boolean },
   ) => {
+    const activeFilters = overrideFilters ?? filters;
+    if (!activeFilters.departmentId?.trim() || !activeFilters.cabinetId?.trim()) {
+      setReturnedList([]);
+      setTotalRawItems(0);
+      setLoadingList(false);
+      return;
+    }
     try {
       setLoadingList(true);
-      const activeFilters = overrideFilters ?? filters;
       const params: Record<string, unknown> = {
         page: 1,
         limit: FETCH_BATCH_LIMIT,
@@ -116,23 +119,18 @@ export default function ReturnToCabinetReportPage() {
   };
 
   useEffect(() => {
-    const filtersToUse: FilterState = {
-      searchItemCode: '',
-      startDate: getTodayDate(),
-      endDate: getTodayDate(),
-      itemTypeFilter: 'all',
-      departmentId: DEFAULT_DEPARTMENT_ID,
-      cabinetId: DEFAULT_CABINET_ID,
-    };
-    fetchReturnedList(filtersToUse, { resetPage: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
-  }, []);
-
-  useEffect(() => {
     setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
   }, [totalPages]);
 
   const handleSearch = () => {
+    if (!filters.departmentId?.trim()) {
+      toast.error('กรุณาเลือกแผนก');
+      return;
+    }
+    if (!filters.cabinetId?.trim()) {
+      toast.error('กรุณาเลือกตู้ Cabinet');
+      return;
+    }
     fetchReturnedList(undefined, { resetPage: true });
   };
 
@@ -142,11 +140,12 @@ export default function ReturnToCabinetReportPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId: DEFAULT_DEPARTMENT_ID,
-      cabinetId: DEFAULT_CABINET_ID,
+      departmentId: '',
+      cabinetId: '',
     };
     setFilters(resetFilters);
-    fetchReturnedList(resetFilters, { resetPage: true });
+    setReturnedList([]);
+    setTotalRawItems(0);
   };
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
@@ -154,6 +153,14 @@ export default function ReturnToCabinetReportPage() {
   };
 
   const handleExportReport = async (format: 'excel' | 'pdf') => {
+    if (!filters.departmentId?.trim()) {
+      toast.error('กรุณาเลือกแผนกก่อนส่งออกรายงาน');
+      return;
+    }
+    if (!filters.cabinetId?.trim()) {
+      toast.error('กรุณาเลือกตู้ Cabinet ก่อนส่งออกรายงาน');
+      return;
+    }
     try {
       const params: any = {};
       if (filters.searchItemCode) params.keyword = filters.searchItemCode;
@@ -163,7 +170,7 @@ export default function ReturnToCabinetReportPage() {
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
       if (filters.departmentId) params.departmentId = filters.departmentId;
-      if (filters.cabinetId) params.cabinetId = filters.cabinetId;
+      params.cabinetId = filters.cabinetId;
 
       toast.info(`กำลังสร้างรายงาน ${format.toUpperCase()}...`);
 

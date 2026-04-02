@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
-import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
+import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 import { toast } from 'sonner';
 import { History, Search, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -151,16 +151,19 @@ export default function MedicalSuppliesPage() {
   }, []);
 
   useEffect(() => {
-    staffDepartmentApi
-      .getAll({ limit: 1000 })
-      .then((res) => {
-        if (res?.success && Array.isArray(res.data)) {
-          setDepartments(
-            res.data.map((d: { ID: number; DepName?: string; DepName2?: string }) => ({
-              ID: d.ID,
-              DepName: d.DepName || d.DepName2 || String(d.ID),
-            })),
-          );
+    fetchStaffDepartmentsForFilter({ limit: 500 })
+      .then((list) => {
+        if (list.length > 0) {
+          const mapped = list.map((d) => ({
+            ID: d.ID,
+            DepName: d.DepName || d.DepName2 || String(d.ID),
+          }));
+          setDepartments(mapped);
+          setStaffDepartment((prev) => {
+            if (prev.department_id != null) return prev;
+            const first = mapped[0];
+            return { department_id: first.ID, department_name: first.DepName };
+          });
         }
       })
       .catch(() => {});
@@ -207,6 +210,10 @@ export default function MedicalSuppliesPage() {
     setCurrentPage(1);
     setSelectedSupply(null);
     setSelectedSupplyId(null);
+    if (departments.length > 0) {
+      const first = departments[0];
+      setStaffDepartment({ department_id: first.ID, department_name: first.DepName });
+    }
     // useEffect will trigger fetchSupplies when activeFilters and currentPage change
   };
 
@@ -299,12 +306,10 @@ export default function MedicalSuppliesPage() {
               <div className="space-y-2 min-w-0">
                 <Label>แผนก</Label>
                 <Select
-                  value={staffDepartment.department_id != null ? String(staffDepartment.department_id) : 'all'}
+                  value={
+                    staffDepartment.department_id != null ? String(staffDepartment.department_id) : undefined
+                  }
                   onValueChange={(value) => {
-                    if (value === 'all') {
-                      setStaffDepartment({ department_id: null, department_name: null });
-                      return;
-                    }
                     const id = parseInt(value, 10);
                     const dept = departments.find((d) => d.ID === id);
                     setStaffDepartment({
@@ -317,7 +322,6 @@ export default function MedicalSuppliesPage() {
                     <SelectValue placeholder="เลือกแผนก" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">ทั้งหมด</SelectItem>
                     {departments.map((d) => (
                       <SelectItem key={d.ID} value={String(d.ID)}>
                         {d.DepName}

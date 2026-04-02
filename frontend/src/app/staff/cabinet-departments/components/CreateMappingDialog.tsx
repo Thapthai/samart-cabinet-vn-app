@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
-import { staffCabinetApi } from "@/lib/staffApi/cabinetApi";
-import { staffDepartmentApi } from "@/lib/staffApi/departmentApi";
+import { fetchStaffDepartmentsForFilter, getStaffAllowedDepartmentIds } from "@/lib/staffDepartmentScope";
+import { getStaffScopedCabinetList } from "@/lib/staffScopedCabinetList";
 
 interface Department {
   ID: number;
@@ -51,6 +51,7 @@ export default function CreateMappingDialog({
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
+  const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
 
   // สถานะเริ่มต้นเป็น ACTIVE ตอนเปิด dialog
   useEffect(() => {
@@ -60,37 +61,51 @@ export default function CreateMappingDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when open toggles
   }, [open]);
 
-  // Load departments with search
-  const loadDepartments = async (keyword?: string) => {
+  const loadDepartments = useCallback(async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const response = await staffDepartmentApi.getAll({ page: 1, limit: 10, keyword });
-      if (response.success && response.data) {
-        setDepartments(response.data as Department[]);
-      }
+      const list = await fetchStaffDepartmentsForFilter({
+        keyword,
+        page: 1,
+        limit: 50,
+        allowedDepartmentIds: allowedDepartmentIdsRef.current,
+      });
+      setDepartments(list as Department[]);
     } catch (error) {
       console.error("Failed to load departments:", error);
     } finally {
       setLoadingDepartments(false);
     }
-  };
+  }, []);
 
-  // Load item stocks with search
-  const loadCabinets = async (keyword?: string) => {
+  const loadCabinets = useCallback(async (keyword?: string) => {
     try {
       setLoadingCabinets(true);
-      const response = await staffCabinetApi.getAll({ page: 1, limit: 10, keyword });
-      if (response.success && response.data) {
-        setCabinets(response.data as Cabinet[]);
-      }
+      const list = await getStaffScopedCabinetList(allowedDepartmentIdsRef.current, {
+        keyword,
+        limit: 50,
+      });
+      setCabinets(list);
     } catch (error) {
       console.error("Failed to load cabinets:", error);
     } finally {
       setLoadingCabinets(false);
     }
-  };
+  }, []);
 
-  // Removed - SearchableSelect now handles initial data loading when opened
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const allowed = await getStaffAllowedDepartmentIds();
+      if (cancelled) return;
+      allowedDepartmentIdsRef.current = allowed;
+      await Promise.all([loadDepartments(""), loadCabinets("")]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, loadDepartments, loadCabinets]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -112,17 +112,6 @@ export function FilterSection({
                   />
                 </div>
                 <div className="max-h-60 overflow-auto">
-                  <button
-                    type="button"
-                    className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                    onClick={() => {
-                      onFilterChange('departmentCode', '');
-                      setDepartmentDropdownOpen(false);
-                      setDepartmentSearch('');
-                    }}
-                  >
-                    -- ทุกแผนก --
-                  </button>
                   {filteredDepartments.map((dept) => (
                     <button
                       key={dept.ID}

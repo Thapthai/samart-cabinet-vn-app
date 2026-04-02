@@ -3,8 +3,10 @@ import { DepartmentController, CabinetController, CabinetDepartmentController } 
 import { MedicalSupplySubDepartmentController } from './medical-supply-sub-department.controller';
 import { DepartmentService } from './department.service';
 import { MedicalSupplySubDepartmentService } from './medical-supply-sub-department.service';
+import { StaffModule } from '../staff/staff.module';
 
 @Module({
+  imports: [StaffModule],
   controllers: [
     DepartmentController,
     CabinetController,

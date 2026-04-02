@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
-import { staffCabinetApi } from "@/lib/staffApi/cabinetApi";
-import { staffDepartmentApi } from "@/lib/staffApi/departmentApi";
+import { fetchStaffDepartmentsForFilter, getStaffAllowedDepartmentIds } from "@/lib/staffDepartmentScope";
+import { getStaffScopedCabinetList } from "@/lib/staffScopedCabinetList";
 
 interface Department {
   ID: number;
@@ -73,43 +73,53 @@ export default function EditMappingDialog({
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
   const dialogContentRef = useRef<HTMLDivElement>(null);
+  const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
 
-  // Load departments with search
-  const loadDepartments = async (keyword?: string) => {
+  const loadDepartments = useCallback(async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const response = await staffDepartmentApi.getAll({ page: 1, limit: 50, keyword });
-      if (response.success && response.data) {
-        setDepartments(response.data as Department[]);
-      }
+      const list = await fetchStaffDepartmentsForFilter({
+        keyword,
+        page: 1,
+        limit: 50,
+        allowedDepartmentIds: allowedDepartmentIdsRef.current,
+      });
+      setDepartments(list as Department[]);
     } catch (error) {
       console.error("Failed to load departments:", error);
     } finally {
       setLoadingDepartments(false);
     }
-  };
+  }, []);
 
-  // Load cabinets with search
-  const loadCabinets = async (keyword?: string) => {
+  const loadCabinets = useCallback(async (keyword?: string) => {
     try {
       setLoadingCabinets(true);
-      const response = await staffCabinetApi.getAll({ page: 1, limit: 50, keyword });
-      if (response.success && response.data) {
-        setCabinets(response.data as Cabinet[]);
-      }
+      const list = await getStaffScopedCabinetList(allowedDepartmentIdsRef.current, {
+        keyword,
+        limit: 50,
+      });
+      setCabinets(list);
     } catch (error) {
       console.error("Failed to load cabinets:", error);
     } finally {
       setLoadingCabinets(false);
     }
-  };
+  }, []);
 
-  // Load initial data when dialog opens
   useEffect(() => {
-    if (open) {
-      Promise.all([loadCabinets(""), loadDepartments("")]);
-    }
-  }, [open]);
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const allowed = await getStaffAllowedDepartmentIds();
+      if (cancelled) return;
+      allowedDepartmentIdsRef.current = allowed;
+      await Promise.all([loadCabinets(""), loadDepartments("")]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, loadCabinets, loadDepartments]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
