@@ -25,7 +25,7 @@ export default function MedicalSupplyDetailSummaryCard({ supply }: MedicalSupply
             lastName={v.lastName}
             recordedBy={v.recordedBy}
             department={v.department}
-            usageType={v.usageType}
+            subDepartmentName={v.subDepartmentName}
             suppliesCount={v.suppliesCount}
             billingStatus={v.billingStatus}
           />

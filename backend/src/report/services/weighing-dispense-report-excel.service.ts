@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
-import * as fs from 'fs';
-import { resolveReportLogoPath } from '../config/report.config';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 export interface WeighingDispenseRow {
   seq: number;
@@ -36,40 +35,12 @@ export class WeighingDispenseReportExcelService {
     });
 
     const thinBorder = { top: { style: 'thin' as const }, left: { style: 'thin' as const }, bottom: { style: 'thin' as const }, right: { style: 'thin' as const } };
-    worksheet.mergeCells('A1:A2');
-    worksheet.getCell('A1').fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFF8F9FA' },
-    };
-    worksheet.getCell('A1').border = thinBorder;
-    const logoPath = resolveReportLogoPath();
-    if (logoPath && fs.existsSync(logoPath)) {
-      try {
-        const imageId = workbook.addImage({
-          filename: logoPath,
-          extension: 'png',
-        });
-        worksheet.addImage(imageId, 'A1:A2');
-      } catch {
-        // skip logo on error
-      }
-    }
-    worksheet.getRow(1).height = 20;
-    worksheet.getRow(2).height = 20;
-    worksheet.getColumn(1).width = 12;
-
-    worksheet.mergeCells('B1:E2');
-    const headerCell = worksheet.getCell('B1');
-    headerCell.value = 'รายการเบิกอุปกรณ์จากตู้ Weighing\nWeighing Dispense Report';
-    headerCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FF1A365D' } };
-    headerCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    headerCell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFF8F9FA' },
-    };
-    headerCell.border = thinBorder;
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:E2',
+      title: 'รายการเบิกอุปกรณ์จากตู้ Weighing\nWeighing Dispense Report',
+      row1Height: 20,
+      row2Height: 20,
+    });
 
     worksheet.mergeCells('A3:E3');
     const dateCell = worksheet.getCell('A3');

@@ -7,7 +7,7 @@ interface MedicalSupplyDetailInfoGridProps {
   lastName: string;
   recordedBy: string;
   department: string;
-  usageType: string;
+  subDepartmentName: string;
   suppliesCount: number;
   billingStatus: string | undefined;
 }
@@ -17,7 +17,7 @@ export function MedicalSupplyDetailInfoGrid({
   lastName,
   recordedBy,
   department,
-  usageType,
+  subDepartmentName,
   suppliesCount,
   billingStatus,
 }: MedicalSupplyDetailInfoGridProps) {
@@ -38,22 +38,10 @@ export function MedicalSupplyDetailInfoGrid({
         <p className="font-semibold">{department}</p>
       </div>
       <div>
-        <p className="text-sm text-gray-500">ประเภทผู้ป่วย</p>
-        <div className="mt-1">
-          {usageType === 'OPD' ? (
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500" />
-              ผู้ป่วยนอก (OPD)
-            </Badge>
-          ) : usageType === 'IPD' ? (
-            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-purple-500" />
-              ผู้ป่วยใน (IPD)
-            </Badge>
-          ) : (
-            <span className="text-gray-400 text-sm">-</span>
-          )}
-        </div>
+        <p className="text-sm text-gray-500">แผนกย่อย</p>
+        <p className="font-semibold text-sm leading-snug mt-1">
+          {subDepartmentName ? subDepartmentName : <span className="text-gray-400 font-normal">-</span>}
+        </p>
       </div>
       <div>
         <p className="text-sm text-gray-500">จำนวนรายการ</p>

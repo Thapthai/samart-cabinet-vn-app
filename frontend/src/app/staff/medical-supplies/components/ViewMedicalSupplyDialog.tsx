@@ -31,6 +31,8 @@ interface SupplyDetail {
   patient_name_en?: string;
   usage_datetime?: string;
   usage_type?: string;
+  sub_department_code?: string;
+  sub_department_name?: string;
   purpose?: string;
   department_code?: string;
   recorded_by_user_id?: number;
@@ -179,7 +181,7 @@ export default function ViewMedicalSupplyDialog({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InfoItem label="วันที่ใช้งาน" value={supply.usage_datetime} />
-                <InfoItem label="แผนกย่อย (รหัส)" value={supply.usage_type} />
+                <InfoItem label="แผนกย่อย" value={supply.sub_department_name} />
                 <InfoItem label="วัตถุประสงค์" value={supply.purpose} className="md:col-span-2" />
                 <InfoItem label="รหัสแผนก" value={supply.department_code} />
                 <InfoItem label="อัพเดทล่าสุด" value={supply.update} />

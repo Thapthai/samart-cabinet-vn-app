@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 export interface VendingMappingReportData {
   filters?: {
@@ -47,16 +48,16 @@ export interface VendingMappingReportData {
 export class VendingMappingReportExcelService {
   async generateReport(data: VendingMappingReportData): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Report Service';
+    workbook.created = new Date();
     const worksheet = workbook.addWorksheet('รายงาน Mapping Vending');
 
-    // Title
-    const titleRow = worksheet.addRow(['รายงานสรุป Mapping Vending กับ HIS']);
-    worksheet.mergeCells('A1:J1');
-    const titleCell = worksheet.getCell('A1');
-    titleCell.font = { name: 'Tahoma', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-    titleRow.height = 30;
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:J2',
+      title: 'รายงานสรุป Mapping Vending กับ HIS',
+      row1Height: 28,
+      row2Height: 26,
+    });
 
     // Summary
     worksheet.addRow([]);

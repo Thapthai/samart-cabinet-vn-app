@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
-import * as fs from 'fs';
-import { resolveReportLogoPath } from '../config/report.config';
 import { formatReportDateOnly, formatReportDateTime } from '../utils/date-timeformat';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 /** ธีมฟอนต์/แถวให้ใกล้เคียง item-comparison-excel.service.ts */
 const THEME = {
@@ -22,6 +21,11 @@ const THEME = {
 function formatFilterDateOnly(v?: string | null): string {
   if (v == null || String(v).trim() === '') return 'ทั้งหมด';
   return formatReportDateOnly(v);
+}
+
+function formatSubDepartmentDisplayName(name?: string | null): string {
+  const n = (name ?? '').trim();
+  return n || '-';
 }
 
 /** รายการอุปกรณ์ในหนึ่ง usage (สำหรับ sub row) */
@@ -53,6 +57,7 @@ export interface DispensedUsageGroup {
   department_code?: string;
   department_name?: string;
   usage_type?: string;
+  sub_department_name?: string;
   dispensed_date: string;
   supply_items: DispensedItemLine[];
 }
@@ -92,41 +97,12 @@ export class DispensedItemsForPatientsExcelService {
 
     const reportDate = formatReportDateTime(new Date());
 
-    // ---- แถว 1-2: โลโก้ (A1:A2) + ชื่อรายงาน (B1:J2) ----
-    worksheet.mergeCells('A1:A2');
-    worksheet.getCell('A1').fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: THEME.pageBg },
-    };
-    worksheet.getCell('A1').border = {
-      right: { style: 'thin' },
-      bottom: { style: 'thin' },
-    };
-    const logoPath = resolveReportLogoPath();
-    if (logoPath && fs.existsSync(logoPath)) {
-      try {
-        const imageId = workbook.addImage({ filename: logoPath, extension: 'png' });
-        worksheet.addImage(imageId, 'A1:A2');
-      } catch {
-        // skip logo on error
-      }
-    }
-    worksheet.getRow(1).height = 25;
-    worksheet.getRow(2).height = 25;
-    worksheet.getColumn(1).width = 12;
-
-    worksheet.mergeCells('B1:J2');
-    const headerCell = worksheet.getCell('B1');
-    headerCell.value = 'บันทึกใช้อุปกรณ์กับคนไข้\nDispensed Items for Patients Report';
-    headerCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: THEME.navy } };
-    headerCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.pageBg } };
-    headerCell.border = {
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' },
-    };
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:J2',
+      title: 'บันทึกใช้อุปกรณ์กับคนไข้\nDispensed Items for Patients Report',
+      navyArgb: THEME.navy,
+      pageBgArgb: THEME.pageBg,
+    });
 
     // ---- แถว 3: วันที่รายงาน ----
     worksheet.mergeCells('A3:J3');
@@ -136,16 +112,14 @@ export class DispensedItemsForPatientsExcelService {
     dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
     worksheet.getRow(3).height = 20;
 
-    // ---- แถว 4: Filter summary (วันที่เริ่ม | วันที่สิ้นสุด | แผนก | ประเภทผู้ป่วย) ----
+    // ---- แถว 4: Filter summary (วันที่เริ่ม | วันที่สิ้นสุด | แผนก | รหัสแผนกย่อย) ----
     const filters = data.filters ?? {};
-    const filterLabels = ['วันที่เริ่ม', 'วันที่สิ้นสุด', 'แผนก', 'ประเภทผู้ป่วย'];
+    const filterLabels = ['วันที่เริ่ม', 'วันที่สิ้นสุด', 'แผนก', 'รหัสแผนกย่อย'];
     const filterValues = [
       formatFilterDateOnly(filters.startDate),
       formatFilterDateOnly(filters.endDate),
       (filters as any).departmentName ?? filters.departmentCode ?? 'ทั้งหมด',
-      filters.usageType === 'OPD' ? 'ผู้ป่วยนอก (OPD)'
-        : filters.usageType === 'IPD' ? 'ผู้ป่วยใน (IPD)'
-          : 'ทั้งหมด',
+      filters.usageType?.trim() ? filters.usageType.trim() : 'ทั้งหมด',
     ];
     // 11 columns → 4 กลุ่ม: A-C(3), D-F(3), G-I(3), J-K(2)
     const filterColMap = [['A', 'C'], ['D', 'F'], ['G', 'H'], ['I', 'J']];
@@ -171,7 +145,7 @@ export class DispensedItemsForPatientsExcelService {
       'HN / EN',      // 2
       'ชื่อคนไข้',    // 3
       'แผนก',         // 4
-      'ประเภท',       // 5
+      'แผนกย่อย',     // 5
       'วันที่เบิก',   // 6
       'ชื่ออุปกรณ์',  // 7
       'จำนวนอุปกรณ์', // 8
@@ -204,9 +178,7 @@ export class DispensedItemsForPatientsExcelService {
         .reduce((s, i) => s + i.qty, 0);
 
       const hnEn = `${usage.patient_hn ?? '-'} / ${usage.en ?? '-'}`;
-      const usageTypeLabel = (usage.usage_type ?? '').toUpperCase() === 'IPD' ? 'ผู้ป่วยใน (IPD)'
-        : (usage.usage_type ?? '').toUpperCase() === 'OPD' ? 'ผู้ป่วยนอก (OPD)'
-          : (usage.usage_type ?? '-');
+      const subDeptLabel = formatSubDepartmentDisplayName(usage.sub_department_name);
 
       // Main row
       const mainCells: (string | number)[] = [
@@ -214,7 +186,7 @@ export class DispensedItemsForPatientsExcelService {
         hnEn,
         usage.patient_name ?? '-',
         usage.department_name ?? usage.department_code ?? '-',
-        usageTypeLabel,
+        subDeptLabel,
         formatReportDateTime(usage.dispensed_date),
         '', totalQty, '', '',
       ];
@@ -291,7 +263,7 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.getRow(noteRow).height = 16;
 
     // ---- ความกว้างคอลัมน์ (สเกลใกล้ item-comparison Medical Supply Order sheet) ----
-    worksheet.getColumn(1).width = 10;
+    worksheet.getColumn(1).width = 13;
     worksheet.getColumn(2).width = 22;
     worksheet.getColumn(3).width = 28;
     worksheet.getColumn(4).width = 14;

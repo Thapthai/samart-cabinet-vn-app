@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { EquipmentUsageReportData } from '../types/equipment-usage-report.types';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 export type { EquipmentUsageReportData };
 
@@ -11,26 +12,19 @@ export class EquipmentUsageExcelService {
    */
   async generateReport(data: EquipmentUsageReportData): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Report Service';
+    workbook.created = new Date();
     const worksheet = workbook.addWorksheet('รายงานการใช้อุปกรณ์');
 
     // ========================================
     // SECTION 1: TITLE SECTION (หัวรายงาน)
     // ========================================
-    const titleRow = worksheet.addRow(['รายงานการใช้อุปกรณ์กับคนไข้']);
-    worksheet.mergeCells('A1:H1');
-    const titleCell = worksheet.getCell('A1');
-    titleCell.font = { name: 'Tahoma', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-    titleRow.height = 30;
-
-    const titleEnRow = worksheet.addRow(['Medical Equipment Usage Report']);
-    worksheet.mergeCells('A2:H2');
-    const titleEnCell = worksheet.getCell('A2');
-    titleEnCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleEnCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleEnCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-    titleEnRow.height = 28;
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:H2',
+      title: 'รายงานการใช้อุปกรณ์กับคนไข้\nMedical Equipment Usage Report',
+      row1Height: 30,
+      row2Height: 28,
+    });
 
     // ========================================
     // SECTION 2: HOSPITAL INFORMATION (ข้อมูลโรงพยาบาล)

@@ -9,7 +9,7 @@ export type MedicalSupplyDetailDerived = {
   lastName: string;
   recordedBy: string;
   department: string;
-  usageType: string;
+  subDepartmentName: string;
   suppliesCount: number;
   billingStatus: string | undefined;
   createdAt: string | undefined;
@@ -43,7 +43,9 @@ export function deriveMedicalSupplyDetail(supply: MedicalSupplyDetailSummarySupp
     department: String(
       d.department_name ?? supply.department_name ?? d.department_code ?? supply.department_code ?? '-',
     ),
-    usageType: String(d.usage_type ?? supply.usage_type ?? '').toUpperCase(),
+    subDepartmentName: String(
+      d.sub_department_name ?? supply.sub_department_name ?? '',
+    ).trim(),
     suppliesCount: Number(d.supplies_count ?? supply.supplies_count ?? items.length) || 0,
     billingStatus: (d.billing_status ?? supply.billing_status) as string | undefined,
     createdAt: (supply.created_at ?? d.created_at ?? d.usage_datetime) as string | undefined,

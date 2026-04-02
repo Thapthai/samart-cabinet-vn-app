@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 export interface CancelBillReportData {
   filters?: {
@@ -37,16 +38,16 @@ export class CancelBillReportExcelService {
     }
 
     const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Report Service';
+    workbook.created = new Date();
     const worksheet = workbook.addWorksheet('รายงานยกเลิก Bill');
 
-    // Title
-    const titleRow = worksheet.addRow(['รายงานยกเลิก Bill']);
-    worksheet.mergeCells('A1:H1');
-    const titleCell = worksheet.getCell('A1');
-    titleCell.font = { name: 'Tahoma', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } };
-    titleRow.height = 30;
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:J2',
+      title: 'รายงานยกเลิก Bill',
+      row1Height: 28,
+      row2Height: 28,
+    });
 
     // Filters
     worksheet.addRow([]);

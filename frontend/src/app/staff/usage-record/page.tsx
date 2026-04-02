@@ -328,19 +328,17 @@ export default function MedicalSuppliesPage() {
               </div>
             </div>
 
-            {/* บรรทัดที่ 3: ประเภทผู้ป่วย | HN | EN */}
+            {/* บรรทัดที่ 3: รหัสแผนกย่อย | HN | EN */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               <div className="space-y-2 min-w-0">
-                <Label>ประเภทผู้ป่วย</Label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                <Label htmlFor="subDeptCode">รหัสแผนกย่อย</Label>
+                <Input
+                  id="subDeptCode"
+                  placeholder="กรอกรหัสแผนกย่อย (ค้นหาแบบตรงกับรหัส)..."
                   value={formFilters.usageType}
                   onChange={(e) => setFormFilters({ ...formFilters, usageType: e.target.value })}
-                >
-                  <option value="">-- ทั้งหมด --</option>
-                  <option value="OPD">ผู้ป่วยนอก (OPD)</option>
-                  <option value="IPD">ผู้ป่วยใน (IPD)</option>
-                </select>
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
               </div>
               <div className="space-y-2 min-w-0">
                 <Label htmlFor="patientHN">HN</Label>
@@ -442,25 +440,16 @@ export default function MedicalSuppliesPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">ประเภทผู้ป่วย</p>
-                      <div className="mt-1">
+                      <p className="text-sm text-gray-500">แผนกย่อย</p>
+                      <p className="font-semibold text-sm leading-snug mt-1">
                         {(() => {
-                          const ut = (selectedSupply.data?.usage_type || selectedSupply.usage_type || '').toUpperCase();
-                          if (ut === 'OPD') return (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500" />
-                              ผู้ป่วยนอก (OPD)
-                            </Badge>
-                          );
-                          if (ut === 'IPD') return (
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-purple-500" />
-                              ผู้ป่วยใน (IPD)
-                            </Badge>
-                          );
-                          return <span className="text-gray-400 text-sm">-</span>;
+                          const d = selectedSupply.data as Record<string, unknown> | undefined;
+                          const name = String(
+                            d?.sub_department_name ?? selectedSupply.sub_department_name ?? '',
+                          ).trim();
+                          return name || <span className="text-gray-400 font-normal">-</span>;
                         })()}
-                      </div>
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">จำนวนรายการ</p>

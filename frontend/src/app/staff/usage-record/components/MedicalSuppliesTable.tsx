@@ -31,6 +31,18 @@ interface MedicalSuppliesTableProps {
   };
 }
 
+function SubDepartmentCell({ supplyData }: { supplyData: Record<string, unknown> }) {
+  const name = String(supplyData.sub_department_name ?? '').trim();
+  if (!name) {
+    return <span className="text-gray-400 text-sm">-</span>;
+  }
+  return (
+    <div className="text-sm text-gray-800 leading-tight min-w-0 max-w-[200px] truncate" title={name}>
+      {name}
+    </div>
+  );
+}
+
 export default function MedicalSuppliesTable({
   loading,
   supplies,
@@ -278,15 +290,7 @@ export default function MedicalSuppliesTable({
                         {supplyData.department_name || supplyData.department_code || '-'}
                       </TableCell>
                       <TableCell>
-                        {(() => {
-                            const ut = (supplyData.usage_type || '').toUpperCase();
-                            if (ut === 'OPD') return (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500" />
-                                ผู้ป่วยนอก (OPD)
-                              </Badge>
-                            );
-                          })()}
+                        <SubDepartmentCell supplyData={supplyData as Record<string, unknown>} />
                       </TableCell>
                       <TableCell>
                         {formatDate(supply.created_at || supplyData.created_at || supplyData.usage_datetime)}

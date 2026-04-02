@@ -1653,7 +1653,7 @@ export class MedicalSuppliesService {
           where,
           include: {
             supply_items: supplyItemsInclude,
-            subDepartment: { select: { code: true } },
+            subDepartment: { select: { code: true, name: true } },
           },
           skip,
           take: limit,
@@ -1776,6 +1776,8 @@ export class MedicalSuppliesService {
           ...usagePlain,
           department_code: deptKey,
           usage_type: usage.subDepartment?.code ?? null,
+          sub_department_code: usage.subDepartment?.code ?? null,
+          sub_department_name: usage.subDepartment?.name ?? null,
           department_name: departmentName,
           recorded_by_user_id: recordedByUserId,
           recorded_by_name: recordedByName,
@@ -1826,7 +1828,7 @@ export class MedicalSuppliesService {
         where: { id },
         include: {
           supply_items: true,
-          subDepartment: { select: { code: true } },
+          subDepartment: { select: { code: true, name: true } },
         },
       });
 
@@ -1839,6 +1841,8 @@ export class MedicalSuppliesService {
         ...usage,
         department_code: usage.department_id != null ? String(usage.department_id) : null,
         usage_type: usage.subDepartment?.code ?? null,
+        sub_department_code: usage.subDepartment?.code ?? null,
+        sub_department_name: usage.subDepartment?.name ?? null,
         supply_items: usage.supply_items.map(item => ({
           ...item,
           qty_pending: (item.qty || 0) - (item.qty_used_with_patient || 0) - (item.qty_returned_to_cabinet || 0),
@@ -2107,7 +2111,7 @@ export class MedicalSuppliesService {
         where: { id },
         include: {
           supply_items: true,
-          subDepartment: { select: { code: true } },
+          subDepartment: { select: { code: true, name: true } },
         },
       });
 
@@ -4080,7 +4084,7 @@ export class MedicalSuppliesService {
           supply_items: {
             where: Object.keys(supplyItemsWhere).length > 0 ? supplyItemsWhere : undefined,
           },
-          subDepartment: { select: { code: true } },
+          subDepartment: { select: { code: true, name: true } },
         },
         orderBy: {
           usage_datetime: 'desc',
@@ -4122,6 +4126,8 @@ export class MedicalSuppliesService {
             department_code: deptKey,
             department_name: departmentName,
             usage_type: usage.subDepartment?.code ?? null,
+            sub_department_code: usage.subDepartment?.code ?? null,
+            sub_department_name: usage.subDepartment?.name ?? null,
             usage_datetime: usage.usage_datetime,
             itemcode: supplyItem?.order_item_code || supplyItem?.supply_code,
             itemname: supplyItem?.supply_name,

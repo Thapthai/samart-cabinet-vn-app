@@ -36,6 +36,18 @@ interface MedicalSuppliesTableProps {
   };
 }
 
+function SubDepartmentCell({ supplyData }: { supplyData: Record<string, unknown> }) {
+  const name = String(supplyData.sub_department_name ?? '').trim();
+  if (!name) {
+    return <span className="text-gray-400 text-xs sm:text-sm">-</span>;
+  }
+  return (
+    <div className="text-xs sm:text-sm text-gray-800 leading-tight min-w-0 max-w-[200px] truncate" title={name}>
+      {name}
+    </div>
+  );
+}
+
 export default function MedicalSuppliesTable({
   loading,
   supplies,
@@ -246,13 +258,8 @@ export default function MedicalSuppliesTable({
                         <div className="text-sm text-gray-600">
                           {supplyData.department_name || supplyData.department_code || '-'}
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {(() => {
-                            const ut = (supplyData.usage_type || '').toUpperCase();
-                            if (ut === 'OPD') return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">OPD</Badge>;
-                            if (ut === 'IPD') return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">IPD</Badge>;
-                            return null;
-                          })()}
+                        <div className="flex flex-wrap gap-2 items-start">
+                          <SubDepartmentCell supplyData={supplyData as Record<string, unknown>} />
                           {getBillingStatusBadge(supplyData.billing_status || supply.billing_status)}
                         </div>
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
@@ -278,7 +285,7 @@ export default function MedicalSuppliesTable({
                     <TableHead className="w-10 sm:w-[80px] text-xs sm:text-sm whitespace-nowrap">ลำดับ</TableHead>
                     <TableHead className="min-w-[90px] text-xs sm:text-sm">HN / EN คนไข้</TableHead>
                     <TableHead className="min-w-[80px] text-xs sm:text-sm">แผนก</TableHead>
-                    <TableHead className="min-w-[70px] text-xs sm:text-sm whitespace-nowrap">ประเภท</TableHead>
+                    <TableHead className="min-w-[100px] text-xs sm:text-sm whitespace-nowrap">แผนกย่อย</TableHead>
                     <TableHead className="min-w-[90px] text-xs sm:text-sm whitespace-nowrap">เวลาที่เบิก</TableHead>
                     <TableHead className="min-w-[90px] text-xs sm:text-sm whitespace-nowrap">วันเวลา</TableHead>
                     <TableHead className="min-w-[100px] text-xs sm:text-sm">วันที่ และเวลาที่พิมพ์บิล</TableHead>
@@ -356,22 +363,7 @@ export default function MedicalSuppliesTable({
                           {supplyData.department_name || supplyData.department_code || '-'}
                         </TableCell>
                         <TableCell className="py-2 sm:py-3">
-                          {(() => {
-                            const ut = (supplyData.usage_type || '').toUpperCase();
-                            if (ut === 'OPD') return (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-blue-500" />
-                                ผู้ป่วยนอก (OPD)
-                              </Badge>
-                            );
-                            if (ut === 'IPD') return (
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5 bg-purple-500" />
-                                ผู้ป่วยใน (IPD)
-                              </Badge>
-                            );
-                            return <span className="text-gray-400 text-xs sm:text-sm">-</span>;
-                          })()}
+                          <SubDepartmentCell supplyData={supplyData as Record<string, unknown>} />
                         </TableCell>
                         <TableCell className="text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">
                           {formatDate(supply.created_at || supplyData.created_at || supplyData.usage_datetime)}

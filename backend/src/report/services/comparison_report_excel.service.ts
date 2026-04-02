@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { ComparisonReportData } from '../types/comparison-report.types';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 export type { ComparisonReportData };
 
@@ -11,26 +12,20 @@ export class ComparisonReportExcelService {
    */
   async generateReport(data: ComparisonReportData): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Report Service';
+    workbook.created = new Date();
     const worksheet = workbook.addWorksheet('รายงานเปรียบเทียบ');
 
     // ========================================
     // SECTION 1: TITLE SECTION (หัวรายงาน)
     // ========================================
-    const titleRow = worksheet.addRow(['รายงานเปรียบเทียบการเบิกอุปกรณ์และการบันทึกใช้กับคนไข้']);
-    worksheet.mergeCells('A1:I1');
-    const titleCell = worksheet.getCell('A1');
-    titleCell.font = { name: 'Tahoma', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-    titleRow.height = 30;
-
-    const titleEnRow = worksheet.addRow(['Comparative Report on Medical Equipment Dispensing and Patient Usage Documentation']);
-    worksheet.mergeCells('A2:I2');
-    const titleEnCell = worksheet.getCell('A2');
-    titleEnCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleEnCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleEnCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-    titleEnRow.height = 28;
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:I2',
+      title:
+        'รายงานเปรียบเทียบการเบิกอุปกรณ์และการบันทึกใช้กับคนไข้\nComparative Report on Medical Equipment Dispensing and Patient Usage Documentation',
+      row1Height: 30,
+      row2Height: 28,
+    });
 
     // ========================================
     // SECTION 2: PATIENT INFORMATION (ข้อมูลผู้ป่วย)

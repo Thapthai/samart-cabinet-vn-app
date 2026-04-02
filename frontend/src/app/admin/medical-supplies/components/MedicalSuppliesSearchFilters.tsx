@@ -158,16 +158,14 @@ export default function MedicalSuppliesSearchFilters({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div className="space-y-2 min-w-0">
-            <Label>ประเภทผู้ป่วย</Label>
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            <Label htmlFor="subDeptCode">รหัสแผนกย่อย</Label>
+            <Input
+              id="subDeptCode"
+              placeholder="กรอกรหัสแผนกย่อย (ค้นหาแบบตรงกับรหัส)..."
               value={formFilters.usageType}
               onChange={(e) => patch({ usageType: e.target.value })}
-            >
-              <option value="">-- ทั้งหมด --</option>
-              <option value="OPD">ผู้ป่วยนอก (OPD)</option>
-              <option value="IPD">ผู้ป่วยใน (IPD)</option>
-            </select>
+              onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+            />
           </div>
           <div className="space-y-2 min-w-0">
             <Label htmlFor="patientHN">HN</Label>

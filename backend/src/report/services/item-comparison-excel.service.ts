@@ -4,6 +4,11 @@ import * as fs from 'fs';
 import { resolveReportLogoPath } from '../config/report.config';
 import { ItemComparisonReportData, UsageDetail } from '../types/item-comparison-report.types';
 import { formatReportDateTime } from '../utils/date-timeformat';
+import {
+  addFloatingReportLogoByImageId,
+  imageExtensionFromPath,
+  paintExcelMergedTitleHeader,
+} from '../utils/excel-report-header.util';
 
 /** ธีมเดียวกับชีตสรุป */
 const THEME = {
@@ -31,28 +36,6 @@ function orderStatusLabel(status?: string): string {
   return status;
 }
 
-/** แปลง cm → px สำหรับขนาดรูปใน Excel (96 DPI มาตรฐาน) */
-function cmToExcelPx(cm: number): number {
-  return Math.round((cm * 96) / 2.54);
-}
-
-/** ชีตรายละเอียด: โลโก้ความกว้าง 4.01 cm ไม่ยึดเต็มช่อง merge A1:A2 */
-function addLogoImageCompact(ws: ExcelJS.Worksheet, logoImageId: number | null): void {
-  if (logoImageId == null) return;
-  const widthCm = 4.01;
-  const widthPx = cmToExcelPx(widthCm);
-  /** สัดส่วนเดิม 88×36 px */
-  const heightPx = Math.round(widthPx * (36 / 88));
-  try {
-    ws.addImage(logoImageId, {
-      tl: { col: 0, row: 0 },
-      ext: { width: widthPx, height: heightPx },
-    });
-  } catch {
-    /* skip */
-  }
-}
-
 @Injectable()
 export class ItemComparisonExcelService {
   async generateReport(data: ItemComparisonReportData): Promise<Buffer> {
@@ -71,7 +54,10 @@ export class ItemComparisonExcelService {
     const logoPath = resolveReportLogoPath();
     if (logoPath && fs.existsSync(logoPath)) {
       try {
-        logoImageId = workbook.addImage({ filename: logoPath, extension: 'png' });
+        logoImageId = workbook.addImage({
+          filename: logoPath,
+          extension: imageExtensionFromPath(logoPath),
+        });
       } catch {
         logoImageId = null;
       }
@@ -104,39 +90,18 @@ export class ItemComparisonExcelService {
   ): void {
 
 
-    summarySheet.mergeCells('A1:A2');
-    summarySheet.getCell('A1').fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFF8F9FA' },
-    };
-    summarySheet.getCell('A1').border = {
-      right: { style: 'thin' },
-      bottom: { style: 'thin' },
-    };
+    paintExcelMergedTitleHeader(summarySheet, {
+      mergeRange: 'A1:E2',
+      title:
+        'สรุปรายการเบิก — เปรียบเทียบการเบิกและใช้\nItem comparison summary (dispensed vs usage)',
+      navyArgb: THEME.navy,
+      pageBgArgb: THEME.pageBg,
+      row1Height: 20,
+      row2Height: 20,
+    });
     if (logoImageId != null) {
-      try {
-        summarySheet.addImage(logoImageId, 'A1:A2');
-      } catch {
-        /* skip */
-      }
+      addFloatingReportLogoByImageId(summarySheet, logoImageId);
     }
-    summarySheet.getRow(1).height = 20;
-    summarySheet.getRow(2).height = 20;
-    summarySheet.getColumn(1).width = 12;
-
-    summarySheet.mergeCells('B1:E2');
-    const summaryHeaderCell = summarySheet.getCell('B1');
-    summaryHeaderCell.value =
-      'สรุปรายการเบิก — เปรียบเทียบการเบิกและใช้\nItem comparison summary (dispensed vs usage)';
-    summaryHeaderCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FF1A365D' } };
-    summaryHeaderCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    summaryHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
-    summaryHeaderCell.border = {
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' },
-    };
 
     summarySheet.mergeCells('A3:E3');
     const summaryDateCell = summarySheet.getCell('A3');
@@ -219,34 +184,18 @@ export class ItemComparisonExcelService {
     logoImageId: number | null,
   ): void {
 
-    // —— หัวชีตเหมือนชีตแรก: โลโก้ A1:A2 + หัวข้อ B1:J2 ——
-    ws.mergeCells('A1:A2');
-    ws.getCell('A1').fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: THEME.pageBg },
-    };
-    ws.getCell('A1').border = {
-      right: { style: 'thin' },
-      bottom: { style: 'thin' },
-    };
-    addLogoImageCompact(ws, logoImageId);
-    ws.getRow(1).height = 25;
-    ws.getRow(2).height = 25;
-    ws.getColumn(1).width = 12;
-
-    ws.mergeCells('B1:J2');
-    const titleCell = ws.getCell('B1');
-    titleCell.value =
-      'รายงานเปรียบเทียบการเบิกและใช้\nรายละเอียดรายการสั่ง (Medical Supply Order detail)';
-    titleCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: THEME.navy } };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: THEME.pageBg } };
-    titleCell.border = {
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' },
-    };
+    paintExcelMergedTitleHeader(ws, {
+      mergeRange: 'A1:J2',
+      title:
+        'รายงานเปรียบเทียบการเบิกและใช้\nรายละเอียดรายการสั่ง (Medical Supply Order detail)',
+      navyArgb: THEME.navy,
+      pageBgArgb: THEME.pageBg,
+      row1Height: 25,
+      row2Height: 25,
+    });
+    if (logoImageId != null) {
+      addFloatingReportLogoByImageId(ws, logoImageId);
+    }
 
     let r = 4;
     const hdrLabels = [

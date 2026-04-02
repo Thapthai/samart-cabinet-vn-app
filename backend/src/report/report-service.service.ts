@@ -3311,7 +3311,7 @@ export class ReportServiceService {
           where: baseWhere,
           include: {
             supply_items: true,
-            subDepartment: { select: { code: true } },
+            subDepartment: { select: { code: true, name: true } },
           },
           orderBy: {
             created_at: 'desc',
@@ -3357,6 +3357,7 @@ export class ReportServiceService {
           department_code: usage.department_id != null ? String(usage.department_id) : undefined,
           department_name: resolvedDeptName ?? undefined,
           usage_type: usage.subDepartment?.code ?? undefined,
+          sub_department_name: usage.subDepartment?.name ?? undefined,
           dispensed_date: usage.usage_datetime ?? usage.created_at?.toISOString() ?? '',
           supply_items,
         };

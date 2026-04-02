@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { EquipmentDisbursementReportData } from '../types/equipment-disbursement-report.types';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 export type { EquipmentDisbursementReportData };
 
@@ -11,18 +12,19 @@ export class EquipmentDisbursementExcelService {
    */
   async generateReport(data: EquipmentDisbursementReportData): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Report Service';
+    workbook.created = new Date();
     const worksheet = workbook.addWorksheet('รายงานการบันทึกตัดจ่ายอุปกรณ์');
 
     // ========================================
     // SECTION 1: TITLE SECTION (หัวรายงาน)
     // ========================================
-    const titleRow = worksheet.addRow(['รายงานการรับบันทึกตัดจ่ายอุปกรณ์']);
-    worksheet.mergeCells('A1:E1');
-    const titleCell = worksheet.getCell('A1');
-    titleCell.font = { name: 'Tahoma', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-    titleRow.height = 30;
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:E2',
+      title: 'รายงานการรับบันทึกตัดจ่ายอุปกรณ์',
+      row1Height: 28,
+      row2Height: 26,
+    });
 
     // ========================================
     // SECTION 2: HOSPITAL INFORMATION (ข้อมูลโรงพยาบาล)

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 export interface UnmappedDispensedReportData {
   filters?: {
@@ -30,16 +31,16 @@ export interface UnmappedDispensedReportData {
 export class UnmappedDispensedReportExcelService {
   async generateReport(data: UnmappedDispensedReportData): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Report Service';
+    workbook.created = new Date();
     const worksheet = workbook.addWorksheet('รายงานการเบิกที่ Mapping ไม่ได้');
 
-    // Title
-    const titleRow = worksheet.addRow(['รายงานสรุปการเบิกที่ Mapping ไม่ได้']);
-    worksheet.mergeCells('A1:F1');
-    const titleCell = worksheet.getCell('A1');
-    titleCell.font = { name: 'Tahoma', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-    titleRow.height = 30;
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:F2',
+      title: 'รายงานสรุปการเบิกที่ Mapping ไม่ได้',
+      row1Height: 28,
+      row2Height: 26,
+    });
 
     // Summary
     worksheet.addRow([]);

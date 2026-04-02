@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
-import * as fs from 'fs';
-import { resolveReportLogoPath } from '../config/report.config';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 export interface ReturnReportData {
   filters?: {
@@ -64,41 +63,12 @@ export class ReturnReportExcelService {
       timeZone: 'Asia/Bangkok',
     });
 
-    // ---- แถว 1-2: โลโก้ (A1:A2) + ชื่อรายงาน (B1:I2) ----
-    worksheet.mergeCells('A1:A2');
-    worksheet.getCell('A1').fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFF8F9FA' },
-    };
-    worksheet.getCell('A1').border = {
-      right: { style: 'thin' },
-      bottom: { style: 'thin' },
-    };
-    const logoPath = resolveReportLogoPath();
-    if (logoPath && fs.existsSync(logoPath)) {
-      try {
-        const imageId = workbook.addImage({ filename: logoPath, extension: 'png' });
-        worksheet.addImage(imageId, 'A1:A2');
-      } catch {
-        // skip logo on error
-      }
-    }
-    worksheet.getRow(1).height = 20;
-    worksheet.getRow(2).height = 20;
-    worksheet.getColumn(1).width = 12;
-
-    worksheet.mergeCells('B1:I2');
-    const headerCell = worksheet.getCell('B1');
-    headerCell.value = 'รายงานอุปกรณ์ที่ไม่ถูกใช้งาน\nReturn Report';
-    headerCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FF1A365D' } };
-    headerCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
-    headerCell.border = {
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' },
-    };
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:I2',
+      title: 'รายงานอุปกรณ์ที่ไม่ถูกใช้งาน\nReturn Report',
+      row1Height: 20,
+      row2Height: 20,
+    });
 
     // ---- แถว 3: วันที่รายงาน ----
     worksheet.mergeCells('A3:I3');

@@ -136,7 +136,7 @@ export class DispensedItemsForPatientsPdfService {
           { label: 'วันที่เริ่ม', value: formatFilterDateOnly(filters.startDate) },
           { label: 'วันที่สิ้นสุด', value: formatFilterDateOnly(filters.endDate) },
           { label: 'แผนก', value: (filters as any).departmentName ?? filters.departmentCode ?? 'ทั้งหมด' },
-          { label: 'ประเภทผู้ป่วย', value: filters.usageType === 'OPD' ? 'ผู้ป่วยนอก (OPD)' : filters.usageType === 'IPD' ? 'ผู้ป่วยใน (IPD)' : 'ทั้งหมด' },
+          { label: 'รหัสแผนกย่อย', value: filters.usageType?.trim() ? filters.usageType.trim() : 'ทั้งหมด' },
         ];
         const filterColWidth = Math.floor(contentWidth / filterCells.length);
         let fx = margin;
@@ -158,13 +158,13 @@ export class DispensedItemsForPatientsPdfService {
         const itemHeight = 38;
         const cellPadding = 4;
         const totalTableWidth = contentWidth;
-        // ลำดับ, HN/EN, ชื่อคนไข้, แผนก/ประเภท(รวม), วันที่เบิก, ชื่ออุปกรณ์, จำนวน, Assession, สถานะ
+        // ลำดับ, HN/EN, ชื่อคนไข้, แผนก/แผนกย่อย(รวม), วันที่เบิก, ชื่ออุปกรณ์, จำนวน, Assession, สถานะ
         const colPct = [0.06, 0.10, 0.13, 0.13, 0.10, 0.16, 0.08, 0.12, 0.09];
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
         if (sumW < totalTableWidth) colWidths[5] += totalTableWidth - sumW;
         const headers = [
-          'ลำดับ', 'HN / EN', 'ชื่อคนไข้', 'แผนก / ประเภท',
+          'ลำดับ', 'HN / EN', 'ชื่อคนไข้', 'แผนก / แผนกย่อย',
           'วันที่เบิก', 'ชื่ออุปกรณ์', 'จำนวน', 'Assession No', 'สถานะ',
         ];
 
@@ -263,12 +263,11 @@ export class DispensedItemsForPatientsPdfService {
 
             const bg = idx % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
             const hnEn = `${usage.patient_hn ?? '-'} / ${usage.en ?? '-'}`;
-            const usageTypeLabel = (usage.usage_type ?? '').toUpperCase() === 'IPD' ? 'ผู้ป่วยใน'
-              : (usage.usage_type ?? '').toUpperCase() === 'OPD' ? 'ผู้ป่วยนอก'
-                : (usage.usage_type ?? '-');
+            const n = (usage.sub_department_name ?? '').trim();
+            const subDeptLine = n || '-';
 
-            // Main row — รวม แผนก + ประเภท ในคอลัมน์เดียว (index 3)
-            const deptAndType = `${usage.department_name ?? usage.department_code ?? '-'}\n${usageTypeLabel}`;
+            // Main row — รวม แผนก + แผนกย่อย ในคอลัมน์เดียว (index 3)
+            const deptAndType = `${usage.department_name ?? usage.department_code ?? '-'}\n${subDeptLine}`;
             drawRow([
               String(usage.seq ?? idx + 1),
               hnEn,

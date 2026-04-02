@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
-import * as fs from 'fs';
-import { resolveReportLogoPath } from '../config/report.config';
+import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 
 /** รายการอุปกรณ์ในตู้ (กลุ่มตามรหัสอุปกรณ์) */
 export interface CabinetDepartmentsSubRow {
@@ -115,27 +114,12 @@ export class CabinetDepartmentsReportExcelService {
       ? rows[0]?.cabinet_name ?? filters.cabinetName ?? 'ทั้งหมด'
       : filters.cabinetName ?? 'ทั้งหมด';
 
-    worksheet.mergeCells('A1:A2');
-    worksheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
-    worksheet.getCell('A1').border = { right: { style: 'thin' }, bottom: { style: 'thin' } };
-    const logoPath = resolveReportLogoPath();
-    if (logoPath && fs.existsSync(logoPath)) {
-      try {
-        const imageId = workbook.addImage({ filename: logoPath, extension: 'png' });
-        worksheet.addImage(imageId, 'A1:A2');
-      } catch { /* skip */ }
-    }
-    worksheet.getRow(1).height = 20;
-    worksheet.getRow(2).height = 20;
-    worksheet.getColumn(1).width = 12;
-
-    worksheet.mergeCells('B1:F2');
-    const headerCell = worksheet.getCell('B1');
-    headerCell.value = 'รายงานจัดการตู้ Cabinet - แผนก\nCabinet Departments Report';
-    headerCell.font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FF1A365D' } };
-    headerCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } };
-    headerCell.border = { left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+    applyExcelStandardTitleHeader(worksheet, workbook, {
+      mergeRange: 'A1:F2',
+      title: 'รายงานจัดการตู้ Cabinet - แผนก\nCabinet Departments Report',
+      row1Height: 20,
+      row2Height: 20,
+    });
 
     worksheet.mergeCells('A3:F3');
     const dateCell = worksheet.getCell('A3');
