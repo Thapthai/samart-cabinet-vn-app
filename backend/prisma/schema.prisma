@@ -326,7 +326,7 @@ model Item {
   @@map("item")
 }
 
-/// แผนกย่อยภายใต้แผนกหลัก (เช่น emergency-opd, emergency-ipd) — master ต่อ (department_id + code)
+/// แผนกย่อยภายใต้แผนกหลัก (เช่น emergency-opd, emergency-ipd) — `code` ไม่ซ้ำทั้งระบบ
 model MedicalSupplySubDepartment {
   id            Int      @id @default(autoincrement())
   department_id Int      @map("department_id")
@@ -340,6 +340,7 @@ model MedicalSupplySubDepartment {
   department          Department           @relation(fields: [department_id], references: [ID], onDelete: Cascade)
   medicalSupplyUsages MedicalSupplyUsage[]
 
+  @@unique([code])
   @@index([department_id])
   @@map("app_sub_departments")
 }

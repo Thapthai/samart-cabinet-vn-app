@@ -126,6 +126,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
       '/staff/management/permission-users': 'จัดการสิทธิ์',
       '/staff/management/permission-roles': 'กำหนดสิทธิ์',
       '/staff/management/staff-roles': 'จัดการ Staff Role',
+      '/staff/management/departments': 'จัดการแผนก',
     };
     return pathMap[pathname] || 'Staff Portal';
   };

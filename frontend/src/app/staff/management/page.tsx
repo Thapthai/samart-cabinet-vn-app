@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield } from 'lucide-react';
+import { Package, Users, Shield, Building2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const managementMenus = [
@@ -15,6 +15,17 @@ const managementMenus = [
     borderColor: 'border-blue-200',
     iconBg: 'bg-blue-100',
     iconColor: 'text-blue-600',
+  },
+  {
+    name: 'จัดการแผนก',
+    href: '/staff/management/departments',
+    icon: Building2,
+    description: 'แผนกหลัก + รหัสแผนกย่อยจับคู่ Location (Staff portal)',
+    color: 'from-cyan-500 to-teal-600',
+    bgLight: 'bg-cyan-50',
+    borderColor: 'border-cyan-200',
+    iconBg: 'bg-cyan-100',
+    iconColor: 'text-cyan-700',
   },
   {
     name: 'Staff Users',

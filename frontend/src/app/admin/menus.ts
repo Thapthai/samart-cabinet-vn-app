@@ -146,10 +146,10 @@ export const adminMenuItems: StaffMenuItem[] = [
         description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
       },
       {
-        name: 'แผนกย่อย (Sub department)',
-        href: '/admin/management/sub-departments',
+        name: 'จัดการแผนก',
+        href: '/admin/management/departments',
         icon: Building2,
-        description: 'Master แผนกย่อย เช่น emergency-opd ผูกแผนกหลัก',
+        description: 'ดูแผนกหลักและตั้งรหัสแผนกย่อยจับคู่ Location คนไข้',
       },
       {
         name: 'จัดการตู้ Cabinet',

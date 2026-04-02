@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import moment from 'moment-timezone';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -14,6 +15,10 @@ export class MedicalSupplySubDepartmentService {
 
   private normalizeCode(code: string): string {
     return code.trim();
+  }
+
+  private isUniqueConstraintViolation(err: unknown): boolean {
+    return err instanceof PrismaClientKnownRequestError && err.code === 'P2002';
   }
 
   /** ค่า `created_at` / `updated_at` ที่ส่งเข้า Prisma (สอดคล้องกับ medical-supplies.service) */
@@ -69,6 +74,9 @@ export class MedicalSupplySubDepartmentService {
       return { success: true, message: 'สร้างแผนกย่อยแล้ว', data: row };
     } catch (err: any) {
       if (err instanceof NotFoundException) throw err;
+      if (this.isUniqueConstraintViolation(err)) {
+        return { success: false, message: 'รหัส (code) นี้มีในระบบแล้ว', error: err.message };
+      }
       this.logger.error(`create: ${err?.message}`);
       return { success: false, message: 'สร้างไม่สำเร็จ', error: err?.message };
     }
@@ -108,6 +116,9 @@ export class MedicalSupplySubDepartmentService {
       return { success: true, message: 'อัปเดตแล้ว', data: row };
     } catch (err: any) {
       if (err instanceof NotFoundException) throw err;
+      if (this.isUniqueConstraintViolation(err)) {
+        return { success: false, message: 'รหัส (code) นี้มีในระบบแล้ว', error: err.message };
+      }
       this.logger.error(`update: ${err?.message}`);
       return { success: false, message: 'อัปเดตไม่สำเร็จ', error: err?.message };
     }

@@ -23,12 +23,12 @@ export default function SubDepartmentDeleteDialog({ target, onOpenChange, saving
     <Dialog open={!!target} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>ลบแผนกย่อย &quot;{target?.code}&quot;?</DialogTitle>
+          <DialogTitle>ลบรหัสแผนกย่อย &quot;{target?.code}&quot;?</DialogTitle>
           <DialogDescription>
-            รายการ usage ที่ชี้ master นี้จะถูกตัด FK (sub_department_id เป็น null) — คอลัมน์ข้อความรหัสแผนกย่อย (usage_type) ยังคงอยู่
+            ประวัติการใช้ที่เคยชี้รหัสนี้จะไม่ชี้ master แล้ว (sub_department_id เป็น null) — ข้อความรหัสใน usage ยังคงอยู่
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
+        <DialogFooter className="gap-3">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             ยกเลิก
           </Button>

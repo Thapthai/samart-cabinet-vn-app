@@ -2,7 +2,9 @@ import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, ParseI
 import { DepartmentService } from './department.service';
 import {
   CreateCabinetDepartmentDto,
+  CreateDepartmentDto,
   UpdateCabinetDepartmentDto,
+  UpdateDepartmentDto,
 } from './dto/department.dto';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
 
@@ -30,6 +32,16 @@ export class DepartmentController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  @Post()
+  async createDepartment(@Body() dto: CreateDepartmentDto) {
+    return this.departmentService.createDepartment(dto);
+  }
+
+  @Put(':id')
+  async updateDepartment(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDepartmentDto) {
+    return this.departmentService.updateDepartment(id, dto);
   }
 }
 

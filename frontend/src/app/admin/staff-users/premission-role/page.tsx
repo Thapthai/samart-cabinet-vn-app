@@ -27,6 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Shield, Save, Loader2, CornerDownRight } from "lucide-react";
 import { toast } from "sonner";
 import { staffMenuItems, StaffMenuSubItem } from '@/app/staff/menus';
+import { normalizeStaffPermissionMenuHref } from '@/lib/staffPermissionTable';
 
 
 // Flatten staffMenuItems (and submenus) from menus.ts for permission table
@@ -116,12 +117,14 @@ export default function ManageStaffRolesPage() {
         if (permissionsResponse.success && permissionsResponse.data) {
           (permissionsResponse.data as Permission[]).forEach((perm) => {
             const roleCode = perm.role_code || perm.role?.code;
+            const menuHref = normalizeStaffPermissionMenuHref(perm.menu_href);
             if (
               roleCode &&
+              menuHref &&
               permissionsMap[roleCode] &&
-              permissionsMap[roleCode][perm.menu_href] !== undefined
+              permissionsMap[roleCode][menuHref] !== undefined
             ) {
-              permissionsMap[roleCode][perm.menu_href] = perm.can_access;
+              permissionsMap[roleCode][menuHref] = perm.can_access;
             }
           });
         }

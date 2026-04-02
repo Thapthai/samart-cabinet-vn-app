@@ -9,7 +9,6 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -65,10 +64,7 @@ export default function SubDepartmentFormDialog({
       <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
         <div ref={dropdownSlotRef} className="relative flex min-h-0 flex-1 flex-col p-6 pb-2">
           <DialogHeader className="shrink-0">
-            <DialogTitle>{editing ? 'แก้ไขแผนกย่อย' : 'เพิ่มแผนกย่อย'}</DialogTitle>
-            <DialogDescription>
-              เลือกแผนกหลักหนึ่งแผนก แล้วตั้งรหัสแผนกย่อย (เช่น emergency-opd)
-            </DialogDescription>
+            <DialogTitle>{editing ? 'แก้ไขรหัสแผนกย่อย' : 'เพิ่มรหัสแผนกย่อย'}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 py-2 overflow-y-auto flex-1 pr-1 min-h-0">
             <SearchableSelect
@@ -130,11 +126,15 @@ export default function SubDepartmentFormDialog({
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 border-t pt-4 mt-2">
+          <DialogFooter className="shrink-0 gap-3 border-t pt-4 mt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               ยกเลิก
             </Button>
-            <Button onClick={onSubmit} disabled={saving || formDeptLoading}>
+            <Button
+              className="bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-sm hover:from-cyan-600 hover:to-teal-700"
+              onClick={onSubmit}
+              disabled={saving || formDeptLoading}
+            >
               บันทึก
             </Button>
           </DialogFooter>

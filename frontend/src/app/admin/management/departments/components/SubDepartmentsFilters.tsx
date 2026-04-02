@@ -39,8 +39,10 @@ export default function SubDepartmentsFilters({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">ค้นหาและกรอง</CardTitle>
-        <CardDescription>ค้นจากรหัส ชื่อ หรือรายละเอียด · เลือกแผนกหลักหรือสถานะ</CardDescription>
+        <CardTitle className="text-base">ค้นหาและกรอง — รหัสแผนกย่อย</CardTitle>
+        <CardDescription>
+          ค้นจากรหัส (code) ชื่อ หรือรายละเอียด · เลือกแผนกหลักหรือสถานะการใช้งาน
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex min-w-[200px] flex-1 gap-2">

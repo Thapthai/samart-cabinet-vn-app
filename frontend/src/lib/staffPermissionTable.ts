@@ -1,5 +1,12 @@
 import { staffMenuItems } from '@/app/staff/menus';
 
+/** แมป href เมนูเก่า → ปัจจุบัน (สิทธิ์ใน DB อาจยังเก็บ URL เดิม) */
+export function normalizeStaffPermissionMenuHref(href: string | null | undefined): string | undefined {
+  if (href == null || href === '') return undefined;
+  if (href === '/staff/management/sub-departments') return '/staff/management/departments';
+  return href;
+}
+
 /** href ทั้งหมดที่ใช้เป็นคีย์สิทธิ์ (ไม่รวมแถวหัวข้อกลุ่ม เช่น อุปกรณ์/ตั้งค่า) */
 export function getAllStaffPermissionHrefs(): string[] {
   const seen = new Set<string>();

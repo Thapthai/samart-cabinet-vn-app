@@ -2,7 +2,9 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateCabinetDepartmentDto,
+  CreateDepartmentDto,
   UpdateCabinetDepartmentDto,
+  UpdateDepartmentDto,
 } from './dto/department.dto';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
 
@@ -45,6 +47,70 @@ export class DepartmentService {
     } catch (err: any) {
       this.logger.error(`getAllDepartments failed: ${err?.message ?? err}`);
       throw err;
+    }
+  }
+
+  async createDepartment(dto: CreateDepartmentDto) {
+    const depName = (dto.DepName ?? '').trim();
+    const depName2 = (dto.DepName2 ?? '').trim();
+    if (!depName && !depName2) {
+      return { success: false, message: 'กรุณากรอกชื่อแผนกหรือชื่อย่ออย่างน้อยหนึ่งช่อง' };
+    }
+    try {
+      const row = await this.prisma.department.create({
+        data: {
+          DepName: depName || null,
+          DepName2: depName2 || null,
+          RefDepID: dto.RefDepID?.trim() ? dto.RefDepID.trim() : null,
+          IsCancel: dto.IsCancel ?? 0,
+          ...(dto.DivID !== undefined && dto.DivID !== null ? { DivID: dto.DivID } : {}),
+          ...(dto.sort !== undefined && dto.sort !== null ? { sort: dto.sort } : {}),
+        },
+        select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
+      });
+      return { success: true, message: 'สร้างแผนกหลักสำเร็จ', data: row };
+    } catch (err: any) {
+      this.logger.error(`createDepartment: ${err?.message ?? err}`);
+      return { success: false, message: err?.message || 'ไม่สามารถสร้างแผนกหลักได้' };
+    }
+  }
+
+  async updateDepartment(id: number, dto: UpdateDepartmentDto) {
+    const existing = await this.prisma.department.findUnique({
+      where: { ID: id },
+      select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
+    });
+    if (!existing) {
+      return { success: false, message: 'ไม่พบแผนกหลัก' };
+    }
+
+    const mergedName =
+      dto.DepName !== undefined ? (dto.DepName ?? '').trim() : (existing.DepName ?? '').trim();
+    const mergedName2 =
+      dto.DepName2 !== undefined ? (dto.DepName2 ?? '').trim() : (existing.DepName2 ?? '').trim();
+    if (!mergedName && !mergedName2) {
+      return { success: false, message: 'กรุณากรอกชื่อแผนกหรือชื่อย่ออย่างน้อยหนึ่งช่อง' };
+    }
+
+    try {
+      const row = await this.prisma.department.update({
+        where: { ID: id },
+        data: {
+          ...(dto.DepName !== undefined ? { DepName: (dto.DepName ?? '').trim() || null } : {}),
+          ...(dto.DepName2 !== undefined ? { DepName2: (dto.DepName2 ?? '').trim() || null } : {}),
+          ...(dto.RefDepID !== undefined
+            ? { RefDepID: dto.RefDepID?.trim() ? dto.RefDepID.trim() : null }
+            : {}),
+          ...(dto.IsCancel !== undefined && dto.IsCancel !== null ? { IsCancel: dto.IsCancel } : {}),
+          ...(dto.DivID !== undefined && dto.DivID !== null ? { DivID: dto.DivID } : {}),
+          ...(dto.sort !== undefined && dto.sort !== null ? { sort: dto.sort } : {}),
+        },
+        select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
+      });
+      return { success: true, message: 'อัปเดตแผนกหลักแล้ว', data: row };
+    } catch (err: any) {
+      this.logger.error(`updateDepartment: ${err?.message ?? err}`);
+      return { success: false, message: err?.message || 'ไม่สามารถอัปเดตแผนกหลักได้' };
     }
   }
 

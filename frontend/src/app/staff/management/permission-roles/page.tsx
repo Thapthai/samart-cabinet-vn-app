@@ -8,7 +8,7 @@ import {
   readStaffRoleCodeFromStorage,
   staffPortalCanEditPermissionColumn,
 } from '@/lib/staffRolePolicy';
-import { getAllStaffPermissionHrefs } from '@/lib/staffPermissionTable';
+import { getAllStaffPermissionHrefs, normalizeStaffPermissionMenuHref } from '@/lib/staffPermissionTable';
 import type { StaffPermissionRole, StaffRolePermissionRow } from './types';
 import PermissionRolesPageLoading from './components/PermissionRolesPageLoading';
 import PermissionRolesTableCard from './components/PermissionRolesTableCard';
@@ -52,8 +52,9 @@ export default function ManageRolesPage() {
         if (permissionsResponse.success && permissionsResponse.data) {
           (permissionsResponse.data as StaffRolePermissionRow[]).forEach((perm) => {
             const roleCode = perm.role_code || perm.role?.code;
-            if (roleCode && permissionsMap[roleCode] && permissionsMap[roleCode][perm.menu_href] !== undefined) {
-              permissionsMap[roleCode][perm.menu_href] = perm.can_access;
+            const menuHref = normalizeStaffPermissionMenuHref(perm.menu_href);
+            if (roleCode && menuHref && permissionsMap[roleCode] && permissionsMap[roleCode][menuHref] !== undefined) {
+              permissionsMap[roleCode][menuHref] = perm.can_access;
             }
           });
         }

@@ -19,10 +19,10 @@ const managementMenus = [
     iconColor: 'text-amber-700',
   },
   {
-    name: 'แผนกย่อย (Sub department)',
-    href: '/admin/management/sub-departments',
+    name: 'จัดการแผนก',
+    href: '/admin/management/departments',
     icon: Building2,
-    description: 'Master แผนกย่อย (เช่น emergency-opd) ผูกกับแผนกหลัก',
+    description: 'แผนกหลักจากข้อมูลกลาง + ตั้งรหัสแผนกย่อยจับคู่ Location',
     color: 'from-cyan-500 to-teal-600',
     bgLight: 'bg-cyan-50',
     borderColor: 'border-cyan-200',

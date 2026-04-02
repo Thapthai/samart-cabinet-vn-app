@@ -66,6 +66,7 @@ import {
     Network,
     RotateCcw,
     ClipboardList,
+    Building2,
 } from 'lucide-react';
 
 export const staffMenuItems = [
@@ -141,6 +142,12 @@ export const staffMenuItems = [
                 href: '/staff/management/cabinets',
                 icon: Package,
                 description: 'จัดการตู้ Cabinet',
+            },
+            {
+                name: 'จัดการแผนก',
+                href: '/staff/management/departments',
+                icon: Building2,
+                description: 'ดูแผนกหลักและตั้งรหัสแผนกย่อยจับคู่ Location คนไข้',
             },
             {
                 name: 'จัดการ ผู้ใช้งาน Staff',

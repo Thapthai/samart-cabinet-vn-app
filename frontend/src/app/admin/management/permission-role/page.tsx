@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import {
   getAllStaffPermissionHrefs,
   getStaffPermissionTableRows,
+  normalizeStaffPermissionMenuHref,
 } from "@/lib/staffPermissionTable";
 
 interface Role {
@@ -107,12 +108,14 @@ export default function ManageStaffRolesPage() {
           : [];
       (permsData as Permission[]).forEach((perm) => {
         const roleCode = perm.role_code ?? (perm as any).role?.code;
+        const menuHref = normalizeStaffPermissionMenuHref(perm.menu_href);
         if (
           roleCode &&
+          menuHref &&
           permissionsMap[roleCode] &&
-          permissionsMap[roleCode][perm.menu_href] !== undefined
+          permissionsMap[roleCode][menuHref] !== undefined
         ) {
-          permissionsMap[roleCode][perm.menu_href] = perm.can_access;
+          permissionsMap[roleCode][menuHref] = perm.can_access;
         }
       });
 

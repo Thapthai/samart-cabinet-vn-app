@@ -9,6 +9,6 @@ export type SubDepartmentRow = {
   _count?: { medicalSupplyUsages: number };
 };
 
-export type DeptRow = { ID: number; DepName?: string; DepName2?: string };
+export type DeptRow = { ID: number; DepName?: string; DepName2?: string; RefDepID?: string | null };
 
 export type StatusFilter = 'all' | 'active' | 'inactive';

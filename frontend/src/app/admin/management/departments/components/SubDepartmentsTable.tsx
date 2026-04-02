@@ -24,13 +24,13 @@ export default function SubDepartmentsTable({
   return (
     <Card className="border-slate-200/80 shadow-sm">
       <CardHeader>
-        <CardTitle>รายการแผนกย่อย</CardTitle>
+        <CardTitle>รหัสแผนกย่อยที่ตั้งในระบบ</CardTitle>
         <CardDescription>
           {loading && totalLoaded === 0
             ? 'กำลังโหลด...'
             : totalLoaded === 0
-              ? 'ผูกกับแผนกหลักหนึ่งรายการต่อหนึ่งรหัส (code)'
-              : `แสดง ${rows.length} รายการ${rows.length !== totalLoaded ? ` จากทั้งหมด ${totalLoaded}` : ''}`}
+              ? 'ยังไม่มีรหัส — กด «เพิ่มรหัส» จากตารางแผนกด้านบน หรือปุ่ม «เพิ่มรหัสแผนกย่อย»'
+              : `แสดง ${rows.length} รายการ${rows.length !== totalLoaded ? ` จากทั้งหมด ${totalLoaded}` : ''} · แต่ละรหัสผูกกับแผนกหลักหนึ่งแผนก`}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -45,20 +45,20 @@ export default function SubDepartmentsTable({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-14">ID</TableHead>
+                  <TableHead className="w-14 text-center">ลำดับ</TableHead>
                   <TableHead>แผนกหลัก</TableHead>
                   <TableHead>รหัส (code)</TableHead>
                   <TableHead>ชื่อ</TableHead>
                   <TableHead>รายละเอียด</TableHead>
                   <TableHead className="text-right">Usage records</TableHead>
                   <TableHead>ใช้งาน</TableHead>
-                  <TableHead className="text-right w-44">การทำงาน</TableHead>
+                  <TableHead className="w-[120px] text-right">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((r) => (
+                {rows.map((r, ri) => (
                   <TableRow key={r.id}>
-                    <TableCell className="text-slate-600">{r.id}</TableCell>
+                    <TableCell className="text-center tabular-nums text-slate-600">{ri + 1}</TableCell>
                     <TableCell
                       className="max-w-[200px] truncate"
                       title={r.department?.DepName || r.department?.DepName2}
@@ -81,13 +81,26 @@ export default function SubDepartmentsTable({
                         <span className="text-xs text-slate-500">ปิด</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right space-x-1">
-                      <Button variant="outline" size="sm" onClick={() => onEdit(r)} title="แก้ไข">
-                        <Pencil className="h-3.5 w-3.5 mr-1" />
-                        แก้ไข
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => onEdit(r)}
+                        aria-label="แก้ไขรหัสแผนกย่อย"
+                      >
+                        <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => onDelete(r)}>
-                        <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => onDelete(r)}
+                        aria-label="ลบรหัสแผนกย่อย"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
