@@ -59,6 +59,9 @@ interface SubDepartmentMappingDialogProps {
 
 const MASTER_DEPARTMENTS_HREF = "/staff/management/departments";
 
+/** Radix Select ห้ามใช้ value="" โดยไม่มี SelectItem ที่ตรง — ใช้ sentinel แทน */
+const ADD_SUB_ID_NONE = "__add_sub_id_none__";
+
 export default function SubDepartmentMappingDialog({
   open,
   onOpenChange,
@@ -381,11 +384,17 @@ export default function SubDepartmentMappingDialog({
                     <div className="space-y-2">
                       <div className="w-full min-w-0">
                         <Label className="text-xs">แผนกย่อย</Label>
-                        <Select value={addSubId} onValueChange={setAddSubId}>
+                        <Select
+                          value={addSubId ? addSubId : ADD_SUB_ID_NONE}
+                          onValueChange={(v) => setAddSubId(v === ADD_SUB_ID_NONE ? "" : v)}
+                        >
                           <SelectTrigger className="mt-1 h-10 w-full max-w-full justify-between text-left text-sm whitespace-normal [&_[data-slot=select-value]]:line-clamp-2 [&_[data-slot=select-value]]:text-left [&_[data-slot=select-value]]:whitespace-normal">
                             <SelectValue placeholder="เลือกรหัส" />
                           </SelectTrigger>
                           <SelectContent className="max-w-[min(100vw-2rem,var(--radix-select-trigger-width))]">
+                            <SelectItem value={ADD_SUB_ID_NONE}>
+                              <span className="text-muted-foreground">เลือกรหัส</span>
+                            </SelectItem>
                             {addOptions.map((s) => (
                               <SelectItem key={s.id} value={String(s.id)}>
                                 <span className="font-mono text-xs">{s.code}</span>

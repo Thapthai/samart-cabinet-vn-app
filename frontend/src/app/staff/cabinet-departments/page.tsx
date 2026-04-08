@@ -126,8 +126,8 @@ export default function ItemStockDepartmentsPage() {
   const handleEdit = (mapping: CabinetDepartment) => {
     setSelectedMapping(mapping);
     setFormData({
-      cabinet_id: mapping.cabinet_id.toString(),
-      department_id: mapping.department_id.toString(),
+      cabinet_id: String(mapping.cabinet_id ?? ""),
+      department_id: String(mapping.department_id ?? ""),
       status: mapping.status,
       description: mapping.description || "",
     });
@@ -253,10 +253,10 @@ export default function ItemStockDepartmentsPage() {
     }
 
     const matchesCabinet =
-      activeFilters.cabinetId === "" || mapping.cabinet_id.toString() === activeFilters.cabinetId;
+      activeFilters.cabinetId === "" || String(mapping.cabinet_id ?? "") === activeFilters.cabinetId;
 
     const matchesDepartment =
-      activeFilters.departmentId === "" || mapping.department_id.toString() === activeFilters.departmentId;
+      activeFilters.departmentId === "" || String(mapping.department_id ?? "") === activeFilters.departmentId;
 
     const matchesStatus = activeFilters.status === "ALL" || mapping.status === activeFilters.status;
 
