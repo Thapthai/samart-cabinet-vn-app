@@ -219,6 +219,7 @@ export const itemsApi = {
   getItemStocksWillReturn: async (params?: {
     department_id?: number;
     cabinet_id?: number;
+    sub_department_id?: number;
     item_code?: string;
     start_date?: string;
     end_date?: string;
@@ -305,6 +306,12 @@ export const medicalSuppliesApi = {
     assession_no?: string;
     department_code?: string;
     department_name?: string;  // ชื่อแผนก (เช็คกับ DepName/DepName2)
+    /** รหัสแผนกย่อย (ตรงกับ MedicalSupplySubDepartment.code) */
+    usage_type?: string;
+    /** ค้นหาเฉพาะชื่อคนไข้ (ไม่รวมอุปกรณ์) — ใช้คู่กับ item_keyword แทน keyword */
+    patient_keyword?: string;
+    /** ค้นหาเฉพาะรายการอุปกรณ์ */
+    item_keyword?: string;
     print_date?: string;       // วันที่พิมพ์บิล
     time_print_date?: string;  // เวลาที่พิมพ์บิล
   }): Promise<PaginatedResponse<any>> => {
@@ -411,6 +418,9 @@ export const medicalSuppliesApi = {
 
   getReturnHistory: async (query?: {
     department_code?: string;
+    cabinet_id?: string;
+    sub_department_id?: string;
+    item_keyword?: string;
     patient_hn?: string;
     return_reason?: string;
     date_from?: string;
@@ -501,6 +511,7 @@ export const medicalSuppliesApi = {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
     departmentCode?: string;
     cabinetCode?: string;
   }): Promise<ApiResponse<any>> => {
@@ -523,6 +534,7 @@ export const medicalSuppliesApi = {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<ApiResponse<any> & {
     total?: number;
     page?: number;
@@ -540,6 +552,7 @@ export const medicalSuppliesApi = {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<void> => {
     const body = {
       keyword: params?.keyword,
@@ -547,6 +560,7 @@ export const medicalSuppliesApi = {
       endDate: params?.endDate,
       departmentId: params?.departmentId,
       cabinetId: params?.cabinetId,
+      subDepartmentId: params?.subDepartmentId,
     };
     const response = await api.post('/reports/dispensed-items/excel', body);
     const res = response.data as { success?: boolean; data?: { buffer?: string; filename?: string; contentType?: string } };
@@ -571,6 +585,7 @@ export const medicalSuppliesApi = {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<void> => {
     const body = {
       keyword: params?.keyword,
@@ -578,6 +593,7 @@ export const medicalSuppliesApi = {
       endDate: params?.endDate,
       departmentId: params?.departmentId,
       cabinetId: params?.cabinetId,
+      subDepartmentId: params?.subDepartmentId,
     };
     const response = await api.post('/reports/dispensed-items/pdf', body);
     const res = response.data as { success?: boolean; data?: { buffer?: string; filename?: string; contentType?: string } };
@@ -603,6 +619,8 @@ export const medicalSuppliesApi = {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     page?: number;
     limit?: number;
   }): Promise<ApiResponse<any>> => {
@@ -626,6 +644,8 @@ export const medicalSuppliesApi = {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     includeUsageDetails?: boolean | string;
   }): Promise<void> => {
     const body = {
@@ -634,6 +654,8 @@ export const medicalSuppliesApi = {
       startDate: params?.startDate,
       endDate: params?.endDate,
       departmentCode: params?.departmentCode,
+      subDepartmentId: params?.subDepartmentId,
+      cabinetId: params?.cabinetId,
       includeUsageDetails: params?.includeUsageDetails === true || params?.includeUsageDetails === 'true',
     };
     const response = await api.post('/reports/item-comparison/excel', body);
@@ -659,6 +681,8 @@ export const medicalSuppliesApi = {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     includeUsageDetails?: boolean | string;
   }): Promise<void> => {
     const body = {
@@ -667,6 +691,8 @@ export const medicalSuppliesApi = {
       startDate: params?.startDate,
       endDate: params?.endDate,
       departmentCode: params?.departmentCode,
+      subDepartmentId: params?.subDepartmentId,
+      cabinetId: params?.cabinetId,
       includeUsageDetails: params?.includeUsageDetails === true || params?.includeUsageDetails === 'true',
     };
     const response = await api.post('/reports/item-comparison/pdf', body);
@@ -722,6 +748,7 @@ export const medicalSuppliesApi = {
     lastname?: string;
     assession_no?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
     page?: number;
     limit?: number;
   }): Promise<ApiResponse<any>> => {
@@ -1014,6 +1041,7 @@ export const vendingReportsApi = {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<void> => {
     const body = {
       keyword: params?.keyword,
@@ -1022,6 +1050,7 @@ export const vendingReportsApi = {
       endDate: params?.endDate,
       departmentId: params?.departmentId,
       cabinetId: params?.cabinetId,
+      subDepartmentId: params?.subDepartmentId,
     };
     const response = await api.post('/reports/return-to-cabinet/excel', body);
     const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string };
@@ -1046,6 +1075,7 @@ export const vendingReportsApi = {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<void> => {
     const body = {
       keyword: params?.keyword,
@@ -1054,6 +1084,7 @@ export const vendingReportsApi = {
       endDate: params?.endDate,
       departmentId: params?.departmentId,
       cabinetId: params?.cabinetId,
+      subDepartmentId: params?.subDepartmentId,
     };
     const response = await api.post('/reports/return-to-cabinet/pdf', body);
     const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string };
@@ -1816,6 +1847,56 @@ export const cabinetDepartmentApi = {
     const response = await api.get('/item-stocks/in-cabinet', {
       params: { ...params, cabinet_id: cabinetId },
     });
+    return response.data;
+  },
+};
+
+/** ตู้ ↔ แผนกย่อย (many-to-many) — POST/GET/PUT/DELETE /cabinet-sub-departments */
+export const cabinetSubDepartmentApi = {
+  getAll: async (params?: {
+    cabinetId?: number;
+    subDepartmentId?: number;
+    departmentId?: number;
+    status?: string;
+    keyword?: string;
+  }): Promise<ApiResponse<any[]>> => {
+    const apiParams: Record<string, unknown> = {};
+    if (params?.cabinetId !== undefined) apiParams.cabinet_id = params.cabinetId;
+    if (params?.subDepartmentId !== undefined) apiParams.sub_department_id = params.subDepartmentId;
+    if (params?.departmentId !== undefined) apiParams.department_id = params.departmentId;
+    if (params?.status !== undefined) apiParams.status = params.status;
+    if (params?.keyword !== undefined && params.keyword !== '') apiParams.keyword = params.keyword;
+    const response = await api.get('/cabinet-sub-departments', { params: apiParams });
+    return response.data;
+  },
+
+  create: async (data: {
+    cabinet_id: number;
+    sub_department_id: number;
+    status?: string;
+    description?: string;
+    sort_order?: number;
+  }): Promise<ApiResponse<any>> => {
+    const response = await api.post('/cabinet-sub-departments', data);
+    return response.data;
+  },
+
+  update: async (
+    id: number,
+    data: {
+      cabinet_id: number;
+      sub_department_id: number;
+      status?: string;
+      description?: string;
+      sort_order?: number;
+    },
+  ): Promise<ApiResponse<any>> => {
+    const response = await api.put(`/cabinet-sub-departments/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<ApiResponse<void>> => {
+    const response = await api.delete(`/cabinet-sub-departments/${id}`);
     return response.data;
   },
 };

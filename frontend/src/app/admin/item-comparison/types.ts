@@ -38,6 +38,8 @@ export interface FilterState {
   endDate: string;
   itemTypeFilter: string;
   departmentCode: string;
+  subDepartmentId: string;
+  cabinetId: string;
 }
 
 export interface SummaryData {

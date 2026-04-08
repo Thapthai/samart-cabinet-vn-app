@@ -4,8 +4,10 @@ import { DepartmentService } from './department.service';
 import { StaffDepartmentScopeService } from '../staff/staff-department-scope.service';
 import {
   CreateCabinetDepartmentDto,
+  CreateCabinetSubDepartmentDto,
   CreateDepartmentDto,
   UpdateCabinetDepartmentDto,
+  UpdateCabinetSubDepartmentDto,
   UpdateDepartmentDto,
 } from './dto/department.dto';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
@@ -136,5 +138,48 @@ export class CabinetDepartmentController {
   @Delete(':id')
   delete(@Param('id', ParseIntPipe) id: number) {
     return this.departmentService.deleteCabinetDepartment(id);
+  }
+}
+
+@Controller('cabinet-sub-departments')
+export class CabinetSubDepartmentController {
+  constructor(
+    private readonly departmentService: DepartmentService,
+    private readonly staffDepartmentScope: StaffDepartmentScopeService,
+  ) {}
+
+  @Post()
+  create(@Body() dto: CreateCabinetSubDepartmentDto) {
+    return this.departmentService.createCabinetSubDepartment(dto);
+  }
+
+  @Get()
+  async getAll(
+    @Req() req: Request,
+    @Query('cabinet_id') cabinet_id?: string,
+    @Query('sub_department_id') sub_department_id?: string,
+    @Query('department_id') department_id?: string,
+    @Query('status') status?: string,
+    @Query('keyword') keyword?: string,
+  ) {
+    const allowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
+    const query = {
+      cabinet_id: cabinet_id ? parseInt(cabinet_id, 10) : undefined,
+      sub_department_id: sub_department_id ? parseInt(sub_department_id, 10) : undefined,
+      department_id: department_id ? parseInt(department_id, 10) : undefined,
+      status,
+      keyword,
+    };
+    return this.departmentService.getCabinetSubDepartments(query, allowedDepartmentIds);
+  }
+
+  @Put(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCabinetSubDepartmentDto) {
+    return this.departmentService.updateCabinetSubDepartment(id, dto);
+  }
+
+  @Delete(':id')
+  delete(@Param('id', ParseIntPipe) id: number) {
+    return this.departmentService.deleteCabinetSubDepartment(id);
   }
 }

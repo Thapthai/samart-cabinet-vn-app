@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { RotateCcw } from 'lucide-react';
 import FilterSection from './components/FilterSection';
 import ReturnedTable from './components/ReturnedTable';
-import type { DispensedItem, FilterState, SummaryData } from './types.ts';
+import type { DispensedItem, FilterState, SummaryData } from './types';
 import { buildReturnedGroups } from '@/lib/returnToCabinet/buildReturnedGroups';
 
 const getTodayDate = () => {
@@ -25,7 +25,7 @@ const GROUPS_PER_PAGE = 10;
 /** ดึงรายการดิบต่อ request — วนจนได้ครบตาม total จาก API */
 const FETCH_BATCH_LIMIT = 5000;
 
-export default function ReturnToCabinetReportPage() {
+export default function ReturnToCabinetPage() {
   const { user } = useAuth();
   const [loadingList, setLoadingList] = useState(true);
   const [returnedList, setReturnedList] = useState<DispensedItem[]>([]);
@@ -35,8 +35,9 @@ export default function ReturnToCabinetReportPage() {
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
-    departmentId: '29',
-    cabinetId: '1',
+    departmentId: '',
+    subDepartmentId: '',
+    cabinetId: '',
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,6 +68,7 @@ export default function ReturnToCabinetReportPage() {
         params.itemTypeId = parseInt(activeFilters.itemTypeFilter, 10);
       }
       if (activeFilters.departmentId) params.departmentId = activeFilters.departmentId;
+      if (activeFilters.subDepartmentId) params.subDepartmentId = activeFilters.subDepartmentId;
       if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
 
       const aggregated: DispensedItem[] = [];
@@ -141,8 +143,9 @@ export default function ReturnToCabinetReportPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId: '29',
-      cabinetId: '1',
+      departmentId: '',
+      subDepartmentId: '',
+      cabinetId: '',
     };
     setFilters(resetFilters);
     fetchReturnedList(resetFilters, { resetPage: true });
@@ -162,6 +165,7 @@ export default function ReturnToCabinetReportPage() {
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
       if (filters.departmentId) params.departmentId = filters.departmentId;
+      if (filters.subDepartmentId) params.subDepartmentId = filters.subDepartmentId;
       if (filters.cabinetId) params.cabinetId = filters.cabinetId;
 
       toast.info(`กำลังสร้างรายงาน ${format.toUpperCase()}...`);

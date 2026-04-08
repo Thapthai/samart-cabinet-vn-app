@@ -92,6 +92,63 @@ export class StaffDepartmentScopeService {
     }
   }
 
+  /**
+   * Staff portal: ใช้เมื่อกรอง will-return แบบทุกตู้ — ต้องล็อกอิน และแผนกต้องอยู่ในขอบเขต role
+   */
+  async assertStaffDepartmentAccess(req: RequestLike, departmentId: number): Promise<void> {
+    const staff = await this.resolveStaffFromRequest(req);
+    if (!staff) {
+      throw new UnauthorizedException('ต้องล็อกอิน Staff');
+    }
+    const allowed = await this.resolveAllowedDepartmentIds(req);
+    if (allowed != null && !allowed.includes(departmentId)) {
+      throw new ForbiddenException('แผนกนี้อยู่นอกขอบเขตที่คุณได้รับอนุญาต');
+    }
+  }
+
+  /**
+   * will-return ไม่ส่ง department_id แต่ส่ง sub_department_id — ตรวจว่าแผนกย่อยถูกต้องและ staff เข้าถึงแผนกหลักได้
+   */
+  async assertStaffCanAccessSubDepartment(req: RequestLike, subDepartmentId: number): Promise<void> {
+    const sub = await this.prisma.medicalSupplySubDepartment.findFirst({
+      where: { id: subDepartmentId, status: true },
+      select: { department_id: true },
+    });
+    if (!sub) {
+      throw new BadRequestException('แผนกย่อยไม่ถูกต้อง');
+    }
+    await this.assertStaffDepartmentAccess(req, sub.department_id);
+  }
+
+  /** แผนกย่อยต้องเป็นของแผนกหลักที่เลือก (ไม่ต้องมีตู้เดียว) — will-return แบบทุกตู้ */
+  async assertSubDepartmentBelongsToDepartment(
+    subDepartmentId: number,
+    departmentId: number,
+  ): Promise<void> {
+    const sub = await this.prisma.medicalSupplySubDepartment.findFirst({
+      where: { id: subDepartmentId, department_id: departmentId, status: true },
+      select: { id: true },
+    });
+    if (!sub) {
+      throw new BadRequestException('แผนกย่อยไม่ถูกต้องหรือไม่อยู่ภายใต้แผนกที่เลือก');
+    }
+  }
+
+  /** แผนกย่อยต้องผูกกับตู้ (ACTIVE) — ใช้กับกรอง will-return */
+  async assertCabinetLinkedSubDepartment(cabinetId: number, subDepartmentId: number): Promise<void> {
+    const row = await this.prisma.cabinetSubDepartment.findFirst({
+      where: {
+        cabinet_id: cabinetId,
+        sub_department_id: subDepartmentId,
+        status: 'ACTIVE',
+      },
+      select: { id: true },
+    });
+    if (!row) {
+      throw new BadRequestException('แผนกย่อยนี้ไม่ได้ผูกกับตู้ที่เลือก');
+    }
+  }
+
   private async resolveStaffFromRequest(req: RequestLike): Promise<{ id: number; role_id: number } | null> {
     const h = req.headers;
     const authHeader = this.headerString(h['authorization']);

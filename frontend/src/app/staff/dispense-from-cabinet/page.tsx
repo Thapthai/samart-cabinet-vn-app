@@ -26,6 +26,7 @@ export default function DispenseFromCabinetPage() {
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
     departmentId: '',
+    subDepartmentId: '',
     cabinetId: '',
   });
 
@@ -55,6 +56,7 @@ export default function DispenseFromCabinetPage() {
       if (activeFilters.endDate) params.endDate = activeFilters.endDate;
       if (activeFilters.searchItemCode) params.keyword = activeFilters.searchItemCode;
       if (activeFilters.departmentId) params.departmentId = activeFilters.departmentId;
+      if (activeFilters.subDepartmentId) params.subDepartmentId = activeFilters.subDepartmentId;
       if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
 
       const response = await DispensedItemsApi.getDispensedItems(params);
@@ -91,7 +93,7 @@ export default function DispenseFromCabinetPage() {
 
   const handleSearch = () => {
     if (!filters.departmentId?.trim()) {
-      toast.error('กรุณาเลือกแผนก');
+      toast.error('กรุณาเลือก Division');
       return;
     }
     if (!filters.cabinetId?.trim()) {
@@ -109,6 +111,7 @@ export default function DispenseFromCabinetPage() {
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
       departmentId: '',
+      subDepartmentId: '',
       cabinetId: '',
     };
     setFilters(clearedFilters);
@@ -124,7 +127,7 @@ export default function DispenseFromCabinetPage() {
 
   const handleExportReport = async (format: 'excel' | 'pdf') => {
     if (!filters.departmentId?.trim()) {
-      toast.error('กรุณาเลือกแผนกก่อนส่งออกรายงาน');
+      toast.error('กรุณาเลือก Division ก่อนส่งออกรายงาน');
       return;
     }
     if (!filters.cabinetId?.trim()) {
@@ -138,6 +141,7 @@ export default function DispenseFromCabinetPage() {
         startDate: filters.startDate || undefined,
         endDate: filters.endDate || undefined,
         departmentId: filters.departmentId || undefined,
+        subDepartmentId: filters.subDepartmentId || undefined,
         cabinetId: filters.cabinetId,
       };
       if (format === 'excel') {

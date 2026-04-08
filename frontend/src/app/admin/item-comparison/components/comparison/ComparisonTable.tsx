@@ -23,6 +23,7 @@ interface ComparisonTableProps {
   startDate?: string;
   endDate?: string;
   departmentCode?: string;
+  subDepartmentId?: string;
   onSelectItem: (itemCode: string) => void;
   onPageChange: (page: number) => void;
   onExportExcel: () => void;
@@ -42,6 +43,7 @@ export function ComparisonTable({
   startDate,
   endDate,
   departmentCode,
+  subDepartmentId,
   onSelectItem,
   onPageChange,
   onExportExcel,
@@ -99,6 +101,7 @@ export function ComparisonTable({
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
       if (departmentCode) params.departmentCode = departmentCode;
+      if (subDepartmentId?.trim()) params.subDepartmentId = subDepartmentId.trim();
 
       const response = await medicalSuppliesApi.getUsageByItemCodeFromItemTable(params) as any;
 
@@ -191,7 +194,7 @@ export function ComparisonTable({
         fetchUsageData(itemCode, 1);
       });
     }
-  }, [startDate, endDate, departmentCode]);
+  }, [startDate, endDate, departmentCode, subDepartmentId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

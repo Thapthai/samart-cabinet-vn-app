@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { itemsApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -21,7 +21,9 @@ export default function ItemsPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  /** ดึงรายการจาก API เฉพาะหลังกดค้นหา */
+  const [hasSearched, setHasSearched] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -32,8 +34,9 @@ export default function ItemsPage() {
   // Active filters (after search button clicked)
   const [activeFilters, setActiveFilters] = useState({
     searchTerm: '',
-    departmentId: '29',
-    cabinetId: '1',
+    departmentId: '',
+    subDepartmentId: '',
+    cabinetId: '',
     statusFilter: 'all',
     keyword: '',
   });
@@ -44,72 +47,88 @@ export default function ItemsPage() {
   const [totalItems, setTotalItems] = useState(0);
   const itemsPerPage = 10; // Table layout
 
-  useEffect(() => {
-    fetchItems();
-  }, [user?.id, currentPage, activeFilters]);
-
-  useEffect(() => {
-    filterItems();
-  }, [items, activeFilters.statusFilter]);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
+    if (!user?.id || !hasSearched) {
+      setLoading(false);
+      return;
+    }
     try {
-      if (user?.id) {
-        setLoading(true);
-        const params: any = {
-          page: currentPage,
-          limit: itemsPerPage,
-          keyword: activeFilters.keyword || activeFilters.searchTerm || undefined,
-          status: 'ACTIVE',
-        };
+      setLoading(true);
+      const params: any = {
+        page: currentPage,
+        limit: itemsPerPage,
+        keyword: activeFilters.keyword || activeFilters.searchTerm || undefined,
+        status: 'ACTIVE',
+      };
 
-        if (activeFilters.departmentId && activeFilters.departmentId !== "") {
-          const deptId = parseInt(activeFilters.departmentId);
-          if (!isNaN(deptId)) {
-            params.department_id = deptId;
-          }
+      if (activeFilters.departmentId && activeFilters.departmentId !== '') {
+        const deptId = parseInt(activeFilters.departmentId, 10);
+        if (!Number.isNaN(deptId)) {
+          params.department_id = deptId;
         }
-
-        if (activeFilters.cabinetId && activeFilters.cabinetId !== "") {
-          const cabId = parseInt(activeFilters.cabinetId);
-          if (!isNaN(cabId)) {
-            params.cabinet_id = cabId;
-          }
-        }
- 
-        const response = await itemsApi.getAll(params) as { success?: boolean; data?: any[]; total?: number; lastPage?: number };
-        if (response?.success === false) {
-          toast.error((response as any)?.message || 'โหลดข้อมูลไม่สำเร็จ');
-          setItems([]);
-          setTotalItems(0);
-          setTotalPages(1);
-          return;
-        }
-        const list = Array.isArray(response?.data) ? response.data : (response as any)?.data?.data ?? [];
-        setItems(list);
-        setTotalItems(response?.total ?? list.length);
-        setTotalPages(response?.lastPage ?? Math.ceil((response?.total ?? list.length) / itemsPerPage));
       }
+
+      if (activeFilters.cabinetId && activeFilters.cabinetId !== '') {
+        const cabId = parseInt(activeFilters.cabinetId, 10);
+        if (!Number.isNaN(cabId)) {
+          params.cabinet_id = cabId;
+        }
+      }
+
+      if (activeFilters.subDepartmentId?.trim()) {
+        const sid = parseInt(activeFilters.subDepartmentId.trim(), 10);
+        if (!Number.isNaN(sid)) {
+          params.sub_department_id = sid;
+        }
+      }
+
+      const response = (await itemsApi.getAll(params)) as {
+        success?: boolean;
+        data?: any[];
+        total?: number;
+        lastPage?: number;
+        message?: string;
+      };
+      if (response?.success === false) {
+        toast.error((response as any)?.message || 'โหลดข้อมูลไม่สำเร็จ');
+        setItems([]);
+        setTotalItems(0);
+        setTotalPages(1);
+        return;
+      }
+      const list = Array.isArray(response?.data)
+        ? response.data
+        : (response as any)?.data?.data ?? [];
+      setItems(list);
+      setTotalItems(response?.total ?? list.length);
+      setTotalPages(
+        response?.lastPage ?? Math.ceil((response?.total ?? list.length) / itemsPerPage),
+      );
     } catch (error) {
       console.error('Failed to fetch items:', error);
       toast.error('ไม่สามารถโหลดข้อมูลสินค้าได้');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, hasSearched, currentPage, activeFilters, itemsPerPage]);
 
-  const filterItems = () => {
+  const filterItems = useCallback(() => {
     let filtered = items;
-
-    // Filter by status (client-side)
     if (activeFilters.statusFilter !== 'all') {
-      filtered = filtered.filter(item =>
-        activeFilters.statusFilter === 'active' ? item.item_status === 0 : item.item_status !== 0
+      filtered = filtered.filter((item) =>
+        activeFilters.statusFilter === 'active' ? item.item_status === 0 : item.item_status !== 0,
       );
     }
-
     setFilteredItems(filtered);
-  };
+  }, [items, activeFilters.statusFilter]);
+
+  useEffect(() => {
+    void fetchItems();
+  }, [fetchItems]);
+
+  useEffect(() => {
+    filterItems();
+  }, [filterItems]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -119,12 +138,31 @@ export default function ItemsPage() {
   const handleSearch = (filters: {
     searchTerm: string;
     departmentId: string;
+    subDepartmentId: string;
     cabinetId: string;
     statusFilter: string;
     keyword: string;
   }) => {
     setActiveFilters(filters);
-    setCurrentPage(1); // Reset to first page on search
+    setCurrentPage(1);
+    setHasSearched(true);
+  };
+
+  const handleResetFilters = () => {
+    setHasSearched(false);
+    setCurrentPage(1);
+    setActiveFilters({
+      searchTerm: '',
+      departmentId: '',
+      subDepartmentId: '',
+      cabinetId: '',
+      statusFilter: 'all',
+      keyword: '',
+    });
+    setItems([]);
+    setFilteredItems([]);
+    setTotalItems(0);
+    setTotalPages(1);
   };
 
   const handleEdit = (item: Item) => {
@@ -190,7 +228,11 @@ export default function ItemsPage() {
           </div>
 
           {/* Filter Section */}
-          <FilterSection onSearch={handleSearch} onBeforeSearch={() => setCurrentPage(1)} />
+          <FilterSection
+            onSearch={handleSearch}
+            onBeforeSearch={() => setCurrentPage(1)}
+            onReset={handleResetFilters}
+          />
 
           {/* Table Section */}
           <ItemsTable
@@ -200,6 +242,7 @@ export default function ItemsPage() {
             totalPages={totalPages}
             totalItems={totalItems}
             itemsPerPage={itemsPerPage}
+            hasSearched={hasSearched}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onUpdateMinMax={handleUpdateMinMax}

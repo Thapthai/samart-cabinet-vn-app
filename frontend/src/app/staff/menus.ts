@@ -104,7 +104,7 @@ export const staffMenuItems = [
             },
             {
                 name: 'เติมอุปกรณ์เข้าตู้',
-                href: '/staff/return-to-cabinet-report',
+                href: '/staff/return-to-cabinet',
                 description: 'การเติมอุปกรณ์เข้าตู้ SmartCabinet',
                 icon: FileBarChart,
             },
@@ -156,10 +156,10 @@ export const staffMenuItems = [
                 description: 'จัดการ User',
             },
             {
-                name: 'กำหนดสิทธิ์ ผู้ใช้งาน Staff',
+                name: ' กำหนดสิทธิ์ Roles Staff',
                 href: '/staff/management/permission-roles',
                 icon: Shield,
-                description: 'กำหนดสิทธิ์การเข้าถึงเมนู ผู้ใช้งาน Staff',
+                description: 'กำหนดสิทธิ์การเข้าถึงเมนู Roles Staff',
             },
             {
                 name: 'จัดการ Staff Role',

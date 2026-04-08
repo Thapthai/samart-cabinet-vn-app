@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
 import { cabinetApi, departmentApi } from "@/lib/api";
@@ -50,20 +51,22 @@ export default function CreateMappingDialog({
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
-  const dropdownSlotRef = useRef<HTMLDivElement>(null);
+  const dialogContentRef = useRef<HTMLDivElement>(null);
 
-  // สถานะเริ่มต้นเป็น ACTIVE ตอนเปิด dialog
   useEffect(() => {
     if (open) {
-      setFormData({ ...formData, status: "ACTIVE" });
+      void loadInitialData();
     }
   }, [open]);
 
-  // Load departments with search
+  const loadInitialData = async () => {
+    await Promise.all([loadCabinets(""), loadDepartments("")]);
+  };
+
   const loadDepartments = async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const response = await departmentApi.getAll({ limit: 10, keyword });
+      const response = await departmentApi.getAll({ limit: 50, keyword });
       if (response.success && response.data) {
         setDepartments(response.data as Department[]);
       }
@@ -74,11 +77,10 @@ export default function CreateMappingDialog({
     }
   };
 
-  // Load item stocks with search
   const loadCabinets = async (keyword?: string) => {
     try {
       setLoadingCabinets(true);
-      const response = await cabinetApi.getAll({ page: 1, limit: 10, keyword });
+      const response = await cabinetApi.getAll({ page: 1, limit: 50, keyword });
       if (response.success && response.data) {
         setCabinets(response.data as Cabinet[]);
       }
@@ -89,25 +91,21 @@ export default function CreateMappingDialog({
     }
   };
 
-  // Removed - SearchableSelect now handles initial data loading when opened
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <div ref={dropdownSlotRef} className="relative flex flex-col flex-1 min-h-0">
-          <DialogHeader className="shrink-0">
-            <DialogTitle>เพิ่มการเชื่อมโยงใหม่</DialogTitle>
-            <DialogDescription>เชื่อมโยงตู้ Cabinets กับแผนก</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4 overflow-y-auto flex-1 pr-1">
-            <SearchableSelect
-              label="ตู้ Cabinets"
-              portalTargetRef={dropdownSlotRef}
-              placeholder="เลือกตู้"
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>เพิ่มการเชื่อมโยงใหม่</DialogTitle>
+          <DialogDescription>เชื่อมโยงตู้ Cabinet กับแผนก</DialogDescription>
+        </DialogHeader>
+        <div ref={dialogContentRef} className="relative overflow-visible grid gap-4 py-4">
+          <SearchableSelect
+            portalTargetRef={dialogContentRef}
+            label="ตู้ Cabinet"
+            placeholder="เลือกตู้"
             value={formData.cabinet_id}
             onValueChange={(value) => setFormData({ ...formData, cabinet_id: value })}
             options={cabinets
-              // ไม่ให้เลือกตู้ที่สถานะเป็น USED
               .filter((cabinet) => cabinet.cabinet_status !== "USED")
               .map((cabinet) => ({
                 value: cabinet.id.toString(),
@@ -118,12 +116,12 @@ export default function CreateMappingDialog({
             required
             onSearch={loadCabinets}
             searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
-            />
+          />
 
-            <SearchableSelect
-              label="แผนก"
-              portalTargetRef={dropdownSlotRef}
-              placeholder="เลือกแผนก"
+          <SearchableSelect
+            portalTargetRef={dialogContentRef}
+            label="Division"
+            placeholder="เลือก Division"
             value={formData.department_id}
             onValueChange={(value) => setFormData({ ...formData, department_id: value })}
             options={departments.map((dept) => ({
@@ -134,19 +132,35 @@ export default function CreateMappingDialog({
             loading={loadingDepartments}
             required
             onSearch={loadDepartments}
-            searchPlaceholder="ค้นหาชื่อแผนก..."
-            />
+            searchPlaceholder="ค้นหาชื่อ Division..."
+          />
 
-            <div>
-              <Label>หมายเหตุ</Label>
+          <div>
+            <Label>สถานะ</Label>
+            <Select
+              value={formData.status || "ACTIVE"}
+              onValueChange={(value) => setFormData({ ...formData, status: value })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="เลือกสถานะ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACTIVE">ใช้งาน</SelectItem>
+                <SelectItem value="INACTIVE">ไม่ใช้งาน</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>หมายเหตุ</Label>
             <Input
               placeholder="หมายเหตุ..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
-            </div>
+            />
           </div>
-          <DialogFooter className="shrink-0 border-t pt-4">
+        </div>
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             ยกเลิก
           </Button>
@@ -160,8 +174,7 @@ export default function CreateMappingDialog({
               "บันทึก"
             )}
           </Button>
-          </DialogFooter>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -31,6 +31,7 @@ export const returnedItemsApi = {
     limit?: number;
     departmentId?: string | number;
     cabinetId?: string | number;
+    subDepartmentId?: string;
     departmentCode?: string;
     cabinetCode?: string;
   }): Promise<ApiResponse<unknown>> => {
@@ -45,6 +46,7 @@ export const returnedItemsApi = {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
     departmentCode?: string;
     cabinetCode?: string;
   }): Promise<void> => {
@@ -55,6 +57,7 @@ export const returnedItemsApi = {
       endDate: params?.endDate,
       departmentId: params?.departmentId ?? params?.departmentCode,
       cabinetId: params?.cabinetId ?? params?.cabinetCode,
+      subDepartmentId: params?.subDepartmentId,
     };
     const response = await staffApi.post('/reports/return-to-cabinet/excel', body);
     const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string; error?: string };
@@ -68,6 +71,7 @@ export const returnedItemsApi = {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
     departmentCode?: string;
     cabinetCode?: string;
   }): Promise<void> => {
@@ -78,6 +82,7 @@ export const returnedItemsApi = {
       endDate: params?.endDate,
       departmentId: params?.departmentId ?? params?.departmentCode,
       cabinetId: params?.cabinetId ?? params?.cabinetCode,
+      subDepartmentId: params?.subDepartmentId,
     };
     const response = await staffApi.post('/reports/return-to-cabinet/pdf', body);
     const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string; error?: string };

@@ -16,6 +16,8 @@ interface UsageItemsTableProps {
   itemName: string;
   startDate?: string;
   endDate?: string;
+  departmentCode?: string;
+  subDepartmentId?: string;
   itemsPerPage?: number;
 }
 
@@ -24,6 +26,8 @@ export function UsageItemsTable({
   itemName,
   startDate,
   endDate,
+  departmentCode,
+  subDepartmentId,
   itemsPerPage = 5,
 }: UsageItemsTableProps) {
   const [loading, setLoading] = useState(false);
@@ -49,7 +53,9 @@ export function UsageItemsTable({
       // Add date filters if provided
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
-      
+      if (departmentCode?.trim()) params.departmentCode = departmentCode.trim();
+      if (subDepartmentId?.trim()) params.subDepartmentId = subDepartmentId.trim();
+
       const response = await itemComparisonApi.getUsageByItemCodeFromItemTable(params) as any;
       
       if (response && (response.success || response.data)) {
@@ -82,7 +88,7 @@ export function UsageItemsTable({
 
   useEffect(() => {
     fetchUsageData(1);
-  }, [itemCode, startDate, endDate]);
+  }, [itemCode, startDate, endDate, departmentCode, subDepartmentId]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);

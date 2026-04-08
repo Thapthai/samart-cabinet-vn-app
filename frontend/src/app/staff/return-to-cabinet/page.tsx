@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { RotateCcw } from 'lucide-react';
 import FilterSection from './components/FilterSection';
 import ReturnedTable from './components/ReturnedTable';
-import type { DispensedItem, FilterState, SummaryData } from './types.ts';
+import type { DispensedItem, FilterState, SummaryData } from './types';
 import { returnedItemsApi } from '@/lib/staffApi/returnedItemsApi';
 import { buildReturnedGroups } from '@/lib/returnToCabinet/buildReturnedGroups';
 const getTodayDate = () => {
@@ -18,7 +18,7 @@ const getTodayDate = () => {
 
 const GROUPS_PER_PAGE = 10;
 const FETCH_BATCH_LIMIT = 5000;
-export default function ReturnToCabinetReportPage() {
+export default function ReturnToCabinetPage() {
   const [loadingList, setLoadingList] = useState(false);
   const [returnedList, setReturnedList] = useState<DispensedItem[]>([]);
   const [filters, setFilters] = useState<FilterState>({
@@ -27,6 +27,7 @@ export default function ReturnToCabinetReportPage() {
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
     departmentId: '',
+    subDepartmentId: '',
     cabinetId: '',
   });
 
@@ -64,6 +65,7 @@ export default function ReturnToCabinetReportPage() {
         params.itemTypeId = parseInt(activeFilters.itemTypeFilter, 10);
       }
       if (activeFilters.departmentId) params.departmentId = activeFilters.departmentId;
+      if (activeFilters.subDepartmentId) params.subDepartmentId = activeFilters.subDepartmentId;
       if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
 
       const aggregated: DispensedItem[] = [];
@@ -124,7 +126,7 @@ export default function ReturnToCabinetReportPage() {
 
   const handleSearch = () => {
     if (!filters.departmentId?.trim()) {
-      toast.error('กรุณาเลือกแผนก');
+      toast.error('กรุณาเลือก Division');
       return;
     }
     if (!filters.cabinetId?.trim()) {
@@ -141,6 +143,7 @@ export default function ReturnToCabinetReportPage() {
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
       departmentId: '',
+      subDepartmentId: '',
       cabinetId: '',
     };
     setFilters(resetFilters);
@@ -154,7 +157,7 @@ export default function ReturnToCabinetReportPage() {
 
   const handleExportReport = async (format: 'excel' | 'pdf') => {
     if (!filters.departmentId?.trim()) {
-      toast.error('กรุณาเลือกแผนกก่อนส่งออกรายงาน');
+      toast.error('กรุณาเลือก Division ก่อนส่งออกรายงาน');
       return;
     }
     if (!filters.cabinetId?.trim()) {
@@ -170,6 +173,7 @@ export default function ReturnToCabinetReportPage() {
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
       if (filters.departmentId) params.departmentId = filters.departmentId;
+      if (filters.subDepartmentId) params.subDepartmentId = filters.subDepartmentId;
       params.cabinetId = filters.cabinetId;
 
       toast.info(`กำลังสร้างรายงาน ${format.toUpperCase()}...`);

@@ -9,6 +9,8 @@ export const itemComparisonApi = {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     page?: number;
     limit?: number;
   }): Promise<ApiResponse<unknown>> => {
@@ -24,6 +26,7 @@ export const itemComparisonApi = {
     lastname?: string;
     assession_no?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
     page?: number;
     limit?: number;
   }): Promise<ApiResponse<unknown>> => {
@@ -38,6 +41,8 @@ export const itemComparisonApi = {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     includeUsageDetails?: boolean | string;
   }): Promise<void> => {
     const body = {
@@ -46,6 +51,8 @@ export const itemComparisonApi = {
       startDate: params?.startDate,
       endDate: params?.endDate,
       departmentCode: params?.departmentCode,
+      subDepartmentId: params?.subDepartmentId,
+      cabinetId: params?.cabinetId,
       includeUsageDetails: params?.includeUsageDetails,
     };
     const response = await staffApi.post('/reports/item-comparison/excel', body);
@@ -72,6 +79,8 @@ export const itemComparisonApi = {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     includeUsageDetails?: boolean | string;
   }): Promise<void> => {
     const body = {
@@ -80,6 +89,8 @@ export const itemComparisonApi = {
       startDate: params?.startDate,
       endDate: params?.endDate,
       departmentCode: params?.departmentCode,
+      subDepartmentId: params?.subDepartmentId,
+      cabinetId: params?.cabinetId,
       includeUsageDetails: params?.includeUsageDetails,
     };
     const response = await staffApi.post('/reports/item-comparison/pdf', body);
@@ -99,5 +110,4 @@ export const itemComparisonApi = {
     window.URL.revokeObjectURL(url);
   },
 };
-
 

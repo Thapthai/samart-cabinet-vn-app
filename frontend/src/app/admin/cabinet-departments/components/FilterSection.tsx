@@ -80,16 +80,16 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
 
     try {
       setLoadingCabinets(true);
-      const response = await cabinetDepartmentApi.getAll({ 
+      const response = await cabinetDepartmentApi.getAll({
         departmentId: parseInt(departmentId),
         keyword: keyword,
       });
-      
+
       if (response.success && response.data) {
         // Extract unique cabinets from mappings
         const mappings = response.data as CabinetDepartmentMapping[];
         const uniqueCabinets = new Map<number, Cabinet>();
-        
+
         mappings.forEach((mapping) => {
           if (mapping.cabinet && !uniqueCabinets.has(mapping.cabinet.id)) {
             uniqueCabinets.set(mapping.cabinet.id, {
@@ -99,7 +99,7 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
             });
           }
         });
-        
+
         setCabinets(Array.from(uniqueCabinets.values()));
       } else {
         setCabinets([]);
@@ -158,12 +158,12 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
           <SearchableSelect
-            label="แผนก"
-            placeholder="เลือกแผนก"
+            label="Division"
+            placeholder="— เลือก Division —"
             value={formFilters.departmentId}
             onValueChange={(value) => {
-              setFormFilters({ 
-                ...formFilters, 
+              setFormFilters({
+                ...formFilters,
                 departmentId: value,
                 cabinetId: "", // Reset cabinet when department changes
               });
@@ -178,7 +178,7 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
             ]}
             loading={loadingDepartments}
             onSearch={loadDepartments}
-            searchPlaceholder="ค้นหาชื่อแผนก..."
+            searchPlaceholder="ค้นหา Division..."
           />
 
           <SearchableSelect

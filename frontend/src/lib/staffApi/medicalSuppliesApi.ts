@@ -44,6 +44,8 @@ export const staffMedicalSuppliesApi = {
         assession_no?: string;
         department_code?: string;
         usage_type?: string;
+        patient_keyword?: string;
+        item_keyword?: string;
         print_date?: string;
         time_print_date?: string;
     }): Promise<PaginatedResponse<any>> => {
@@ -109,6 +111,9 @@ export const staffMedicalSuppliesApi = {
 
     getReturnHistory: async (query?: {
         department_code?: string;
+        cabinet_id?: string;
+        sub_department_id?: string;
+        item_keyword?: string;
         patient_hn?: string;
         return_reason?: string;
         date_from?: string;

@@ -212,9 +212,7 @@ export default function ReturnFormTab({
               <CardTitle className="text-lg font-semibold text-slate-800">
                 แจ้งคืนอุปกรณ์ (แบบตาราง)
               </CardTitle>
-              <CardDescription className="text-slate-500 mt-1">
-                กรอกจำนวนและสาเหตุในแต่ละแถว — กรอกหมายเหตุได้เมื่อเลือกสาเหตุ &quot;อื่นๆ&quot; แล้วกดปุ่มแจ้งคืน
-              </CardDescription>
+         
             </div>
 
           </div>

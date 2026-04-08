@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
 import { fetchStaffDepartmentsForFilter, getStaffAllowedDepartmentIds } from "@/lib/staffDepartmentScope";
@@ -51,15 +52,8 @@ export default function CreateMappingDialog({
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
+  const dialogContentRef = useRef<HTMLDivElement>(null);
   const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
-
-  // สถานะเริ่มต้นเป็น ACTIVE ตอนเปิด dialog
-  useEffect(() => {
-    if (open) {
-      setFormData({ ...formData, status: "ACTIVE" } as FormData);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when open toggles
-  }, [open]);
 
   const loadDepartments = useCallback(async (keyword?: string) => {
     try {
@@ -100,28 +94,28 @@ export default function CreateMappingDialog({
       const allowed = await getStaffAllowedDepartmentIds();
       if (cancelled) return;
       allowedDepartmentIdsRef.current = allowed;
-      await Promise.all([loadDepartments(""), loadCabinets("")]);
+      await Promise.all([loadCabinets(""), loadDepartments("")]);
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, loadDepartments, loadCabinets]);
+  }, [open, loadCabinets, loadDepartments]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>เพิ่มการเชื่อมโยงใหม่</DialogTitle>
-          <DialogDescription>เชื่อมโยงตู้ Cabinets กับแผนก</DialogDescription>
+          <DialogDescription>เชื่อมโยงตู้ Cabinet กับแผนก</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div ref={dialogContentRef} className="relative overflow-visible grid gap-4 py-4">
           <SearchableSelect
-            label="ตู้ Cabinets"
+            portalTargetRef={dialogContentRef}
+            label="ตู้ Cabinet"
             placeholder="เลือกตู้"
             value={formData.cabinet_id}
             onValueChange={(value) => setFormData({ ...formData, cabinet_id: value })}
             options={cabinets
-              // ไม่ให้เลือกตู้ที่สถานะเป็น USED
               .filter((cabinet) => cabinet.cabinet_status !== "USED")
               .map((cabinet) => ({
                 value: cabinet.id.toString(),
@@ -135,8 +129,9 @@ export default function CreateMappingDialog({
           />
 
           <SearchableSelect
-            label="แผนก"
-            placeholder="เลือกแผนก"
+            portalTargetRef={dialogContentRef}
+            label="Division"
+            placeholder="เลือก Division"
             value={formData.department_id}
             onValueChange={(value) => setFormData({ ...formData, department_id: value })}
             options={departments.map((dept) => ({
@@ -147,17 +142,31 @@ export default function CreateMappingDialog({
             loading={loadingDepartments}
             required
             onSearch={loadDepartments}
-            searchPlaceholder="ค้นหาชื่อแผนก..."
+            searchPlaceholder="ค้นหาชื่อ Division..."
           />
 
           <div>
+            <Label>สถานะ</Label>
+            <Select
+              value={formData.status || "ACTIVE"}
+              onValueChange={(value) => setFormData({ ...formData, status: value })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="เลือกสถานะ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+                <SelectItem value="INACTIVE">INACTIVE</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
             <Label>หมายเหตุ</Label>
-            <Textarea
+            <Input
               placeholder="หมายเหตุ..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
-              className="resize-none"
             />
           </div>
         </div>

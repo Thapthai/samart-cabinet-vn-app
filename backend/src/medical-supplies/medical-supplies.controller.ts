@@ -104,6 +104,8 @@ export class MedicalSupplyUsageController {
     @Query('billing_status') billing_status?: string,
     @Query('usage_type') usage_type?: string,
     @Query('keyword') keyword?: string,
+    @Query('patient_keyword') patient_keyword?: string,
+    @Query('item_keyword') item_keyword?: string,
     @Query('user_name') user_name?: string,
     @Query('first_name') first_name?: string,
     @Query('lastname') lastname?: string,
@@ -125,6 +127,8 @@ export class MedicalSupplyUsageController {
         billing_status,
         usage_type,
         keyword,
+        patient_keyword,
+        item_keyword,
         user_name,
         first_name,
         lastname,
@@ -443,6 +447,7 @@ export class MedicalSupplyController {
     @Query('limit') limit?: string,
     @Query('departmentId') departmentId?: string,
     @Query('cabinetId') cabinetId?: string,
+    @Query('subDepartmentId') subDepartmentId?: string,
   ) {
     try {
       const result = await this.medicalSuppliesService.getDispensedItems({
@@ -453,6 +458,7 @@ export class MedicalSupplyController {
         limit: limit ? parseInt(limit, 10) : undefined,
         departmentId,
         cabinetId,
+        subDepartmentId,
       });
       return {
         success: true,
@@ -477,6 +483,7 @@ export class MedicalSupplyController {
     @Query('limit') limit?: string,
     @Query('departmentId') departmentId?: string,
     @Query('cabinetId') cabinetId?: string,
+    @Query('subDepartmentId') subDepartmentId?: string,
   ) {
     try {
       const result = await this.medicalSuppliesService.getReturnedItems({
@@ -487,6 +494,7 @@ export class MedicalSupplyController {
         limit: limit ? parseInt(limit, 10) : undefined,
         departmentId,
         cabinetId,
+        subDepartmentId,
       });
       return {
         success: true,
@@ -518,6 +526,8 @@ export class MedicalSupplyController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('departmentCode') departmentCode?: string,
+    @Query('subDepartmentId') subDepartmentId?: string,
+    @Query('cabinetId') cabinetId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -529,6 +539,8 @@ export class MedicalSupplyController {
         startDate,
         endDate,
         departmentCode,
+        subDepartmentId,
+        cabinetId,
         page: page ? parseInt(page, 10) : undefined,
         limit: limit ? parseInt(limit, 10) : undefined,
       });

@@ -11,7 +11,7 @@ import CreateItemDialog from './components/CreateItemDialog';
 import EditItemDialog from './components/EditItemDialog';
 import DeleteItemDialog from './components/DeleteItemDialog';
 import UpdateMinMaxDialog from './components/UpdateMinMaxDialog';
-import FilterSection from './components/FilterSection';
+import FilterSection, { type StaffItemsSearchFilters } from './components/FilterSection';
 import ItemsTable from './components/ItemsTable';
 
 export default function ItemsPage() {
@@ -25,9 +25,10 @@ export default function ItemsPage() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [reportLoading, setReportLoading] = useState<'excel' | 'pdf' | null>(null);
   // Active filters (after search button clicked)
-  const [activeFilters, setActiveFilters] = useState({
+  const [activeFilters, setActiveFilters] = useState<StaffItemsSearchFilters>({
     searchTerm: '',
     departmentId: '',
+    subDepartmentId: '',
     cabinetId: '',
     statusFilter: 'all',
     keyword: '',
@@ -80,6 +81,13 @@ export default function ItemsPage() {
         }
       }
 
+      if (activeFilters.subDepartmentId?.trim()) {
+        const sid = parseInt(activeFilters.subDepartmentId, 10);
+        if (!isNaN(sid)) {
+          params.sub_department_id = sid;
+        }
+      }
+
       const response = await staffItemsApi.getAll(params);
       if (response.data) {
         const list = Array.isArray(response?.data) ? response.data : (response as any)?.data?.data;
@@ -116,13 +124,7 @@ export default function ItemsPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSearch = (filters: {
-    searchTerm: string;
-    departmentId: string;
-    cabinetId: string;
-    statusFilter: string;
-    keyword: string;
-  }) => {
+  const handleSearch = (filters: StaffItemsSearchFilters) => {
     setActiveFilters(filters);
     setCurrentPage(1); // Reset to first page on search
   };
@@ -144,7 +146,7 @@ export default function ItemsPage() {
 
   const handleDownloadCabinetStockExcel = async () => {
     if (!activeFilters.departmentId?.trim()) {
-      toast.error('กรุณาเลือกแผนกก่อนดาวน์โหลดรายงาน');
+      toast.error('กรุณาเลือก Division ก่อนดาวน์โหลดรายงาน');
       return;
     }
     if (!activeFilters.cabinetId?.trim()) {
@@ -167,7 +169,7 @@ export default function ItemsPage() {
 
   const handleDownloadCabinetStockPdf = async () => {
     if (!activeFilters.departmentId?.trim()) {
-      toast.error('กรุณาเลือกแผนกก่อนดาวน์โหลดรายงาน');
+      toast.error('กรุณาเลือก Division ก่อนดาวน์โหลดรายงาน');
       return;
     }
     if (!activeFilters.cabinetId?.trim()) {

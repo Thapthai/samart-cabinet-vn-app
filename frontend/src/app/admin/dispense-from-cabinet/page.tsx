@@ -33,8 +33,9 @@ export default function DispenseFromCabinetPage() {
     startDate: getTodayDate(),
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
-    departmentId: '29',
-    cabinetId: '1',
+    departmentId: '',
+    subDepartmentId: '',
+    cabinetId: '',
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,6 +63,7 @@ export default function DispenseFromCabinetPage() {
       if (activeFilters.endDate) params.endDate = activeFilters.endDate;
       if (activeFilters.searchItemCode) params.keyword = activeFilters.searchItemCode;
       if (activeFilters.departmentId) params.departmentId = activeFilters.departmentId;
+      if (activeFilters.subDepartmentId) params.subDepartmentId = activeFilters.subDepartmentId;
       if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
 
       const aggregated: DispensedItem[] = [];
@@ -136,6 +138,7 @@ export default function DispenseFromCabinetPage() {
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
       departmentId: '29',
+      subDepartmentId: '',
       cabinetId: '1',
     };
     setFilters(clearedFilters);
@@ -155,6 +158,7 @@ export default function DispenseFromCabinetPage() {
         startDate: filters.startDate || undefined,
         endDate: filters.endDate || undefined,
         departmentId: filters.departmentId || undefined,
+        subDepartmentId: filters.subDepartmentId || undefined,
         cabinetId: filters.cabinetId || undefined,
       };
 

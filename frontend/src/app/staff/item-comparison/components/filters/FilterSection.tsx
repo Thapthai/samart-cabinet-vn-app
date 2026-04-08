@@ -1,16 +1,20 @@
 import { Search, RefreshCw, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Label } from '@/components/ui/label';
+import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FilterState } from '../../types';
+import type {
+  DepartmentOption,
+  SubDepartmentOption,
+} from '@/app/admin/medical-supplies/components/MedicalSuppliesSearchFilters';
 
 interface FilterSectionProps {
   filters: FilterState;
@@ -19,9 +23,12 @@ interface FilterSectionProps {
   onClear: () => void;
   onRefresh: () => void;
   itemTypes: Array<{ id: string; name: string }>;
-  departments: Array<{ ID: number; DepName: string }>;
+  departments: DepartmentOption[];
+  subDepartments: SubDepartmentOption[];
+  cabinets: Array<{ id: number; cabinet_name?: string; cabinet_code?: string }>;
   loading: boolean;
   items?: unknown[];
+  /** ล็อก Division (เช่น staff จำกัดแผนกเดียว) — แผนกย่อย/ตู้ยังเลือกได้ */
   departmentDisabled?: boolean;
 }
 
@@ -33,6 +40,8 @@ export function FilterSection({
   onRefresh,
   itemTypes: _itemTypes,
   departments,
+  subDepartments,
+  cabinets,
   loading,
   items: _items = [],
   departmentDisabled = false,
@@ -40,6 +49,10 @@ export function FilterSection({
   const [searchInput, setSearchInput] = useState('');
   const [departmentSearch, setDepartmentSearch] = useState('');
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
+  const [subDepartmentSearch, setSubDepartmentSearch] = useState('');
+  const [subDepartmentDropdownOpen, setSubDepartmentDropdownOpen] = useState(false);
+  const [cabinetSearch, setCabinetSearch] = useState('');
+  const [cabinetDropdownOpen, setCabinetDropdownOpen] = useState(false);
 
   const submitSearch = () => {
     const keyword = searchInput.trim();
@@ -51,15 +64,82 @@ export function FilterSection({
     }
   };
 
-  const selectedDeptName = filters.departmentCode
-    ? (departments.find((d) => String(d.ID) === filters.departmentCode)?.DepName ||
-      `แผนก ${filters.departmentCode}`)
-    : null;
+  const departmentCode = filters.departmentCode;
+  const subDepartmentId = filters.subDepartmentId;
+  const cabinetId = filters.cabinetId;
 
-  const filteredDepartments = departments.filter((d) => {
-    if (!departmentSearch.trim()) return true;
-    return d.DepName?.toLowerCase().includes(departmentSearch.toLowerCase());
-  });
+  const hasMainDepartment = Boolean(departmentCode?.trim()) || departmentDisabled;
+  const hasSubDepartmentFilter = Boolean(subDepartmentId?.trim());
+
+  const filteredDepartments = useMemo(() => {
+    const q = departmentSearch.trim().toLowerCase();
+    return departments.filter((d) => {
+      if (!q) return true;
+      const n1 = (d.DepName || '').toLowerCase();
+      const n2 = (d.DepName2 || '').toLowerCase();
+      return n1.includes(q) || n2.includes(q);
+    });
+  }, [departments, departmentSearch]);
+
+  const filteredSubDepartments = useMemo(() => {
+    const deptId = departmentCode?.trim();
+    const q = subDepartmentSearch.trim().toLowerCase();
+    return subDepartments.filter((s) => {
+      if (s.status === false) return false;
+      if (deptId && String(s.department_id) !== deptId) return false;
+      if (!q) return true;
+      const code = (s.code || '').toLowerCase();
+      const name = (s.name || '').toLowerCase();
+      return code.includes(q) || name.includes(q);
+    });
+  }, [subDepartments, departmentCode, subDepartmentSearch]);
+
+  const filteredCabinets = useMemo(() => {
+    const q = cabinetSearch.trim().toLowerCase();
+    return cabinets.filter((c) => {
+      if (!q) return true;
+      const code = (c.cabinet_code || '').toLowerCase();
+      const name = (c.cabinet_name || '').toLowerCase();
+      const idStr = String(c.id);
+      return code.includes(q) || name.includes(q) || idStr.includes(q);
+    });
+  }, [cabinets, cabinetSearch]);
+
+  const lockedDeptLabel =
+    departments.find((d) => String(d.ID) === departmentCode)?.DepName ||
+    departments.find((d) => String(d.ID) === departmentCode)?.DepName2 ||
+    (departmentCode ? `แผนก ${departmentCode}` : 'ไม่ระบุแผนก');
+
+  const divisionTriggerLabel = () => {
+    if (!departmentCode) return 'เลือก Division...';
+    const d = departments.find((x) => String(x.ID) === departmentCode);
+    return d?.DepName || d?.DepName2 || `Division ${departmentCode}`;
+  };
+
+  const subDepartmentTriggerLabel = () => {
+    const idStr = subDepartmentId?.trim();
+    if (!idStr) return 'เลือกแผนก ...';
+    const id = parseInt(idStr, 10);
+    if (Number.isNaN(id)) return idStr;
+    const sub = subDepartments.find((s) => s.id === id);
+    if (sub) {
+      const n = sub.name?.trim();
+      return n ? `${sub.code} · ${n}` : sub.code;
+    }
+    return idStr;
+  };
+
+  const cabinetTriggerLabel = () => {
+    if (!cabinetId?.trim()) {
+      if (hasSubDepartmentFilter && cabinets.length === 0) return 'แผนกนี้ยังไม่มีตู้ที่ผูก';
+      if (departmentCode && cabinets.length === 0) return 'ไม่มีตู้ในแผนกนี้';
+      return 'เลือกตู้ Cabinet...';
+    }
+    const id = parseInt(cabinetId, 10);
+    const c = cabinets.find((x) => x.id === id);
+    if (c) return c.cabinet_code || c.cabinet_name || `ตู้ ${c.id}`;
+    return `ตู้ ${cabinetId}`;
+  };
 
   return (
     <Card>
@@ -67,105 +147,276 @@ export function FilterSection({
         <CardTitle>กรองข้อมูล</CardTitle>
         <CardDescription>ค้นหาและกรองรายการเปรียบเทียบ</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Row 1: Search + Department */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <CardContent>
+        <div className="space-y-6">
           <div className="space-y-2">
-            <Label>รหัส/ชื่อเวชภัณฑ์</Label>
+            <label className="text-sm font-medium text-gray-700">รหัส/ชื่อเวชภัณฑ์</label>
             <Input
-              placeholder="ค้นหารหัสหรือชื่อเวชภัณฑ์..."
+              placeholder="ค้นหา..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') submitSearch();
-              }}
+              onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
+              className="w-full"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>แผนก</Label>
-            <DropdownMenu open={departmentDisabled ? false : departmentDropdownOpen} onOpenChange={departmentDisabled ? undefined : setDepartmentDropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between font-normal"
-                  type="button"
-                  disabled={departmentDisabled}
-                >
-                  <span className="truncate">
-                    {selectedDeptName ?? 'เลือกแผนก...'}
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[14rem] p-1"
-              >
-                <div className="px-2 pb-2">
-                  <Input
-                    placeholder="ค้นหาแผนก..."
-                    value={departmentSearch}
-                    onChange={(e) => setDepartmentSearch(e.target.value)}
-                    className="h-8"
-                    onKeyDown={(e) => e.stopPropagation()}
-                  />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">วันที่เริ่มต้น</label>
+              <DatePickerBE
+                value={filters.startDate}
+                onChange={(v) => onFilterChange('startDate', v)}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">วันที่สิ้นสุด</label>
+              <DatePickerBE
+                value={filters.endDate}
+                onChange={(v) => onFilterChange('endDate', v)}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="min-w-0 space-y-2">
+              <Label>Division</Label>
+              {departmentDisabled ? (
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                  <span className="truncate">{lockedDeptLabel}</span>
                 </div>
-                <div className="max-h-60 overflow-auto">
-                  {filteredDepartments.map((dept) => (
+              ) : (
+                <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="h-10 w-full justify-between font-normal" type="button">
+                      <span className="truncate text-left">{divisionTriggerLabel()}</span>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
+                  >
+                    <div className="px-2 pb-2">
+                      <Input
+                        placeholder="ค้นหา Division..."
+                        value={departmentSearch}
+                        onChange={(e) => setDepartmentSearch(e.target.value)}
+                        className="h-8"
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="max-h-60 overflow-auto">
+                      <button
+                        type="button"
+                        className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                        onClick={() => {
+                          onFilterChange('departmentCode', '');
+                          onFilterChange('subDepartmentId', '');
+                          onFilterChange('cabinetId', '');
+                          setDepartmentDropdownOpen(false);
+                          setDepartmentSearch('');
+                        }}
+                      >
+                        -- ทุก Division --
+                      </button>
+                      {filteredDepartments.map((dept) => (
+                        <button
+                          key={dept.ID}
+                          type="button"
+                          className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                          onClick={() => {
+                            onFilterChange('departmentCode', String(dept.ID));
+                            onFilterChange('subDepartmentId', '');
+                            onFilterChange('cabinetId', '');
+                            setDepartmentDropdownOpen(false);
+                            setDepartmentSearch('');
+                          }}
+                        >
+                          {dept.DepName || dept.DepName2 || `แผนก ${dept.ID}`}
+                        </button>
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+
+            <div className="min-w-0 space-y-2">
+              <Label>แผนก</Label>
+              <DropdownMenu
+                open={subDepartmentDropdownOpen}
+                onOpenChange={setSubDepartmentDropdownOpen}
+              >
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full justify-between font-normal"
+                    type="button"
+                    disabled={!hasMainDepartment}
+                  >
+                    <span className="truncate text-left">{subDepartmentTriggerLabel()}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
+                >
+                  <div className="px-2 pb-2">
+                    <Input
+                      placeholder="ค้นหารหัสหรือชื่อแผนก ..."
+                      value={subDepartmentSearch}
+                      onChange={(e) => setSubDepartmentSearch(e.target.value)}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-auto">
                     <button
-                      key={dept.ID}
                       type="button"
                       className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                       onClick={() => {
-                        onFilterChange('departmentCode', String(dept.ID));
-                        setDepartmentDropdownOpen(false);
-                        setDepartmentSearch('');
+                        onFilterChange('subDepartmentId', '');
+                        onFilterChange('cabinetId', '');
+                        setSubDepartmentDropdownOpen(false);
+                        setSubDepartmentSearch('');
                       }}
                     >
-                      {dept.DepName}
+                      -- ทุกแผนก --
                     </button>
-                  ))}
-                  {filteredDepartments.length === 0 && (
-                    <p className="px-2 py-2 text-sm text-gray-400">ไม่พบแผนก</p>
-                  )}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    {!hasMainDepartment ? (
+                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                        เลือกแผนก (Division) ก่อน
+                      </div>
+                    ) : filteredSubDepartments.length === 0 ? (
+                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
+                    ) : (
+                      filteredSubDepartments.map((sub) => (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                          onClick={() => {
+                            onFilterChange('subDepartmentId', String(sub.id));
+                            onFilterChange('cabinetId', '');
+                            setSubDepartmentDropdownOpen(false);
+                            setSubDepartmentSearch('');
+                          }}
+                        >
+                          <span className="font-mono text-xs">{sub.code}</span>
+                          {sub.name ? (
+                            <span className="text-muted-foreground"> · {sub.name}</span>
+                          ) : null}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          <div className="min-w-0 space-y-2">
+            <Label>ตู้ Cabinet</Label>
+            {!hasMainDepartment ? (
+              <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                เลือก Division (แผนกหลัก) ก่อน
+              </div>
+            ) : (
+              <DropdownMenu open={cabinetDropdownOpen} onOpenChange={setCabinetDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-10 w-full justify-between font-normal"
+                    type="button"
+                  >
+                    <span className="truncate text-left">{cabinetTriggerLabel()}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
+                >
+                  <div className="px-2 pb-2">
+                    <Input
+                      placeholder="ค้นหารหัสหรือชื่อตู้ ..."
+                      value={cabinetSearch}
+                      onChange={(e) => setCabinetSearch(e.target.value)}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-auto">
+                    <button
+                      type="button"
+                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                      onClick={() => {
+                        onFilterChange('cabinetId', '');
+                        setCabinetDropdownOpen(false);
+                        setCabinetSearch('');
+                      }}
+                    >
+                      -- ทุกตู้ --
+                    </button>
+                    {cabinets.length === 0 ? (
+                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                        {hasSubDepartmentFilter
+                          ? 'แผนกนี้ยังไม่มีตู้ที่ผูก'
+                          : departmentCode
+                            ? 'ไม่มีตู้ในแผนกนี้'
+                            : 'ไม่พบตู้'}
+                      </div>
+                    ) : filteredCabinets.length === 0 ? (
+                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
+                    ) : (
+                      filteredCabinets.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                          onClick={() => {
+                            onFilterChange('cabinetId', String(c.id));
+                            setCabinetDropdownOpen(false);
+                            setCabinetSearch('');
+                          }}
+                        >
+                          <span className="font-mono text-xs">{c.cabinet_code || String(c.id)}</span>
+                          {c.cabinet_name ? (
+                            <span className="text-muted-foreground"> · {c.cabinet_name}</span>
+                          ) : null}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
-        {/* Row 2: Single Date */}
-        <div className="space-y-2">
-          <Label>วันที่</Label>
-          <DatePickerBE
-            value={filters.startDate}
-            onChange={(value) => {
-              onFilterChange('startDate', value);
-              onFilterChange('endDate', value);
-            }}
-            placeholder="วว/ดด/ปปปป (พ.ศ.)"
-          />
-        </div>
-
-        {/* Row 3: Action Buttons */}
-        <div className="flex gap-2">
+        <div className="mt-4 flex gap-2">
           <Button onClick={submitSearch} disabled={loading}>
-            <Search className="h-4 w-4 mr-2" />
+            <Search className="mr-2 h-4 w-4" />
             ค้นหา
           </Button>
           <Button
             onClick={() => {
               setSearchInput('');
               setDepartmentSearch('');
+              setSubDepartmentSearch('');
+              setCabinetSearch('');
               onClear();
             }}
             variant="outline"
+            type="button"
           >
             ล้าง
           </Button>
-          <Button onClick={onRefresh} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button onClick={onRefresh} variant="outline" type="button" disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             รีเฟรช
           </Button>
         </div>

@@ -582,6 +582,8 @@ export class ReportServiceService {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     includeUsageDetails?: boolean;
   }): Promise<{ buffer: Buffer; filename: string }> {
     try {
@@ -592,6 +594,8 @@ export class ReportServiceService {
       if (params.startDate) queryParams.startDate = params.startDate;
       if (params.endDate) queryParams.endDate = params.endDate;
       if (params.departmentCode) queryParams.departmentCode = params.departmentCode;
+      if (params.subDepartmentId) queryParams.subDepartmentId = params.subDepartmentId;
+      if (params.cabinetId) queryParams.cabinetId = params.cabinetId;
 
       const comparisonResult: any = await this.medicalSuppliesService.compareDispensedVsUsage(queryParams);
       let comparisonData: any[] = [];
@@ -652,6 +656,7 @@ export class ReportServiceService {
               startDate: params.startDate,
               endDate: params.endDate,
               departmentCode: params.departmentCode,
+              subDepartmentId: params.subDepartmentId,
               page: 1,
               limit: 100,
             });
@@ -693,6 +698,8 @@ export class ReportServiceService {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     includeUsageDetails?: boolean;
   }): Promise<{ buffer: Buffer; filename: string }> {
     try {
@@ -703,6 +710,8 @@ export class ReportServiceService {
       if (params.startDate) queryParams.startDate = params.startDate;
       if (params.endDate) queryParams.endDate = params.endDate;
       if (params.departmentCode) queryParams.departmentCode = params.departmentCode;
+      if (params.subDepartmentId) queryParams.subDepartmentId = params.subDepartmentId;
+      if (params.cabinetId) queryParams.cabinetId = params.cabinetId;
 
       const comparisonResult: any = await this.medicalSuppliesService.compareDispensedVsUsage(queryParams);
       let comparisonData: any[] = [];
@@ -763,6 +772,7 @@ export class ReportServiceService {
               startDate: params.startDate,
               endDate: params.endDate,
               departmentCode: params.departmentCode,
+              subDepartmentId: params.subDepartmentId,
               page: 1,
               limit: 100,
             });
@@ -1892,6 +1902,7 @@ export class ReportServiceService {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<any> {
     try {
       const result: any = await this.medicalSuppliesService.getReturnedItems(params);
@@ -1919,6 +1930,7 @@ export class ReportServiceService {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<Buffer> {
     try {
       const returnedData = await this.getReturnToCabinetReportData({
@@ -1972,6 +1984,7 @@ export class ReportServiceService {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<Buffer> {
     try {
       const returnedData = await this.getReturnToCabinetReportData({
@@ -2165,6 +2178,7 @@ export class ReportServiceService {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<{ buffer: Buffer; filename: string }> {
     try {
       const result: any = await this.medicalSuppliesService.getDispensedItems({
@@ -2175,6 +2189,7 @@ export class ReportServiceService {
         limit: params.limit || 10000,
         departmentId: params.departmentId,
         cabinetId: params.cabinetId,
+        subDepartmentId: params.subDepartmentId,
       });
 
       const dispensedItems = (result && result.data) ? result.data : (Array.isArray(result) ? result : []);
@@ -2229,6 +2244,7 @@ export class ReportServiceService {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<{ buffer: Buffer; filename: string }> {
     try {
       const result: any = await this.medicalSuppliesService.getDispensedItems({
@@ -2239,6 +2255,7 @@ export class ReportServiceService {
         limit: params.limit || 10000,
         departmentId: params.departmentId,
         cabinetId: params.cabinetId,
+        subDepartmentId: params.subDepartmentId,
       });
 
       const dispensedItems = (result && result.data) ? result.data : (Array.isArray(result) ? result : []);

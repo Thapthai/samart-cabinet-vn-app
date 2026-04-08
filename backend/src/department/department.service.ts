@@ -2,8 +2,10 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateCabinetDepartmentDto,
+  CreateCabinetSubDepartmentDto,
   CreateDepartmentDto,
   UpdateCabinetDepartmentDto,
+  UpdateCabinetSubDepartmentDto,
   UpdateDepartmentDto,
 } from './dto/department.dto';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
@@ -483,5 +485,227 @@ export class DepartmentService {
       }
     }
     return { success: true, message: 'Cabinet-Department mapping deleted successfully' };
+  }
+
+  /** แผนกหลักของตู้จาก app_cabinet_departments (ต้องตรงกับ department_id ของแผนกย่อย) */
+  private async getCabinetMainDepartmentId(cabinetId: number): Promise<number | null> {
+    const row = await this.prisma.cabinetDepartment.findFirst({
+      where: { cabinet_id: cabinetId, status: 'ACTIVE' },
+      select: { department_id: true },
+    });
+    if (row?.department_id != null) return row.department_id;
+    const anyRow = await this.prisma.cabinetDepartment.findFirst({
+      where: { cabinet_id: cabinetId },
+      select: { department_id: true },
+    });
+    return anyRow?.department_id ?? null;
+  }
+
+  async createCabinetSubDepartment(data: CreateCabinetSubDepartmentDto) {
+    try {
+      const [cabinet, sub] = await Promise.all([
+        this.prisma.cabinet.findUnique({ where: { id: data.cabinet_id } }),
+        this.prisma.medicalSupplySubDepartment.findUnique({
+          where: { id: data.sub_department_id },
+          select: { id: true, department_id: true, code: true, name: true, status: true },
+        }),
+      ]);
+      if (!cabinet || !sub) {
+        return { success: false, message: 'Validation failed - cabinet or sub-department not found' };
+      }
+      if (!sub.status) {
+        return { success: false, message: 'Sub-department is inactive' };
+      }
+      const mainDeptId = await this.getCabinetMainDepartmentId(data.cabinet_id);
+      if (mainDeptId == null) {
+        return {
+          success: false,
+          message: 'ตู้ยังไม่ได้ผูกแผนกหลัก — กรุณาสร้าง mapping ใน Cabinet-แผนกก่อน',
+        };
+      }
+      if (sub.department_id !== mainDeptId) {
+        return {
+          success: false,
+          message: 'แผนกย่อยต้องอยู่ภายใต้แผนกหลักเดียวกับตู้นี้ (ตรวจสอบ cabinet-departments และ master แผนกย่อย)',
+        };
+      }
+      const mapping = await this.prisma.cabinetSubDepartment.create({
+        data: {
+          cabinet_id: data.cabinet_id,
+          sub_department_id: data.sub_department_id,
+          status: data.status || 'ACTIVE',
+          description: data.description,
+          sort_order: data.sort_order ?? 0,
+        },
+        include: {
+          cabinet: { select: { id: true, cabinet_name: true, cabinet_code: true, stock_id: true } },
+          subDepartment: {
+            select: { id: true, code: true, name: true, department_id: true },
+          },
+        },
+      });
+      return { success: true, message: 'Cabinet–sub-department mapping created', data: mapping };
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        return { success: false, message: 'คู่ตู้–แผนกย่อยนี้มีอยู่แล้ว' };
+      }
+      this.logger.error(`createCabinetSubDepartment: ${err.message}`);
+      return { success: false, message: 'Database error', error: err.message };
+    }
+  }
+
+  async getCabinetSubDepartments(
+    query?: {
+      cabinet_id?: number;
+      sub_department_id?: number;
+      department_id?: number;
+      status?: string;
+      keyword?: string;
+    },
+    allowedDepartmentIds?: number[] | null,
+  ) {
+    try {
+      const where: Record<string, unknown> = {};
+      if (query?.cabinet_id != null) where.cabinet_id = query.cabinet_id;
+      if (query?.sub_department_id != null) where.sub_department_id = query.sub_department_id;
+      if (query?.status) where.status = query.status;
+
+      const subDeptFilter: Record<string, unknown> = {};
+      if (allowedDepartmentIds != null && allowedDepartmentIds.length > 0) {
+        if (query?.department_id != null && query.department_id > 0) {
+          if (!allowedDepartmentIds.includes(query.department_id)) {
+            return { success: true, data: [], total: 0, page: 1, limit: 10, lastPage: 0 };
+          }
+          subDeptFilter.department_id = query.department_id;
+        } else {
+          subDeptFilter.department_id = { in: allowedDepartmentIds };
+        }
+      } else if (allowedDepartmentIds != null && allowedDepartmentIds.length === 0) {
+        return { success: true, data: [], total: 0, page: 1, limit: 10, lastPage: 0 };
+      } else if (query?.department_id) {
+        subDeptFilter.department_id = query.department_id;
+      }
+
+      const kw = query?.keyword?.trim();
+      if (kw) {
+        where.AND = [
+          Object.keys(subDeptFilter).length > 0 ? { subDepartment: subDeptFilter } : {},
+          {
+            OR: [
+              { cabinet: { cabinet_name: { contains: kw } } },
+              { cabinet: { cabinet_code: { contains: kw } } },
+              { subDepartment: { code: { contains: kw } } },
+              { subDepartment: { name: { contains: kw } } },
+            ],
+          },
+        ].filter((x) => Object.keys(x).length > 0);
+      } else if (Object.keys(subDeptFilter).length > 0) {
+        where.subDepartment = subDeptFilter;
+      }
+
+      const rows = await this.prisma.cabinetSubDepartment.findMany({
+        where: where as any,
+        include: {
+          cabinet: { select: { id: true, cabinet_name: true, cabinet_code: true, stock_id: true } },
+          subDepartment: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              department_id: true,
+              department: { select: { ID: true, DepName: true, DepName2: true } },
+            },
+          },
+        },
+        orderBy: [{ sort_order: 'asc' }, { id: 'asc' }],
+      });
+      return {
+        success: true,
+        data: rows,
+        total: rows.length,
+        page: 1,
+        limit: 10,
+        lastPage: Math.ceil(rows.length / 10) || 0,
+      };
+    } catch (err: any) {
+      this.logger.error(`getCabinetSubDepartments: ${err.message}`);
+      return { success: false, message: 'Failed to fetch mappings', error: err.message };
+    }
+  }
+
+  async updateCabinetSubDepartment(id: number, data: UpdateCabinetSubDepartmentDto) {
+    try {
+      const current = await this.prisma.cabinetSubDepartment.findUnique({ where: { id } });
+      if (!current) return { success: false, message: 'Mapping not found' };
+
+      const [cabinet, sub] = await Promise.all([
+        this.prisma.cabinet.findUnique({ where: { id: data.cabinet_id } }),
+        this.prisma.medicalSupplySubDepartment.findUnique({
+          where: { id: data.sub_department_id },
+          select: { id: true, department_id: true, status: true },
+        }),
+      ]);
+      if (!cabinet || !sub) {
+        return { success: false, message: 'Cabinet or sub-department not found' };
+      }
+      if (!sub.status) {
+        return { success: false, message: 'Sub-department is inactive' };
+      }
+      const mainDeptId = await this.getCabinetMainDepartmentId(data.cabinet_id);
+      if (mainDeptId == null) {
+        return {
+          success: false,
+          message: 'ตู้ยังไม่ได้ผูกแผนกหลัก — กรุณาสร้าง mapping ใน Cabinet-แผนกก่อน',
+        };
+      }
+      if (sub.department_id !== mainDeptId) {
+        return {
+          success: false,
+          message: 'แผนกย่อยต้องอยู่ภายใต้แผนกหลักเดียวกับตู้นี้',
+        };
+      }
+
+      const mapping = await this.prisma.cabinetSubDepartment.update({
+        where: { id },
+        data: {
+          cabinet_id: data.cabinet_id,
+          sub_department_id: data.sub_department_id,
+          status: data.status ?? undefined,
+          description: data.description,
+          sort_order: data.sort_order ?? undefined,
+        },
+        include: {
+          cabinet: { select: { id: true, cabinet_name: true, cabinet_code: true, stock_id: true } },
+          subDepartment: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              department_id: true,
+              department: { select: { ID: true, DepName: true, DepName2: true } },
+            },
+          },
+        },
+      });
+      return { success: true, message: 'Mapping updated', data: mapping };
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        return { success: false, message: 'คู่ตู้–แผนกย่อยนี้มีอยู่แล้ว' };
+      }
+      this.logger.error(`updateCabinetSubDepartment: ${err.message}`);
+      return { success: false, message: 'Failed to update', error: err.message };
+    }
+  }
+
+  async deleteCabinetSubDepartment(id: number) {
+    try {
+      const row = await this.prisma.cabinetSubDepartment.findUnique({ where: { id } });
+      if (!row) return { success: false, message: 'Mapping not found' };
+      await this.prisma.cabinetSubDepartment.delete({ where: { id } });
+      return { success: true, message: 'Mapping deleted' };
+    } catch (err: any) {
+      this.logger.error(`deleteCabinetSubDepartment: ${err.message}`);
+      return { success: false, message: 'Failed to delete', error: err.message };
+    }
   }
 }

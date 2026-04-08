@@ -232,6 +232,12 @@ export interface GetItemsQuery {
   item_status?: number;
   itemtypeID?: number;
   warehouseID?: number;
+  /** Division (แผนกหลัก) */
+  department_id?: number;
+  cabinet_id?: number;
+  /** แผนกย่อย (medical supply sub department) */
+  sub_department_id?: number;
+  status?: string;
   sort_by?: 'itemname' | 'itemcode' | 'CostPrice' | 'stock_balance' | 'CreateDate';
   sort_order?: 'asc' | 'desc';
 }

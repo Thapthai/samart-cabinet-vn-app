@@ -1,8 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { medicalSuppliesApi, departmentApi } from '@/lib/api';
+import {
+  medicalSuppliesApi,
+  departmentApi,
+  cabinetApi,
+  cabinetDepartmentApi,
+  cabinetSubDepartmentApi,
+  medicalSupplySubDepartmentsApi,
+} from '@/lib/api';
+import type {
+  DepartmentOption,
+  SubDepartmentOption,
+} from '@/app/admin/medical-supplies/components/MedicalSuppliesSearchFilters';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { toast } from 'sonner';
@@ -15,7 +26,20 @@ import {
   ComparisonDetailsCard,
   UsageItemsTable,
 } from './components';
-import type { ComparisonItem, UsageItem, FilterState, SummaryData } from './types';
+import type { ComparisonItem, FilterState, SummaryData } from './types';
+
+type CabinetFilterOption = { id: number; cabinet_name?: string; cabinet_code?: string };
+function mapCabinetRow(c: unknown): CabinetFilterOption | null {
+  if (!c || typeof c !== 'object') return null;
+  const o = c as Record<string, unknown>;
+  const id = o.id;
+  if (typeof id !== 'number') return null;
+  return {
+    id,
+    cabinet_name: typeof o.cabinet_name === 'string' ? o.cabinet_name : undefined,
+    cabinet_code: typeof o.cabinet_code === 'string' ? o.cabinet_code : undefined,
+  };
+}
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = (): string => {
@@ -32,7 +56,9 @@ export default function ItemComparisonPage() {
   const [selectedItemCode, setSelectedItemCode] = useState<string | null>(null);
   const [comparisonList, setComparisonList] = useState<ComparisonItem[]>([]);
   const [filteredList, setFilteredList] = useState<ComparisonItem[]>([]);
-  const [departments, setDepartments] = useState<{ ID: number; DepName: string }[]>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [subDepartmentsMaster, setSubDepartmentsMaster] = useState<SubDepartmentOption[]>([]);
+  const [comparisonCabinets, setComparisonCabinets] = useState<CabinetFilterOption[]>([]);
 
   // Filters - default to today's date
   const [filters, setFilters] = useState<FilterState>({
@@ -41,6 +67,8 @@ export default function ItemComparisonPage() {
     endDate: getTodayDate(),
     itemTypeFilter: 'all',
     departmentCode: '',
+    subDepartmentId: '',
+    cabinetId: '',
   });
 
   // Pagination for comparison list
@@ -53,14 +81,110 @@ export default function ItemComparisonPage() {
     if (user?.id) {
       fetchComparisonList();
       fetchDepartments();
+      void fetchSubDepartmentsMaster();
     }
   }, [user?.id]);
+
+  const resolveCabinetsForComparison = useCallback(
+    async (departmentIdStr: string, subDepartmentIdStr: string): Promise<CabinetFilterOption[]> => {
+      try {
+        let next: CabinetFilterOption[] = [];
+        const subTrim = subDepartmentIdStr?.trim() ?? '';
+        if (subTrim) {
+          const sid = parseInt(subTrim, 10);
+          if (!Number.isNaN(sid)) {
+            const res = await cabinetSubDepartmentApi.getAll({ subDepartmentId: sid, status: 'ACTIVE' });
+            const raw = (res as { success?: boolean; data?: unknown[] }).data;
+            if (Array.isArray(raw)) {
+              const unique = new Map<number, CabinetFilterOption>();
+              for (const row of raw) {
+                if (!row || typeof row !== 'object') continue;
+                const m = row as { status?: string; cabinet?: unknown };
+                if (m.status != null && m.status !== 'ACTIVE') continue;
+                const mapped = mapCabinetRow(m.cabinet);
+                if (mapped && !unique.has(mapped.id)) unique.set(mapped.id, mapped);
+              }
+              next = Array.from(unique.values());
+            }
+          }
+        } else if (!departmentIdStr) {
+          const res = await cabinetApi.getAll({ page: 1, limit: 500 });
+          const raw = (res as { success?: boolean; data?: unknown[] }).data;
+          if (Array.isArray(raw)) {
+            next = raw.map(mapCabinetRow).filter((x): x is CabinetFilterOption => x != null);
+          }
+        } else {
+          const deptId = parseInt(departmentIdStr, 10);
+          if (Number.isNaN(deptId)) return [];
+          const res = await cabinetDepartmentApi.getAll({ departmentId: deptId });
+          const mappings = (res as { success?: boolean; data?: unknown[] }).data;
+          if (!Array.isArray(mappings)) return [];
+          const unique = new Map<number, CabinetFilterOption>();
+          for (const row of mappings) {
+            if (!row || typeof row !== 'object') continue;
+            const m = row as { status?: string; cabinet?: unknown };
+            if (m.status != null && m.status !== 'ACTIVE') continue;
+            const mapped = mapCabinetRow(m.cabinet);
+            if (mapped && !unique.has(mapped.id)) unique.set(mapped.id, mapped);
+          }
+          next = Array.from(unique.values());
+        }
+        return next;
+      } catch {
+        return [];
+      }
+    },
+    [],
+  );
+
+  const loadComparisonCabinets = useCallback(
+    async (departmentIdStr: string, subDepartmentIdStr: string) => {
+      const next = await resolveCabinetsForComparison(departmentIdStr, subDepartmentIdStr);
+      setComparisonCabinets(next);
+      setFilters((prev) => {
+        if (!prev.cabinetId) return prev;
+        const id = parseInt(prev.cabinetId, 10);
+        if (Number.isNaN(id)) return { ...prev, cabinetId: '' };
+        return next.some((c) => c.id === id) ? prev : { ...prev, cabinetId: '' };
+      });
+    },
+    [resolveCabinetsForComparison],
+  );
+
+  useEffect(() => {
+    void loadComparisonCabinets(filters.departmentCode, filters.subDepartmentId);
+  }, [filters.departmentCode, filters.subDepartmentId, loadComparisonCabinets]);
+
+  const fetchSubDepartmentsMaster = async () => {
+    try {
+      const res = await medicalSupplySubDepartmentsApi.getAll();
+      if (res.success && Array.isArray(res.data)) {
+        setSubDepartmentsMaster(
+          res.data.map((s) => ({
+            id: s.id,
+            department_id: s.department_id,
+            code: s.code,
+            name: s.name ?? null,
+            status: s.status,
+          })),
+        );
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const fetchDepartments = async () => {
     try {
       const res = await departmentApi.getAll({ limit: 1000 });
       if (res.success && Array.isArray(res.data)) {
-        setDepartments(res.data.map((d: any) => ({ ID: d.ID, DepName: d.DepName || d.DepName2 || String(d.ID) })));
+        setDepartments(
+          res.data.map((d: { ID: number; DepName?: string | null; DepName2?: string | null }) => ({
+            ID: d.ID,
+            DepName: d.DepName ?? null,
+            DepName2: d.DepName2 ?? null,
+          })),
+        );
       }
     } catch {
       // ไม่แสดง error ถ้าโหลดแผนกไม่ได้
@@ -82,6 +206,12 @@ export default function ItemComparisonPage() {
         params.itemTypeId = parseInt(activeFilters.itemTypeFilter);
       }
       if (activeFilters.departmentCode) params.departmentCode = activeFilters.departmentCode;
+      if (activeFilters.subDepartmentId?.trim()) {
+        params.subDepartmentId = activeFilters.subDepartmentId.trim();
+      }
+      if (activeFilters.cabinetId?.trim()) {
+        params.cabinetId = activeFilters.cabinetId.trim();
+      }
 
       const response = await medicalSuppliesApi.compareDispensedVsUsage(params) as { success?: boolean; data?: any; message?: string; error?: string };
 
@@ -156,6 +286,8 @@ export default function ItemComparisonPage() {
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
       departmentCode: '',
+      subDepartmentId: '',
+      cabinetId: '',
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
@@ -179,6 +311,8 @@ export default function ItemComparisonPage() {
         startDate: filters.startDate || undefined,
         endDate: filters.endDate || undefined,
         departmentCode: filters.departmentCode || undefined,
+        subDepartmentId: filters.subDepartmentId?.trim() || undefined,
+        cabinetId: filters.cabinetId?.trim() || undefined,
         includeUsageDetails: itemCode ? 'true' : undefined,
       };
       if (format === 'excel') {
@@ -248,6 +382,8 @@ export default function ItemComparisonPage() {
             onRefresh={() => fetchComparisonList(currentPage)}
             itemTypes={getItemTypes()}
             departments={departments}
+            subDepartments={subDepartmentsMaster}
+            cabinets={comparisonCabinets}
             loading={loadingList}
             items={comparisonList}
           />
@@ -266,6 +402,7 @@ export default function ItemComparisonPage() {
             startDate={filters.startDate}
             endDate={filters.endDate}
             departmentCode={filters.departmentCode}
+            subDepartmentId={filters.subDepartmentId}
             onSelectItem={handleSelectItem}
             onPageChange={handlePageChange}
             onExportExcel={() => handleExportReport('excel')}
@@ -299,6 +436,8 @@ export default function ItemComparisonPage() {
                 itemName={selectedItem.itemname}
                 startDate={filters.startDate}
                 endDate={filters.endDate}
+                departmentCode={filters.departmentCode}
+                subDepartmentId={filters.subDepartmentId}
               />
             </>
           )}

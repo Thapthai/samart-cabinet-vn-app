@@ -335,6 +335,16 @@ export class GetMedicalSupplyUsagesQueryDto {
   @IsString()
   keyword?: string;
 
+  /** ค้นหาเฉพาะชื่อคนไข้ (ไม่รวมอุปกรณ์) — ใช้เมื่อไม่ส่ง keyword */
+  @IsOptional()
+  @IsString()
+  patient_keyword?: string;
+
+  /** ค้นหาเฉพาะรายการอุปกรณ์ — ใช้เมื่อไม่ส่ง keyword */
+  @IsOptional()
+  @IsString()
+  item_keyword?: string;
+
   @IsOptional()
   @IsString()
   user_name?: string;
@@ -489,6 +499,18 @@ export class GetReturnHistoryQueryDto {
   @IsOptional()
   @IsString()
   department_code?: string;
+
+  @IsOptional()
+  @IsString()
+  cabinet_id?: string;
+
+  @IsOptional()
+  @IsString()
+  sub_department_id?: string;
+
+  @IsOptional()
+  @IsString()
+  item_keyword?: string;
 
   @IsOptional()
   @IsString()

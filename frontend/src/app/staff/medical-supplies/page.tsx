@@ -7,7 +7,11 @@ import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 import { toast } from 'sonner';
 import { History } from 'lucide-react';
 import MedicalSuppliesTable from './components/MedicalSuppliesTable';
-import MedicalSuppliesSearchFilters, { type DepartmentOption } from './components/MedicalSuppliesSearchFilters';
+import MedicalSuppliesSearchFilters, {
+  type DepartmentOption,
+  type SubDepartmentOption,
+} from './components/MedicalSuppliesSearchFilters';
+import { staffMedicalSupplySubDepartmentsApi } from '@/lib/staffApi/medicalSupplySubDepartmentsApi';
 import MedicalSupplySelectedDetailSection from './components/MedicalSupplySelectedDetailSection';
 import { todayYyyyMmDdUtc } from '@/lib/formatThaiDateTime';
 
@@ -22,6 +26,9 @@ export default function MedicalSuppliesPage() {
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [departmentSearch, setDepartmentSearch] = useState('');
   const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
+  const [subDepartments, setSubDepartments] = useState<SubDepartmentOption[]>([]);
+  const [subDepartmentSearch, setSubDepartmentSearch] = useState('');
+  const [subDepartmentDropdownOpen, setSubDepartmentDropdownOpen] = useState(false);
 
   /** วันนี้ YYYY-MM-DD ตาม UTC — ให้ตรงกับ filter ฝั่ง API ไม่บวก +7 */
   const getTodayDate = () => todayYyyyMmDdUtc();
@@ -32,6 +39,7 @@ export default function MedicalSuppliesPage() {
     endDate: getTodayDate(),
     patientHN: '',
     patientEN: '',
+    patientName: '',
     keyword: '',
     userName: '',
     firstName: '',
@@ -50,6 +58,7 @@ export default function MedicalSuppliesPage() {
     endDate: getTodayDate(),
     patientHN: '',
     patientEN: '',
+    patientName: '',
     keyword: '',
     userName: '',
     firstName: '',
@@ -83,7 +92,8 @@ export default function MedicalSuppliesPage() {
       if (filtersToUse.startDate) params.startDate = filtersToUse.startDate;
       if (filtersToUse.endDate) params.endDate = filtersToUse.endDate;
       if (filtersToUse.userName) params.user_name = filtersToUse.userName;
-      if (filtersToUse.itemName) params.keyword = filtersToUse.itemName;
+      if (filtersToUse.itemName?.trim()) params.item_keyword = filtersToUse.itemName.trim();
+      if (filtersToUse.patientName?.trim()) params.patient_keyword = filtersToUse.patientName.trim();
       if (filtersToUse.patientHN?.trim()) params.patient_hn = filtersToUse.patientHN.trim();
       if (filtersToUse.patientEN?.trim()) params.EN = filtersToUse.patientEN.trim();
       if (filtersToUse.firstName?.trim()) params.first_name = filtersToUse.firstName.trim();
@@ -147,6 +157,20 @@ export default function MedicalSuppliesPage() {
   }, []);
 
   useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await staffMedicalSupplySubDepartmentsApi.getAll();
+        if (res?.success && Array.isArray(res.data)) {
+          setSubDepartments(res.data as SubDepartmentOption[]);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
     if (departments.length === 0) return;
     const first = String(departments[0].ID);
     setFormFilters((prev) => (prev.departmentCode ? prev : { ...prev, departmentCode: first }));
@@ -181,6 +205,7 @@ export default function MedicalSuppliesPage() {
       endDate: getTodayDate(),
       patientHN: '',
       patientEN: '',
+      patientName: '',
       keyword: '',
       userName: '',
       firstName: '',
@@ -198,6 +223,7 @@ export default function MedicalSuppliesPage() {
     setSelectedSupply(null);
     setSelectedSupplyId(null);
     setDepartmentSearch('');
+    setSubDepartmentSearch('');
     // useEffect will trigger fetchSupplies when activeFilters and currentPage change
   };
 
@@ -271,6 +297,11 @@ export default function MedicalSuppliesPage() {
           onDepartmentSearchChange={setDepartmentSearch}
           departmentDropdownOpen={departmentDropdownOpen}
           onDepartmentDropdownOpenChange={setDepartmentDropdownOpen}
+          subDepartments={subDepartments}
+          subDepartmentSearch={subDepartmentSearch}
+          onSubDepartmentSearchChange={setSubDepartmentSearch}
+          subDepartmentDropdownOpen={subDepartmentDropdownOpen}
+          onSubDepartmentDropdownOpenChange={setSubDepartmentDropdownOpen}
           loading={loading}
           onSearch={handleSearch}
           onReset={handleReset}

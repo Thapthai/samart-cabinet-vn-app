@@ -86,6 +86,7 @@ export const staffItemsApi = {
     getItemStocksWillReturn: async (params?: {
         department_id?: number;
         cabinet_id?: number;
+        sub_department_id?: number;
         item_code?: string;
         start_date?: string;
         end_date?: string;

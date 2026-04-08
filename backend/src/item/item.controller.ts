@@ -85,10 +85,19 @@ export class ItemController {
     @Query('sort_order') sort_order?: string,
     @Query('cabinet_id') cabinet_id?: string,
     @Query('department_id') department_id?: string,
+    @Query('sub_department_id') sub_department_id?: string,
     @Query('status') status?: string,
   ) {
     const cabinetId = cabinet_id ? parseInt(cabinet_id, 10) : undefined;
     const departmentId = department_id ? parseInt(department_id, 10) : undefined;
+    const subDepartmentId =
+      sub_department_id != null && sub_department_id !== ''
+        ? parseInt(sub_department_id, 10)
+        : undefined;
+    const subDepartmentIdSafe =
+      subDepartmentId != null && !Number.isNaN(subDepartmentId) && subDepartmentId >= 1
+        ? subDepartmentId
+        : undefined;
     return this.itemService.findAllItems(
       page,
       limit,
@@ -97,6 +106,7 @@ export class ItemController {
       sort_order || 'asc',
       cabinetId,
       departmentId,
+      subDepartmentIdSafe,
       status,
     );
   }
@@ -203,6 +213,7 @@ export class ItemStockController {
   async findAllWillReturn(
     @Query('department_id') department_id?: string,
     @Query('cabinet_id') cabinet_id?: string,
+    @Query('sub_department_id') sub_department_id?: string,
     @Query('item_code') item_code?: string,
     @Query('start_date') start_date?: string,
     @Query('end_date') end_date?: string,
@@ -210,6 +221,7 @@ export class ItemStockController {
     const filters: {
       department_id?: number;
       cabinet_id?: number;
+      sub_department_id?: number;
       item_code?: string;
       start_date?: string;
       end_date?: string;
@@ -221,6 +233,10 @@ export class ItemStockController {
     if (cabinet_id != null && cabinet_id !== '') {
       const n = parseInt(cabinet_id, 10);
       if (!Number.isNaN(n)) filters.cabinet_id = n;
+    }
+    if (sub_department_id != null && sub_department_id !== '') {
+      const n = parseInt(sub_department_id, 10);
+      if (!Number.isNaN(n) && n >= 1) filters.sub_department_id = n;
     }
     if (item_code != null && item_code.trim() !== '') filters.item_code = item_code.trim();
     if (start_date != null && start_date.trim() !== '') filters.start_date = start_date.trim();

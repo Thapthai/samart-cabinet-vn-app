@@ -110,6 +110,7 @@ export class ReportServiceController {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }) {
     try {
       const result = await this.reportServiceService.generateDispensedItemsExcel(data);
@@ -128,6 +129,7 @@ export class ReportServiceController {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }) {
     try {
       const result = await this.reportServiceService.generateDispensedItemsPDF(data);
@@ -144,6 +146,8 @@ export class ReportServiceController {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     includeUsageDetails?: boolean;
   }) {
     try {
@@ -161,6 +165,8 @@ export class ReportServiceController {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     includeUsageDetails?: boolean;
   }) {
     try {
@@ -351,6 +357,7 @@ export class ReportServiceController {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }) {
     try {
       const buffer = await this.reportServiceService.generateReturnToCabinetReportExcel(data);
@@ -373,6 +380,7 @@ export class ReportServiceController {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }) {
     try {
       const buffer = await this.reportServiceService.generateReturnToCabinetReportPdf(data);

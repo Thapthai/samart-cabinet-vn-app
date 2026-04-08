@@ -1478,9 +1478,9 @@ export class MedicalSuppliesService {
         baseWhere.subDepartment = { code: query.usage_type.trim() };
       }
 
-      // Keyword filter (search in patient name, EN, and item names)
+      // Keyword filter (legacy: ค้นหาทั้งชื่อคนไข้ EN และรายการอุปกรณ์ในคำค้นเดียว)
       const keywordConditions: any[] = [];
-      if (query.keyword) {
+      if (query.keyword?.trim()) {
         const keyword = query.keyword.trim();
         keywordConditions.push(
           { first_name: { contains: keyword } },
@@ -1601,6 +1601,29 @@ export class MedicalSuppliesService {
         }
       }
 
+      // ค้นหาเฉพาะชื่ออุปกรณ์ (แยกจาก keyword เดิม)
+      if (!query.keyword?.trim() && query.item_keyword?.trim()) {
+        const ik = query.item_keyword.trim();
+        const itemTextClause = {
+          OR: [
+            { order_item_description: { contains: ik } },
+            { supply_name: { contains: ik } },
+            { order_item_code: { contains: ik } },
+          ],
+        };
+        const cur = baseWhere.supply_items;
+        if (!cur?.some) {
+          baseWhere.supply_items = { some: itemTextClause };
+        } else {
+          const some = cur.some as Record<string, unknown> & { AND?: unknown[] };
+          if (some.AND && Array.isArray(some.AND)) {
+            baseWhere.supply_items = { some: { AND: [...some.AND, itemTextClause] } };
+          } else {
+            baseWhere.supply_items = { some: { AND: [cur.some, itemTextClause] } };
+          }
+        }
+      }
+
       // Combine all conditions properly
       const where: any = { ...baseWhere };
 
@@ -1620,6 +1643,39 @@ export class MedicalSuppliesService {
           Object.keys(baseWhere).forEach(key => delete where[key]);
         } else {
           where.OR = keywordConditions;
+        }
+      }
+
+      // ค้นหาเฉพาะชื่อคนไข้ (แยกจาก keyword เดิม)
+      if (!query.keyword?.trim() && query.patient_keyword?.trim()) {
+        const pk = query.patient_keyword.trim();
+        const patientClause = {
+          OR: [
+            { first_name: { contains: pk } },
+            { lastname: { contains: pk } },
+            { patient_name_th: { contains: pk } },
+            { patient_name_en: { contains: pk } },
+          ],
+        };
+        if (where.AND && Array.isArray(where.AND)) {
+          where.AND.push(patientClause);
+        } else {
+          const top = Object.keys(where).filter((k) => k !== 'AND' && k !== 'OR');
+          if (top.length === 0 && !where.OR) {
+            Object.assign(where, patientClause);
+          } else {
+            const andArr: any[] = [];
+            top.forEach((k) => {
+              andArr.push({ [k]: where[k] });
+              delete where[k];
+            });
+            if (where.OR) {
+              andArr.push({ OR: where.OR });
+              delete where.OR;
+            }
+            andArr.push(patientClause);
+            where.AND = andArr;
+          }
         }
       }
 
@@ -3110,16 +3166,40 @@ export class MedicalSuppliesService {
         where.return_reason = query.return_reason;
       }
 
-      // Department filter via cabinet → cabinetDepartments
-      if (query.department_code) {
-        const deptId = parseInt(query.department_code, 10);
-        if (!isNaN(deptId)) {
-          where.cabinet = {
-            cabinetDepartments: {
-              some: { department_id: deptId },
-            },
-          };
+      const cabinetConditions: Record<string, unknown>[] = [];
+      if (query.department_code != null && String(query.department_code).trim() !== '') {
+        const deptId = parseInt(String(query.department_code), 10);
+        if (!Number.isNaN(deptId)) {
+          cabinetConditions.push({
+            cabinetDepartments: { some: { department_id: deptId } },
+          });
         }
+      }
+      if (query.cabinet_id != null && String(query.cabinet_id).trim() !== '') {
+        const cid = parseInt(String(query.cabinet_id), 10);
+        if (!Number.isNaN(cid)) {
+          cabinetConditions.push({ id: cid });
+        }
+      }
+      if (query.sub_department_id != null && String(query.sub_department_id).trim() !== '') {
+        const sid = parseInt(String(query.sub_department_id), 10);
+        if (!Number.isNaN(sid)) {
+          cabinetConditions.push({
+            cabinetSubDepartments: {
+              some: { sub_department_id: sid, status: 'ACTIVE' },
+            },
+          });
+        }
+      }
+      if (cabinetConditions.length === 1) {
+        where.cabinet = cabinetConditions[0];
+      } else if (cabinetConditions.length > 1) {
+        where.cabinet = { AND: cabinetConditions };
+      }
+
+      const itemKw = query.item_keyword?.trim();
+      if (itemKw) {
+        where.itemCode = { contains: itemKw };
       }
 
       // Date range filter
@@ -3394,6 +3474,7 @@ export class MedicalSuppliesService {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }) {
     try {
       const page = filters?.page || 1;
@@ -3434,6 +3515,15 @@ export class MedicalSuppliesService {
         const cabId = parseInt(filters.cabinetId, 10);
         if (!Number.isNaN(cabId)) {
           sqlConditions.push(Prisma.sql`app_cabinets.ID = ${cabId}`);
+        }
+      }
+
+      if (filters?.subDepartmentId != null && String(filters.subDepartmentId).trim() !== '') {
+        const sid = parseInt(String(filters.subDepartmentId), 10);
+        if (!Number.isNaN(sid) && sid >= 1) {
+          sqlConditions.push(
+            Prisma.sql`EXISTS (SELECT 1 FROM app_cabinet_sub_departments csd WHERE csd.cabinet_id = app_cabinets.ID AND csd.sub_department_id = ${sid} AND csd.status = 'ACTIVE')`,
+          );
         }
       }
 
@@ -3547,6 +3637,7 @@ export class MedicalSuppliesService {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }) {
     try {
 
@@ -3583,6 +3674,15 @@ export class MedicalSuppliesService {
 
       if (filters?.cabinetId) {
         sqlConditions.push(Prisma.raw(`app_cabinets.id = '${filters.cabinetId}'`));
+      }
+
+      if (filters?.subDepartmentId != null && String(filters.subDepartmentId).trim() !== '') {
+        const sid = parseInt(String(filters.subDepartmentId), 10);
+        if (!Number.isNaN(sid) && sid >= 1) {
+          sqlConditions.push(
+            Prisma.sql`EXISTS (SELECT 1 FROM app_cabinet_sub_departments csd WHERE csd.cabinet_id = app_cabinets.id AND csd.sub_department_id = ${sid} AND csd.status = 'ACTIVE')`,
+          );
+        }
       }
 
       // Combine WHERE conditions with AND
@@ -3982,6 +4082,7 @@ export class MedicalSuppliesService {
     lastname?: string;
     assession_no?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
     page?: number;
     limit?: number;
   }) {
@@ -4005,6 +4106,13 @@ export class MedicalSuppliesService {
         const di = parseInt(filters.departmentCode, 10);
         if (!Number.isNaN(di)) {
           whereConditions.department_id = di;
+        }
+      }
+
+      if (filters?.subDepartmentId?.trim()) {
+        const sid = parseInt(filters.subDepartmentId.trim(), 10);
+        if (!Number.isNaN(sid)) {
+          whereConditions.sub_department_id = sid;
         }
       }
 
@@ -4228,6 +4336,8 @@ export class MedicalSuppliesService {
     startDate?: string;
     endDate?: string;
     departmentCode?: string;
+    subDepartmentId?: string;
+    cabinetId?: string;
     page?: number;
     limit?: number;
   }) {
@@ -4284,38 +4394,86 @@ export class MedicalSuppliesService {
         Prisma.raw(`order_item_status NOT IN ('Discontinue', 'discontinue', 'Discontinued', 'discontinued')`)
       );
 
-      // กรองตาม department_code: หา stock_ids จาก cabinet_departments → cabinets
-      if (filters?.departmentCode && filters.departmentCode.trim()) {
-        const deptIdNum = parseInt(filters.departmentCode.trim(), 10);
+      const deptIdNum =
+        filters?.departmentCode?.trim() ? parseInt(filters.departmentCode.trim(), 10) : NaN;
+      const subIdNum =
+        filters?.subDepartmentId?.trim() ? parseInt(filters.subDepartmentId.trim(), 10) : NaN;
+      const cabinetIdNum =
+        filters?.cabinetId?.trim() ? parseInt(filters.cabinetId.trim(), 10) : NaN;
 
-        // 1. กรอง supply_usage_items ตาม department_id ใน MedicalSupplyUsage
-        if (!Number.isNaN(deptIdNum)) {
-          sqlConditionsUsage.push(
-            Prisma.raw(
-              `EXISTS (SELECT 1 FROM app_medical_supply_usages msu WHERE msu.id = medical_supply_usage_id AND msu.department_id = ${deptIdNum})`,
-            ),
-          );
+      const msuParts: string[] = [];
+      if (!Number.isNaN(deptIdNum)) {
+        msuParts.push(`msu.department_id = ${deptIdNum}`);
+      }
+      if (!Number.isNaN(subIdNum)) {
+        msuParts.push(`msu.sub_department_id = ${subIdNum}`);
+      }
+      if (msuParts.length > 0) {
+        sqlConditionsUsage.push(
+          Prisma.raw(
+            `EXISTS (SELECT 1 FROM app_medical_supply_usages msu WHERE msu.id = medical_supply_usage_id AND ${msuParts.join(' AND ')})`,
+          ),
+        );
+      }
+
+      const intersectStockIds = (a: number[], b: number[]) => {
+        const bs = new Set(b);
+        return a.filter((x) => bs.has(x));
+      };
+
+      let allowedStockIds: number[] | null = null;
+
+      if (!Number.isNaN(deptIdNum)) {
+        const cabinetRows = await this.prisma.$queryRaw<{ stock_id: number }[]>`
+          SELECT c.stock_id
+          FROM app_cabinet_departments cd
+          INNER JOIN app_cabinets c ON c.id = cd.cabinet_id
+          WHERE cd.department_id = ${deptIdNum}
+            AND c.stock_id IS NOT NULL
+            AND cd.status = 'ACTIVE'
+        `;
+        allowedStockIds = cabinetRows.map((r) => r.stock_id).filter((id) => id != null);
+      }
+
+      if (!Number.isNaN(subIdNum)) {
+        const subRows = await this.prisma.$queryRaw<{ stock_id: number }[]>`
+          SELECT c.stock_id
+          FROM app_cabinet_sub_departments csd
+          INNER JOIN app_cabinets c ON c.id = csd.cabinet_id
+          WHERE csd.sub_department_id = ${subIdNum}
+            AND csd.status = 'ACTIVE'
+            AND c.stock_id IS NOT NULL
+        `;
+        const subStockIds = [...new Set(subRows.map((r) => r.stock_id).filter((id) => id != null))];
+        if (allowedStockIds === null) {
+          allowedStockIds = subStockIds;
+        } else {
+          allowedStockIds = intersectStockIds(allowedStockIds, subStockIds);
         }
+      }
 
-        // 2. กรอง itemstock ตาม StockID ของตู้ที่ผูกกับแผนกนั้น
-        if (!Number.isNaN(deptIdNum)) {
-          const cabinetRows = await this.prisma.$queryRaw<{ stock_id: number }[]>`
-            SELECT c.stock_id
-            FROM app_cabinet_departments cd
-            INNER JOIN app_cabinets c ON c.id = cd.cabinet_id
-            WHERE cd.department_id = ${deptIdNum}
-              AND c.stock_id IS NOT NULL
-              AND cd.status = 'ACTIVE'
-          `;
-          const stockIds = cabinetRows.map((r) => r.stock_id).filter(Boolean);
-          if (stockIds.length > 0) {
-            sqlConditionsDispensed.push(
-              Prisma.sql`StockID IN (${Prisma.join(stockIds.map((id) => Prisma.sql`${id}`))})`,
-            );
-          } else {
-            // ไม่มีตู้ที่ผูกกับแผนกนี้ → ไม่มี dispensed items
-            sqlConditionsDispensed.push(Prisma.sql`1 = 0`);
-          }
+      if (!Number.isNaN(cabinetIdNum)) {
+        const cab = await this.prisma.cabinet.findUnique({
+          where: { id: cabinetIdNum },
+          select: { stock_id: true },
+        });
+        const singleStock = cab?.stock_id;
+        if (singleStock == null) {
+          allowedStockIds = [];
+        } else if (allowedStockIds === null) {
+          allowedStockIds = [singleStock];
+        } else {
+          allowedStockIds = allowedStockIds.filter((x) => x === singleStock);
+        }
+      }
+
+      if (allowedStockIds !== null) {
+        if (allowedStockIds.length === 0) {
+          sqlConditionsDispensed.push(Prisma.sql`1 = 0`);
+        } else {
+          sqlConditionsDispensed.push(
+            Prisma.sql`StockID IN (${Prisma.join(allowedStockIds.map((id) => Prisma.sql`${id}`))})`,
+          );
         }
       }
 
@@ -4755,11 +4913,16 @@ export class MedicalSuppliesService {
           it.TypeName AS itemType,
           i.itemtypeID,
           ist.CabinetUserID,
-          COALESCE(u.name, CONCAT(st.fname, ' ', st.lname), 'ไม่ระบุ') AS cabinetUserName
+          COALESCE(
+            CONCAT(emp.FirstName, ' ', emp.LastName),
+            CONCAT(st.fname, ' ', st.lname),
+            'ไม่ระบุ'
+          ) AS cabinetUserName
         FROM itemstock ist
         INNER JOIN item i ON ist.ItemCode = i.itemcode
         LEFT JOIN itemtype it ON i.itemtypeID = it.ID
-        LEFT JOIN appst.CabinetUserID = u.id
+        LEFT JOIN users u ON u.ID = ist.CabinetUserID
+        LEFT JOIN employee emp ON emp.EmpCode = u.EmpCode
         LEFT JOIN app_staff_users st ON ist.CabinetUserID = st.id
         WHERE ${whereClause}
         ORDER BY ist.LastCabinetModify DESC, ist.RowID DESC

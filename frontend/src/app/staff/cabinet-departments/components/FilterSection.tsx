@@ -210,8 +210,8 @@ export default function FilterSection({
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
           <SearchableSelect
-            label="แผนก"
-            placeholder="— เลือกแผนก —"
+            label="Division"
+            placeholder="— เลือก Division —"
             value={formFilters.departmentId}
             onValueChange={(value) => {
               if (departmentDisabled) return;
@@ -224,7 +224,7 @@ export default function FilterSection({
             options={departmentOptions}
             loading={loadingDepartments}
             onSearch={loadDepartments}
-            searchPlaceholder="ค้นหาชื่อแผนก..."
+            searchPlaceholder="ค้นหา Division..."
             disabled={departmentDisabled}
           />
 

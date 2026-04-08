@@ -1,4 +1,4 @@
-import type { DispensedItem } from '@/app/admin/return-to-cabinet-report/types';
+import type { DispensedItem } from '@/app/admin/return-to-cabinet/types';
 
 /** ความคาดเคลื่อนกลุ่มตามเวลาคืน (วินาที) — ต้องตรงกับ ReturnedTable */
 export const RETURNED_GROUP_TIME_TOLERANCE_SEC = 3;

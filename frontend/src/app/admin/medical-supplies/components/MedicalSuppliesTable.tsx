@@ -25,6 +25,7 @@ interface MedicalSuppliesTableProps {
     startDate: string;
     endDate: string;
     patientHN: string;
+    patientName?: string;
     keyword: string;
     firstName: string;
     lastName: string;

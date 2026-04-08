@@ -356,8 +356,9 @@ model MedicalSupplySubDepartment {
   created_at    DateTime @default(dbgenerated("NOW()")) @map("created_at") @db.DateTime(3)
   updated_at    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
-  department          Department             @relation(fields: [department_id], references: [ID], onDelete: Cascade)
-  medicalSupplyUsages MedicalSupplyUsage[]
+  department               Department               @relation(fields: [department_id], references: [ID], onDelete: Cascade)
+  medicalSupplyUsages      MedicalSupplyUsage[]
+  cabinetSubDepartments    CabinetSubDepartment[]
 
   @@unique([code])
   @@index([department_id])
@@ -658,13 +659,35 @@ model cabinet {
   created_at     DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at     DateTime @updatedAt @map("updated_at")
 
-  cabinetDepartments      cabinetDepartment[]
-  itemStocks              ItemStock[]
-  supplyItemReturnRecords SupplyItemReturnRecord[]
-  cabinetItemSettings     CabinetItemSetting[]
-  itemSlotInCabinet       ItemSlotInCabinet[]
+  cabinetDepartments       cabinetDepartment[]
+  cabinetSubDepartments    CabinetSubDepartment[]
+  itemStocks               ItemStock[]
+  supplyItemReturnRecords  SupplyItemReturnRecord[]
+  cabinetItemSettings      CabinetItemSetting[]
+  itemSlotInCabinet        ItemSlotInCabinet[]
 
   @@map("app_cabinets")
+}
+
+/// Many-to-many: ตู้ ↔ แผนกย่อย (จำกัดขอบเขตการใช้ตู้ตามหน่วยย่อยภายใต้แผนกหลักเดียวกัน)
+model CabinetSubDepartment {
+  id                Int    @id @default(autoincrement())
+  cabinet_id        Int    @map("cabinet_id")
+  sub_department_id Int    @map("sub_department_id")
+  status            String @default("ACTIVE") @map("status") @db.VarChar(32) // ACTIVE, INACTIVE
+  description       String? @map("description") @db.Text
+  sort_order        Int    @default(0) @map("sort_order")
+
+  created_at DateTime @default(dbgenerated("NOW()")) @map("created_at") @db.DateTime(3)
+  updated_at DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  cabinet       cabinet                    @relation(fields: [cabinet_id], references: [id], onDelete: Cascade)
+  subDepartment MedicalSupplySubDepartment @relation(fields: [sub_department_id], references: [id], onDelete: Cascade)
+
+  @@unique([cabinet_id, sub_department_id])
+  @@index([cabinet_id])
+  @@index([sub_department_id])
+  @@map("app_cabinet_sub_departments")
 }
 
 // Min/Max ต่อตู้ — override ของ item.stock_min/stock_max เมื่อมีแถวสำหรับ (cabinet_id, item_code)

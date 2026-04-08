@@ -10,6 +10,7 @@ export const DispensedItemsApi = {
     limit?: number;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<ApiResponse<unknown> & {
     total?: number;
     page?: number;
@@ -27,6 +28,7 @@ export const DispensedItemsApi = {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<void> => {
     const body = {
       keyword: params?.keyword,
@@ -34,6 +36,7 @@ export const DispensedItemsApi = {
       endDate: params?.endDate,
       departmentId: params?.departmentId,
       cabinetId: params?.cabinetId,
+      subDepartmentId: params?.subDepartmentId,
     };
     const response = await staffApi.post('/reports/dispensed-items/excel', body);
     const res = response.data as { success?: boolean; data?: { buffer?: string; filename?: string; contentType?: string } };
@@ -59,6 +62,7 @@ export const DispensedItemsApi = {
     endDate?: string;
     departmentId?: string;
     cabinetId?: string;
+    subDepartmentId?: string;
   }): Promise<void> => {
     const body = {
       keyword: params?.keyword,
@@ -66,6 +70,7 @@ export const DispensedItemsApi = {
       endDate: params?.endDate,
       departmentId: params?.departmentId,
       cabinetId: params?.cabinetId,
+      subDepartmentId: params?.subDepartmentId,
     };
     const response = await staffApi.post('/reports/dispensed-items/pdf', body);
     const res = response.data as { success?: boolean; data?: { buffer?: string; filename?: string; contentType?: string } };

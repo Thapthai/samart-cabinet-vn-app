@@ -161,7 +161,6 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
                   <TableHeader>
                     <TableRow>
                       <TableHead>ลำดับ</TableHead>
-                      {/* <TableHead>RFID</TableHead> */}
                       <TableHead>รหัสอุปกรณ์</TableHead>
                       <TableHead>ชื่ออุปกรณ์</TableHead>
                       <TableHead>จำนวน</TableHead>
@@ -173,7 +172,6 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
                     {itemStocks.map((stock, index) => (
                       <TableRow key={`detail-stock-${index}-${stock.StockID ?? ""}`}>
                         <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                        {/* <TableCell>{stock.RfidCode || "-"}</TableCell> */}
                         <TableCell>{stock.item?.itemcode || stock.ItemCode || "-"}</TableCell>
                         <TableCell>{stock.item?.itemname || "-"}</TableCell>
                         <TableCell>{stock.Qty || 0}</TableCell>

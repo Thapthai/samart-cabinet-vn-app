@@ -22,6 +22,7 @@ export interface FilterState {
   endDate: string;
   itemTypeFilter: string;
   departmentId: string;
+  subDepartmentId: string;
   cabinetId: string;
   departmentCode?: string;
   cabinetCode?: string;

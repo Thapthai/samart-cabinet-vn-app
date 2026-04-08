@@ -1,4 +1,4 @@
-import { IsString, IsInt, IsOptional } from 'class-validator';
+import { IsString, IsInt, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateDepartmentDto {
@@ -66,4 +66,52 @@ export class UpdateCabinetDepartmentDto {
   @IsOptional()
   @IsString()
   description?: string;
+}
+
+export class CreateCabinetSubDepartmentDto {
+  @IsInt()
+  @Type(() => Number)
+  cabinet_id: number;
+
+  @IsInt()
+  @Type(() => Number)
+  sub_department_id: number;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  sort_order?: number;
+}
+
+export class UpdateCabinetSubDepartmentDto {
+  @IsInt()
+  @Type(() => Number)
+  cabinet_id: number;
+
+  @IsInt()
+  @Type(() => Number)
+  sub_department_id: number;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  sort_order?: number;
 }
