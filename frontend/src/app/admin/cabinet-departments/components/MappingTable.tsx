@@ -225,8 +225,8 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
             <TableHeader>
               <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
                 <TableHead className="w-14 px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">ลำดับ</TableHead>
-                <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">รหัสแผนกย่อย</TableHead>
-                <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">ชื่อแผนกย่อย</TableHead>
+                <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">รหัสแผนก</TableHead>
+                <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">ชื่อแผนก</TableHead>
                 <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">สถานะการผูก</TableHead>
                 <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">หมายเหตุ</TableHead>
                 <TableHead className="w-[1%] whitespace-nowrap px-3 py-3 text-right text-slate-600 sm:px-4 sm:py-3.5">
@@ -330,7 +330,7 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
                   <TableHead className="w-12 px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4"></TableHead>
                   <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">ลำดับ</TableHead>
                   <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">ชื่อตู้</TableHead>
-                  <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">แผนก</TableHead>
+                  <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">Division</TableHead>
                   <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">สถานะ</TableHead>
                   <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">หมายเหตุ</TableHead>
                   <TableHead className="px-3 py-3.5 text-right text-slate-600 sm:px-4 sm:py-4">จัดการ</TableHead>
