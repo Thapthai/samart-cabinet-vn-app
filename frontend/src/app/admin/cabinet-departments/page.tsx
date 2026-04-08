@@ -303,6 +303,7 @@ export default function ItemStockDepartmentsPage() {
             setFormData={setFormData}
             onSubmit={submitCreate}
             saving={saving}
+            existingMappings={mappings}
           />
 
           <CreateCabinetDialog

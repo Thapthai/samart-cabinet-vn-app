@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,28 @@ interface Cabinet {
   cabinet_status?: string;
 }
 
+const MAX_ACTIVE_DIVISION_LINKS_PER_CABINET = 3;
+
+function countActiveDivisionLinks(
+  mappings: Array<{ cabinet_id: number; status: string }>,
+  cabinetId: number,
+): number {
+  return mappings.filter((m) => m.cabinet_id === cabinetId && m.status === "ACTIVE").length;
+}
+
+function departmentIdsMappedForCabinet(
+  mappings: Array<{ cabinet_id: number; department_id?: number | null }>,
+  cabinetId: number,
+): Set<number> {
+  const set = new Set<number>();
+  for (const m of mappings) {
+    if (m.cabinet_id === cabinetId && m.department_id != null) {
+      set.add(Number(m.department_id));
+    }
+  }
+  return set;
+}
+
 interface FormData {
   cabinet_id: string;
   department_id: string;
@@ -35,9 +57,10 @@ interface CreateMappingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   formData: FormData;
-  setFormData: (data: FormData) => void;
+  setFormData: Dispatch<SetStateAction<FormData>>;
   onSubmit: () => void;
   saving: boolean;
+  existingMappings: Array<{ cabinet_id: number; department_id?: number | null; status: string }>;
 }
 
 export default function CreateMappingDialog({
@@ -47,6 +70,7 @@ export default function CreateMappingDialog({
   setFormData,
   onSubmit,
   saving,
+  existingMappings,
 }: CreateMappingDialogProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
@@ -101,12 +125,43 @@ export default function CreateMappingDialog({
     };
   }, [open, loadCabinets, loadDepartments]);
 
+  useEffect(() => {
+    if (!open || !formData.cabinet_id) return;
+    const id = parseInt(formData.cabinet_id, 10);
+    if (Number.isNaN(id)) return;
+    if (countActiveDivisionLinks(existingMappings, id) >= MAX_ACTIVE_DIVISION_LINKS_PER_CABINET) {
+      setFormData((prev) => ({ ...prev, cabinet_id: "" }));
+    }
+  }, [open, existingMappings, formData.cabinet_id, setFormData]);
+
+  const unmappedDepartments = useMemo(() => {
+    const cabStr = formData.cabinet_id?.trim();
+    if (!cabStr) return [];
+    const cabinetId = parseInt(cabStr, 10);
+    if (Number.isNaN(cabinetId)) return [];
+    const already = departmentIdsMappedForCabinet(existingMappings, cabinetId);
+    return departments.filter((d) => !already.has(d.ID));
+  }, [formData.cabinet_id, departments, existingMappings]);
+
+  useEffect(() => {
+    if (!open || !formData.cabinet_id?.trim() || !formData.department_id?.trim()) return;
+    const cabId = parseInt(formData.cabinet_id, 10);
+    const deptId = parseInt(formData.department_id, 10);
+    if (Number.isNaN(cabId) || Number.isNaN(deptId)) return;
+    if (departmentIdsMappedForCabinet(existingMappings, cabId).has(deptId)) {
+      setFormData((prev) => ({ ...prev, department_id: "" }));
+    }
+  }, [open, formData.cabinet_id, formData.department_id, existingMappings, setFormData]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>เพิ่มการเชื่อมโยงใหม่</DialogTitle>
-          <DialogDescription>เชื่อมโยงตู้ Cabinet กับแผนก</DialogDescription>
+          <DialogDescription>
+            เลือกตู้ที่ยังผูก Division (ACTIVE) ไม่ครบ {MAX_ACTIVE_DIVISION_LINKS_PER_CABINET} แผนก จากนั้นเลือก Division
+            ที่ยังไม่เคยเชื่อมโยงกับตู้นั้น
+          </DialogDescription>
         </DialogHeader>
         <div ref={dialogContentRef} className="relative overflow-visible grid gap-4 py-4">
           <SearchableSelect
@@ -114,9 +169,15 @@ export default function CreateMappingDialog({
             label="ตู้ Cabinet"
             placeholder="เลือกตู้"
             value={formData.cabinet_id}
-            onValueChange={(value) => setFormData({ ...formData, cabinet_id: value })}
+            onValueChange={(value) =>
+              setFormData((prev) => ({ ...prev, cabinet_id: value, department_id: "" }))
+            }
             options={cabinets
-              .filter((cabinet) => cabinet.cabinet_status !== "USED")
+              .filter(
+                (cabinet) =>
+                  countActiveDivisionLinks(existingMappings, cabinet.id) <
+                  MAX_ACTIVE_DIVISION_LINKS_PER_CABINET,
+              )
               .map((cabinet) => ({
                 value: cabinet.id.toString(),
                 label: cabinet.cabinet_name || "",
@@ -131,10 +192,16 @@ export default function CreateMappingDialog({
           <SearchableSelect
             portalTargetRef={dialogContentRef}
             label="Division"
-            placeholder="เลือก Division"
+            placeholder={
+              formData.cabinet_id?.trim()
+                ? unmappedDepartments.length === 0
+                  ? "ทุก Division ผูกกับตู้นี้แล้ว"
+                  : "เลือก Division (ยังไม่เคยผูกกับตู้นี้)"
+                : "กรุณาเลือกตู้ก่อน"
+            }
             value={formData.department_id}
-            onValueChange={(value) => setFormData({ ...formData, department_id: value })}
-            options={departments.map((dept) => ({
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, department_id: value }))}
+            options={unmappedDepartments.map((dept) => ({
               value: dept.ID.toString(),
               label: dept.DepName || "",
               subLabel: dept.DepName2 || "",
@@ -143,6 +210,7 @@ export default function CreateMappingDialog({
             required
             onSearch={loadDepartments}
             searchPlaceholder="ค้นหาชื่อ Division..."
+            disabled={!formData.cabinet_id?.trim()}
           />
 
           <div>

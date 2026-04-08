@@ -14,6 +14,8 @@ import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
 export class DepartmentService {
   private readonly logger = new Logger(DepartmentService.name);
   private readonly HOSPITAL_PREFIX = 'VTN';
+  /** จำนวน Division (ACTIVE) ที่ตู้หนึ่งเครื่องผูกได้สูงสุด */
+  private readonly MAX_ACTIVE_CABINET_DEPARTMENT_LINKS = 3;
 
   constructor(private prisma: PrismaService) { }
 
@@ -285,7 +287,6 @@ export class DepartmentService {
 
   async createCabinetDepartment(data: CreateCabinetDepartmentDto) {
     try {
-
       const [cabinet, department] = await Promise.all([
         this.prisma.cabinet.findUnique({ where: { id: data.cabinet_id } }),
         this.prisma.department.findUnique({
@@ -297,10 +298,28 @@ export class DepartmentService {
       if (!cabinet || !department) {
         return { success: false, message: 'Validation failed - data not found' };
       }
-      const existing = await this.prisma.cabinetDepartment.findFirst({
-        where: { cabinet_id: data.cabinet_id },
+
+      const dupPair = await this.prisma.cabinetDepartment.findFirst({
+        where: {
+          cabinet_id: data.cabinet_id,
+          department_id: data.department_id,
+        },
       });
-      if (existing) return { success: false, message: 'Cabinet already used' };
+      if (dupPair) {
+        return { success: false, message: 'ตู้นี้เชื่อมโยงกับ Division นี้แล้ว' };
+      }
+
+      const activeCount = await this.prisma.cabinetDepartment.count({
+        where: { cabinet_id: data.cabinet_id, status: 'ACTIVE' },
+      });
+      const incomingActive = (data.status || 'ACTIVE') === 'ACTIVE';
+      if (incomingActive && activeCount >= this.MAX_ACTIVE_CABINET_DEPARTMENT_LINKS) {
+        return {
+          success: false,
+          message: `ตู้นี้ผูก Division ที่ใช้งานได้สูงสุด ${this.MAX_ACTIVE_CABINET_DEPARTMENT_LINKS} แผนกแล้ว`,
+        };
+      }
+
       const mapping = await this.prisma.cabinetDepartment.create({
         data: {
           cabinet_id: data.cabinet_id,
@@ -434,7 +453,37 @@ export class DepartmentService {
       ]);
       if (!cabinet || !department) return { success: false, message: 'Cabinet or Department not found' };
       if (!currentMapping) return { success: false, message: 'CabinetDepartment mapping not found' };
+
+      const newStatus = data.status || 'ACTIVE';
+      const willBeActive = newStatus === 'ACTIVE';
+
+      const dupOther = await this.prisma.cabinetDepartment.findFirst({
+        where: {
+          cabinet_id: data.cabinet_id,
+          department_id: data.department_id,
+          id: { not: id },
+        },
+      });
+      if (dupOther) {
+        return { success: false, message: 'ตู้นี้เชื่อมโยงกับ Division นี้แล้ว' };
+      }
+
       if (currentMapping.cabinet_id === data.cabinet_id) {
+        if (willBeActive) {
+          const otherActive = await this.prisma.cabinetDepartment.count({
+            where: {
+              cabinet_id: data.cabinet_id,
+              status: 'ACTIVE',
+              id: { not: id },
+            },
+          });
+          if (otherActive >= this.MAX_ACTIVE_CABINET_DEPARTMENT_LINKS) {
+            return {
+              success: false,
+              message: `ตู้นี้ผูก Division ที่ใช้งานได้สูงสุด ${this.MAX_ACTIVE_CABINET_DEPARTMENT_LINKS} แผนกแล้ว`,
+            };
+          }
+        }
         const mapping = await this.prisma.cabinetDepartment.update({
           where: { id },
           data: { department_id: data.department_id, status: data.status, description: data.description },
@@ -442,10 +491,22 @@ export class DepartmentService {
         });
         return { success: true, message: 'Cabinet-Department mapping updated successfully', data: mapping };
       }
-      const existing = await this.prisma.cabinetDepartment.findFirst({
-        where: { cabinet_id: data.cabinet_id, id: { not: id } },
-      });
-      if (existing) return { success: false, message: 'New cabinet is already mapped to another department' };
+
+      if (willBeActive) {
+        const otherActiveOnTarget = await this.prisma.cabinetDepartment.count({
+          where: {
+            cabinet_id: data.cabinet_id,
+            status: 'ACTIVE',
+            id: { not: id },
+          },
+        });
+        if (otherActiveOnTarget >= this.MAX_ACTIVE_CABINET_DEPARTMENT_LINKS) {
+          return {
+            success: false,
+            message: `ตู้นี้ผูก Division ที่ใช้งานได้สูงสุด ${this.MAX_ACTIVE_CABINET_DEPARTMENT_LINKS} แผนกแล้ว`,
+          };
+        }
+      }
       const oldCabinetId = currentMapping.cabinet_id;
       const mapping = await this.prisma.cabinetDepartment.update({
         where: { id },
