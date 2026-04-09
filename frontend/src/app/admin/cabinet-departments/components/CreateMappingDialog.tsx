@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
@@ -108,7 +108,63 @@ export default function CreateMappingDialog({
     return departments.filter((d) => !already.has(d.ID));
   }, [formData.cabinet_id, departments, existingMappings]);
 
-  /** จำนวนช่องเลือก Division ในครั้งเดียว = ช่อง ACTIVE ที่เหลือ × จำนวน Division ที่ยังไม่เคยผูก */
+  /**
+   * มี Division ที่ยังไม่ผูกกับตู้นี้หรือไม่ — ยิง API แบบไม่มี keyword (แบ่งหน้า)
+   * ไม่ใช้ความยาวของ `departments` หลังค้นหา เพราะจะทำให้จำนวนช่องลดเมื่อ filter เหลือ 1/0 รายการ
+   */
+  const [hasUnmappedDepartment, setHasUnmappedDepartment] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const cabStr = formData.cabinet_id?.trim();
+    if (!open || !cabStr) {
+      setHasUnmappedDepartment(null);
+      return;
+    }
+    const cabinetId = parseInt(cabStr, 10);
+    if (Number.isNaN(cabinetId)) {
+      setHasUnmappedDepartment(null);
+      return;
+    }
+    setHasUnmappedDepartment(null);
+    let cancelled = false;
+    const mapped = departmentIdsMappedForCabinet(existingMappings, cabinetId);
+    const limit = 500;
+    (async () => {
+      try {
+        let page = 1;
+        let lastPage = 1;
+        do {
+          const res = (await departmentApi.getAll({ page, limit })) as {
+            success?: boolean;
+            data?: Department[];
+            lastPage?: number;
+          };
+          if (cancelled) return;
+          const data = res.data;
+          lastPage = typeof res.lastPage === "number" && res.lastPage >= 1 ? res.lastPage : 1;
+          if (!res.success || !Array.isArray(data)) {
+            setHasUnmappedDepartment(false);
+            return;
+          }
+          for (const d of data) {
+            if (!mapped.has(d.ID)) {
+              setHasUnmappedDepartment(true);
+              return;
+            }
+          }
+          page += 1;
+        } while (page <= lastPage);
+        if (!cancelled) setHasUnmappedDepartment(false);
+      } catch {
+        if (!cancelled) setHasUnmappedDepartment(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, formData.cabinet_id, existingMappings]);
+
+  /** จำนวนช่อง = ช่อง ACTIVE ที่เหลือ (สูงสุด 3) ถ้ายังมี Division ที่ผูกได้อย่างน้อย 1 รายการ */
   const divisionSlotCount = useMemo(() => {
     const cabStr = formData.cabinet_id?.trim();
     if (!cabStr) return 0;
@@ -117,10 +173,9 @@ export default function CreateMappingDialog({
     const remainingActive =
       MAX_ACTIVE_DIVISION_LINKS_PER_CABINET - countActiveDivisionLinks(existingMappings, cabinetId);
     if (remainingActive <= 0) return 0;
-    const unmapped = unmappedDepartments.length;
-    if (unmapped <= 0) return 0;
-    return Math.min(remainingActive, unmapped);
-  }, [formData.cabinet_id, existingMappings, unmappedDepartments.length]);
+    if (hasUnmappedDepartment === false) return 0;
+    return remainingActive;
+  }, [formData.cabinet_id, existingMappings, hasUnmappedDepartment]);
 
   useEffect(() => {
     if (!open) return;
@@ -210,15 +265,15 @@ export default function CreateMappingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl min-w-0">
         <DialogHeader>
           <DialogTitle>เพิ่มการเชื่อมโยงใหม่</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="break-words">
             เลือกตู้ แล้วเลือก Division ได้สูงสุด {MAX_ACTIVE_DIVISION_LINKS_PER_CABINET} แผนกต่อตู้ (ACTIVE)
             — ในฟอร์มนี้เลือกได้หลายแผนกในครั้งเดียวตามจำนวนช่องว่างที่เหลือ
           </DialogDescription>
         </DialogHeader>
-        <div ref={dialogContentRef} className="relative overflow-visible grid gap-4 py-4">
+        <div ref={dialogContentRef} className="relative grid min-w-0 gap-4 overflow-x-hidden py-4">
           <SearchableSelect
             portalTargetRef={dialogContentRef}
             label="ตู้ Cabinet"
@@ -262,7 +317,7 @@ export default function CreateMappingDialog({
                 }
                 placeholder={
                   optionsForSlot(slotIndex).length === 0
-                    ? "ไม่มี Division เหลือในช่องนี้"
+                    ? "ไม่พบในรายการนี้ — ล้างค้นหาในกล่องด้านบน หรือค้นหาใหม่"
                     : divisionSlotCount > 1
                       ? `เลือก Division ลำดับที่ ${slotIndex + 1} (ว่างได้)`
                       : "เลือก Division (ยังไม่เคยผูกกับตู้นี้)"
@@ -278,13 +333,13 @@ export default function CreateMappingDialog({
             ))
           )}
 
-          <div>
+          <div className="min-w-0">
             <Label>สถานะ</Label>
             <Select
               value={formData.status || "ACTIVE"}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="h-9 w-full min-w-0 max-w-full">
                 <SelectValue placeholder="เลือกสถานะ" />
               </SelectTrigger>
               <SelectContent>
@@ -294,17 +349,19 @@ export default function CreateMappingDialog({
             </Select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <Label>หมายเหตุ</Label>
-            <Input
+            <Textarea
               placeholder="หมายเหตุ..."
+              rows={3}
               value={formData.description}
               onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              className="min-h-[4.5rem] min-w-0 max-w-full resize-y break-words [overflow-wrap:anywhere]"
             />
           </div>
 
           {divisionSlotCount > 1 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs break-words text-muted-foreground">
               เลือก Division อย่างน้อย 1 ช่อง แล้วกดบันทึก — ระบบจะสร้างการเชื่อมโยงตามแต่ละช่องที่เลือก
               {selectedCount > 0 ? ` (เลือกแล้ว ${selectedCount} แผนก)` : ""}
             </p>

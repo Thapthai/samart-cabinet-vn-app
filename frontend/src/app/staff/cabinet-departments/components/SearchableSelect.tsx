@@ -231,7 +231,7 @@ export default function SearchableSelect({
   const showInlineDropdown = isOpen && !usePortal;
 
   return (
-    <div className="space-y-2" ref={dropdownRef}>
+    <div className="min-w-0 w-full space-y-2" ref={dropdownRef}>
       <Label>
         {label} {required && <span className="text-red-500">*</span>}
       </Label>

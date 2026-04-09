@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
@@ -155,15 +155,15 @@ export default function CreateMappingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl min-w-0">
         <DialogHeader>
           <DialogTitle>เพิ่มการเชื่อมโยงใหม่</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="break-words">
             เลือกตู้ที่ยังผูก Division (ACTIVE) ไม่ครบ {MAX_ACTIVE_DIVISION_LINKS_PER_CABINET} แผนก จากนั้นเลือก Division
             ที่ยังไม่เคยเชื่อมโยงกับตู้นั้น
           </DialogDescription>
         </DialogHeader>
-        <div ref={dialogContentRef} className="relative overflow-visible grid gap-4 py-4">
+        <div ref={dialogContentRef} className="relative grid min-w-0 gap-4 overflow-x-hidden py-4">
           <SearchableSelect
             portalTargetRef={dialogContentRef}
             label="ตู้ Cabinet"
@@ -213,28 +213,30 @@ export default function CreateMappingDialog({
             disabled={!formData.cabinet_id?.trim()}
           />
 
-          <div>
+          <div className="min-w-0">
             <Label>สถานะ</Label>
             <Select
               value={formData.status || "ACTIVE"}
-              onValueChange={(value) => setFormData({ ...formData, status: value })}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="h-9 w-full min-w-0 max-w-full">
                 <SelectValue placeholder="เลือกสถานะ" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ACTIVE">ACTIVE</SelectItem>
-                <SelectItem value="INACTIVE">INACTIVE</SelectItem>
+                <SelectItem value="ACTIVE">ใช้งาน</SelectItem>
+                <SelectItem value="INACTIVE">ไม่ใช้งาน</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <Label>หมายเหตุ</Label>
-            <Input
+            <Textarea
               placeholder="หมายเหตุ..."
+              rows={3}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              className="min-h-[4.5rem] min-w-0 max-w-full resize-y break-words [overflow-wrap:anywhere]"
             />
           </div>
         </div>
