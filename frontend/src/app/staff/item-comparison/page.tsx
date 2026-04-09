@@ -13,11 +13,7 @@ import {
 } from './components';
 import type { ComparisonItem, FilterState, SummaryData } from './types';
 import { itemComparisonApi } from '@/lib/staffApi/itemComparisonApi';
-import {
-  staffCabinetApi,
-  staffCabinetDepartmentApi,
-  staffCabinetSubDepartmentApi,
-} from '@/lib/staffApi/cabinetApi';
+import { staffCabinetApi, staffCabinetDepartmentApi } from '@/lib/staffApi/cabinetApi';
 import { staffMedicalSupplySubDepartmentsApi } from '@/lib/staffApi/medicalSupplySubDepartmentsApi';
 import { fetchStaffDepartmentsForFilter, getStaffAllowedDepartmentIds } from '@/lib/staffDepartmentScope';
 import type {
@@ -71,32 +67,27 @@ export default function ItemComparisonPage() {
   const [totalPages, setTotalPages] = useState(0);
 
   const resolveCabinetsForComparison = useCallback(
-    async (departmentIdStr: string, subDepartmentIdStr: string): Promise<CabinetFilterOption[]> => {
+    async (departmentIdStr: string): Promise<CabinetFilterOption[]> => {
       try {
         let next: CabinetFilterOption[] = [];
-        const subTrim = subDepartmentIdStr?.trim() ?? '';
-        if (subTrim) {
-          const sid = parseInt(subTrim, 10);
-          if (!Number.isNaN(sid)) {
-            const res = await staffCabinetSubDepartmentApi.getAll({ subDepartmentId: sid, status: 'ACTIVE' });
-            const raw = (res as { success?: boolean; data?: unknown[] }).data;
-            if (Array.isArray(raw)) {
-              const unique = new Map<number, CabinetFilterOption>();
-              for (const row of raw) {
-                if (!row || typeof row !== 'object') continue;
-                const m = row as { status?: string; cabinet?: unknown };
-                if (m.status != null && m.status !== 'ACTIVE') continue;
-                const mapped = mapCabinetRow(m.cabinet);
-                if (mapped && !unique.has(mapped.id)) unique.set(mapped.id, mapped);
-              }
-              next = Array.from(unique.values());
-            }
-          }
-        } else if (!departmentIdStr) {
+        if (!departmentIdStr) {
           const res = await staffCabinetApi.getAll({ page: 1, limit: 500 });
           const raw = (res as { success?: boolean; data?: unknown[] }).data;
           if (Array.isArray(raw)) {
-            next = raw.map(mapCabinetRow).filter((x): x is CabinetFilterOption => x != null);
+            next = raw
+              .filter((cabinet) => {
+                if (!cabinet || typeof cabinet !== 'object') return false;
+                const c = cabinet as {
+                  cabinetDepartments?: Array<{ status: string }>;
+                  cabinet_status?: string;
+                };
+                if (c.cabinetDepartments && c.cabinetDepartments.length > 0) {
+                  return c.cabinetDepartments.some((cd) => cd.status === 'ACTIVE');
+                }
+                return c.cabinet_status === 'ACTIVE';
+              })
+              .map(mapCabinetRow)
+              .filter((x): x is CabinetFilterOption => x != null);
           }
         } else {
           const deptId = parseInt(departmentIdStr, 10);
@@ -123,8 +114,8 @@ export default function ItemComparisonPage() {
   );
 
   const loadComparisonCabinets = useCallback(
-    async (departmentIdStr: string, subDepartmentIdStr: string) => {
-      const next = await resolveCabinetsForComparison(departmentIdStr, subDepartmentIdStr);
+    async (departmentIdStr: string) => {
+      const next = await resolveCabinetsForComparison(departmentIdStr);
       setComparisonCabinets(next);
       setFilters((prev) => {
         if (!prev.cabinetId) return prev;
@@ -137,8 +128,8 @@ export default function ItemComparisonPage() {
   );
 
   useEffect(() => {
-    void loadComparisonCabinets(filters.departmentCode, filters.subDepartmentId);
-  }, [filters.departmentCode, filters.subDepartmentId, loadComparisonCabinets]);
+    void loadComparisonCabinets(filters.departmentCode);
+  }, [filters.departmentCode, loadComparisonCabinets]);
 
   useEffect(() => {
     (async () => {

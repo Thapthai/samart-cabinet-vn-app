@@ -10,7 +10,7 @@ import { Loader2, Network } from "lucide-react";
 import { toast } from "sonner";
 import FilterSection from "./components/FilterSection";
 import MappingTable from "./components/MappingTable";
-import CreateMappingDialog from "./components/CreateMappingDialog";
+import CreateMappingDialog, { type CreateMappingFormData } from "./components/CreateMappingDialog";
 import EditMappingDialog from "./components/EditMappingDialog";
 import DeleteMappingDialog from "./components/DeleteMappingDialog";
 import CreateCabinetDialog from "@/app/admin/cabinets/components/CreateCabinetDialog";
@@ -52,8 +52,14 @@ export default function ItemStockDepartmentsPage() {
     status: "ALL",
   });
 
-  // Form state
-  const [formData, setFormData] = useState({
+  const [createFormData, setCreateFormData] = useState<CreateMappingFormData>({
+    cabinet_id: "",
+    department_ids: [],
+    status: "ACTIVE",
+    description: "",
+  });
+
+  const [editFormData, setEditFormData] = useState({
     cabinet_id: "",
     department_id: "",
     status: "ACTIVE",
@@ -95,9 +101,9 @@ export default function ItemStockDepartmentsPage() {
   };
 
   const handleCreate = () => {
-    setFormData({
+    setCreateFormData({
       cabinet_id: "",
-      department_id: "",
+      department_ids: [],
       status: "ACTIVE",
       description: "",
     });
@@ -106,7 +112,7 @@ export default function ItemStockDepartmentsPage() {
 
   const handleEdit = (mapping: CabinetDepartment) => {
     setSelectedMapping(mapping);
-    setFormData({
+    setEditFormData({
       cabinet_id: mapping.cabinet_id.toString(),
       department_id: mapping.department_id.toString(),
       status: mapping.status,
@@ -121,26 +127,42 @@ export default function ItemStockDepartmentsPage() {
   };
 
   const submitCreate = async () => {
-    if (!formData.cabinet_id || !formData.department_id) {
-      toast.error("กรุณาเลือกอุปกรณ์และแผนก");
+    const cabinetId = createFormData.cabinet_id?.trim();
+    const rawDeptIds = createFormData.department_ids.map((s) => s?.trim()).filter(Boolean);
+    const departmentIds = [...new Set(rawDeptIds.map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n)))];
+    if (!cabinetId || departmentIds.length === 0) {
+      toast.error("กรุณาเลือกตู้และอย่างน้อยหนึ่ง Division");
       return;
     }
 
     try {
       setSaving(true);
-      const response = await cabinetDepartmentApi.create({
-        cabinet_id: parseInt(formData.cabinet_id),
-        department_id: parseInt(formData.department_id),
-        status: formData.status,
-        description: formData.description,
-      });
-
-      if (response.success) {
-        toast.success("สร้างการเชื่อมโยงเรียบร้อยแล้ว");
+      let ok = 0;
+      let lastError: string | undefined;
+      for (const department_id of departmentIds) {
+        const response = await cabinetDepartmentApi.create({
+          cabinet_id: parseInt(cabinetId, 10),
+          department_id,
+          status: createFormData.status,
+          description: createFormData.description,
+        });
+        if (response.success) {
+          ok += 1;
+        } else {
+          lastError = response.message || "ไม่สามารถสร้างการเชื่อมโยงได้";
+          break;
+        }
+      }
+      if (ok > 0) {
+        toast.success(
+          ok === departmentIds.length
+            ? `สร้างการเชื่อมโยง ${ok} รายการเรียบร้อยแล้ว`
+            : `สร้างได้ ${ok} จาก ${departmentIds.length} รายการ${lastError ? ` — ${lastError}` : ""}`,
+        );
         setShowCreateDialog(false);
         loadData();
       } else {
-        toast.error(response.message || "ไม่สามารถสร้างการเชื่อมโยงได้");
+        toast.error(lastError || "ไม่สามารถสร้างการเชื่อมโยงได้");
       }
     } catch (error: any) {
       toast.error(error.message || "เกิดข้อผิดพลาด");
@@ -152,21 +174,22 @@ export default function ItemStockDepartmentsPage() {
   const submitEdit = async () => {
     if (!selectedMapping) return;
 
-    if (!formData.cabinet_id || !formData.department_id) {
+    if (!editFormData.cabinet_id || !editFormData.department_id) {
       toast.error("กรุณาเลือกตู้และแผนก");
       return;
     }
 
     // Ensure status is not empty string
-    const status = formData.status && formData.status.trim() !== "" ? formData.status : "ACTIVE";
+    const status =
+      editFormData.status && editFormData.status.trim() !== "" ? editFormData.status : "ACTIVE";
 
     try {
       setSaving(true);
       const response = await cabinetDepartmentApi.update(selectedMapping.id, {
-        cabinet_id: parseInt(formData.cabinet_id),
-        department_id: parseInt(formData.department_id),
+        cabinet_id: parseInt(editFormData.cabinet_id),
+        department_id: parseInt(editFormData.department_id),
         status: status,
-        description: formData.description,
+        description: editFormData.description,
       });
 
       if (response.success) {
@@ -299,8 +322,8 @@ export default function ItemStockDepartmentsPage() {
           <CreateMappingDialog
             open={showCreateDialog}
             onOpenChange={setShowCreateDialog}
-            formData={formData}
-            setFormData={setFormData}
+            formData={createFormData}
+            setFormData={setCreateFormData}
             onSubmit={submitCreate}
             saving={saving}
             existingMappings={mappings}
@@ -315,8 +338,8 @@ export default function ItemStockDepartmentsPage() {
           <EditMappingDialog
             open={showEditDialog}
             onOpenChange={setShowEditDialog}
-            formData={formData}
-            setFormData={setFormData}
+            formData={editFormData}
+            setFormData={setEditFormData}
             onSubmit={submitEdit}
             saving={saving}
             selectedMapping={selectedMapping}

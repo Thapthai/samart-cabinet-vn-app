@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, Loader2, Package, Layers } from "lucide-react";
-import { cabinetSubDepartmentApi } from "@/lib/api";
-import { toast } from "sonner";
+import { Loader2, Package } from "lucide-react";
 import CabinetDetailsCard from "@/app/admin/cabinet-departments/components/CabinetDetailsCard";
 
 export interface CabinetDepartment {
@@ -29,132 +27,22 @@ export interface CabinetDepartment {
   };
 }
 
-interface CabinetSubDepartmentLink {
-  id: number;
-  cabinet_id: number;
-  sub_department_id: number;
-  status: string;
-  description?: string | null;
-  sort_order: number;
-  subDepartment?: {
-    id: number;
-    code: string;
-    name?: string | null;
-    department?: { ID: number; DepName?: string; DepName2?: string };
-  };
-}
-
 interface DashboardMappingsTableProps {
   mappings: CabinetDepartment[];
   loading: boolean;
 }
 
-const TABLE_COL_SPAN = 6;
+const TABLE_COL_SPAN = 5;
 const ITEMS_PER_PAGE = 5;
 
 export default function DashboardMappingsTable({ mappings, loading }: DashboardMappingsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRow, setSelectedRow] = useState<CabinetDepartment | null>(null);
-  const [expandedDropdown, setExpandedDropdown] = useState<number | null>(null);
-  const [cabinetSubRows, setCabinetSubRows] = useState<Record<number, CabinetSubDepartmentLink[]>>({});
-  const [loadingSubDepartments, setLoadingSubDepartments] = useState<number | null>(null);
 
   const totalPages = Math.ceil(mappings.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const currentMappings = mappings.slice(startIndex, endIndex);
-
-  const handleDropdownToggle = async (e: React.MouseEvent, mapping: CabinetDepartment) => {
-    e.stopPropagation();
-    const cabinetId = mapping.cabinet_id;
-
-    if (expandedDropdown === mapping.id) {
-      setExpandedDropdown(null);
-      return;
-    }
-
-    setExpandedDropdown(mapping.id);
-
-    if (cabinetSubRows[cabinetId] !== undefined) {
-      return;
-    }
-
-    try {
-      setLoadingSubDepartments(cabinetId);
-      const response = await cabinetSubDepartmentApi.getAll({ cabinetId });
-
-      if (response.success && Array.isArray(response.data)) {
-        setCabinetSubRows((prev) => ({ ...prev, [cabinetId]: response.data as CabinetSubDepartmentLink[] }));
-      } else {
-        toast.error("ไม่สามารถโหลดแผนกย่อยที่ผูกกับตู้ได้");
-        setCabinetSubRows((prev) => ({ ...prev, [cabinetId]: [] }));
-      }
-    } catch (error: unknown) {
-      console.error("Error loading cabinet sub-departments:", error);
-      const msg = error instanceof Error ? error.message : "เกิดข้อผิดพลาดในการโหลดข้อมูล";
-      toast.error(msg);
-      setCabinetSubRows((prev) => ({ ...prev, [cabinetId]: [] }));
-    } finally {
-      setLoadingSubDepartments(null);
-    }
-  };
-
-  const handleRowClick = (mapping: CabinetDepartment) => {
-    setSelectedRow(mapping);
-  };
-
-  const renderCabinetSubDepartments = (cabinetId: number, mappingId: number) => {
-    const rows = cabinetSubRows[cabinetId];
-    if (!rows?.length) return null;
-
-    return (
-      <div>
-        <h4 className="font-semibold mb-3 text-gray-700 flex items-center gap-2">
-          <Layers className="h-4 w-4" />
-          แผนกย่อยที่ผูกกับตู้ ({rows.length} รายการ)
-        </h4>
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
-                <TableHead className="w-14 px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">ลำดับ</TableHead>
-                <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">รหัสแผนก</TableHead>
-                <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">ชื่อแผนก</TableHead>
-                <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">สถานะการผูก</TableHead>
-                <TableHead className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">หมายเหตุ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, i) => (
-                <TableRow key={`${mappingId}-sub-${row.id}`} className="border-b border-slate-100 last:border-0">
-                  <TableCell className="px-3 py-3 text-slate-600 sm:px-4 sm:py-3.5">{i + 1}</TableCell>
-                  <TableCell className="px-3 py-3 font-mono text-sm sm:px-4 sm:py-3.5">
-                    {row.subDepartment?.code ?? "-"}
-                  </TableCell>
-                  <TableCell className="px-3 py-3 sm:px-4 sm:py-3.5">{row.subDepartment?.name ?? "-"}</TableCell>
-                  <TableCell className="px-3 py-3 sm:px-4 sm:py-3.5">
-                    <Badge
-                      variant={row.status === "ACTIVE" ? "default" : "secondary"}
-                      className={
-                        row.status === "ACTIVE"
-                          ? "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                          : ""
-                      }
-                    >
-                      {row.status === "ACTIVE" ? "ใช้งาน" : row.status || "-"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[12rem] truncate px-3 py-3 text-slate-600 sm:max-w-xs sm:px-4 sm:py-3.5">
-                    {row.description || "-"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -179,7 +67,6 @@ export default function DashboardMappingsTable({ mappings, loading }: DashboardM
                 <Table>
                   <TableHeader>
                     <TableRow className="border-b border-slate-200 bg-slate-100/80 hover:bg-slate-100/80">
-                      <TableHead className="w-12 px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4"></TableHead>
                       <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">ลำดับ</TableHead>
                       <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">ชื่อตู้</TableHead>
                       <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">Division</TableHead>
@@ -199,74 +86,36 @@ export default function DashboardMappingsTable({ mappings, loading }: DashboardM
                       </TableRow>
                     ) : (
                       currentMappings.map((mapping, index) => (
-                        <Fragment key={mapping.id}>
-                          <TableRow
-                            className={`cursor-pointer transition-colors ${
-                              selectedRow?.id === mapping.id ? "bg-blue-50/80" : "hover:bg-slate-50/80"
-                            }`}
-                            onClick={() => handleRowClick(mapping)}
-                          >
-                            <TableCell
-                              className="px-3 py-3.5 sm:px-4 sm:py-4"
-                              onClick={(e) => e.stopPropagation()}
+                        <TableRow
+                          key={mapping.id}
+                          className={`cursor-pointer transition-colors ${
+                            selectedRow?.id === mapping.id ? "bg-blue-50/80" : "hover:bg-slate-50/80"
+                          }`}
+                          onClick={() => setSelectedRow(mapping)}
+                        >
+                          <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">{startIndex + index + 1}</TableCell>
+                          <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
+                            {mapping.cabinet?.cabinet_name || "-"}
+                          </TableCell>
+                          <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
+                            {mapping.department?.DepName || "-"}
+                          </TableCell>
+                          <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
+                            <Badge
+                              variant={mapping.status === "ACTIVE" ? "default" : "secondary"}
+                              className={
+                                mapping.status === "ACTIVE"
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                                  : ""
+                              }
                             >
-                              <button
-                                onClick={(e) => void handleDropdownToggle(e, mapping)}
-                                className="rounded p-1.5 hover:bg-slate-200"
-                                type="button"
-                                aria-expanded={expandedDropdown === mapping.id}
-                              >
-                                {expandedDropdown === mapping.id ? (
-                                  <ChevronDown className="h-4 w-4" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4" />
-                                )}
-                              </button>
-                            </TableCell>
-                            <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">{startIndex + index + 1}</TableCell>
-                            <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
-                              {mapping.cabinet?.cabinet_name || "-"}
-                            </TableCell>
-                            <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
-                              {mapping.department?.DepName || "-"}
-                            </TableCell>
-                            <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
-                              <Badge
-                                variant={mapping.status === "ACTIVE" ? "default" : "secondary"}
-                                className={
-                                  mapping.status === "ACTIVE"
-                                    ? "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                                    : ""
-                                }
-                              >
-                                {mapping.status === "ACTIVE" ? "ใช้งาน" : "ไม่ใช้งาน"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-xs truncate px-3 py-3.5 sm:px-4 sm:py-4">
-                              {mapping.description || "-"}
-                            </TableCell>
-                          </TableRow>
-
-                          {expandedDropdown === mapping.id && (
-                            <TableRow>
-                              <TableCell colSpan={TABLE_COL_SPAN} className="bg-gray-50 p-5 sm:p-6">
-                                {loadingSubDepartments === mapping.cabinet_id ? (
-                                  <div className="flex items-center justify-center py-4">
-                                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                                    <span className="ml-2 text-gray-600">กำลังโหลดแผนกย่อย...</span>
-                                  </div>
-                                ) : cabinetSubRows[mapping.cabinet_id] !== undefined &&
-                                  cabinetSubRows[mapping.cabinet_id].length > 0 ? (
-                                  renderCabinetSubDepartments(mapping.cabinet_id, mapping.id)
-                                ) : (
-                                  <div className="text-center py-4 text-gray-500">
-                                    ไม่พบแผนกย่อยที่ผูกกับตู้นี้
-                                  </div>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </Fragment>
+                              {mapping.status === "ACTIVE" ? "ใช้งาน" : "ไม่ใช้งาน"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate px-3 py-3.5 sm:px-4 sm:py-4">
+                            {mapping.description || "-"}
+                          </TableCell>
+                        </TableRow>
                       ))
                     )}
                   </TableBody>

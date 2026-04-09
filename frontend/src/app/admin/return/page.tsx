@@ -12,7 +12,6 @@ import {
   departmentApi,
   cabinetApi,
   cabinetDepartmentApi,
-  cabinetSubDepartmentApi,
   medicalSupplySubDepartmentsApi,
 } from '@/lib/api';
 import { toast } from 'sonner';
@@ -145,35 +144,27 @@ export default function ReturnMedicalSuppliesPage() {
     [filterDepartmentId, filterCabinetId, filterSubDepartmentId, filterItemCode, filterStartDate, filterEndDate],
   );
 
-  const resolveCabinetsForFilter = useCallback(async (
-    departmentIdStr: string,
-    subDepartmentIdStr: string,
-  ): Promise<CabinetFilterOption[]> => {
+  const resolveCabinetsForFilter = useCallback(async (departmentIdStr: string): Promise<CabinetFilterOption[]> => {
     try {
       let next: CabinetFilterOption[] = [];
-      const subTrim = subDepartmentIdStr?.trim() ?? '';
-      if (subTrim) {
-        const sid = parseInt(subTrim, 10);
-        if (!Number.isNaN(sid)) {
-          const res = await cabinetSubDepartmentApi.getAll({ subDepartmentId: sid, status: 'ACTIVE' });
-          const raw = (res as { success?: boolean; data?: unknown[] }).data;
-          if (Array.isArray(raw)) {
-            const unique = new Map<number, CabinetFilterOption>();
-            for (const row of raw) {
-              if (!row || typeof row !== 'object') continue;
-              const m = row as { status?: string; cabinet?: unknown };
-              if (m.status != null && m.status !== 'ACTIVE') continue;
-              const mapped = mapCabinetRow(m.cabinet);
-              if (mapped && !unique.has(mapped.id)) unique.set(mapped.id, mapped);
-            }
-            next = Array.from(unique.values());
-          }
-        }
-      } else if (!departmentIdStr) {
+      if (!departmentIdStr) {
         const res = await cabinetApi.getAll({ page: 1, limit: 500 });
         const raw = (res as { success?: boolean; data?: unknown[] }).data;
         if (Array.isArray(raw)) {
-          next = raw.map(mapCabinetRow).filter((x): x is CabinetFilterOption => x != null);
+          next = raw
+            .filter((cabinet) => {
+              if (!cabinet || typeof cabinet !== 'object') return false;
+              const c = cabinet as {
+                cabinetDepartments?: Array<{ status: string }>;
+                cabinet_status?: string;
+              };
+              if (c.cabinetDepartments && c.cabinetDepartments.length > 0) {
+                return c.cabinetDepartments.some((cd) => cd.status === 'ACTIVE');
+              }
+              return c.cabinet_status === 'ACTIVE';
+            })
+            .map(mapCabinetRow)
+            .filter((x): x is CabinetFilterOption => x != null);
         }
       } else {
         const deptId = parseInt(departmentIdStr, 10);
@@ -197,8 +188,8 @@ export default function ReturnMedicalSuppliesPage() {
     }
   }, []);
 
-  const loadCabinetsForFilter = useCallback(async (departmentIdStr: string, subDepartmentIdStr: string) => {
-    const next = await resolveCabinetsForFilter(departmentIdStr, subDepartmentIdStr);
+  const loadCabinetsForFilter = useCallback(async (departmentIdStr: string) => {
+    const next = await resolveCabinetsForFilter(departmentIdStr);
     setCabinets(next);
     setFilterCabinetId((prev) => {
       if (!prev) return prev;
@@ -208,8 +199,8 @@ export default function ReturnMedicalSuppliesPage() {
     });
   }, [resolveCabinetsForFilter]);
 
-  const loadHistoryCabinets = useCallback(async (departmentIdStr: string, subDepartmentIdStr: string) => {
-    const next = await resolveCabinetsForFilter(departmentIdStr, subDepartmentIdStr);
+  const loadHistoryCabinets = useCallback(async (departmentIdStr: string) => {
+    const next = await resolveCabinetsForFilter(departmentIdStr);
     setHistoryCabinets(next);
     setReturnHistoryCabinetId((prev) => {
       if (!prev) return prev;
@@ -228,12 +219,12 @@ export default function ReturnMedicalSuppliesPage() {
   }, []);
 
   useEffect(() => {
-    void loadCabinetsForFilter(filterDepartmentId, filterSubDepartmentId);
-  }, [filterDepartmentId, filterSubDepartmentId, loadCabinetsForFilter]);
+    void loadCabinetsForFilter(filterDepartmentId);
+  }, [filterDepartmentId, loadCabinetsForFilter]);
 
   useEffect(() => {
-    void loadHistoryCabinets(returnHistoryDepartmentCode, returnHistorySubDepartmentId);
-  }, [returnHistoryDepartmentCode, returnHistorySubDepartmentId, loadHistoryCabinets]);
+    void loadHistoryCabinets(returnHistoryDepartmentCode);
+  }, [returnHistoryDepartmentCode, loadHistoryCabinets]);
 
   const fetchSubDepartmentsMaster = async () => {
     try {

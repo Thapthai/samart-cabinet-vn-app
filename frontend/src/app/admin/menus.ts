@@ -90,10 +90,10 @@ export const adminMenuItems: StaffMenuItem[] = [
     noHref: true,
     submenu: [
       {
-        name: 'จัดการตู้ Cabinet - แผนก',
+        name: 'จัดการตู้ Cabinet - Division',
         href: '/admin/cabinet-departments',
         icon: Network,
-        description: 'จัดการตู้ Cabinet และเชื่อมโยงกับแผนก',
+        description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division',
       },
       {
         name: 'สต๊อกอุปกรณ์ในตู้',
@@ -147,10 +147,10 @@ export const adminMenuItems: StaffMenuItem[] = [
         description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
       },
       {
-        name: 'จัดการแผนก',
+        name: 'จัดการ Division',
         href: '/admin/management/departments',
         icon: Building2,
-        description: 'ดูแผนกหลักและตั้งรหัสแผนกย่อยจับคู่ Location คนไข้',
+        description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
       },
       {
         name: 'จัดการตู้ Cabinet',
@@ -177,10 +177,10 @@ export const adminMenuItems: StaffMenuItem[] = [
         description: 'จัดการ Roles Staff',
       },
       {
-        name: 'แผนกหลักตาม Staff Role',
+        name: 'Division หลักตาม Staff Role',
         href: '/admin/management/staff-role-permission-department',
         icon: Layers,
-        description: 'จำกัดแผนกหลักที่แต่ละ Role เห็นได้ (ว่าง = เห็นทุกแผนก)',
+        description: 'จำกัด Division หลักที่แต่ละ Role เห็นได้ (ว่าง = เห็นทุก Division)',
       },
     ],
   },

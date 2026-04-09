@@ -134,18 +134,21 @@ export class StaffDepartmentScopeService {
     }
   }
 
-  /** แผนกย่อยต้องผูกกับตู้ (ACTIVE) — ใช้กับกรอง will-return */
-  async assertCabinetLinkedSubDepartment(cabinetId: number, subDepartmentId: number): Promise<void> {
-    const row = await this.prisma.cabinetSubDepartment.findFirst({
-      where: {
-        cabinet_id: cabinetId,
-        sub_department_id: subDepartmentId,
-        status: 'ACTIVE',
-      },
+  /** แผนกย่อยต้องอยู่ภายใต้แผนกหลักที่ตู้นี้ผูกอยู่ (ACTIVE cabinet-departments) */
+  async assertSubDepartmentCompatibleWithCabinet(cabinetId: number, subDepartmentId: number): Promise<void> {
+    const sub = await this.prisma.medicalSupplySubDepartment.findFirst({
+      where: { id: subDepartmentId, status: true },
+      select: { department_id: true },
+    });
+    if (!sub) {
+      throw new BadRequestException('แผนกย่อยไม่ถูกต้อง');
+    }
+    const cd = await this.prisma.cabinetDepartment.findFirst({
+      where: { cabinet_id: cabinetId, status: 'ACTIVE', department_id: sub.department_id },
       select: { id: true },
     });
-    if (!row) {
-      throw new BadRequestException('แผนกย่อยนี้ไม่ได้ผูกกับตู้ที่เลือก');
+    if (!cd) {
+      throw new BadRequestException('แผนกย่อยนี้ไม่อยู่ภายใต้แผนกหลักเดียวกับตู้ที่เลือก');
     }
   }
 

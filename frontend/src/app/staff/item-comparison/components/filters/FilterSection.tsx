@@ -320,80 +320,74 @@ export function FilterSection({
 
           <div className="min-w-0 space-y-2">
             <Label>ตู้ Cabinet</Label>
-            {!hasMainDepartment ? (
-              <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
-                เลือก Division (แผนกหลัก) ก่อน
-              </div>
-            ) : (
-              <DropdownMenu open={cabinetDropdownOpen} onOpenChange={setCabinetDropdownOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="h-10 w-full justify-between font-normal"
-                    type="button"
-                  >
-                    <span className="truncate text-left">{cabinetTriggerLabel()}</span>
-                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
+            <DropdownMenu open={cabinetDropdownOpen} onOpenChange={setCabinetDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-10 w-full justify-between font-normal"
+                  type="button"
                 >
-                  <div className="px-2 pb-2">
-                    <Input
-                      placeholder="ค้นหารหัสหรือชื่อตู้ ..."
-                      value={cabinetSearch}
-                      onChange={(e) => setCabinetSearch(e.target.value)}
-                      className="h-8"
-                      onKeyDown={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                  <div className="max-h-60 overflow-auto">
-                    <button
-                      type="button"
-                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                      onClick={() => {
-                        onFilterChange('cabinetId', '');
-                        setCabinetDropdownOpen(false);
-                        setCabinetSearch('');
-                      }}
-                    >
-                      -- ทุกตู้ --
-                    </button>
-                    {cabinets.length === 0 ? (
-                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">
-                        {hasSubDepartmentFilter
-                          ? 'แผนกนี้ยังไม่มีตู้ที่ผูก'
-                          : departmentCode
-                            ? 'ไม่มีตู้ในแผนกนี้'
-                            : 'ไม่พบตู้'}
-                      </div>
-                    ) : filteredCabinets.length === 0 ? (
-                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
-                    ) : (
-                      filteredCabinets.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                          onClick={() => {
-                            onFilterChange('cabinetId', String(c.id));
-                            setCabinetDropdownOpen(false);
-                            setCabinetSearch('');
-                          }}
-                        >
-                          <span className="font-mono text-xs">{c.cabinet_code || String(c.id)}</span>
-                          {c.cabinet_name ? (
-                            <span className="text-muted-foreground"> · {c.cabinet_name}</span>
-                          ) : null}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                  <span className="truncate text-left">{cabinetTriggerLabel()}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
+              >
+                <div className="px-2 pb-2">
+                  <Input
+                    placeholder="ค้นหารหัสหรือชื่อตู้ ..."
+                    value={cabinetSearch}
+                    onChange={(e) => setCabinetSearch(e.target.value)}
+                    className="h-8"
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div className="max-h-60 overflow-auto">
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                    onClick={() => {
+                      onFilterChange('cabinetId', '');
+                      setCabinetDropdownOpen(false);
+                      setCabinetSearch('');
+                    }}
+                  >
+                    -- ทุกตู้ --
+                  </button>
+                  {cabinets.length === 0 ? (
+                    <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                      {hasSubDepartmentFilter
+                        ? 'แผนกนี้ยังไม่มีตู้ที่ผูก'
+                        : departmentCode
+                          ? 'ไม่มีตู้ในแผนกนี้'
+                          : 'ไม่พบตู้'}
+                    </div>
+                  ) : filteredCabinets.length === 0 ? (
+                    <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
+                  ) : (
+                    filteredCabinets.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                        onClick={() => {
+                          onFilterChange('cabinetId', String(c.id));
+                          setCabinetDropdownOpen(false);
+                          setCabinetSearch('');
+                        }}
+                      >
+                        <span className="font-mono text-xs">{c.cabinet_code || String(c.id)}</span>
+                        {c.cabinet_name ? (
+                          <span className="text-muted-foreground"> · {c.cabinet_name}</span>
+                        ) : null}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

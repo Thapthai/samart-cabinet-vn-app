@@ -85,19 +85,10 @@ export class ItemController {
     @Query('sort_order') sort_order?: string,
     @Query('cabinet_id') cabinet_id?: string,
     @Query('department_id') department_id?: string,
-    @Query('sub_department_id') sub_department_id?: string,
     @Query('status') status?: string,
   ) {
     const cabinetId = cabinet_id ? parseInt(cabinet_id, 10) : undefined;
     const departmentId = department_id ? parseInt(department_id, 10) : undefined;
-    const subDepartmentId =
-      sub_department_id != null && sub_department_id !== ''
-        ? parseInt(sub_department_id, 10)
-        : undefined;
-    const subDepartmentIdSafe =
-      subDepartmentId != null && !Number.isNaN(subDepartmentId) && subDepartmentId >= 1
-        ? subDepartmentId
-        : undefined;
     return this.itemService.findAllItems(
       page,
       limit,
@@ -106,7 +97,6 @@ export class ItemController {
       sort_order || 'asc',
       cabinetId,
       departmentId,
-      subDepartmentIdSafe,
       status,
     );
   }

@@ -287,10 +287,10 @@ export default function ItemStockDepartmentsPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-                จัดการตู้ Cabinet - แผนก
+                จัดการตู้ Cabinet - Division
               </h1>
               <p className="mt-0.5 text-sm text-gray-500">
-                จัดการตู้ Cabinet และเชื่อมโยงกับแผนก
+                จัดการตู้ Cabinet และเชื่อมโยงกับ Division
               </p>
             </div>
           </div>

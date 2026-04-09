@@ -12,7 +12,6 @@ import {
   cabinetApi,
   departmentApi,
   cabinetDepartmentApi,
-  cabinetSubDepartmentApi,
   medicalSupplySubDepartmentsApi,
 } from "@/lib/api";
 
@@ -121,78 +120,53 @@ export default function FilterSection({
     }
   };
 
-  const resolveCabinets = useCallback(
-    async (departmentIdStr: string, subDepartmentIdStr: string, keyword?: string) => {
-      try {
-        setLoadingCabinets(true);
-        let next: Cabinet[] = [];
-        const subTrim = subDepartmentIdStr?.trim() ?? "";
-        if (subTrim) {
-          const sid = parseInt(subTrim, 10);
-          if (!Number.isNaN(sid)) {
-            const res = await cabinetSubDepartmentApi.getAll({
-              subDepartmentId: sid,
-              status: "ACTIVE",
-            });
-            const raw = (res as { success?: boolean; data?: unknown[] }).data;
-            if (Array.isArray(raw)) {
-              const unique = new Map<number, Cabinet>();
-              for (const row of raw) {
-                if (!row || typeof row !== "object") continue;
-                const m = row as { status?: string; cabinet?: unknown };
-                if (m.status != null && m.status !== "ACTIVE") continue;
-                const c = m.cabinet as CabinetDepartmentMapping["cabinet"];
-                const mapped = mapCabinetFromMapping(c);
-                if (mapped && !unique.has(mapped.id)) unique.set(mapped.id, mapped);
-              }
-              next = Array.from(unique.values());
+  const resolveCabinets = useCallback(async (departmentIdStr: string, keyword?: string) => {
+    try {
+      setLoadingCabinets(true);
+      let next: Cabinet[] = [];
+      if (!departmentIdStr) {
+        const response = await cabinetApi.getAll({ page: 1, limit: 50, keyword });
+        if (response.success && response.data) {
+          const allCabinets = response.data as Cabinet[];
+          next = allCabinets.filter((cabinet) => {
+            if (cabinet.cabinetDepartments && cabinet.cabinetDepartments.length > 0) {
+              return cabinet.cabinetDepartments.some((cd) => cd.status === "ACTIVE");
             }
-          }
-        } else if (!departmentIdStr) {
-          const response = await cabinetApi.getAll({ page: 1, limit: 50, keyword });
-          if (response.success && response.data) {
-            const allCabinets = response.data as Cabinet[];
-            next = allCabinets.filter((cabinet) => {
-              if (cabinet.cabinetDepartments && cabinet.cabinetDepartments.length > 0) {
-                return cabinet.cabinetDepartments.some((cd) => cd.status === "ACTIVE");
-              }
-              return cabinet.cabinet_status === "ACTIVE";
-            });
-          }
-        } else {
-          const deptId = parseInt(departmentIdStr, 10);
-          if (Number.isNaN(deptId)) {
-            setCabinets([]);
-            return;
-          }
-          const response = await cabinetDepartmentApi.getAll({
-            departmentId: deptId,
-            keyword: keyword || undefined,
+            return cabinet.cabinet_status === "ACTIVE";
           });
-          if (response.success && response.data) {
-            const mappings = response.data as CabinetDepartmentMapping[];
-            const uniqueCabinets = new Map<number, Cabinet>();
-            mappings
-              .filter((mapping) => mapping.status === "ACTIVE")
-              .forEach((mapping) => {
-                const mapped = mapCabinetFromMapping(mapping.cabinet);
-                if (mapped && !uniqueCabinets.has(mapped.id)) {
-                  uniqueCabinets.set(mapped.id, mapped);
-                }
-              });
-            next = Array.from(uniqueCabinets.values());
-          }
         }
-        setCabinets(next);
-      } catch (error) {
-        console.error("Failed to load cabinets:", error);
-        setCabinets([]);
-      } finally {
-        setLoadingCabinets(false);
+      } else {
+        const deptId = parseInt(departmentIdStr, 10);
+        if (Number.isNaN(deptId)) {
+          setCabinets([]);
+          return;
+        }
+        const response = await cabinetDepartmentApi.getAll({
+          departmentId: deptId,
+          keyword: keyword || undefined,
+        });
+        if (response.success && response.data) {
+          const mappings = response.data as CabinetDepartmentMapping[];
+          const uniqueCabinets = new Map<number, Cabinet>();
+          mappings
+            .filter((mapping) => mapping.status === "ACTIVE")
+            .forEach((mapping) => {
+              const mapped = mapCabinetFromMapping(mapping.cabinet);
+              if (mapped && !uniqueCabinets.has(mapped.id)) {
+                uniqueCabinets.set(mapped.id, mapped);
+              }
+            });
+          next = Array.from(uniqueCabinets.values());
+        }
       }
-    },
-    [],
-  );
+      setCabinets(next);
+    } catch (error) {
+      console.error("Failed to load cabinets:", error);
+      setCabinets([]);
+    } finally {
+      setLoadingCabinets(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadDepartments();
@@ -217,8 +191,8 @@ export default function FilterSection({
   }, []);
 
   useEffect(() => {
-    void resolveCabinets(filters.departmentId, filters.subDepartmentId);
-  }, [filters.departmentId, filters.subDepartmentId, resolveCabinets]);
+    void resolveCabinets(filters.departmentId);
+  }, [filters.departmentId, resolveCabinets]);
 
   useEffect(() => {
     if (filters.cabinetId && cabinets.length > 0) {
@@ -296,10 +270,7 @@ export default function FilterSection({
               filters.departmentId ? "เลือกแผนก ..." : "กรุณาเลือก Division ก่อน"
             }
             value={filters.subDepartmentId}
-            onValueChange={(value) => {
-              onFilterChange("subDepartmentId", value);
-              onFilterChange("cabinetId", "");
-            }}
+            onValueChange={(value) => onFilterChange("subDepartmentId", value)}
             options={subDepartmentOptions}
             disabled={!filters.departmentId}
             searchPlaceholder="ค้นหารหัสหรือชื่อแผนก ..."
@@ -310,7 +281,7 @@ export default function FilterSection({
           <SearchableSelect
             label="ตู้ Cabinet"
             placeholder={
-              filters.departmentId ? "เลือกตู้ Cabinet" : "กรุณาเลือก Division ก่อน"
+              filters.departmentId ? "เลือกตู้ Cabinet" : "เลือกตู้ (ทุก Division ที่มีการเชื่อม)"
             }
             value={filters.cabinetId}
             onValueChange={(value) => onFilterChange("cabinetId", value)}
@@ -324,18 +295,9 @@ export default function FilterSection({
             ]}
             loading={loadingCabinets}
             onSearch={(searchKeyword) => {
-              void resolveCabinets(
-                filters.departmentId,
-                filters.subDepartmentId,
-                searchKeyword,
-              );
+              void resolveCabinets(filters.departmentId, searchKeyword);
             }}
-            searchPlaceholder={
-              filters.departmentId
-                ? "ค้นหารหัสหรือชื่อตู้..."
-                : "กรุณาเลือก Division ก่อน"
-            }
-            disabled={!filters.departmentId}
+            searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
           />
         </div>
 

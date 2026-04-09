@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
@@ -53,7 +52,7 @@ interface EditMappingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   formData: MappingFormData;
-  setFormData: (data: MappingFormData) => void;
+  setFormData: Dispatch<SetStateAction<MappingFormData>>;
   onSubmit: () => void;
   saving: boolean;
   selectedMapping?: CabinetDepartmentMapping | null;
@@ -132,7 +131,7 @@ export default function EditMappingDialog({
             label="ตู้ Cabinet"
             placeholder="เลือกตู้"
             value={formData.cabinet_id}
-            onValueChange={(value) => setFormData({ ...formData, cabinet_id: value })}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, cabinet_id: value }))}
             options={cabinets
               // ไม่ให้เลือกตู้ที่สถานะเป็น USED ยกเว้นตู้ที่กำลังแก้ไขอยู่ (ของตัวเอง)
               .filter((cabinet) => 
@@ -159,7 +158,7 @@ export default function EditMappingDialog({
             label="Division"
             placeholder="เลือก Division"
             value={formData.department_id}
-            onValueChange={(value) => setFormData({ ...formData, department_id: value })}
+            onValueChange={(value) => setFormData((prev) => ({ ...prev, department_id: value }))}
             options={departments.map((dept) => ({
               value: dept.ID.toString(),
               label: dept.DepName || "",
@@ -179,7 +178,7 @@ export default function EditMappingDialog({
             <Label>สถานะ</Label>
             <Select
               value={formData.status || "ACTIVE"}
-              onValueChange={(value) => setFormData({ ...formData, status: value })}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="เลือกสถานะ" />
@@ -196,7 +195,7 @@ export default function EditMappingDialog({
             <Input
               placeholder="หมายเหตุ..."
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
             />
           </div>
         </div>

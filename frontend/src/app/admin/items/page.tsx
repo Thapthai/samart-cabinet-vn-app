@@ -35,7 +35,6 @@ export default function ItemsPage() {
   const [activeFilters, setActiveFilters] = useState({
     searchTerm: '',
     departmentId: '',
-    subDepartmentId: '',
     cabinetId: '',
     statusFilter: 'all',
     keyword: '',
@@ -72,13 +71,6 @@ export default function ItemsPage() {
         const cabId = parseInt(activeFilters.cabinetId, 10);
         if (!Number.isNaN(cabId)) {
           params.cabinet_id = cabId;
-        }
-      }
-
-      if (activeFilters.subDepartmentId?.trim()) {
-        const sid = parseInt(activeFilters.subDepartmentId.trim(), 10);
-        if (!Number.isNaN(sid)) {
-          params.sub_department_id = sid;
         }
       }
 
@@ -138,7 +130,6 @@ export default function ItemsPage() {
   const handleSearch = (filters: {
     searchTerm: string;
     departmentId: string;
-    subDepartmentId: string;
     cabinetId: string;
     statusFilter: string;
     keyword: string;
@@ -154,7 +145,6 @@ export default function ItemsPage() {
     setActiveFilters({
       searchTerm: '',
       departmentId: '',
-      subDepartmentId: '',
       cabinetId: '',
       statusFilter: 'all',
       keyword: '',

@@ -359,9 +359,9 @@ export default function DepartmentManagementPage() {
                 <Building2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">จัดการแผนก</h1>
+                <h1 className="text-2xl font-bold text-slate-900">จัดการ Division</h1>
                 <p className="text-sm text-slate-500 mt-0.5 max-w-3xl">
-                  คลิกแถวแผนกเพื่อดูและจัดการรหัสแผนกย่อยด้านล่าง — กดลูกศรเพื่อดูรหัสในตารางเดียวกัน (คล้ายจัดการตู้-แผนก)
+                  คลิกแถว Division เพื่อดูและจัดการรหัสแผนกย่อยด้านล่าง
                 </p>
               </div>
             </div>
@@ -396,11 +396,11 @@ export default function DepartmentManagementPage() {
                   <Building2 className="h-5 w-5 text-cyan-600" />
                   กรองข้อมูล
                 </CardTitle>
-            
+
               </div>
               <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
                 <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
-                  <span className="text-xs text-muted-foreground">ค้นหาแผนก</span>
+                  <span className="text-xs text-muted-foreground">ค้นหา Division</span>
                   <Input
                     placeholder="ชื่อ, ชื่อย่อ, ID, RefDepID..."
                     value={deptKwInput}
@@ -409,7 +409,7 @@ export default function DepartmentManagementPage() {
                   />
                 </div>
                 <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
-                  <span className="text-xs text-muted-foreground">ค้นหารหัสแผนกย่อย</span>
+                  <span className="text-xs text-muted-foreground">ค้นหารหัสแผนก</span>
                   <Input
                     placeholder="code, ชื่อ, รายละเอียด..."
                     value={subKwInput}

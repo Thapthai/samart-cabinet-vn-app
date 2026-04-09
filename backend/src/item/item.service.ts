@@ -59,7 +59,6 @@ export class ItemService {
     sort_order: string = 'asc',
     cabinet_id?: number,
     department_id?: number,
-    sub_department_id?: number,
     status?: string,
   ) {
     try {
@@ -109,33 +108,12 @@ export class ItemService {
         },
       };
 
-      let subDeptCabinetIds: number[] | null = null;
-      if (sub_department_id != null && sub_department_id >= 1) {
-        const links = await this.prisma.cabinetSubDepartment.findMany({
-          where: { sub_department_id, status: 'ACTIVE' },
-          select: { cabinet_id: true },
-        });
-        let ids = [...new Set(links.map((l) => l.cabinet_id))];
-        if (department_id != null && department_id >= 1) {
-          const inDept = await this.prisma.cabinetDepartment.findMany({
-            where: { department_id, status: 'ACTIVE' },
-            select: { cabinet_id: true },
-          });
-          const deptSet = new Set(inDept.map((c) => c.cabinet_id));
-          ids = ids.filter((id) => deptSet.has(id));
-        }
-        subDeptCabinetIds = ids;
-      }
-
       // Filter by cabinet_id if provided (เก็บ cabinetStockId สำหรับอ้างอิงจำนวนชุดรุดต่อตู้)
       let cabinetStockId: number | null = null;
       // department id สำหรับกรอง qty_in_use (จาก MedicalSupplyUsage.department_id)
       let deptCodesForUsage: string[] | null = null;
 
       if (cabinet_id) {
-        if (subDeptCabinetIds != null && !subDeptCabinetIds.includes(cabinet_id)) {
-          return emptyPage();
-        }
         const cabinet = await this.prisma.cabinet.findUnique({
           where: { id: cabinet_id },
           select: {
@@ -158,13 +136,6 @@ export class ItemService {
         }
       } else if (department_id) {
         deptCodesForUsage = [String(department_id)];
-      }
-
-      if (!cabinet_id && subDeptCabinetIds != null) {
-        if (subDeptCabinetIds.length === 0) {
-          return emptyPage();
-        }
-        itemStocksWhere.cabinet = { id: { in: subDeptCabinetIds } };
       }
 
       // Get all items matching the filter criteria (including keyword search)
@@ -252,11 +223,6 @@ export class ItemService {
           deptInts.length > 0
             ? Prisma.sql`AND msu.department_id IN (${Prisma.join(deptInts.map((id) => Prisma.sql`${id}`))})`
             : Prisma.empty;
-        const subDeptUsageCondition =
-          sub_department_id != null && sub_department_id >= 1
-            ? Prisma.sql`AND msu.sub_department_id = ${sub_department_id}`
-            : Prisma.empty;
-
         const qtyInUseRows = await this.prisma.$queryRaw<
           { order_item_code: string; qty_in_use: bigint }[]
         >`SELECT
@@ -271,7 +237,6 @@ export class ItemService {
             AND DATE(sui.created_at) = CURDATE()
             AND sui.order_item_status != 'Discontinue'
             ${deptCondition}
-            ${subDeptUsageCondition}
           GROUP BY sui.order_item_code
         `;
         qtyInUseRows.forEach((row) => {
@@ -403,46 +368,12 @@ export class ItemService {
 
         const qtyInUse = qtyInUseMap.get(item.itemcode) ?? 0;
 
-        // สมาการที่ 1
-        // let refillQty = qtyInUse + damagedQty;
-
-
-        // สมาการที่ 2
-        // จำนวนที่ต้องเติม: M=Max (จาก CabinetItemSetting), A=ของที่อยู่ในตู้, B=ถูกใช้งาน, C=ชำรุด | X=M-A, Y=B+C | if X<Y then 0, if X>Y then X-Y
-        const M = effectiveStockMax ?? 0; // ใช้ effectiveStockMax จาก CabinetItemSetting (ถ้า null ใช้ 0)
-        const A = countItemStock;
-
-        const B = qtyInUse;
-        const C = damagedQty;
-
-
-        const X = M - A; // จำนวนที่ต้องเติมในตู้
-        const Y = B + C; // จำนวนที่ถูกใช้งาน + ชำรุด
-
-        // จำนวนที่ต้องเติมในตู้ ให้เติม Y
-        let refillQty = Y;
-
-        // ถ้า X < Y แสดงว่า จำนวนที่ต้องเติมในตู้น้อยกว่า จำนวนที่ถูกใช้งาน + ชำรุด ให้เติม X
-        if (X < Y) {
-          refillQty = X;
-        }
-        // ถ้า X > Y แสดงว่า จำนวนที่ต้องเติมในตู้มากกว่า จำนวนที่ถูกใช้งาน + ชำรุด ให้เติม X - Y
-        else if (X > Y && Y == 0) {
-          refillQty = X - Y;
-          // refillQty = Y;
-        }
-
-        if(refillQty < 0) {
+        // จำนวนที่ต้องเติม = MAX − จำนวนในตู้ (MAX จาก CabinetItemSetting ต่อตู้, จำนวนในตู้ = IsStock ในตู้)
+        const maxForRefill = effectiveStockMax ?? 0;
+        let refillQty = maxForRefill - countItemStock;
+        if (refillQty < 0) {
           refillQty = 0;
         }
-
-      
-        //สมาการ 3 
-        // let refillQty = effectiveStockMax - countItemStock;
-
-        // if (refillQty < 0) {
-        //   refillQty = 0;
-        // }
 
         const itemWithCount = {
           ...item,
@@ -1193,14 +1124,6 @@ export class ItemService {
 
       const usageSubDeptCond =
         subDeptId != null ? `AND msu.sub_department_id = ${subDeptId}` : '';
-      const subDeptCabinetCond =
-        subDeptId != null
-          ? ` AND EXISTS (
-        SELECT 1 FROM app_cabinet_sub_departments csd
-        WHERE csd.cabinet_id = x.cabinet_id AND csd.sub_department_id = ${subDeptId} AND csd.status = 'ACTIVE'
-      )`
-          : '';
-
       type Row = {
         ItemCode: string;
         StockID: number;
@@ -1275,7 +1198,7 @@ export class ItemService {
             ) r ON r.ItemCode = w.ItemCode AND r.StockID = w.StockID
             LEFT JOIN item i ON i.itemcode = w.ItemCode
         ) x
-        WHERE x.max_available_qty > 0${subDeptCabinetCond}
+        WHERE x.max_available_qty > 0
         ORDER BY x.ItemCode;
       `);
 

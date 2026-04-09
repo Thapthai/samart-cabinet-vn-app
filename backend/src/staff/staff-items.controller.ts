@@ -32,7 +32,6 @@ export class StaffItemsController {
     @Query('sort_order') sort_order?: string,
     @Query('cabinet_id') cabinet_id?: string,
     @Query('department_id') department_id?: string,
-    @Query('sub_department_id') sub_department_id?: string,
     @Query('status') status?: string,
   ) {
     if (cabinet_id == null || String(cabinet_id).trim() === '') {
@@ -51,17 +50,6 @@ export class StaffItemsController {
       throw new BadRequestException('department_id ไม่ถูกต้อง');
     }
 
-    const subDepartmentId =
-      sub_department_id != null && String(sub_department_id).trim() !== ''
-        ? parseInt(String(sub_department_id), 10)
-        : undefined;
-    if (
-      subDepartmentId != null &&
-      (!Number.isFinite(subDepartmentId) || subDepartmentId < 1)
-    ) {
-      throw new BadRequestException('sub_department_id ไม่ถูกต้อง');
-    }
-
     await this.staffDepartmentScope.assertStaffCabinetAccess(req, cabinetId, departmentId);
 
     return this.itemService.findAllItems(
@@ -72,7 +60,6 @@ export class StaffItemsController {
       sort_order || 'asc',
       cabinetId,
       departmentId,
-      subDepartmentId,
       status,
     );
   }

@@ -5,8 +5,10 @@ import { Package, RefreshCw, Gauge, ChevronDown, ChevronRight, Archive } from "l
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Item } from "@/types/item";
+import { formatUtcDateTime } from "@/lib/formatThaiDateTime";
 
 /** itemcode -> max_available_qty (แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน / รอแจ้ง) จาก will-return */
 interface ItemsTableProps {
@@ -16,6 +18,8 @@ interface ItemsTableProps {
   totalPages: number;
   totalItems: number;
   itemsPerPage: number;
+  /** false = ยังไม่กดค้นหา — แสดงข้อความแนะนำแทน «ไม่พบข้อมูล» */
+  hasSearched?: boolean;
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
   onUpdateMinMax: (item: Item) => void;
@@ -63,6 +67,7 @@ export default function ItemsTable({
   totalPages,
   totalItems,
   itemsPerPage,
+  hasSearched = true,
   onUpdateMinMax,
   onPageChange,
   headerActions,
@@ -133,7 +138,11 @@ export default function ItemsTable({
         ) : items.length === 0 ? (
           <div className="text-center py-12">
             <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">ไม่พบข้อมูลอุปกรณ์</p>
+            <p className="text-gray-500">
+              {hasSearched
+                ? "ไม่พบข้อมูลอุปกรณ์"
+                : "กำหนดเงื่อนไขแล้วกด «ค้นหา» เพื่อแสดงรายการ"}
+            </p>
           </div>
         ) : (
           <>
@@ -145,7 +154,7 @@ export default function ItemsTable({
                     <TableHead className="w-[100px]">ลำดับ</TableHead>
                     <TableHead>รหัสอุปกรณ์</TableHead>
                     <TableHead>ชื่อสินค้า</TableHead>
-                    <TableHead>แผนก</TableHead>
+                    <TableHead>Division</TableHead>
                     <TableHead className="text-center">จำนวนในตู้</TableHead>
                     <TableHead className="text-center">จำนวนอุปกรณ์ที่ถูกใช้งานในปัจจุบัน</TableHead>
                     <TableHead className="text-center">Min/Max</TableHead>
@@ -160,7 +169,9 @@ export default function ItemsTable({
                     const countItemStock = (item as Item & { count_itemstock?: number }).count_itemstock ?? item.itemStocks?.length ?? 0;
                     const stockMin = item.stock_min ?? 0;
                     const isLowStock = stockMin > 0 && countItemStock < stockMin;
-                    const itemStocks = item.itemStocks ?? [];
+                    const itemStocks = (item.itemStocks ?? []).filter(
+                      (s) => s.IsStock === true || (s as { IsStock?: boolean | number }).IsStock === 1
+                    );
                     const isExpanded = expandedRow === item.itemcode;
                     const hasExpired = itemStocks.some((s) => isExpired(s.ExpireDate));
                     const hasNearExpiry = !hasExpired && itemStocks.some((s) => isNearExpiry(s.ExpireDate));
@@ -181,7 +192,8 @@ export default function ItemsTable({
                               <button
                                 type="button"
                                 onClick={() => setExpandedRow(isExpanded ? null : item.itemcode)}
-                                className="hover:bg-gray-200 p-1 rounded"
+                                className="rounded p-1 hover:bg-slate-200"
+                                aria-expanded={isExpanded}
                               >
                                 {isExpanded ? (
                                   <ChevronDown className="h-4 w-4" />
@@ -255,64 +267,78 @@ export default function ItemsTable({
                           <TableRow>
                             <TableCell colSpan={COLUMN_COUNT} className="bg-gray-50 p-4">
                               <div>
-                                <h4 className="font-semibold mb-3 text-gray-700 flex items-center gap-2">
+                                <h4 className="mb-3 flex items-center gap-2 font-semibold text-gray-700">
                                   <Package className="h-4 w-4" />
-                                  รายการ Item Stock ในอุปกรณ์ ({itemStocks.length} รายการ)
+                                  รายการสต็อกอุปกรณ์ในตู้ ({itemStocks.length} รายการ)
                                 </h4>
-                                <div className="overflow-x-auto">
+                                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                                   <Table>
                                     <TableHeader>
-                                      <TableRow>
-                                        <TableHead className="w-12">ลำดับ</TableHead>
-                                        <TableHead>ตู้ (Cabinet)</TableHead>
-                                        <TableHead>แผนก</TableHead>
-                                        <TableHead>สถานะสต็อก</TableHead>
-                                        <TableHead>หมดอายุ</TableHead>
+                                      <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
+                                        <TableHead className="w-14 text-slate-600">ลำดับ</TableHead>
+                                        <TableHead className="text-slate-600">ตู้ (Cabinet)</TableHead>
+                                        <TableHead className="text-slate-600">สถานะสต็อก</TableHead>
+                                        <TableHead className="text-slate-600">หมดอายุ</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                       {itemStocks.map((stock, idx) => {
                                         const expireStr = stock.ExpireDate;
-                                        const expireDate = expireStr ? new Date(expireStr) : null;
                                         const expired = isExpired(expireStr);
                                         const nearExpiry = !expired && isNearExpiry(expireStr);
                                         const expireDisplay = expireStr
-                                          ? expireDate?.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" }) ?? expireStr
+                                          ? formatUtcDateTime(expireStr)
                                           : "-";
+                                        const inCabinet =
+                                          stock.IsStock === true ||
+                                          (stock as { IsStock?: boolean | number }).IsStock === 1;
                                         return (
                                           <TableRow
                                             key={stock.RowID ?? idx}
-                                            className={expired ? "bg-red-100 hover:bg-red-100" : nearExpiry ? "bg-amber-50 hover:bg-amber-50" : ""}
+                                            className={cn(
+                                              "border-b border-slate-100",
+                                              expired && "bg-red-50 hover:bg-red-50",
+                                              !expired && nearExpiry && "bg-amber-50/80 hover:bg-amber-50/80"
+                                            )}
                                           >
-                                            <TableCell className="font-medium">{idx + 1}</TableCell>
-                                            <TableCell>
+                                            <TableCell className="text-slate-600">{idx + 1}</TableCell>
+                                            <TableCell className="text-slate-800">
                                               {stock.cabinet?.cabinet_name || stock.cabinet?.cabinet_code || "-"}
                                             </TableCell>
                                             <TableCell>
-                                              {stock.cabinet?.cabinetDepartments?.map((cd) => cd.department?.DepName || cd.department?.DepName2 || "-").join(", ") || "-"}
-                                            </TableCell>
-                                            <TableCell>
-                                              {stock.IsStock === true || (stock as { IsStock?: boolean | number }).IsStock === 1 ? (
-                                                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 border border-green-200">
+                                              {inCabinet ? (
+                                                <Badge
+                                                  variant="default"
+                                                  className="border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                                                >
                                                   อยู่ในตู้
-                                                </span>
+                                                </Badge>
                                               ) : (
-                                                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                                <Badge
+                                                  variant="secondary"
+                                                  className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100"
+                                                >
                                                   ถูกเบิก
-                                                </span>
+                                                </Badge>
                                               )}
                                             </TableCell>
-                                            <TableCell>
-                                              {expireDisplay}
+                                            <TableCell className="text-slate-700">
+                                              <span className="tabular-nums">{expireDisplay}</span>
                                               {expired && (
-                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-200">
+                                                <Badge
+                                                  variant="destructive"
+                                                  className="ml-2 border-red-200 bg-red-100 text-red-800 hover:bg-red-100"
+                                                >
                                                   หมดอายุ
-                                                </span>
+                                                </Badge>
                                               )}
                                               {nearExpiry && (
-                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                                <Badge
+                                                  variant="secondary"
+                                                  className="ml-2 border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100"
+                                                >
                                                   ใกล้หมดอายุ
-                                                </span>
+                                                </Badge>
                                               )}
                                             </TableCell>
                                           </TableRow>

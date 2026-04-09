@@ -127,7 +127,7 @@ export class StaffItemStocksController {
       if (!Number.isFinite(sid) || sid < 1) {
         throw new BadRequestException('sub_department_id ไม่ถูกต้อง');
       }
-      await this.staffDepartmentScope.assertCabinetLinkedSubDepartment(cabinetId, sid);
+      await this.staffDepartmentScope.assertSubDepartmentCompatibleWithCabinet(cabinetId, sid);
       subDepartmentId = sid;
     }
 

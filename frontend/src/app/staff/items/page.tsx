@@ -18,6 +18,8 @@ export default function ItemsPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
+  /** กด «ค้นหา» แล้วเท่านั้นจึงโหลด API (ต้องมี cabinet_id) */
+  const [hasSearched, setHasSearched] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -28,7 +30,6 @@ export default function ItemsPage() {
   const [activeFilters, setActiveFilters] = useState<StaffItemsSearchFilters>({
     searchTerm: '',
     departmentId: '',
-    subDepartmentId: '',
     cabinetId: '',
     statusFilter: 'all',
     keyword: '',
@@ -41,6 +42,10 @@ export default function ItemsPage() {
   const itemsPerPage = 10; // Table layout
 
   const fetchItems = useCallback(async () => {
+    if (!hasSearched) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const params: GetItemsQuery = {
@@ -62,13 +67,6 @@ export default function ItemsPage() {
         const cabId = parseInt(activeFilters.cabinetId, 10);
         if (!Number.isNaN(cabId)) {
           params.cabinet_id = cabId;
-        }
-      }
-
-      if (activeFilters.subDepartmentId?.trim()) {
-        const sid = parseInt(activeFilters.subDepartmentId.trim(), 10);
-        if (!Number.isNaN(sid)) {
-          params.sub_department_id = sid;
         }
       }
 
@@ -111,7 +109,7 @@ export default function ItemsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, activeFilters, itemsPerPage]);
+  }, [hasSearched, currentPage, activeFilters, itemsPerPage]);
 
   const filterItems = useCallback(() => {
     let filtered = items;
@@ -138,7 +136,24 @@ export default function ItemsPage() {
 
   const handleSearch = (filters: StaffItemsSearchFilters) => {
     setActiveFilters(filters);
-    setCurrentPage(1); // Reset to first page on search
+    setCurrentPage(1);
+    setHasSearched(true);
+  };
+
+  const handleResetFilters = () => {
+    setHasSearched(false);
+    setCurrentPage(1);
+    setActiveFilters({
+      searchTerm: "",
+      departmentId: "",
+      cabinetId: "",
+      statusFilter: "all",
+      keyword: "",
+    });
+    setItems([]);
+    setFilteredItems([]);
+    setTotalItems(0);
+    setTotalPages(1);
   };
 
   const handleEdit = (item: Item) => {
@@ -222,6 +237,7 @@ export default function ItemsPage() {
         <FilterSection
           onSearch={handleSearch}
           onBeforeSearch={() => setCurrentPage(1)}
+          onReset={handleResetFilters}
           departmentDisabled={false}
         />
 
@@ -233,6 +249,7 @@ export default function ItemsPage() {
           totalPages={totalPages}
           totalItems={totalItems}
           itemsPerPage={itemsPerPage}
+          hasSearched={hasSearched}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onUpdateMinMax={handleUpdateMinMax}

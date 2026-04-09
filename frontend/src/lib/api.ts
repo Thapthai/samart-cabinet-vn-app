@@ -1851,56 +1851,6 @@ export const cabinetDepartmentApi = {
   },
 };
 
-/** ตู้ ↔ แผนกย่อย (many-to-many) — POST/GET/PUT/DELETE /cabinet-sub-departments */
-export const cabinetSubDepartmentApi = {
-  getAll: async (params?: {
-    cabinetId?: number;
-    subDepartmentId?: number;
-    departmentId?: number;
-    status?: string;
-    keyword?: string;
-  }): Promise<ApiResponse<any[]>> => {
-    const apiParams: Record<string, unknown> = {};
-    if (params?.cabinetId !== undefined) apiParams.cabinet_id = params.cabinetId;
-    if (params?.subDepartmentId !== undefined) apiParams.sub_department_id = params.subDepartmentId;
-    if (params?.departmentId !== undefined) apiParams.department_id = params.departmentId;
-    if (params?.status !== undefined) apiParams.status = params.status;
-    if (params?.keyword !== undefined && params.keyword !== '') apiParams.keyword = params.keyword;
-    const response = await api.get('/cabinet-sub-departments', { params: apiParams });
-    return response.data;
-  },
-
-  create: async (data: {
-    cabinet_id: number;
-    sub_department_id: number;
-    status?: string;
-    description?: string;
-    sort_order?: number;
-  }): Promise<ApiResponse<any>> => {
-    const response = await api.post('/cabinet-sub-departments', data);
-    return response.data;
-  },
-
-  update: async (
-    id: number,
-    data: {
-      cabinet_id: number;
-      sub_department_id: number;
-      status?: string;
-      description?: string;
-      sort_order?: number;
-    },
-  ): Promise<ApiResponse<any>> => {
-    const response = await api.put(`/cabinet-sub-departments/${id}`, data);
-    return response.data;
-  },
-
-  delete: async (id: number): Promise<ApiResponse<void>> => {
-    const response = await api.delete(`/cabinet-sub-departments/${id}`);
-    return response.data;
-  },
-};
-
 // =========================== Weighing API (ItemSlotInCabinet) ===========================
 export const weighingApi = {
   getAll: async (params?: { page?: number; limit?: number; itemName?: string; itemcode?: string; stockId?: number }): Promise<{ success: boolean; data: any[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {

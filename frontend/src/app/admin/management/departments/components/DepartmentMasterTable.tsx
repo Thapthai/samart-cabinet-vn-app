@@ -169,16 +169,16 @@ export default function DepartmentMasterTable({
           </div>
         )}
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-2">
         <div className="overflow-x-auto rounded-b-xl">
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-100/80 hover:bg-slate-100/80 border-b border-slate-200">
                 <TableHead className="w-12" />
                 <TableHead className="text-slate-600 font-semibold w-16">ลำดับ</TableHead>
-                <TableHead className="text-slate-600 font-semibold">รหัสแผนก</TableHead>
-                <TableHead className="text-slate-600 font-semibold">ชื่อแผนก</TableHead>
-                <TableHead className="text-slate-600 font-semibold">ชื่อย่อ (DepName2)</TableHead>
+                <TableHead className="text-slate-600 font-semibold">รหัส Division</TableHead>
+                <TableHead className="text-slate-600 font-semibold">ชื่อ Division</TableHead>
+                <TableHead className="text-slate-600 font-semibold">ชื่อย่อ</TableHead>
                 <TableHead className="text-slate-600 font-semibold min-w-[100px]">RefDepID</TableHead>
                 <TableHead className="text-center text-slate-600 font-semibold">จำนวนรหัสแผนกย่อย</TableHead>
                 {onEditMainDepartment ? (

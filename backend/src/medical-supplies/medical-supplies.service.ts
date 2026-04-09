@@ -3181,16 +3181,6 @@ export class MedicalSuppliesService {
           cabinetConditions.push({ id: cid });
         }
       }
-      if (query.sub_department_id != null && String(query.sub_department_id).trim() !== '') {
-        const sid = parseInt(String(query.sub_department_id), 10);
-        if (!Number.isNaN(sid)) {
-          cabinetConditions.push({
-            cabinetSubDepartments: {
-              some: { sub_department_id: sid, status: 'ACTIVE' },
-            },
-          });
-        }
-      }
       if (cabinetConditions.length === 1) {
         where.cabinet = cabinetConditions[0];
       } else if (cabinetConditions.length > 1) {
@@ -3518,15 +3508,6 @@ export class MedicalSuppliesService {
         }
       }
 
-      if (filters?.subDepartmentId != null && String(filters.subDepartmentId).trim() !== '') {
-        const sid = parseInt(String(filters.subDepartmentId), 10);
-        if (!Number.isNaN(sid) && sid >= 1) {
-          sqlConditions.push(
-            Prisma.sql`EXISTS (SELECT 1 FROM app_cabinet_sub_departments csd WHERE csd.cabinet_id = app_cabinets.ID AND csd.sub_department_id = ${sid} AND csd.status = 'ACTIVE')`,
-          );
-        }
-      }
-
       // Combine WHERE conditions with AND
       const whereClause = Prisma.join(sqlConditions, ' AND ');
 
@@ -3674,15 +3655,6 @@ export class MedicalSuppliesService {
 
       if (filters?.cabinetId) {
         sqlConditions.push(Prisma.raw(`app_cabinets.id = '${filters.cabinetId}'`));
-      }
-
-      if (filters?.subDepartmentId != null && String(filters.subDepartmentId).trim() !== '') {
-        const sid = parseInt(String(filters.subDepartmentId), 10);
-        if (!Number.isNaN(sid) && sid >= 1) {
-          sqlConditions.push(
-            Prisma.sql`EXISTS (SELECT 1 FROM app_cabinet_sub_departments csd WHERE csd.cabinet_id = app_cabinets.id AND csd.sub_department_id = ${sid} AND csd.status = 'ACTIVE')`,
-          );
-        }
       }
 
       // Combine WHERE conditions with AND
@@ -4436,19 +4408,25 @@ export class MedicalSuppliesService {
       }
 
       if (!Number.isNaN(subIdNum)) {
-        const subRows = await this.prisma.$queryRaw<{ stock_id: number }[]>`
-          SELECT c.stock_id
-          FROM app_cabinet_sub_departments csd
-          INNER JOIN app_cabinets c ON c.id = csd.cabinet_id
-          WHERE csd.sub_department_id = ${subIdNum}
-            AND csd.status = 'ACTIVE'
-            AND c.stock_id IS NOT NULL
-        `;
-        const subStockIds = [...new Set(subRows.map((r) => r.stock_id).filter((id) => id != null))];
-        if (allowedStockIds === null) {
-          allowedStockIds = subStockIds;
-        } else {
-          allowedStockIds = intersectStockIds(allowedStockIds, subStockIds);
+        const sub = await this.prisma.medicalSupplySubDepartment.findUnique({
+          where: { id: subIdNum },
+          select: { department_id: true },
+        });
+        if (sub) {
+          const subRows = await this.prisma.$queryRaw<{ stock_id: number }[]>`
+            SELECT c.stock_id
+            FROM app_cabinet_departments cd
+            INNER JOIN app_cabinets c ON c.id = cd.cabinet_id
+            WHERE cd.department_id = ${sub.department_id}
+              AND cd.status = 'ACTIVE'
+              AND c.stock_id IS NOT NULL
+          `;
+          const subStockIds = [...new Set(subRows.map((r) => r.stock_id).filter((id) => id != null))];
+          if (allowedStockIds === null) {
+            allowedStockIds = subStockIds;
+          } else {
+            allowedStockIds = intersectStockIds(allowedStockIds, subStockIds);
+          }
         }
       }
 

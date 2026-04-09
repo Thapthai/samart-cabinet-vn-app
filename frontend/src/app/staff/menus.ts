@@ -85,10 +85,10 @@ export const staffMenuItems = [
         submenu: [
 
             {
-                name: 'จัดการตู้ Cabinet - แผนก',
+                name: 'จัดการตู้ Cabinet - Division',
                 href: '/staff/cabinet-departments',
                 icon: Network,
-                description: 'จัดการตู้ Cabinet และเชื่อมโยงกับแผนก',
+                description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division',
             },
             {
                 name: 'สต๊อกอุปกรณ์ในตู้',
@@ -144,10 +144,10 @@ export const staffMenuItems = [
                 description: 'จัดการตู้ Cabinet',
             },
             {
-                name: 'จัดการแผนก',
+                name: 'จัดการ Division',
                 href: '/staff/management/departments',
                 icon: Building2,
-                description: 'ดูแผนกหลักและตั้งรหัสแผนกย่อยจับคู่ Location คนไข้',
+                description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
             },
             {
                 name: 'จัดการ ผู้ใช้งาน Staff',

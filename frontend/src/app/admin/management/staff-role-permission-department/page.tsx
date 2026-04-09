@@ -166,9 +166,9 @@ export default function StaffRolePermissionDepartmentPage() {
                 <Layers className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">แผนกหลักตาม Staff Role</h1>
+                <h1 className="text-2xl font-bold text-slate-900">จัดการ Division หลักตาม Staff Role</h1>
                 <p className="text-sm text-slate-500">
-                  เลือก Role แล้วติ๊ก Checkbox ตามแผนกหลัก (department) ที่อนุญาต — ไม่ติ๊กเลย = เห็นทุกแผนก
+                  เลือก Role แล้วติ๊ก Checkbox ตาม Division หลัก (department) ที่อนุญาต — ไม่ติ๊กเลย = เห็นทุก Division
                 </p>
               </div>
             </div>
@@ -235,7 +235,7 @@ export default function StaffRolePermissionDepartmentPage() {
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         <Building2 className="h-5 w-5 text-slate-600" />
-                        แผนกหลัก (Department)
+                        Division หลัก (Department)
                       </CardTitle>
                       <CardDescription>
                         {selectedRole
@@ -245,10 +245,10 @@ export default function StaffRolePermissionDepartmentPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="secondary" size="sm" onClick={selectAll} disabled={!roleId || loadingBoot}>
-                        เลือกทุกแผนก
+                        เลือกทุก Division
                       </Button>
                       <Button type="button" variant="secondary" size="sm" onClick={clearAll} disabled={!roleId || loadingBoot}>
-                        ไม่จำกัดแผนก (ล้างทั้งหมด)
+                        ไม่จำกัด Division (ล้างทั้งหมด)
                       </Button>
                       <Button
                         type="button"
@@ -269,13 +269,13 @@ export default function StaffRolePermissionDepartmentPage() {
 
               {roleId && unrestrictedFromServer && selected.size === 0 && !loadingRole && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  Role นี้<strong> ไม่จำกัดแผนกหลัก</strong> (เห็นทุกแผนก) — ติ๊ก Checkbox ด้านล่างเพื่อจำกัด แล้วกดบันทึก
+                  Role นี้<strong> ไม่จำกัด Division หลัก</strong> (เห็นทุก Division) — ติ๊ก Checkbox ด้านล่างเพื่อจำกัด แล้วกดบันทึก
                 </div>
               )}
 
               <Card>
                 <CardHeader>
-                  <CardTitle>รายการแผนก</CardTitle>
+                  <CardTitle>รายการ Division</CardTitle>
                   <CardDescription>{deptCountLabel}</CardDescription>
                 </CardHeader>
                 <CardContent>
