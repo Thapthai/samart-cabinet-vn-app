@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type Dispatch, type SetStateAction } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,7 +53,7 @@ interface EditMappingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   formData: MappingFormData;
-  setFormData: (data: MappingFormData) => void;
+  setFormData: Dispatch<SetStateAction<MappingFormData>>;
   onSubmit: () => void;
   saving: boolean;
   selectedMapping?: CabinetDepartmentMapping | null;
