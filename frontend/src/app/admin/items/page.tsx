@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { Package, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { reportsApi } from '@/lib/api';
-import CreateItemDialog from './components/CreateItemDialog';
+ 
 import EditItemDialog from './components/EditItemDialog';
 import DeleteItemDialog from './components/DeleteItemDialog';
 import UpdateMinMaxDialog from './components/UpdateMinMaxDialog';
@@ -22,8 +22,8 @@ export default function ItemsPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
-  /** ดึงรายการจาก API เฉพาะหลังกดค้นหา */
-  const [hasSearched, setHasSearched] = useState(false);
+  /** true = โหลดจาก API ได้ — เปิดหน้ามาโหลดรายการค่าเริ่มต้นก่อน; กดรีเซ็ตแล้วเป็น false จนกดค้นหาใหม่ */
+  const [hasSearched, setHasSearched] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -273,12 +273,7 @@ export default function ItemsPage() {
           />
         </div>
 
-        <CreateItemDialog
-          open={showCreateDialog}
-          onOpenChange={setShowCreateDialog}
-          userId={user?.id}
-          onSuccess={fetchItems}
-        />
+ 
 
         <EditItemDialog
           open={showEditDialog}

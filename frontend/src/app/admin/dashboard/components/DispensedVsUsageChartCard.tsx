@@ -44,7 +44,7 @@ export default function DispensedVsUsageChartCard({
           </div>
         ) : (
           <>
-            <p className="text-xs text-white/90 mb-2">ตู้ Cabinet · แผนก</p>
+            <p className="text-xs text-white/90 mb-2">ตู้ Cabinet · Division</p>
             <div className="mt-2 flex gap-3 flex-wrap">
               <span className="rounded-lg bg-white/25 px-3 py-1.5 text-xs font-semibold">
                 รายการ: <span className="text-base font-bold">{totalMappings}</span>
@@ -53,7 +53,7 @@ export default function DispensedVsUsageChartCard({
                 ตู้: <span className="text-base font-bold">{cabinets}</span>
               </span>
               <span className="rounded-lg bg-white/25 px-3 py-1.5 text-xs font-semibold">
-                แผนก: <span className="text-base font-bold">{departments}</span>
+                Division: <span className="text-base font-bold">{departments}</span>
               </span>
             </div>
           </>

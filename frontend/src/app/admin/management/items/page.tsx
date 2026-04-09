@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import CreateItemDialog from '@/app/admin/items/components/CreateItemDialog';
+import CreateItemDialog from './components/CreateItemDialog';
 import EditItemDialog from '@/app/admin/items/components/EditItemDialog';
 import DeleteItemDialog from '@/app/admin/items/components/DeleteItemDialog';
 

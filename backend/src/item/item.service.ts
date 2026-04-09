@@ -27,6 +27,11 @@ export class ItemService {
         cleanData.ModiflyDate = new Date();
       }
 
+      // itemcode2 ใช้รหัสเดียวกับ itemcode ตอนสร้างรายการ
+      if (cleanData.itemcode != null && String(cleanData.itemcode).trim() !== '') {
+        cleanData.itemcode2 = String(cleanData.itemcode).trim();
+      }
+
       const item = await this.prisma.item.create({
         data: cleanData,
       });
