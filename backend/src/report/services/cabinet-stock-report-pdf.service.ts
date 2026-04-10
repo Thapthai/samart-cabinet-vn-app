@@ -260,12 +260,16 @@ export class CabinetStockReportPdfService {
           }
         }
 
-        // หมายเหตุ: คงเหลือ = จำนวนชิ้นในตู้ (IsStock=1)
         doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
-        doc.text('หมายเหตุ: คงเหลือ = จำนวนชิ้นในตู้ (IsStock=1, อยู่ในตู้) เท่านั้น', margin, doc.y + 6, {
-          width: contentWidth,
-          align: 'center',
-        });
+        doc.text(
+          'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้',
+          margin,
+          doc.y + 6,
+          {
+            width: contentWidth,
+            align: 'center',
+          },
+        );
         doc.fillColor('#000000');
 
         doc.end();

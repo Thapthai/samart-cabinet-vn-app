@@ -2326,7 +2326,7 @@ export class ReportServiceService {
    * Get Cabinet Stock Report Data (สต๊อกอุปกรณ์ในตู้)
    * คอลัมน์: ลำดับ, แผนก, รหัสอุปกรณ์, อุปกรณ์, คงเหลือ, Stock Max, Stock Min, จำนวนที่ต้องเติม
    * คงเหลือ = จำนวนชิ้นในตู้ (นับเฉพาะ itemstock ที่ IsStock = 1 เท่านั้น)
-   * จำนวนที่ต้องเติม = Max - คงเหลือ (แสดงเป็น 0 ถ้าเป็นลบ)
+   * จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้ (ไม่ติดลบ; Max จาก CabinetItemSetting หรือ Item)
    * รายงาน Excel/PDF: แสดงเฉพาะรายการที่จำนวนที่ต้องเติม ≠ 0 (สต๊อกเต็มแล้วไม่นำมาแสดง)
    */
   async getCabinetStockData(params: {
@@ -2613,36 +2613,9 @@ export class ReportServiceService {
             ? damagedReturnMap.get(row.item_code) ?? 0
             : damagedReturnMap.get(`${row.item_code}:${row.department_name ?? '-'}`) ?? 0;
 
-
-        // สมการที่ 1
-        // let refillQty = qtyInUse + damagedQty;
-
-
-        // สมการที่ 2
-        // จำนวนที่ต้องเติม: M=Max (จาก CabinetItemSetting), A=ของที่อยู่ในตู้, B=ถูกใช้งาน, C=ชำรุด | X=M-A, Y=B+C | if X<Y then 0, if X>Y then X-Y
-        const M = stockMax ?? 0; // ใช้ stockMax จาก CabinetItemSetting (ถ้า null ใช้ 0)
-        const A = balanceQty;
-        const B = qtyInUse;
-        const C = damagedQty;
-        const X = M - A; // จำนวนที่ต้องเติมในตู้
-        const Y = B + C; // จำนวนที่ถูกใช้งาน + ชำรุด
-
-        // สมการให้ตรงกับหน้าเว็บ (item.service): Y = B+C; ถ้า X < Y ให้เติม X; ถ้า X > Y ให้เติม X-Y; ไม่ติดลบ
-        let refillQty = Y;
-        if (X < Y) {
-          refillQty = X;
-        } else if (X > Y) {
-          refillQty = X - Y;
-        }
-        refillQty = Math.max(0, refillQty);
-
-        // สมการที่ 3
-        // let refillQty = stockMax - balanceQty;
-        // if (refillQty < 0) {
-        //   refillQty = 0;
-        // }
-
- 
+        // รายงาน Excel/PDF: จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้ (สต๊อกเกิน Max ให้เป็น 0)
+        const M = stockMax ?? 0;
+        const refillQty = Math.max(0, M - balanceQty);
 
         data.push({
           seq,

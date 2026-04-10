@@ -159,7 +159,8 @@ export class CabinetStockReportExcelService {
     const noteRow = footerRow + 1;
     worksheet.mergeCells(`A${noteRow}:I${noteRow}`);
     const noteCell = worksheet.getCell(`A${noteRow}`);
-    noteCell.value = 'หมายเหตุ: จำนวนในตู้ = จำนวนชิ้นในตู้ (IsStock=1) เท่านั้น | ถูกใช้งาน = จาก supply_usage_items วันที่รายงาน';
+    noteCell.value =
+      'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้';
     noteCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF6C757D' } };
     noteCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(noteRow).height = 16;
