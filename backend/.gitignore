@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 /generated/prisma
+
+# รายงานสำรองรายวัน (สร้างอัตโนมัติบนเซิร์ฟเวอร์)
+/storage/daily-reports/

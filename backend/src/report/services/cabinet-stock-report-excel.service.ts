@@ -17,6 +17,10 @@ export interface CabinetStockRow {
 }
 
 export interface CabinetStockReportData {
+  /** วันที่อ้างอิงรายงาน (แสดงใน Excel/PDF) */
+  reportDateDisplay?: string;
+  /** YYYY-MM-DD ตามปฏิทินที่ใช้ในรายงาน (Asia/Bangkok) */
+  reportDateISO?: string;
   filters?: {
     cabinetId?: number;
     cabinetCode?: string;
@@ -39,12 +43,14 @@ export class CabinetStockReportExcelService {
       properties: { defaultRowHeight: 20 },
     });
 
-    const reportDate = new Date().toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'Asia/Bangkok',
-    });
+    const reportDate =
+      data.reportDateDisplay ??
+      new Date().toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'Asia/Bangkok',
+      });
 
     applyExcelStandardTitleHeader(worksheet, workbook, {
       mergeRange: 'A1:I2',

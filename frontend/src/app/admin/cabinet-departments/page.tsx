@@ -10,7 +10,10 @@ import { Loader2, Network } from "lucide-react";
 import { toast } from "sonner";
 import FilterSection from "./components/FilterSection";
 import MappingTable from "./components/MappingTable";
-import CreateMappingDialog, { type CreateMappingFormData } from "./components/CreateMappingDialog";
+import CreateMappingDialog, {
+  type CreateMappingFormData,
+  MAX_ACTIVE_DIVISION_LINKS_PER_CABINET,
+} from "./components/CreateMappingDialog";
 import EditMappingDialog from "./components/EditMappingDialog";
 import DeleteMappingDialog from "./components/DeleteMappingDialog";
 import CreateCabinetDialog from "@/app/admin/cabinets/components/CreateCabinetDialog";
@@ -29,6 +32,7 @@ interface CabinetDepartment {
   department?: {
     ID: number;
     DepName?: string;
+    DepName2?: string;
   };
 }
 
@@ -128,7 +132,15 @@ export default function ItemStockDepartmentsPage() {
 
   const submitCreate = async () => {
     const cabinetId = createFormData.cabinet_id?.trim();
-    const rawDeptIds = createFormData.department_ids.map((s) => s?.trim()).filter(Boolean);
+    const cabinetIdNum = parseInt(cabinetId, 10);
+    const activeOnCabinet = mappings.filter(
+      (m) => m.cabinet_id === cabinetIdNum && m.status === "ACTIVE",
+    ).length;
+    const allowedNewSlots = Math.max(0, MAX_ACTIVE_DIVISION_LINKS_PER_CABINET - activeOnCabinet);
+    const rawDeptIds = createFormData.department_ids
+      .slice(0, allowedNewSlots)
+      .map((s) => s?.trim())
+      .filter(Boolean);
     const departmentIds = [...new Set(rawDeptIds.map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n)))];
     if (!cabinetId || departmentIds.length === 0) {
       toast.error("กรุณาเลือกตู้และอย่างน้อยหนึ่ง Division");

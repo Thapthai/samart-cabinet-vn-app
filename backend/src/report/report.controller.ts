@@ -1,5 +1,6 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { ReportServiceService } from './report-service.service';
+import { DailyCabinetStockArchiveService } from './daily-cabinet-stock-archive.service';
 
 const EXCEL_CONTENT = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const PDF_CONTENT = 'application/pdf';
@@ -17,7 +18,10 @@ function toFileResponse(buffer: Buffer, filename: string, contentType: string) {
 
 @Controller('reports')
 export class ReportServiceController {
-  constructor(private readonly reportServiceService: ReportServiceService) {}
+  constructor(
+    private readonly reportServiceService: ReportServiceService,
+    private readonly dailyCabinetStockArchiveService: DailyCabinetStockArchiveService,
+  ) {}
 
   @Post('comparison/excel')
   async generateComparisonExcel(@Body() data: { usageId: number }) {
@@ -400,6 +404,7 @@ export class ReportServiceController {
     cabinetId?: number;
     cabinetCode?: string;
     departmentId?: number;
+    asOfDate?: string;
   }) {
     try {
       const result = await this.reportServiceService.generateCabinetStockExcel(data);
@@ -414,6 +419,7 @@ export class ReportServiceController {
     cabinetId?: number;
     cabinetCode?: string;
     departmentId?: number;
+    asOfDate?: string;
   }) {
     try {
       const result = await this.reportServiceService.generateCabinetStockPdf(data);
@@ -428,10 +434,41 @@ export class ReportServiceController {
     cabinetId?: number;
     cabinetCode?: string;
     departmentId?: number;
+    asOfDate?: string;
   }) {
     try {
       const result = await this.reportServiceService.getCabinetStockData(data);
       return { success: true, data: result };
+    } catch (error: any) {
+      return { success: false, error: error?.message };
+    }
+  }
+
+  @Post('cabinet-stock/daily-archive/list')
+  async listDailyCabinetStockArchives(@Body() body: { limit?: number; offset?: number }) {
+    try {
+      const rows = await this.dailyCabinetStockArchiveService.listArchives(body);
+      return { success: true as const, data: rows };
+    } catch (error: any) {
+      return { success: false, error: error?.message };
+    }
+  }
+
+  @Post('cabinet-stock/daily-archive/download')
+  async downloadDailyCabinetStockArchive(@Body() body: { id: number }) {
+    try {
+      const result = await this.dailyCabinetStockArchiveService.getFileBufferById(body.id);
+      return toFileResponse(result.buffer, result.filename, result.contentType);
+    } catch (error: any) {
+      return { success: false, error: error?.message };
+    }
+  }
+
+  @Post('cabinet-stock/daily-archive/run')
+  async runDailyCabinetStockArchive(@Body() body: { reportDate?: string }) {
+    try {
+      await this.dailyCabinetStockArchiveService.archiveDateOrYesterday(body?.reportDate);
+      return { success: true as const };
     } catch (error: any) {
       return { success: false, error: error?.message };
     }

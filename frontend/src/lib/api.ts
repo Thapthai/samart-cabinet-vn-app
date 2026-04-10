@@ -1104,6 +1104,16 @@ export const vendingReportsApi = {
   },
 };
 
+export type DailyCabinetStockArchiveRow = {
+  id: number;
+  report_date: string;
+  format: string;
+  filter_key: string;
+  file_path: string;
+  file_size: number | null;
+  created_at: string;
+};
+
 export const reportsApi = {
   // Comparison Report
   exportComparisonExcel: async (usageId: number): Promise<Blob> => {
@@ -1203,11 +1213,17 @@ export const reportsApi = {
   },
 
   // Cabinet Stock Report (รายงานสต๊อกอุปกรณ์ในตู้) — Backend POST /reports/cabinet-stock/excel|pdf returns JSON { success, data: { buffer, filename, contentType } }
-  downloadCabinetStockExcel: async (params?: { cabinetId?: number; cabinetCode?: string; departmentId?: number }): Promise<void> => {
+  downloadCabinetStockExcel: async (params?: {
+    cabinetId?: number;
+    cabinetCode?: string;
+    departmentId?: number;
+    asOfDate?: string;
+  }): Promise<void> => {
     const body = {
       cabinetId: params?.cabinetId,
       cabinetCode: params?.cabinetCode,
       departmentId: params?.departmentId,
+      asOfDate: params?.asOfDate,
     };
     const response = await api.post('/reports/cabinet-stock/excel', body);
     const res = response.data as { success?: boolean; data?: { buffer?: string; filename?: string; contentType?: string } };
@@ -1226,11 +1242,17 @@ export const reportsApi = {
     window.URL.revokeObjectURL(url);
   },
 
-  downloadCabinetStockPdf: async (params?: { cabinetId?: number; cabinetCode?: string; departmentId?: number }): Promise<void> => {
+  downloadCabinetStockPdf: async (params?: {
+    cabinetId?: number;
+    cabinetCode?: string;
+    departmentId?: number;
+    asOfDate?: string;
+  }): Promise<void> => {
     const body = {
       cabinetId: params?.cabinetId,
       cabinetCode: params?.cabinetCode,
       departmentId: params?.departmentId,
+      asOfDate: params?.asOfDate,
     };
     const response = await api.post('/reports/cabinet-stock/pdf', body);
     const res = response.data as { success?: boolean; data?: { buffer?: string; filename?: string; contentType?: string } };
@@ -1247,6 +1269,47 @@ export const reportsApi = {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+  },
+
+  listDailyCabinetStockArchives: async (params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<DailyCabinetStockArchiveRow[]> => {
+    const response = await api.post('/reports/cabinet-stock/daily-archive/list', params ?? {});
+    const res = response.data as {
+      success?: boolean;
+      data?: DailyCabinetStockArchiveRow[];
+      error?: string;
+    };
+    if (!res?.success) throw new Error(res?.error || 'โหลดรายการไม่สำเร็จ');
+    return res.data ?? [];
+  },
+
+  downloadDailyCabinetStockArchive: async (id: number): Promise<void> => {
+    const response = await api.post('/reports/cabinet-stock/daily-archive/download', { id });
+    const res = response.data as {
+      success?: boolean;
+      data?: { buffer?: string; filename?: string; contentType?: string };
+    };
+    if (!res?.success || !res?.data?.buffer) throw new Error((res as any)?.error || 'ไม่สามารถดาวน์โหลดได้');
+    const binary = atob(res.data.buffer);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: res.data.contentType || 'application/octet-stream' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', res.data.filename || `cabinet_stock_archive_${id}`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  runDailyCabinetStockArchive: async (reportDate?: string): Promise<void> => {
+    const response = await api.post('/reports/cabinet-stock/daily-archive/run', { reportDate });
+    const res = response.data as { success?: boolean; error?: string };
+    if (!res?.success) throw new Error(res?.error || 'สำรองรายงานไม่สำเร็จ');
   },
 
   /** รายงานจัดการตู้ Cabinet - แผนก (แสดงเหมือนหน้าเว็บ) */

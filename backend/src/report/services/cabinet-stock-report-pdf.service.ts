@@ -55,12 +55,14 @@ export class CabinetStockReportPdfService {
     }
 
     const logoBuffer = this.getLogoBuffer();
-    const reportDate = new Date().toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'Asia/Bangkok',
-    });
+    const reportDate =
+      data.reportDateDisplay ??
+      new Date().toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'Asia/Bangkok',
+      });
 
     return new Promise((resolve, reject) => {
       doc.on('end', () => resolve(Buffer.concat(chunks)));

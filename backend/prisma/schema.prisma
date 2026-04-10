@@ -771,3 +771,18 @@ model Employee {
 
   @@map("employee")
 }
+
+/// ไฟล์รายงานสต๊อกตู้ที่สำรองรายวัน (Excel/PDF) — เก็บ path บนดิสก์ + metadata
+model DailyCabinetStockReportArchive {
+  id          Int      @id @default(autoincrement())
+  report_date String   @map("report_date") @db.VarChar(10)
+  format      String   @map("format") @db.VarChar(16)
+  filter_key  String   @default("ALL") @map("filter_key") @db.VarChar(64)
+  file_path   String   @map("file_path") @db.VarChar(512)
+  file_size   Int?     @map("file_size")
+  created_at  DateTime @default(now()) @map("created_at")
+
+  @@unique([report_date, format, filter_key], map: "uq_daily_cab_stock_archive")
+  @@index([report_date(sort: Desc)], map: "idx_daily_cab_stock_report_date")
+  @@map("app_daily_cabinet_stock_report_archives")
+}

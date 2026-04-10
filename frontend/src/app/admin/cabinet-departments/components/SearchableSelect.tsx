@@ -28,6 +28,11 @@ interface SearchableSelectProps {
   disabled?: boolean;
   /** ส่ง ref ของ container ใน modal เพื่อให้ dropdown ไปโผล่ด้านนอก (scroll ได้ปกติ) */
   portalTargetRef?: React.RefObject<HTMLElement | null>;
+  /** แสดงแถวล้างค่าในรายการ (เมื่อมีค่าแล้ว) เพื่อให้เปลี่ยนใจไม่เลือกได้ */
+  allowClear?: boolean;
+  clearLabel?: string;
+  /** เมื่อ disabled และไม่มี value — แสดงข้อความนี้แทน placeholder (เช่น Division ที่ผูก ACTIVE อยู่แล้ว) */
+  disabledDisplay?: { label: string; subLabel?: string };
 }
 
 export default function SearchableSelect({
@@ -43,6 +48,9 @@ export default function SearchableSelect({
   initialDisplay,
   disabled = false,
   portalTargetRef,
+  allowClear = false,
+  clearLabel = "ล้างการเลือก (ว่างช่องนี้)",
+  disabledDisplay,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -148,24 +156,28 @@ export default function SearchableSelect({
     }
   }, [isOpen]);
 
-  // Load initial data immediately when dropdown opens, then handle search with debounce
+  // เปิดครั้งแรกโหลดทันที — ค้นหาว่างโหลดทันที — มีข้อความค้นหา debounce 300ms
   useEffect(() => {
     if (!isOpen || !onSearch) return;
 
-    // First time opening dropdown - load immediately without debounce
     if (!initialLoadDone.current) {
       onSearch("");
       initialLoadDone.current = true;
       return;
     }
 
-    // Subsequent searches - use debounce
+    const q = searchTerm.trim();
+    if (q === "") {
+      onSearch("");
+      return;
+    }
+
     const debounce = setTimeout(() => {
       onSearch(searchTerm);
     }, 300);
-    
+
     return () => clearTimeout(debounce);
-  }, [searchTerm, isOpen]); // ลบ onSearch ออกจาก dependencies
+  }, [searchTerm, isOpen]);
 
   // Filter options locally if no onSearch provided
   const filteredOptions = onSearch
@@ -177,9 +189,20 @@ export default function SearchableSelect({
       );
 
   const selectedOption = options.find((opt) => opt.value === value);
-  
-  // Use initialDisplay if value exists but not found in options yet
-  const displayValue = selectedOption || (value && initialDisplay ? initialDisplay : null);
+  const trimmedValue = value?.trim() ?? "";
+  // แสดงรายการที่เลือกใน trigger: จาก options → initialDisplay → อย่างน้อยแสดงค่า value
+  const displayValue =
+    selectedOption ||
+    (trimmedValue
+      ? (initialDisplay?.label || initialDisplay?.subLabel) && initialDisplay
+        ? initialDisplay
+        : { label: trimmedValue }
+      : null) ||
+    (disabled && !trimmedValue && disabledDisplay
+      ? (disabledDisplay.label || disabledDisplay.subLabel) && disabledDisplay
+        ? disabledDisplay
+        : null
+      : null);
 
   const panelMaxHeight = position?.maxHeight ?? 300;
   const listMaxHeight =
@@ -224,32 +247,52 @@ export default function SearchableSelect({
             <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
             <span className="ml-2 text-sm text-slate-500">กำลังโหลด...</span>
           </div>
-        ) : filteredOptions.length === 0 ? (
-          <div className="py-6 text-center text-sm text-slate-500">ไม่พบข้อมูล</div>
         ) : (
-          filteredOptions.map((option, idx) => (
-            <button
-              key={`opt-${option.value}-${idx}`}
-              type="button"
-              onClick={() => {
-                onValueChange(option.value);
-                setIsOpen(false);
-                setSearchTerm("");
-              }}
-              className={cn(
-                "w-full text-left px-3 py-2.5 text-sm transition-colors border-b border-slate-50 last:border-0",
-                "hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
-                option.value === value && "bg-blue-50 text-blue-700 font-medium"
-              )}
-            >
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium">{option.label || "—"}</span>
-                {option.subLabel != null && option.subLabel !== "" && (
-                  <span className="text-xs text-slate-500">{option.subLabel}</span>
+          <>
+            {allowClear && value.trim() ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onValueChange("");
+                  setIsOpen(false);
+                  setSearchTerm("");
+                }}
+                className={cn(
+                  "w-full border-b border-amber-100 bg-amber-50/80 px-3 py-2.5 text-left text-sm text-amber-900",
+                  "hover:bg-amber-100/90 focus:bg-amber-100/90 focus:outline-none",
                 )}
-              </div>
-            </button>
-          ))
+              >
+                {clearLabel}
+              </button>
+            ) : null}
+            {filteredOptions.length === 0 ? (
+              <div className="py-6 text-center text-sm text-slate-500">ไม่พบข้อมูล</div>
+            ) : (
+              filteredOptions.map((option, idx) => (
+                <button
+                  key={`opt-${option.value}-${idx}`}
+                  type="button"
+                  onClick={() => {
+                    onValueChange(option.value);
+                    setIsOpen(false);
+                    setSearchTerm("");
+                  }}
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 text-sm transition-colors border-b border-slate-50 last:border-0",
+                    "hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
+                    option.value === value && "bg-blue-50 text-blue-700 font-medium",
+                  )}
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-medium">{option.label || "—"}</span>
+                    {option.subLabel != null && option.subLabel !== "" && (
+                      <span className="text-xs text-slate-500">{option.subLabel}</span>
+                    )}
+                  </div>
+                </button>
+              ))
+            )}
+          </>
         )}
       </div>
     </div>
@@ -274,10 +317,10 @@ export default function SearchableSelect({
           disabled={disabled}
           className={cn(
             "w-full flex items-center justify-between px-3 py-2 text-sm border rounded-md bg-white transition-colors",
-            disabled 
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
-              : "hover:bg-gray-50",
-            !displayValue && !disabled && "text-gray-500"
+            disabled && displayValue && "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-800",
+            disabled && !displayValue && "cursor-not-allowed bg-gray-100 text-gray-400",
+            !disabled && "hover:bg-gray-50",
+            !displayValue && !disabled && "text-gray-500",
           )}
         >
           <span className="truncate">

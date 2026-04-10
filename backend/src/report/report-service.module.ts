@@ -4,6 +4,7 @@ import { MedicalSuppliesModule } from '../medical-supplies/medical-supplies.modu
 import { WeighingModule } from '../weighing/weighing.module';
 import { ReportServiceController } from './report.controller';
 import { ReportServiceService } from './report-service.service';
+import { DailyCabinetStockArchiveService } from './daily-cabinet-stock-archive.service';
 import { ComparisonReportExcelService } from './services/comparison_report_excel.service';
 import { ComparisonReportPdfService } from './services/comparison_report_pdf.service';
 import { EquipmentUsageExcelService } from './services/equipment_usage_excel.service';
@@ -41,6 +42,7 @@ import { DispensedItemsForPatientsPdfService } from './services/dispensed-items-
   controllers: [ReportServiceController],
   providers: [
     ReportServiceService,
+    DailyCabinetStockArchiveService,
     ComparisonReportExcelService,
     ComparisonReportPdfService,
     EquipmentUsageExcelService,

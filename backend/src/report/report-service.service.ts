@@ -96,6 +96,29 @@ export class ReportServiceService {
     private readonly dispensedItemsForPatientsPdfService: DispensedItemsForPatientsPdfService,
   ) {}
 
+  /** วันที่แสดงบนรายงานสต๊อกตู้ (ปฏิทินไทย) — isoDate = YYYY-MM-DD อ้างอิง Asia/Bangkok */
+  private formatCabinetReportDateDisplay(isoDate?: string): string {
+    const d =
+      isoDate && /^\d{4}-\d{2}-\d{2}$/.test(isoDate)
+        ? new Date(`${isoDate}T12:00:00+07:00`)
+        : new Date();
+    return d.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'Asia/Bangkok',
+    });
+  }
+
+  private cabinetStockSqlDay(isoDate?: string): Prisma.Sql {
+    return isoDate && /^\d{4}-\d{2}-\d{2}$/.test(isoDate) ? Prisma.sql`DATE(${isoDate})` : Prisma.sql`CURDATE()`;
+  }
+
+  private cabinetReportDateISO(asOfIso?: string): string {
+    if (asOfIso && /^\d{4}-\d{2}-\d{2}$/.test(asOfIso)) return asOfIso;
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+  }
+
   /**
    * Generate comparison report in Excel format
    */
@@ -2304,13 +2327,19 @@ export class ReportServiceService {
    * คอลัมน์: ลำดับ, แผนก, รหัสอุปกรณ์, อุปกรณ์, คงเหลือ, Stock Max, Stock Min, จำนวนที่ต้องเติม
    * คงเหลือ = จำนวนชิ้นในตู้ (นับเฉพาะ itemstock ที่ IsStock = 1 เท่านั้น)
    * จำนวนที่ต้องเติม = Max - คงเหลือ (แสดงเป็น 0 ถ้าเป็นลบ)
+   * รายงาน Excel/PDF: แสดงเฉพาะรายการที่จำนวนที่ต้องเติม ≠ 0 (สต๊อกเต็มแล้วไม่นำมาแสดง)
    */
   async getCabinetStockData(params: {
     cabinetId?: number;
     cabinetCode?: string;
     departmentId?: number;
+    /** YYYY-MM-DD = วันที่อ้างอิงสำหรับหมดอายุ/ใกล้หมดอายุ/ถูกใช้งาน/ชำรุด (ปฏิทินไทย) */
+    asOfDate?: string;
   }): Promise<CabinetStockReportData> {
     try {
+      const rawAsOf = params?.asOfDate?.trim();
+      const asOfIso = rawAsOf && /^\d{4}-\d{2}-\d{2}$/.test(rawAsOf) ? rawAsOf : undefined;
+      const cabStockDaySql = this.cabinetStockSqlDay(asOfIso);
       // เปลี่ยนเป็นเริ่มจาก item table เพื่อแสดงทุก item เหมือนหน้าเว็บ (แม้ balance_qty = 0)
       // GROUP BY department + item_code เพื่อรวม balance_qty จากทุก cabinet ในแผนกเดียวกัน
       // แสดงทุก item ที่มี itemstock ในตู้ (แม้ balance_qty = 0 ถ้าถูกเบิกหมด) เหมือนหน้าเว็บ
@@ -2326,8 +2355,8 @@ export class ReportServiceService {
             i.stock_max,
             i.stock_min,
             MIN(ist.ExpireDate) AS earliest_expire_date,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < CURDATE() THEN 1 ELSE 0 END) AS has_expired,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= CURDATE() AND ist.ExpireDate <= DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
+            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < ${cabStockDaySql} THEN 1 ELSE 0 END) AS has_expired,
+            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
           FROM item i
           INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
           INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
@@ -2356,8 +2385,8 @@ export class ReportServiceService {
             i.stock_max,
             i.stock_min,
             MIN(ist.ExpireDate) AS earliest_expire_date,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < CURDATE() THEN 1 ELSE 0 END) AS has_expired,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= CURDATE() AND ist.ExpireDate <= DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
+            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < ${cabStockDaySql} THEN 1 ELSE 0 END) AS has_expired,
+            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
           FROM item i
           INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
           INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
@@ -2384,8 +2413,8 @@ export class ReportServiceService {
             i.stock_max,
             i.stock_min,
             MIN(ist.ExpireDate) AS earliest_expire_date,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < CURDATE() THEN 1 ELSE 0 END) AS has_expired,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= CURDATE() AND ist.ExpireDate <= DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
+            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < ${cabStockDaySql} THEN 1 ELSE 0 END) AS has_expired,
+            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
           FROM item i
           INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
           INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
@@ -2465,7 +2494,7 @@ export class ReportServiceService {
           WHERE sui.order_item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
             AND sui.order_item_code IS NOT NULL
             AND sui.order_item_code != ''
-            AND DATE(sui.created_at) = CURDATE()
+            AND DATE(sui.created_at) = ${cabStockDaySql}
             AND (sui.order_item_status IS NULL OR sui.order_item_status != 'Discontinue')
             ${deptCondition}
           GROUP BY sui.order_item_code
@@ -2497,7 +2526,7 @@ export class ReportServiceService {
               FROM app_supply_item_return_records srr
               WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
                 AND srr.item_code IS NOT NULL AND srr.item_code != ''
-                AND DATE(srr.return_datetime) = CURDATE()
+                AND DATE(srr.return_datetime) = ${cabStockDaySql}
                 AND srr.stock_id = ${stockId}
               
               GROUP BY srr.item_code
@@ -2523,7 +2552,7 @@ export class ReportServiceService {
               FROM app_supply_item_return_records srr
               WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
                 AND srr.item_code IS NOT NULL AND srr.item_code != ''
-                AND DATE(srr.return_datetime) = CURDATE()
+                AND DATE(srr.return_datetime) = ${cabStockDaySql}
                 AND srr.stock_id IN (${Prisma.join(stockIds.map((id) => Prisma.sql`${id}`))})
                 AND srr.stock_id IS NOT NULL
               GROUP BY srr.item_code, srr.stock_id
@@ -2542,7 +2571,7 @@ export class ReportServiceService {
             FROM app_supply_item_return_records srr
             WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
               AND srr.item_code IS NOT NULL AND srr.item_code != ''
-              AND DATE(srr.return_datetime) = CURDATE()
+              AND DATE(srr.return_datetime) = ${cabStockDaySql}
               AND srr.stock_id IS NOT NULL
             GROUP BY srr.item_code, srr.stock_id
           `;
@@ -2572,8 +2601,6 @@ export class ReportServiceService {
 
       const data: CabinetStockReportData['data'] = [];
       let seq = 1;
-      let totalQty = 0;
-      let totalRefillQty = 0;
       for (const row of rows) {
         const balanceQty = Number(row.balance_qty ?? 0);
         // Min/Max: ใช้ CabinetItemSetting เมื่อมี cabinet; ไม่มีแล้วใช้ค่าจาก Item (row) ให้ตรงกับหน้าเว็บ
@@ -2617,8 +2644,6 @@ export class ReportServiceService {
 
  
 
-        totalQty += balanceQty;
-        totalRefillQty += refillQty;
         data.push({
           seq,
           department_name: row.department_name ?? '-',
@@ -2662,9 +2687,17 @@ export class ReportServiceService {
       sortedData.forEach((row, i) => {
         row.seq = i + 1;
       });
-      // อ้างอิง data ที่เรียงแล้วสำหรับ return
+
+      // เฉพาะรายการที่ต้องเติมเข้าตู้ (refill_qty ≠ 0) — ไม่แสดงรายการที่เต็มสต๊อกแล้ว
+      const reportRows = sortedData.filter((row) => Number(row.refill_qty ?? 0) !== 0);
+      reportRows.forEach((row, i) => {
+        row.seq = i + 1;
+      });
+      const totalQtyReport = reportRows.reduce((s, r) => s + Number(r.balance_qty ?? 0), 0);
+      const totalRefillReport = reportRows.reduce((s, r) => s + Number(r.refill_qty ?? 0), 0);
+
       data.length = 0;
-      data.push(...sortedData);
+      data.push(...reportRows);
 
       // Lookup ชื่อแผนกและชื่อตู้สำหรับ filter summary
       let filterDeptName: string | undefined;
@@ -2691,6 +2724,8 @@ export class ReportServiceService {
       }
 
       return {
+        reportDateDisplay: this.formatCabinetReportDateDisplay(asOfIso),
+        reportDateISO: this.cabinetReportDateISO(asOfIso),
         filters: {
           cabinetId: params?.cabinetId,
           cabinetCode: params?.cabinetCode,
@@ -2700,8 +2735,8 @@ export class ReportServiceService {
         },
         summary: {
           total_rows: data.length,
-          total_qty: totalQty,
-          total_refill_qty: totalRefillQty,
+          total_qty: totalQtyReport,
+          total_refill_qty: totalRefillReport,
         },
         data,
       };
@@ -2719,11 +2754,12 @@ export class ReportServiceService {
     cabinetId?: number;
     cabinetCode?: string;
     departmentId?: number;
+    asOfDate?: string;
   }): Promise<{ buffer: Buffer; filename: string }> {
     try {
       const reportData = await this.getCabinetStockData(params);
       const buffer = await this.cabinetStockReportExcelService.generateReport(reportData);
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = reportData.reportDateISO ?? new Date().toISOString().split('T')[0];
       const filename = `cabinet_stock_report_${dateStr}.xlsx`;
       return { buffer, filename };
     } catch (error) {
@@ -2740,11 +2776,12 @@ export class ReportServiceService {
     cabinetId?: number;
     cabinetCode?: string;
     departmentId?: number;
+    asOfDate?: string;
   }): Promise<{ buffer: Buffer; filename: string }> {
     try {
       const reportData = await this.getCabinetStockData(params);
       const buffer = await this.cabinetStockReportPdfService.generateReport(reportData);
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = reportData.reportDateISO ?? new Date().toISOString().split('T')[0];
       const filename = `cabinet_stock_report_${dateStr}.pdf`;
       return { buffer, filename };
     } catch (error) {

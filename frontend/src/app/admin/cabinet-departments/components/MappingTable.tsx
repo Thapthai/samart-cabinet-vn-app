@@ -34,6 +34,10 @@ interface CabinetGroup {
   mappings: CabinetDepartment[];
 }
 
+function divisionLabel(m: CabinetDepartment): string {
+  return m.department?.DepName?.trim() || `Division #${m.department_id}`;
+}
+
 function groupMappingsByCabinet(rows: CabinetDepartment[]): CabinetGroup[] {
   const map = new Map<number, CabinetDepartment[]>();
   for (const m of rows) {
@@ -142,66 +146,7 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
                   </TableRow>
                 ) : (
                   currentGroups.map((group, index) => {
-                    const single = group.mappings.length === 1 ? group.mappings[0] : null;
-                    const isMulti = group.mappings.length > 1;
                     const isExpanded = expandedCabinetId === group.cabinet_id;
-
-                    if (single) {
-                      return (
-                        <TableRow
-                          key={group.cabinet_id}
-                          className={cn(
-                            "cursor-pointer transition-colors",
-                            selectedRow?.id === single.id ? "bg-blue-50/80" : "hover:bg-slate-50/80",
-                          )}
-                          onClick={() => setSelectedRow(single)}
-                        >
-                          <TableCell className="w-12 px-2 py-3.5 sm:px-3 sm:py-4">
-                            <span className="inline-block w-4" aria-hidden />
-                          </TableCell>
-                          <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">{startIndex + index + 1}</TableCell>
-                          <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
-                            <div className="font-medium text-slate-800">
-                              {group.cabinet?.cabinet_name || "-"}
-                            </div>
-                            {group.cabinet?.cabinet_code ? (
-                              <div className="text-xs font-mono text-slate-500">{group.cabinet.cabinet_code}</div>
-                            ) : null}
-                          </TableCell>
-                          <TableCell className="px-3 py-3.5 text-muted-foreground sm:px-4 sm:py-4">
-                            {single.department?.DepName || `Division #${single.department_id}`}
-                          </TableCell>
-                          <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
-                            <Badge
-                              variant={single.status === "ACTIVE" ? "default" : "secondary"}
-                              className={
-                                single.status === "ACTIVE"
-                                  ? "border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
-                                  : ""
-                              }
-                            >
-                              {single.status === "ACTIVE" ? "ใช้งาน" : "ไม่ใช้งาน"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate px-3 py-3.5 sm:px-4 sm:py-4">
-                            {single.description || "-"}
-                          </TableCell>
-                          <TableCell
-                            className="px-3 py-3.5 text-right sm:px-4 sm:py-4"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex justify-end flex-wrap gap-2">
-                              <Button variant="outline" size="sm" onClick={() => onEdit(single)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="destructive" size="sm" onClick={() => onDelete(single)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }
 
                     return (
                       <Fragment key={group.cabinet_id}>
@@ -236,13 +181,13 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
                               <div className="text-xs font-mono text-slate-500">{group.cabinet.cabinet_code}</div>
                             ) : null}
                           </TableCell>
-                          <TableCell className="px-3 py-3.5 text-sm text-muted-foreground sm:px-4 sm:py-4">
-                            <div className="flex items-center gap-2">
-                              <Package className="h-4 w-4 shrink-0 text-blue-600" />
-                              <span>
-                                การเชื่อมโยง {group.mappings.length} แผนก — กดลูกศรเพื่อดูรายการ
-                              </span>
-                            </div>
+                          <TableCell className="min-w-[200px] max-w-md px-3 py-3.5 text-sm text-muted-foreground sm:px-4 sm:py-4">
+                            <p
+                              className="line-clamp-3 max-h-[4.5rem] break-words [overflow-wrap:anywhere]"
+                              title={group.mappings.map((m) => divisionLabel(m)).join(" · ")}
+                            >
+                              {group.mappings.map((m) => divisionLabel(m)).join(" · ")}
+                            </p>
                           </TableCell>
                           <TableCell className="px-3 py-3.5 text-muted-foreground sm:px-4 sm:py-4">—</TableCell>
                           <TableCell className="px-3 py-3.5 text-muted-foreground sm:px-4 sm:py-4">—</TableCell>
@@ -284,7 +229,7 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
                                         >
                                           <TableCell className="text-slate-600">{idx + 1}</TableCell>
                                           <TableCell className="font-medium text-slate-800">
-                                            {m.department?.DepName || `Division #${m.department_id}`}
+                                            {divisionLabel(m)}
                                           </TableCell>
                                           <TableCell>
                                             <Badge

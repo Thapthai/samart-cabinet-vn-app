@@ -27,9 +27,9 @@ export class ItemService {
         cleanData.ModiflyDate = new Date();
       }
 
-      // itemcode2 ใช้รหัสเดียวกับ itemcode ตอนสร้างรายการ
+      // itemcode2 ใช้รหัสเดียวกับ itemcode ตอนสร้างรายการ (คอลัมน์ DB VarChar(20))
       if (cleanData.itemcode != null && String(cleanData.itemcode).trim() !== '') {
-        cleanData.itemcode2 = String(cleanData.itemcode).trim();
+        cleanData.itemcode2 = String(cleanData.itemcode).trim().slice(0, 20);
       }
 
       const item = await this.prisma.item.create({
@@ -765,6 +765,13 @@ export class ItemService {
           ([_, value]) => value !== undefined && value !== null,
         ),
       ) as any;
+
+      // ถ้ายังไม่มี itemcode2 ใน DB และผู้ใช้ไม่ส่งมาใน DTO — เติมจาก itemcode (คอลัมน์ VarChar(20))
+      const hasExistingCode2 =
+        existingItem.itemcode2 != null && String(existingItem.itemcode2).trim() !== '';
+      if (cleanData.itemcode2 === undefined && !hasExistingCode2) {
+        cleanData.itemcode2 = String(itemcode).trim().slice(0, 20);
+      }
 
       const item = await this.prisma.item.update({
         where: { itemcode },

@@ -8,16 +8,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import type { Item } from '@/types/item';
 import { toast } from 'sonner';
-import {
-  Boxes,
-  Plus,
-  Pencil,
-  Trash2,
-  Search,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { Boxes, Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,7 +24,31 @@ import CreateItemDialog from './components/CreateItemDialog';
 import EditItemDialog from '@/app/admin/items/components/EditItemDialog';
 import DeleteItemDialog from '@/app/admin/items/components/DeleteItemDialog';
 
-const PAGE_SIZE = 20;
+/** ตรงกับ admin/items (itemsPerPage = 10) */
+const PAGE_SIZE = 10;
+
+function generatePageNumbers(currentPage: number, totalPages: number): (number | string)[] {
+  const pages: (number | string)[] = [];
+  const maxVisible = 5;
+  if (totalPages <= maxVisible) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else if (currentPage <= 3) {
+    for (let i = 1; i <= 4; i++) pages.push(i);
+    pages.push('...');
+    pages.push(totalPages);
+  } else if (currentPage >= totalPages - 2) {
+    pages.push(1);
+    pages.push('...');
+    for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    pages.push('...');
+    for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+    pages.push('...');
+    pages.push(totalPages);
+  }
+  return pages;
+}
 
 function StatusBadge({ status }: { status: number | null | undefined }) {
   if (status === 0) {
@@ -114,6 +129,11 @@ export default function AdminItemManagementPage() {
   const handleSearch = () => {
     setActiveKeyword(keywordInput);
     setPage(1);
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -201,7 +221,7 @@ export default function AdminItemManagementPage() {
                 <CardDescription>
                   {loading && items.length === 0
                     ? 'กำลังโหลด…'
-                    : `ทั้งหมด ${total} รายการ · หน้า ${page} / ${totalPages}`}
+                    : `แสดง ${items.length} รายการ จากทั้งหมด ${total} รายการ`}
                 </CardDescription>
               </div>
             </CardHeader>
@@ -275,28 +295,66 @@ export default function AdminItemManagementPage() {
               )}
 
               {totalPages > 1 && (
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1 || loading}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="px-2 text-sm text-muted-foreground">
-                    {page} / {totalPages}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages || loading}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                <div className="mt-6 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    หน้า {page} จาก {totalPages} ({total} รายการ)
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(1)}
+                      disabled={page === 1 || loading}
+                    >
+                      แรกสุด
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(page - 1)}
+                      disabled={page === 1 || loading}
+                    >
+                      ก่อนหน้า
+                    </Button>
+                    {generatePageNumbers(page, totalPages).map((pNum, idx) =>
+                      pNum === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
+                          ...
+                        </span>
+                      ) : (
+                        <Button
+                          key={pNum}
+                          type="button"
+                          variant={page === pNum ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handlePageChange(pNum as number)}
+                          disabled={loading}
+                        >
+                          {pNum}
+                        </Button>
+                      ),
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={page === totalPages || loading}
+                    >
+                      ถัดไป
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={page === totalPages || loading}
+                    >
+                      สุดท้าย
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>

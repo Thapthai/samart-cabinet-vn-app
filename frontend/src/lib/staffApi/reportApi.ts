@@ -1,4 +1,5 @@
 import staffApi from './index';
+import type { DailyCabinetStockArchiveRow } from '@/lib/api';
 
 /** Backend ส่ง { success, data: { buffer (base64), filename, contentType } } */
 type NestedFileResponse = {
@@ -103,11 +104,17 @@ export const staffReportApi = {
     return nestedDataToBlob(response.data);
   },
 
-  downloadCabinetStockExcel: async (params?: { cabinetId?: number; cabinetCode?: string; departmentId?: number }): Promise<void> => {
+  downloadCabinetStockExcel: async (params?: {
+    cabinetId?: number;
+    cabinetCode?: string;
+    departmentId?: number;
+    asOfDate?: string;
+  }): Promise<void> => {
     const response = await staffApi.post('/reports/cabinet-stock/excel', {
       cabinetId: params?.cabinetId,
       cabinetCode: params?.cabinetCode,
       departmentId: params?.departmentId,
+      asOfDate: params?.asOfDate,
     });
     triggerNestedDownload(
       response.data,
@@ -115,15 +122,46 @@ export const staffReportApi = {
     );
   },
 
-  downloadCabinetStockPdf: async (params?: { cabinetId?: number; cabinetCode?: string; departmentId?: number }): Promise<void> => {
+  downloadCabinetStockPdf: async (params?: {
+    cabinetId?: number;
+    cabinetCode?: string;
+    departmentId?: number;
+    asOfDate?: string;
+  }): Promise<void> => {
     const response = await staffApi.post('/reports/cabinet-stock/pdf', {
       cabinetId: params?.cabinetId,
       cabinetCode: params?.cabinetCode,
       departmentId: params?.departmentId,
+      asOfDate: params?.asOfDate,
     });
     triggerNestedDownload(
       response.data,
       `cabinet_stock_report_${new Date().toISOString().split('T')[0]}.pdf`,
     );
+  },
+
+  listDailyCabinetStockArchives: async (params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<DailyCabinetStockArchiveRow[]> => {
+    const response = await staffApi.post('/reports/cabinet-stock/daily-archive/list', params ?? {});
+    const res = response.data as {
+      success?: boolean;
+      data?: DailyCabinetStockArchiveRow[];
+      error?: string;
+    };
+    if (!res?.success) throw new Error(res?.error || 'โหลดรายการไม่สำเร็จ');
+    return res.data ?? [];
+  },
+
+  downloadDailyCabinetStockArchive: async (id: number): Promise<void> => {
+    const response = await staffApi.post('/reports/cabinet-stock/daily-archive/download', { id });
+    triggerNestedDownload(response.data, `cabinet_stock_archive_${id}`);
+  },
+
+  runDailyCabinetStockArchive: async (reportDate?: string): Promise<void> => {
+    const response = await staffApi.post('/reports/cabinet-stock/daily-archive/run', { reportDate });
+    const res = response.data as { success?: boolean; error?: string };
+    if (!res?.success) throw new Error(res?.error || 'สำรองรายงานไม่สำเร็จ');
   },
 };

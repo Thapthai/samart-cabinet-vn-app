@@ -350,14 +350,9 @@ export class MedicalSuppliesService {
     return null;
   }
 
-  /** วันนี้ในรูปแบบ YYYY-MM-DD (ตามเวลาเซิร์ฟเวอร์) */
+  /** วันนี้ในรูปแบบ YYYY-MM-DD ตามปฏิทิน Asia/Bangkok (ให้สอดคล้องกับ created_at/updated_at ของระบบ) */
   private getTodayYyyyMmDd(): string {
-    const now = new Date();
-    return [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getDate()).padStart(2, '0'),
-    ].join('-');
+    return moment.tz('Asia/Bangkok').format('YYYY-MM-DD');
   }
 
   /** ค่า `created_at` / `updated_at` ที่ส่งเข้า Prisma (moment chain ที่ค่าตรงกับระบบ) */
@@ -365,17 +360,13 @@ export class MedicalSuppliesService {
     return moment().tz('Asia/Bangkok').utc(true).toDate();
   }
 
-  /** วันที่ created_at ของ item (supply_items) เป็น YYYY-MM-DD สำหรับเทียบกับวันนี้ */
+  /** วันที่ created_at ของ item (supply_items) เป็น YYYY-MM-DD ตามปฏิทินไทย — เทียบกับ getTodayYyyyMmDd() */
   private getItemCreatedAtYyyyMmDd(item: { created_at?: Date | string | null }): string | null {
     const d = item?.created_at;
     if (!d) return null;
     const dt = typeof d === 'string' ? new Date(d) : d;
     if (Number.isNaN(dt.getTime())) return null;
-    return [
-      dt.getFullYear(),
-      String(dt.getMonth() + 1).padStart(2, '0'),
-      String(dt.getDate()).padStart(2, '0'),
-    ].join('-');
+    return moment(dt).tz('Asia/Bangkok').format('YYYY-MM-DD');
   }
 
   /**
@@ -544,9 +535,11 @@ export class MedicalSuppliesService {
       if (have.has(code)) continue;
       const safeCode = code.slice(0, 25);
       const name = (descByCode.get(code) ?? safeCode).slice(0, 255);
+      // สอดคล้อง item.service (สร้าง master): itemcode2 = รหัสหลัก — คอลัมน์ DB VarChar(20)
+      const itemcode2 = safeCode.slice(0, 20);
       try {
         await this.prisma.item.create({
-          data: { itemcode: safeCode, itemname: name },
+          data: { itemcode: safeCode, itemname: name, itemcode2 },
         });
       } catch {
         // race / duplicate — ignore
@@ -984,6 +977,7 @@ export class MedicalSuppliesService {
               qty: newQty,
               quantity: newQty,
               item_status: derivedItemStatus,
+              created_at: this.nowBangkokUtcTrueForPrisma(),
               updated_at: this.nowBangkokUtcTrueForPrisma(),
             },
           });
@@ -2329,6 +2323,8 @@ export class MedicalSuppliesService {
           }
         });
 
+        updateData.updated_at = this.nowBangkokUtcTrueForPrisma();
+
         // Update the usage record
         const updated = await this.prisma.medicalSupplyUsage.update({
           where: { id },
@@ -2402,6 +2398,7 @@ export class MedicalSuppliesService {
           where: { medical_supply_usage_id: id },
         });
 
+        const patchOrderItemsTs = this.nowBangkokUtcTrueForPrisma();
         // Create new items
         updateData.supply_items = {
           create: orderItems.map(item => ({
@@ -2419,6 +2416,8 @@ export class MedicalSuppliesService {
             unit_price: null,
             total_price: null,
             expiry_date: null,
+            created_at: patchOrderItemsTs,
+            updated_at: patchOrderItemsTs,
           })),
         };
       } else if (data.supplies && data.supplies.length > 0) {
@@ -2994,6 +2993,7 @@ export class MedicalSuppliesService {
 
       // Create return record and update item in transaction
       const [returnRecord, updatedItem] = await this.prisma.$transaction(async (tx) => {
+        const returnTs = this.nowBangkokUtcTrueForPrisma();
         // Create return record
         const itemCode = item.order_item_code ?? item.supply_code ?? '';
         const record = await tx.supplyItemReturnRecord.create({
@@ -3003,6 +3003,9 @@ export class MedicalSuppliesService {
             return_reason: data.return_reason,
             return_by_user_id: data.return_by_user_id,
             return_note: data.return_note,
+            return_datetime: returnTs,
+            created_at: returnTs,
+            updated_at: returnTs,
           },
         });
 
@@ -4745,6 +4748,7 @@ export class MedicalSuppliesService {
       // 3. สร้างรายการใหม่ (Verified) ถ้ามี newItems
       let newUsageId: number | null = null;
       if (newItems && newItems.length > 0) {
+        const newUsageTs = this.nowBangkokUtcTrueForPrisma();
         // สร้าง Usage Record ใหม่
         const newUsage = await this.prisma.medicalSupplyUsage.create({
           data: {
@@ -4760,8 +4764,8 @@ export class MedicalSuppliesService {
               : {}),
             usage_datetime: new Date(newPrintDate + 'T00:00:00.000Z').toISOString(),
             billing_status: 'PENDING',
-            created_at: new Date(newPrintDate + 'T00:00:00.000Z'),
-            updated_at: this.nowBangkokUtcTrueForPrisma(),
+            created_at: newUsageTs,
+            updated_at: newUsageTs,
           },
         });
 

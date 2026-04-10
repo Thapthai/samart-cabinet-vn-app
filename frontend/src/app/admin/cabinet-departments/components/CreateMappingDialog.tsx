@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, type Dispatch, type SetStateAction } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +24,7 @@ interface Cabinet {
 }
 
 /** จำนวนการผูก Division (ACTIVE) ต่อตู้ — ตรงกับ backend */
-const MAX_ACTIVE_DIVISION_LINKS_PER_CABINET = 3;
+export const MAX_ACTIVE_DIVISION_LINKS_PER_CABINET = 3;
 
 function countActiveDivisionLinks(
   mappings: Array<{ cabinet_id: number; status: string }>,
@@ -62,7 +62,12 @@ interface CreateMappingDialogProps {
   setFormData: Dispatch<SetStateAction<CreateMappingFormData>>;
   onSubmit: () => void;
   saving: boolean;
-  existingMappings: Array<{ cabinet_id: number; department_id?: number | null; status: string }>;
+  existingMappings: Array<{
+    cabinet_id: number;
+    department_id?: number | null;
+    status: string;
+    department?: { ID?: number; DepName?: string; DepName2?: string };
+  }>;
 }
 
 export default function CreateMappingDialog({
@@ -74,21 +79,50 @@ export default function CreateMappingDialog({
   saving,
   existingMappings,
 }: CreateMappingDialogProps) {
-  const [departments, setDepartments] = useState<Department[]>([]);
+  /** รายการ Division ต่อช่อง — แยกกันเพื่อค้นหาในช่องหนึ่งไม่ทับช่องอื่น */
+  const [departmentOptionsBySlot, setDepartmentOptionsBySlot] = useState<Record<number, Department[]>>({});
+  const [loadingDepartmentSlot, setLoadingDepartmentSlot] = useState<Record<number, boolean>>({});
+  /** แสดงชื่อ Division หลังเลือก แม้รายการ options จะเปลี่ยนจากการค้นหา */
+  const [slotDisplayByIndex, setSlotDisplayByIndex] = useState<
+    Record<number, { label: string; subLabel?: string }>
+  >({});
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
-  const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
   const dialogContentRef = useRef<HTMLDivElement>(null);
+  /** กันคำขอค้นหาเก่าทับผลล่าสุด (พิมพ์เร็ว / เปิดหลายช่อง) */
+  const departmentSlotRequestSeq = useRef<Record<number, number>>({});
 
   useEffect(() => {
     if (open) {
-      void loadInitialData();
+      void loadCabinets("");
     }
   }, [open]);
 
-  const loadInitialData = async () => {
-    await Promise.all([loadCabinets(""), loadDepartments("")]);
-  };
+  const loadDepartmentsForSlot = useCallback(async (slotIndex: number, keyword?: string) => {
+    const seq = (departmentSlotRequestSeq.current[slotIndex] ?? 0) + 1;
+    departmentSlotRequestSeq.current[slotIndex] = seq;
+
+    const kw = keyword != null ? String(keyword).trim() : "";
+    const params: { limit: number; keyword?: string } = { limit: 50 };
+    if (kw !== "") params.keyword = kw;
+
+    setLoadingDepartmentSlot((p) => ({ ...p, [slotIndex]: true }));
+    try {
+      const response = await departmentApi.getAll(params);
+      if (departmentSlotRequestSeq.current[slotIndex] !== seq) return;
+      if (response.success && response.data) {
+        setDepartmentOptionsBySlot((p) => ({ ...p, [slotIndex]: response.data as Department[] }));
+      }
+    } catch (error) {
+      if (departmentSlotRequestSeq.current[slotIndex] === seq) {
+        console.error("Failed to load departments:", error);
+      }
+    } finally {
+      if (departmentSlotRequestSeq.current[slotIndex] === seq) {
+        setLoadingDepartmentSlot((p) => ({ ...p, [slotIndex]: false }));
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!open || !formData.cabinet_id) return;
@@ -96,17 +130,9 @@ export default function CreateMappingDialog({
     if (Number.isNaN(id)) return;
     if (countActiveDivisionLinks(existingMappings, id) >= MAX_ACTIVE_DIVISION_LINKS_PER_CABINET) {
       setFormData((prev) => ({ ...prev, cabinet_id: "", department_ids: [] }));
+      setSlotDisplayByIndex({});
     }
   }, [open, existingMappings, formData.cabinet_id, setFormData]);
-
-  const unmappedDepartments = useMemo(() => {
-    const cabStr = formData.cabinet_id?.trim();
-    if (!cabStr) return [];
-    const cabinetId = parseInt(cabStr, 10);
-    if (Number.isNaN(cabinetId)) return [];
-    const already = departmentIdsMappedForCabinet(existingMappings, cabinetId);
-    return departments.filter((d) => !already.has(d.ID));
-  }, [formData.cabinet_id, departments, existingMappings]);
 
   /**
    * มี Division ที่ยังไม่ผูกกับตู้นี้หรือไม่ — ยิง API แบบไม่มี keyword (แบ่งหน้า)
@@ -164,18 +190,51 @@ export default function CreateMappingDialog({
     };
   }, [open, formData.cabinet_id, existingMappings]);
 
-  /** จำนวนช่อง = ช่อง ACTIVE ที่เหลือ (สูงสุด 3) ถ้ายังมี Division ที่ผูกได้อย่างน้อย 1 รายการ */
-  const divisionSlotCount = useMemo(() => {
+  /** ช่อง ACTIVE ที่เหลือสำหรับตู้ที่เลือก (ใช้ปิดช่องที่เกินโควต้า) */
+  const remainingActiveSlots = useMemo(() => {
     const cabStr = formData.cabinet_id?.trim();
     if (!cabStr) return 0;
     const cabinetId = parseInt(cabStr, 10);
     if (Number.isNaN(cabinetId)) return 0;
-    const remainingActive =
-      MAX_ACTIVE_DIVISION_LINKS_PER_CABINET - countActiveDivisionLinks(existingMappings, cabinetId);
-    if (remainingActive <= 0) return 0;
+    return (
+      MAX_ACTIVE_DIVISION_LINKS_PER_CABINET - countActiveDivisionLinks(existingMappings, cabinetId)
+    );
+  }, [formData.cabinet_id, existingMappings]);
+
+  /** ACTIVE ที่ผูกกับตู้แล้ว (เรียงตาม department_id) — แสดงในแถวที่ปิดตามโควต้า */
+  const existingActiveDivisionsOrdered = useMemo(() => {
+    const cabStr = formData.cabinet_id?.trim();
+    if (!cabStr) return [];
+    const cabinetId = parseInt(cabStr, 10);
+    if (Number.isNaN(cabinetId)) return [];
+    return existingMappings
+      .filter((m) => m.cabinet_id === cabinetId && m.status === "ACTIVE")
+      .sort((a, b) => Number(a.department_id ?? 0) - Number(b.department_id ?? 0));
+  }, [formData.cabinet_id, existingMappings]);
+
+  /** แสดงครบ 3 ช่องเสมอเมื่อเลือกตู้และยังผูกได้ — ช่องที่เกินโควต้า ACTIVE จะ disabled */
+  const divisionSlotCount = useMemo(() => {
+    if (!formData.cabinet_id?.trim()) return 0;
+    if (remainingActiveSlots <= 0) return 0;
     if (hasUnmappedDepartment === false) return 0;
-    return remainingActive;
-  }, [formData.cabinet_id, existingMappings, hasUnmappedDepartment]);
+    return MAX_ACTIVE_DIVISION_LINKS_PER_CABINET;
+  }, [formData.cabinet_id, remainingActiveSlots, hasUnmappedDepartment]);
+
+  /** โหลดรายการเริ่มต้น (ไม่มี keyword) แยกทุกช่องเมื่อเลือกตู้ / จำนวนช่องเปลี่ยน */
+  useEffect(() => {
+    if (!open || divisionSlotCount === 0 || !formData.cabinet_id?.trim()) {
+      setDepartmentOptionsBySlot({});
+      setLoadingDepartmentSlot({});
+      return;
+    }
+    setDepartmentOptionsBySlot({});
+    setLoadingDepartmentSlot({});
+    void Promise.all(
+      Array.from({ length: divisionSlotCount }, (_, slotIndex) =>
+        loadDepartmentsForSlot(slotIndex, undefined),
+      ),
+    );
+  }, [open, divisionSlotCount, formData.cabinet_id, loadDepartmentsForSlot]);
 
   useEffect(() => {
     if (!open) return;
@@ -209,19 +268,47 @@ export default function CreateMappingDialog({
     });
   }, [open, formData.cabinet_id, existingMappings, setFormData]);
 
-  const loadDepartments = async (keyword?: string) => {
-    try {
-      setLoadingDepartments(true);
-      const response = await departmentApi.getAll({ limit: 50, keyword });
-      if (response.success && response.data) {
-        setDepartments(response.data as Department[]);
+  /** ล้างชื่อที่แสดงเมื่อล้างค่า department_ids ในช่องนั้น */
+  useEffect(() => {
+    setSlotDisplayByIndex((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (let i = 0; i < MAX_ACTIVE_DIVISION_LINKS_PER_CABINET; i++) {
+        if (!formData.department_ids[i]?.trim() && next[i] != null) {
+          delete next[i];
+          changed = true;
+        }
       }
-    } catch (error) {
-      console.error("Failed to load departments:", error);
-    } finally {
-      setLoadingDepartments(false);
-    }
-  };
+      return changed ? next : prev;
+    });
+  }, [formData.department_ids]);
+
+  /** ช่องที่เกินโควต้า ACTIVE — ล้างค่าและปิดการเลือก */
+  useEffect(() => {
+    if (!open || !formData.cabinet_id?.trim()) return;
+    setFormData((prev) => {
+      const next = [...prev.department_ids];
+      let changed = false;
+      for (let i = remainingActiveSlots; i < next.length; i++) {
+        if (next[i]?.trim()) {
+          next[i] = "";
+          changed = true;
+        }
+      }
+      return changed ? { ...prev, department_ids: next } : prev;
+    });
+    setSlotDisplayByIndex((prev) => {
+      const next = { ...prev };
+      let c = false;
+      for (let i = remainingActiveSlots; i < MAX_ACTIVE_DIVISION_LINKS_PER_CABINET; i++) {
+        if (next[i]) {
+          delete next[i];
+          c = true;
+        }
+      }
+      return c ? next : prev;
+    });
+  }, [open, formData.cabinet_id, remainingActiveSlots, setFormData]);
 
   const loadCabinets = async (keyword?: string) => {
     try {
@@ -246,22 +333,118 @@ export default function CreateMappingDialog({
     });
   };
 
+  /**
+   * รวม cache ทุกช่อง — ใช้แค่ตอนหาชื่อแสดงผล / fallback หลังเลือก
+   * รายการใน dropdown ใช้เฉพาะ cache ของช่องนั้น ไม่รวมช่องอื่น (กันผลค้นหาปนกัน)
+   */
+  const mergedDepartmentsFromSlots = useMemo(() => {
+    const seen = new Set<number>();
+    const list: Department[] = [];
+    for (let i = 0; i < MAX_ACTIVE_DIVISION_LINKS_PER_CABINET; i++) {
+      for (const d of departmentOptionsBySlot[i] ?? []) {
+        if (!seen.has(d.ID)) {
+          seen.add(d.ID);
+          list.push(d);
+        }
+      }
+    }
+    return list;
+  }, [departmentOptionsBySlot]);
+
   const optionsForSlot = (slotIndex: number) => {
+    const cabStr = formData.cabinet_id?.trim();
+    if (!cabStr) return [];
+    const cabinetId = parseInt(cabStr, 10);
+    if (Number.isNaN(cabinetId)) return [];
+    const already = departmentIdsMappedForCabinet(existingMappings, cabinetId);
+    const source = departmentOptionsBySlot[slotIndex] ?? [];
     const pickedElsewhere = new Set(
       formData.department_ids
         .map((id, idx) => (idx !== slotIndex && id?.trim() ? id.trim() : null))
         .filter((x): x is string => x != null),
     );
-    return unmappedDepartments
+    const currentId = formData.department_ids[slotIndex]?.trim() ?? "";
+
+    const rows = source
+      .filter((d) => !already.has(d.ID))
       .filter((d) => !pickedElsewhere.has(String(d.ID)))
       .map((dept) => ({
         value: dept.ID.toString(),
         label: dept.DepName || "",
         subLabel: dept.DepName2 || "",
       }));
+
+    let opts = rows;
+    if (currentId && !opts.some((o) => o.value === currentId)) {
+      const raw =
+        source.find((d) => String(d.ID) === currentId) ??
+        mergedDepartmentsFromSlots.find((d) => String(d.ID) === currentId);
+      const disp = slotDisplayByIndex[slotIndex];
+      opts = [
+        {
+          value: currentId,
+          label: raw?.DepName || disp?.label || `Division #${currentId}`,
+          subLabel: raw?.DepName2 || disp?.subLabel || "",
+        },
+        ...opts,
+      ];
+    }
+
+    if (currentId) {
+      const ix = opts.findIndex((o) => o.value === currentId);
+      if (ix > 0) {
+        const copy = [...opts];
+        const [picked] = copy.splice(ix, 1);
+        opts = [picked, ...copy];
+      }
+    }
+
+    return opts;
   };
 
-  const selectedCount = formData.department_ids.filter((id) => id?.trim()).length;
+  const handleDepartmentPick = (slotIndex: number, value: string) => {
+    if (!value?.trim()) {
+      setSlotDisplayByIndex((p) => {
+        const n = { ...p };
+        delete n[slotIndex];
+        return n;
+      });
+      setDepartmentAtSlot(slotIndex, "");
+      return;
+    }
+    const opts = optionsForSlot(slotIndex);
+    let opt = opts.find((o) => o.value === value);
+    if (!opt) {
+      const raw = mergedDepartmentsFromSlots.find((d) => String(d.ID) === value);
+      if (raw) {
+        opt = {
+          value: String(raw.ID),
+          label: raw.DepName || "—",
+          subLabel: raw.DepName2 || "",
+        };
+      }
+    }
+    if (opt) {
+      setSlotDisplayByIndex((p) => ({
+        ...p,
+        [slotIndex]: { label: opt.label || "—", subLabel: opt.subLabel },
+      }));
+    }
+    setDepartmentAtSlot(slotIndex, value);
+  };
+
+  /** ชื่อที่แสดงในกล่องเลือกเมื่อมีค่า แม้รายการ options จะไม่มีรายการนั้นชั่วคราว */
+  const slotDepartmentDisplay = (slotIndex: number): { label: string; subLabel?: string } | undefined => {
+    const id = formData.department_ids[slotIndex]?.trim();
+    if (!id) return undefined;
+    const picked = slotDisplayByIndex[slotIndex];
+    if (picked) return picked;
+    const raw = mergedDepartmentsFromSlots.find((d) => String(d.ID) === id);
+    if (raw) {
+      return { label: raw.DepName || "—", subLabel: raw.DepName2 || "" };
+    }
+    return { label: `รหัสแผนก ${id}` };
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -269,8 +452,8 @@ export default function CreateMappingDialog({
         <DialogHeader>
           <DialogTitle>เพิ่มการเชื่อมโยงใหม่</DialogTitle>
           <DialogDescription className="break-words">
-            เลือกตู้ แล้วเลือก Division ได้สูงสุด {MAX_ACTIVE_DIVISION_LINKS_PER_CABINET} แผนกต่อตู้ (ACTIVE)
-            — ในฟอร์มนี้เลือกได้หลายแผนกในครั้งเดียวตามจำนวนช่องว่างที่เหลือ
+            เลือกตู้แล้วจะแสดง {MAX_ACTIVE_DIVISION_LINKS_PER_CABINET} ช่อง Division — เลือกได้เฉพาะช่องที่ตู้ยังมีโควต้า
+            ACTIVE ว่าง (ช่องที่เต็มจะถูกปิด) บันทึกได้เมื่อเลือกอย่างน้อยหนึ่งแผนก
           </DialogDescription>
         </DialogHeader>
         <div ref={dialogContentRef} className="relative grid min-w-0 gap-4 overflow-x-hidden py-4">
@@ -279,9 +462,12 @@ export default function CreateMappingDialog({
             label="ตู้ Cabinet"
             placeholder="เลือกตู้"
             value={formData.cabinet_id}
-            onValueChange={(value) =>
-              setFormData((prev) => ({ ...prev, cabinet_id: value, department_ids: [] }))
-            }
+            onValueChange={(value) => {
+              setFormData((prev) => ({ ...prev, cabinet_id: value, department_ids: [] }));
+              setDepartmentOptionsBySlot({});
+              setLoadingDepartmentSlot({});
+              setSlotDisplayByIndex({});
+            }}
             options={cabinets
               .filter(
                 (cabinet) =>
@@ -306,33 +492,49 @@ export default function CreateMappingDialog({
               ตู้นี้ผูก Division ครบแล้ว หรือไม่มี Division เหลือให้ผูก
             </p>
           ) : (
-            Array.from({ length: divisionSlotCount }, (_, slotIndex) => (
-              <SearchableSelect
-                key={`dept-slot-${slotIndex}`}
-                portalTargetRef={dialogContentRef}
-                label={
-                  divisionSlotCount > 1
-                    ? `Division (${slotIndex + 1}/${divisionSlotCount})`
-                    : "Division"
-                }
-                placeholder={
-                  optionsForSlot(slotIndex).length === 0
-                    ? "ไม่พบในรายการนี้ — ล้างค้นหาในกล่องด้านบน หรือค้นหาใหม่"
-                    : divisionSlotCount > 1
-                      ? `เลือก Division ลำดับที่ ${slotIndex + 1} (ว่างได้)`
-                      : "เลือก Division (ยังไม่เคยผูกกับตู้นี้)"
-                }
-                value={formData.department_ids[slotIndex] ?? ""}
-                onValueChange={(value) => setDepartmentAtSlot(slotIndex, value)}
-                options={optionsForSlot(slotIndex)}
-                loading={loadingDepartments}
-                required={divisionSlotCount === 1}
-                onSearch={loadDepartments}
-                searchPlaceholder="ค้นหาชื่อ Division..."
-              />
-            ))
+            Array.from({ length: divisionSlotCount }, (_, slotIndex) => {
+              const slotDisabled = slotIndex >= remainingActiveSlots;
+              const slotOpts = optionsForSlot(slotIndex);
+              const kExisting = slotIndex - remainingActiveSlots;
+              const existingRow =
+                slotDisabled && kExisting >= 0 ? existingActiveDivisionsOrdered[kExisting] : undefined;
+              const disabledDisplay =
+                existingRow != null
+                  ? {
+                      label:
+                        existingRow.department?.DepName?.trim() ||
+                        `Division #${existingRow.department_id ?? "?"}`,
+                      subLabel: existingRow.department?.DepName2?.trim() || undefined,
+                    }
+                  : undefined;
+              return (
+                <SearchableSelect
+                  key={`dept-slot-${slotIndex}`}
+                  portalTargetRef={dialogContentRef}
+                  disabled={slotDisabled}
+                  disabledDisplay={disabledDisplay}
+                  allowClear={!slotDisabled}
+                  clearLabel="ล้างการเลือก (ว่างช่องนี้)"
+                  initialDisplay={slotDepartmentDisplay(slotIndex)}
+                  label={`Division (${slotIndex + 1}/${MAX_ACTIVE_DIVISION_LINKS_PER_CABINET})`}
+                  placeholder={
+                    slotDisabled
+                      ? "ช่องนี้เต็มตามโควต้า ACTIVE — เลือกได้เฉพาะช่องด้านบน"
+                      : slotOpts.length === 0
+                        ? "ไม่พบในรายการนี้ — ล้างค้นหาในกล่องด้านบน หรือค้นหาใหม่"
+                        : "เลือก Division (ว่างได้)"
+                  }
+                  value={formData.department_ids[slotIndex] ?? ""}
+                  onValueChange={(value) => handleDepartmentPick(slotIndex, value)}
+                  options={slotOpts}
+                  loading={!!loadingDepartmentSlot[slotIndex]}
+                  required={false}
+                  onSearch={(keyword) => void loadDepartmentsForSlot(slotIndex, keyword)}
+                  searchPlaceholder="ค้นหาชื่อ Division..."
+                />
+              );
+            })
           )}
-
           <div className="min-w-0">
             <Label>สถานะ</Label>
             <Select
@@ -360,10 +562,9 @@ export default function CreateMappingDialog({
             />
           </div>
 
-          {divisionSlotCount > 1 ? (
+          {divisionSlotCount > 0 ? (
             <p className="text-xs break-words text-muted-foreground">
-              เลือก Division อย่างน้อย 1 ช่อง แล้วกดบันทึก — ระบบจะสร้างการเชื่อมโยงตามแต่ละช่องที่เลือก
-              {selectedCount > 0 ? ` (เลือกแล้ว ${selectedCount} แผนก)` : ""}
+              เลือก Division อย่างน้อย 1 ช่องที่ใช้งานได้ แล้วกดบันทึก — ระบบจะสร้างการเชื่อมโยงตามแต่ละช่องที่เลือก
             </p>
           ) : null}
         </div>
