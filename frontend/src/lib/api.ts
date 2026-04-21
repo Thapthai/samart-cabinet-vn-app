@@ -21,20 +21,38 @@ const api = axios.create({
   },
 });
 
+function staffUsersManagementPath(url: string | undefined): boolean {
+  return !!url && url.startsWith('/staff-users');
+}
+
+/** API ภายใต้ Staff portal (ไม่รวม /staff-users — ต้องใช้ session แอดมินเท่านั้น) */
+function staffPortalApiPath(url: string | undefined): boolean {
+  if (!url) return false;
+  if (url.startsWith('/staff-users')) return false;
+  return url.startsWith('/staff/') || url === '/staff';
+}
+
 // Request interceptor to add auth token from NextAuth session or staff token
 api.interceptors.request.use(async (config) => {
   if (typeof window !== 'undefined') {
-    // Check if this is a staff API endpoint
-    const isStaffEndpoint = config.url?.startsWith('/staff') || config.url?.startsWith('/staff-users');
+    const url = config.url || '';
 
-    if (isStaffEndpoint) {
-      // Use staff token from localStorage for staff endpoints
-      const staffToken = localStorage.getItem('staff_token');
-      if (staffToken) {
-        config.headers.Authorization = `Bearer ${staffToken}`;
+    if (staffUsersManagementPath(url)) {
+      const session = (await getSession()) as { accessToken?: string } | null;
+      if (session?.accessToken) {
+        config.headers.Authorization = `Bearer ${session.accessToken}`;
+      }
+    } else if (staffPortalApiPath(url)) {
+      const session = (await getSession()) as { accessToken?: string } | null;
+      if (session?.accessToken) {
+        config.headers.Authorization = `Bearer ${session.accessToken}`;
+      } else {
+        const staffToken = localStorage.getItem('staff_token');
+        if (staffToken) {
+          config.headers.Authorization = `Bearer ${staffToken}`;
+        }
       }
     } else {
-      // Use NextAuth session token for regular endpoints
       const session = await getSession();
       if (session && (session as any).accessToken) {
         const token = (session as any).accessToken;
@@ -52,20 +70,17 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      // Check if this is a staff API endpoint
-      const isStaffEndpoint = error.config?.url?.startsWith('/staff') || error.config?.url?.startsWith('/staff-users');
+      const reqUrl = error.config?.url || '';
+      const isStaffUsers = staffUsersManagementPath(reqUrl);
+      const isStaffPortal = staffPortalApiPath(reqUrl);
 
-      if (isStaffEndpoint) {
-        // Only redirect staff routes to staff login
-        // Clear staff tokens
+      if (isStaffUsers || isStaffPortal) {
         localStorage.removeItem('staff_token');
         localStorage.removeItem('staff_user');
 
-        // Use Next.js router if available, otherwise use window.location
         const currentPath = window.location.pathname;
-        if (currentPath.includes('/staff/')) {
-          // Next.js automatically handles basePath
-          window.location.href = '/auth/staff/login';
+        if (currentPath.includes('/staff/') || currentPath.includes('/admin')) {
+          window.location.href = '/auth/login';
         }
       }
       // For non-staff endpoints, let the app handle the redirect
@@ -1485,10 +1500,22 @@ export const reportsApi = {
 };
 
 // =========================== Staff User API ===========================
-// Backend DTO: CreateStaffUserDto (email, fname, lname, role_code?, role_id?, department_id?, password?, expires_at?, is_active?)
-// Backend DTO: UpdateStaffUserDto (email?, fname?, lname?, role_code?, role_id?, department_id?, password?, is_active?, expires_at?)
+// Backend DTO: CreateStaffUserDto (..., emp_code?)
+// Backend DTO: UpdateStaffUserDto (..., emp_code? | null)
 // Response shape: { success: boolean; data?: T; message?: string; error?: string }
 export const staffUserApi = {
+  /** ค้นหาพนักงานจากตาราง employee สำหรับเลือก emp_code */
+  searchEmployees: async (params?: {
+    keyword?: string;
+    page?: number;
+    limit?: number;
+    exclude_linked?: boolean;
+    except_user_id?: number;
+  }): Promise<ApiResponse<any[]>> => {
+    const response = await api.get('/staff-users/employees', { params: params ?? {} });
+    return response.data;
+  },
+
   createStaffUser: async (data: {
     email: string;
     fname: string;
@@ -1499,6 +1526,7 @@ export const staffUserApi = {
     password?: string;
     expires_at?: string;
     is_active?: boolean;
+    emp_code?: string | null;
   }): Promise<ApiResponse<{ client_id?: string; client_secret?: string }>> => {
     const roleCode = (data.role_code ?? data.role)?.trim();
     const body: Record<string, unknown> = {
@@ -1511,6 +1539,9 @@ export const staffUserApi = {
     if (data.password && String(data.password).length >= 8) body.password = data.password;
     if (data.expires_at?.trim()) body.expires_at = data.expires_at.trim();
     if (data.is_active !== undefined) body.is_active = data.is_active;
+    if (data.emp_code !== undefined && data.emp_code !== null && String(data.emp_code).trim() !== '') {
+      body.emp_code = String(data.emp_code).trim();
+    }
     const response = await api.post('/staff-users', body);
     return response.data;
   },
@@ -1537,6 +1568,7 @@ export const staffUserApi = {
       password?: string;
       is_active?: boolean;
       expires_at?: string;
+      emp_code?: string | null;
     }
   ): Promise<ApiResponse<any>> => {
     const body: Record<string, unknown> = {};
@@ -1548,6 +1580,10 @@ export const staffUserApi = {
     if (data.password !== undefined && data.password !== '' && data.password.length >= 8) body.password = data.password;
     if (data.is_active !== undefined) body.is_active = data.is_active;
     if (data.expires_at !== undefined) body.expires_at = data.expires_at?.trim() || undefined;
+    if (data.emp_code !== undefined) {
+      body.emp_code =
+        data.emp_code === null || String(data.emp_code).trim() === '' ? null : String(data.emp_code).trim();
+    }
     const response = await api.put(`/staff-users/${id}`, body);
     return response.data;
   },
@@ -1563,8 +1599,12 @@ export const staffUserApi = {
     return response.data;
   },
 
+  /** รวมกับตาราง User — ใช้ /auth/login เหมือนแอดมิน */
   staffUserLogin: async (data: { email: string; password: string; roleType?: string }): Promise<ApiResponse<any>> => {
-    const response = await api.post('/staff-users/login', data);
+    const response = await api.post('/auth/login', {
+      email: data.email,
+      password: data.password,
+    });
     return response.data;
   },
 

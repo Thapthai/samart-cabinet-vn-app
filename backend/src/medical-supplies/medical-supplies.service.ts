@@ -575,29 +575,29 @@ export class MedicalSuppliesService {
     return { compareCount, nonCompareCount };
   }
 
-  // Check Staff User by client_id
+  // Check portal User by client_id (ตาราง User — staff มี role_id)
   async checkStaffUser(client_id: string): Promise<{ user: any; userType: string } | null> {
     try {
-      const staffUser = await this.prisma.staffUser.findUnique({
-        where: { client_id },
+      const row = await this.prisma.user.findFirst({
+        where: { client_id, is_active: true, role_id: { not: null } },
         select: {
           id: true,
           email: true,
           fname: true,
           lname: true,
           is_active: true,
-        }
+        },
       });
 
-      if (staffUser && staffUser.is_active) {
+      if (row && row.is_active) {
         return {
           user: {
-            id: staffUser.id,
-            email: staffUser.email,
-            name: `${staffUser.fname} ${staffUser.lname}`.trim(),
-            is_active: staffUser.is_active
+            id: row.id,
+            email: row.email,
+            name: `${row.fname} ${row.lname}`.trim(),
+            is_active: row.is_active,
           },
-          userType: 'staff'
+          userType: 'staff',
         };
       }
 
@@ -1505,34 +1505,18 @@ export class MedicalSuppliesService {
       if (query.user_name) {
         const userName = query.user_name.trim();
 
-        // Find admin users matching the name
-        const adminUsers = await this.prisma.user.findMany({
+        const matchingUsers = await this.prisma.user.findMany({
           where: {
-            name: { contains: userName },
             is_active: true,
+            OR: [{ fname: { contains: userName } }, { lname: { contains: userName } }],
           },
-          select: { id: true },
+          select: { id: true, is_admin: true },
         });
 
-        // Find staff users matching fname or lname
-        const staffUsers = await this.prisma.staffUser.findMany({
-          where: {
-            OR: [
-              { fname: { contains: userName } },
-              { lname: { contains: userName } },
-            ],
-            is_active: true,
-          },
-          select: { id: true },
-        });
-
-        // Build recorded_by_user_id conditions
-        adminUsers.forEach(user => {
-          recordedByConditions.push(`admin:${user.id}`);
-        });
-        staffUsers.forEach(user => {
-          recordedByConditions.push(`staff:${user.id}`);
-        });
+        for (const u of matchingUsers) {
+          if (u.is_admin) recordedByConditions.push(`admin:${u.id}`);
+          else recordedByConditions.push(`staff:${u.id}`);
+        }
 
         // Only add filter if we found matching users
         if (recordedByConditions.length > 0) {
@@ -1756,51 +1740,19 @@ export class MedicalSuppliesService {
           }
 
           if (userId) {
-            if (userType === 'admin') {
-              // Query admin user
-              const adminUser = await this.prisma.user.findUnique({
-                where: { id: parseInt(userId) },
-                select: { name: true },
+            const idNum = parseInt(userId, 10);
+            if (!Number.isNaN(idNum)) {
+              const u = await this.prisma.user.findUnique({
+                where: { id: idNum },
+                select: { fname: true, lname: true, is_admin: true },
               });
-              if (adminUser) {
-                recordedByName = adminUser.name;
-                recordedByDisplay = `admin: ${adminUser.name}`;
-                recordedByUserId = userId;
-              }
-            } else if (userType === 'staff') {
-              // Query staff user
-              const staffUser = await this.prisma.staffUser.findUnique({
-                where: { id: parseInt(userId) },
-                select: { fname: true, lname: true },
-              });
-              if (staffUser) {
-                const fullName = `${staffUser.fname} ${staffUser.lname}`.trim();
+              if (u) {
+                const fullName = `${u.fname} ${u.lname}`.trim();
                 recordedByName = fullName;
-                recordedByDisplay = `staff: ${fullName}`;
+                const label =
+                  userType === 'admin' ? 'admin' : userType === 'staff' ? 'staff' : u.is_admin ? 'admin' : 'staff';
+                recordedByDisplay = `${label}: ${fullName}`;
                 recordedByUserId = userId;
-              }
-            } else {
-              // No userType specified (just number) - try admin first, then staff
-              const adminUser = await this.prisma.user.findUnique({
-                where: { id: parseInt(userId) },
-                select: { name: true },
-              });
-              if (adminUser) {
-                recordedByName = adminUser.name;
-                recordedByDisplay = `admin: ${adminUser.name}`;
-                recordedByUserId = userId;
-              } else {
-                // Try staff
-                const staffUser = await this.prisma.staffUser.findUnique({
-                  where: { id: parseInt(userId) },
-                  select: { fname: true, lname: true },
-                });
-                if (staffUser) {
-                  const fullName = `${staffUser.fname} ${staffUser.lname}`.trim();
-                  recordedByName = fullName;
-                  recordedByDisplay = `staff: ${fullName}`;
-                  recordedByUserId = userId;
-                }
               }
             }
           }
@@ -3265,35 +3217,21 @@ export class MedicalSuppliesService {
             const [userType, id] = userId.split(':');
             const userIdNum = parseInt(id, 10);
 
-            if ((userType === 'user' || userType === 'admin') && !isNaN(userIdNum)) {
-              const adminUser = await this.prisma.user.findUnique({
-                where: { id: userIdNum },
-                select: { name: true },
-              });
-              if (adminUser) returnByName = adminUser.name;
-            } else if (userType === 'staff' && !isNaN(userIdNum)) {
-              const staffUser = await this.prisma.staffUser.findUnique({
+            if ((userType === 'user' || userType === 'admin' || userType === 'staff') && !isNaN(userIdNum)) {
+              const row = await this.prisma.user.findUnique({
                 where: { id: userIdNum },
                 select: { fname: true, lname: true },
               });
-              if (staffUser) returnByName = `${staffUser.fname} ${staffUser.lname}`.trim();
+              if (row) returnByName = `${row.fname} ${row.lname}`.trim();
             }
           } else {
             const userIdNum = parseInt(userId, 10);
             if (!isNaN(userIdNum)) {
-              const adminUser = await this.prisma.user.findUnique({
+              const row = await this.prisma.user.findUnique({
                 where: { id: userIdNum },
-                select: { name: true },
+                select: { fname: true, lname: true },
               });
-              if (adminUser) {
-                returnByName = adminUser.name;
-              } else {
-                const staffUser = await this.prisma.staffUser.findUnique({
-                  where: { id: userIdNum },
-                  select: { fname: true, lname: true },
-                });
-                if (staffUser) returnByName = `${staffUser.fname} ${staffUser.lname}`.trim();
-              }
+              if (row) returnByName = `${row.fname} ${row.lname}`.trim();
             }
           }
         }

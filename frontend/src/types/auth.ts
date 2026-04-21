@@ -4,6 +4,13 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  fname?: string;
+  lname?: string;
+  is_admin?: boolean;
+  role_id?: number | null;
+  role?: string | null;
+  department_id?: number | null;
+  client_id?: string;
   profile_image?: string;
   profile_picture?: string;
   twoFactorEnabled: boolean;

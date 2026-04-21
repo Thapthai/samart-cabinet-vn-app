@@ -10,14 +10,15 @@ import { ASSETS } from '@/lib/assets';
 import { Package, Users, BarChart3, Shield, Sparkles, User } from 'lucide-react';
 
 export default function HomePage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && isAuthenticated) {
-      router.push('/admin/dashboard');
+    if (!loading && isAuthenticated && user) {
+      const isAdmin = (user as { is_admin?: boolean }).is_admin === true;
+      router.push(isAdmin ? '/admin/dashboard' : '/staff/dashboard');
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, loading, router, user]);
 
   if (loading) {
     return (
@@ -68,17 +69,7 @@ export default function HomePage() {
                           className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300"
                         >
                           <User className="mr-2 h-5 w-5" />
-                          เข้าสู่ระบบ เพื่อใช้งานระบบ
-                        </Button>
-                      </Link>
-                      <Link href="/auth/staff/login" className="w-full sm:w-auto sm:min-w-[200px]">
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          className="w-full border-2 border-green-600 text-green-600 hover:bg-green-50 hover:border-green-700 shadow-lg hover:shadow-xl transition-all duration-300"
-                        >
-                          <User className="mr-2 h-5 w-5" />
-                          เข้าสู่ระบบ Staff
+                          เข้าสู่ระบบ
                         </Button>
                       </Link>
                     </div>

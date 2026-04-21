@@ -124,7 +124,7 @@ export default function ReturnedTable({
                     <TableHead className="text-center">จำนวนชิ้น</TableHead>
                     <TableHead>วันที่เติม</TableHead>
                     <TableHead>ตู้</TableHead>
-                    <TableHead>แผนก</TableHead>
+                    <TableHead>Division</TableHead>
                     <TableHead>ชื่อผู้เติม</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -199,7 +199,7 @@ export default function ReturnedTable({
                                         <TableHead>ชื่ออุปกรณ์</TableHead>
                                         <TableHead className="text-center">จำนวนชิ้น</TableHead>
                                         <TableHead>วันที่เติม</TableHead>
-                                        <TableHead>แผนก</TableHead>
+                                        <TableHead>Division</TableHead>
                                         <TableHead>RFID Code</TableHead>
                                       </TableRow>
                                     </TableHeader>

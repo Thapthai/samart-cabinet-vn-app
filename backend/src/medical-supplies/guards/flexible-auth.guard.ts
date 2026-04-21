@@ -61,9 +61,15 @@ export class FlexibleAuthGuard implements CanActivate {
             : Number(payload.sub);
         if (Number.isFinite(sub) && sub >= 1) {
           if (payload.staff === true) {
-            req.user = { id: sub };
-            req.staffJwt = true;
-            return true;
+            const staffRow = await this.prisma.user.findFirst({
+              where: { id: sub, is_active: true, role_id: { not: null } },
+              select: { id: true },
+            });
+            if (staffRow) {
+              req.user = { id: staffRow.id };
+              req.staffJwt = true;
+              return true;
+            }
           }
           const user = await this.prisma.user.findFirst({
             where: { id: sub, is_active: true },

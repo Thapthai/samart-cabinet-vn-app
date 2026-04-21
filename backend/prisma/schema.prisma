@@ -12,15 +12,19 @@ model User {
   id                    Int       @id @default(autoincrement())
   email                 String    @unique
   password              String? // Optional for OAuth users
-  name                  String
+  fname                 String // First name
+  lname                 String // Last name
+  department_id         Int?      @map("department_id") // Department ID
   is_active             Boolean   @default(true)
   email_verified        Boolean   @default(false)
-  preferred_auth_method String    @default("jwt") // jwt, oauth2, api_key, firebase
+  preferred_auth_method String    @default("jwt")
   last_login_at         DateTime?
-
-  // Firebase Authentication
-  firebase_uid    String? @unique @map("firebase_uid")
-  profile_picture String? @map("profile_picture")
+  client_id             String    @unique @map("client_id") // For API access
+  client_secret         String    @map("client_secret") // Hashed secret
+  expires_at            DateTime? @map("expires_at") // Client credential expiration
+  is_admin              Boolean   @default(false) @map("is_admin")
+  role_id               Int?      @map("role_id")
+  emp_code              String?   @unique @map("emp_code") @db.VarChar(20) // ผูก employee.EmpCode
 
   // 2FA Fields
   two_factor_enabled     Boolean   @default(false) @map("two_factor_enabled")
@@ -37,6 +41,10 @@ model User {
   client_credentials ClientCredential[]
   refreshTokens      RefreshToken[]
   two_factor_tokens  TwoFactorToken[]
+  role               StaffRole?         @relation(fields: [role_id], references: [id])
+  department         Department?        @relation(fields: [department_id], references: [ID])
+  /// ผูกกับ employee.EmpCode — ว่างได้ถ้ายังไม่ map พนักงานในระบบ HR
+  employee           Employee?          @relation(fields: [emp_code], references: [EmpCode])
 
   @@map("app_users")
 }
@@ -51,40 +59,14 @@ model StaffRole {
   updated_at  DateTime @updatedAt @map("updated_at")
 
   // Relations
-  staffUsers            StaffUser[]
   rolePermissions       StaffRolePermission[]
   /// ว่าง = role นี้เห็นข้อมูลทุกแผนกหลัก; มีแถว = เห็นเฉพาะแผนกหลักที่ระบุ (หลายแถวได้)
   permissionDepartments StaffRolePermissionDepartment[]
+  users                 User[]
 
   @@index([code], name: "idx_code")
   @@index([is_active], name: "idx_is_active")
   @@map("app_staff_roles")
-}
-
-model StaffUser {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
-  fname         String // First name
-  lname         String // Last name
-  department_id Int?      @map("department_id") // Department ID
-  role_id       Int       @map("role_id") // Foreign key to StaffRole
-  password      String // Hashed password, default: password123
-  client_id     String    @unique @map("client_id") // For API access
-  client_secret String    @map("client_secret") // Hashed secret
-  expires_at    DateTime? @map("expires_at") // Client credential expiration
-  is_active     Boolean   @default(true) @map("is_active")
-  created_at    DateTime  @default(dbgenerated("NOW()")) @map("created_at")
-  updated_at    DateTime  @updatedAt @map("updated_at")
-
-  // Relations
-  role       StaffRole   @relation(fields: [role_id], references: [id])
-  department Department? @relation(fields: [department_id], references: [ID])
-
-  @@index([role_id], name: "idx_role_id")
-  @@index([email], name: "idx_email")
-  @@index([is_active], name: "idx_is_active")
-  @@index([department_id], name: "idx_department_id")
-  @@map("app_staff_users")
 }
 
 model StaffRolePermission {
@@ -356,8 +338,8 @@ model MedicalSupplySubDepartment {
   created_at    DateTime @default(dbgenerated("NOW()")) @map("created_at") @db.DateTime(3)
   updated_at    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
-  department               Department               @relation(fields: [department_id], references: [ID], onDelete: Cascade)
-  medicalSupplyUsages      MedicalSupplyUsage[]
+  department          Department           @relation(fields: [department_id], references: [ID], onDelete: Cascade)
+  medicalSupplyUsages MedicalSupplyUsage[]
 
   @@unique([code])
   @@index([department_id])
@@ -639,11 +621,11 @@ model Department {
   RefDepID          String? @map("RefDepID") @db.VarChar(50)
 
   // Relations
-  staffUsers                       StaffUser[]
-  cabinetDepartments               cabinetDepartment[]
-  medicalSupplySubDepartments      MedicalSupplySubDepartment[]
-  medicalSupplyUsages              MedicalSupplyUsage[]                 @relation("MedicalSupplyUsageMainDepartment")
-  staffRolePermissionDepartments   StaffRolePermissionDepartment[]
+  cabinetDepartments             cabinetDepartment[]
+  medicalSupplySubDepartments    MedicalSupplySubDepartment[]
+  medicalSupplyUsages            MedicalSupplyUsage[]            @relation("MedicalSupplyUsageMainDepartment")
+  staffRolePermissionDepartments StaffRolePermissionDepartment[]
+  users                          User[]
 
   @@map("department")
 }
@@ -658,11 +640,11 @@ model cabinet {
   created_at     DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at     DateTime @updatedAt @map("updated_at")
 
-  cabinetDepartments       cabinetDepartment[]
-  itemStocks               ItemStock[]
-  supplyItemReturnRecords  SupplyItemReturnRecord[]
-  cabinetItemSettings      CabinetItemSetting[]
-  itemSlotInCabinet        ItemSlotInCabinet[]
+  cabinetDepartments      cabinetDepartment[]
+  itemStocks              ItemStock[]
+  supplyItemReturnRecords SupplyItemReturnRecord[]
+  cabinetItemSettings     CabinetItemSetting[]
+  itemSlotInCabinet       ItemSlotInCabinet[]
 
   @@map("app_cabinets")
 }
@@ -768,6 +750,7 @@ model Employee {
   LastName  String? @map("LastName") @db.VarChar(100)
 
   legacyUsers LegacyUsers[]
+  users       User[]
 
   @@map("employee")
 }

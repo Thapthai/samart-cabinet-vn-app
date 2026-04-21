@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Lock, User, Eye, EyeOff, Users, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { signInWithGoogle } from '@/lib/firebase';
 import TwoFactorModal from '@/components/TwoFactorModal';
@@ -49,7 +49,6 @@ export default function LoginPage() {
       const result = await signIn('credentials', {
         email: data.email,
         password: data.password,
-        roleType: 'admin', // ระบุชัดเจนว่าเป็น admin login
         redirect: false,
       });
 
@@ -92,7 +91,10 @@ export default function LoginPage() {
         }
       } else {
         toast.success('เข้าสู่ระบบสำเร็จ');
-        router.push('/admin/dashboard');
+        router.refresh();
+        const session = await getSession();
+        const isAdmin = (session as { user?: { is_admin?: boolean } })?.user?.is_admin === true;
+        router.push(isAdmin ? '/admin/dashboard' : '/staff/dashboard');
       }
     } catch (err: any) {
       setError(err.message || 'เกิดข้อผิดพลาด');
@@ -129,7 +131,10 @@ export default function LoginPage() {
         if (result?.ok) {
           setShow2FAModal(false);
           toast.success('เข้าสู่ระบบสำเร็จ');
-          router.push('/admin/dashboard');
+          router.refresh();
+          const session = await getSession();
+          const isAdmin = (session as { user?: { is_admin?: boolean } })?.user?.is_admin === true;
+          router.push(isAdmin ? '/admin/dashboard' : '/staff/dashboard');
         } else if (result?.error) {
           throw new Error(result.error);
         } else {
@@ -163,7 +168,10 @@ export default function LoginPage() {
         toast.error(result.error);
       } else {
         toast.success('เข้าสู่ระบบสำเร็จ');
-        router.push('/admin/dashboard');
+        router.refresh();
+        const session = await getSession();
+        const isAdmin = (session as { user?: { is_admin?: boolean } })?.user?.is_admin === true;
+        router.push(isAdmin ? '/admin/dashboard' : '/staff/dashboard');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Firebase');
@@ -368,27 +376,7 @@ export default function LoginPage() {
                 </Link>
               </div> */}
 
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500">หรือ</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <Link href="/auth/staff/login" className="block">
-                  <Button
-                    variant="outline"
-                    className="w-full h-12 rounded-xl border-2 border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-500 text-emerald-800 font-medium transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <Users className="h-5 w-5" />
-                      เข้าสู่ระบบ Staff
-                    </span>
-                  </Button>
-                </Link>
+              <div className="space-y-3 pt-2">
                 <Link href="/" className="block">
                   <Button
                     variant="ghost"

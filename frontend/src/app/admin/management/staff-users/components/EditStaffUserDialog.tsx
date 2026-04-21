@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { StaffUser, StaffRoleOption } from './types';
+import { StaffEmployeePicker } from './StaffEmployeePicker';
 
 interface EditStaffUserDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
     password: '',
     expires_at: '',
   });
+  const [empCode, setEmpCode] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !staff) return;
@@ -38,6 +40,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
       password: '',
       expires_at: staff.expires_at || '',
     });
+    setEmpCode(staff.emp_code ?? null);
   }, [open, staff]);
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -52,6 +55,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
       if (formData.role) updateData.role_code = formData.role;
       if (formData.password && formData.password !== 'password123') updateData.password = formData.password;
       if (formData.expires_at) updateData.expires_at = formData.expires_at;
+      updateData.emp_code = empCode;
 
       const response = (await staffUserApi.updateStaffUser(staff.id, updateData)) as { success?: boolean; message?: string };
       if (response?.success) {
@@ -92,6 +96,14 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
             <Label htmlFor="edit-lname">นามสกุล *</Label>
             <Input id="edit-lname" value={formData.lname} onChange={(e) => setFormData({ ...formData, lname: e.target.value })} required />
           </div>
+          {staff ? (
+            <StaffEmployeePicker
+              value={empCode}
+              onChange={setEmpCode}
+              exceptUserId={staff.id}
+              currentEmployeeLabel={staff.employee_display}
+            />
+          ) : null}
           <div>
             <Label>บทบาท (Role) *</Label>
             <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })} required>

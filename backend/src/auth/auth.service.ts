@@ -30,6 +30,18 @@ export class AuthService {
     private firebaseService: FirebaseService,
   ) {}
 
+  private displayName(user: { fname: string; lname: string; email: string }) {
+    const s = `${user.fname ?? ''} ${user.lname ?? ''}`.trim();
+    return s || user.email;
+  }
+
+  private splitRegisterName(full: string): { fname: string; lname: string } {
+    const t = full.trim();
+    if (!t) return { fname: 'User', lname: '' };
+    const parts = t.split(/\s+/);
+    return { fname: parts[0] ?? t, lname: parts.slice(1).join(' ') };
+  }
+
   private async sendWelcomeEmail(email: string, name: string) {
     return this.email.sendTemplateEmail({
       to: email,
@@ -49,30 +61,61 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { email: registerDto.email } });
     if (existing) return { success: false, message: 'User already exists' };
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    const { fname, lname } = this.splitRegisterName(registerDto.name);
+    const { client_id, client_secret, client_secret_hash } = this.clientCredentialStrategy.generateClientCredential();
     const user = await this.prisma.user.create({
       data: {
         email: registerDto.email,
         password: hashedPassword,
-        name: registerDto.name,
+        fname,
+        lname,
+        client_id,
+        client_secret: client_secret_hash,
+        is_admin: false,
       },
     });
-    const token = this.jwt.sign({ sub: user.id, email: user.email, name: user.name });
-    this.sendWelcomeEmail(user.email, user.name).catch((e) => console.error('Welcome email failed', e));
+    const dn = this.displayName(user);
+    const token = this.jwt.sign({
+      sub: user.id,
+      email: user.email,
+      fname: user.fname,
+      lname: user.lname,
+      is_admin: user.is_admin,
+      role_id: user.role_id,
+    });
+    this.sendWelcomeEmail(user.email, dn).catch((e) => console.error('Welcome email failed', e));
     return {
       success: true,
       message: 'User registered successfully',
-      data: { user: { id: user.id, email: user.email, name: user.name }, token },
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          fname: user.fname,
+          lname: user.lname,
+          name: dn,
+          is_admin: user.is_admin,
+          role_id: user.role_id,
+          client_id,
+          client_secret,
+        },
+        token,
+      },
     };
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: loginDto.email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: loginDto.email },
+      include: { role: { select: { code: true } } },
+    });
     if (!user) return { success: false, message: 'Invalid credentials' };
     if (!user.is_active) return { success: false, message: 'Account is deactivated' };
     if (!user.password) return { success: false, message: 'Please use OAuth login' };
     const valid = await bcrypt.compare(loginDto.password, user.password);
     if (!valid) return { success: false, message: 'Invalid credentials' };
 
+    const dn = this.displayName(user);
     if (user.two_factor_enabled) {
       const tempToken = this.jwt.sign(
         { sub: user.id, email: user.email, temp2FA: true },
@@ -82,12 +125,30 @@ export class AuthService {
         success: true,
         message: '2FA verification required',
         requiresTwoFactor: true,
-        data: { tempToken, user: { id: user.id, email: user.email, name: user.name, two_factor_enabled: true } },
+        data: {
+          tempToken,
+          user: {
+            id: user.id,
+            email: user.email,
+            fname: user.fname,
+            lname: user.lname,
+            name: dn,
+            two_factor_enabled: true,
+          },
+        },
       };
     }
 
     await this.prisma.user.update({ where: { id: user.id }, data: { last_login_at: new Date() } });
-    const token = this.jwt.sign({ sub: user.id, email: user.email, name: user.name });
+    const token = this.jwt.sign({
+      sub: user.id,
+      email: user.email,
+      fname: user.fname,
+      lname: user.lname,
+      is_admin: user.is_admin,
+      role_id: user.role_id,
+      role_code: user.role?.code ?? null,
+    });
     return {
       success: true,
       message: 'Login successful',
@@ -95,7 +156,14 @@ export class AuthService {
         user: {
           id: user.id,
           email: user.email,
-          name: user.name,
+          fname: user.fname,
+          lname: user.lname,
+          name: dn,
+          is_admin: user.is_admin,
+          role_id: user.role_id,
+          role: user.role?.code ?? null,
+          department_id: user.department_id,
+          client_id: user.client_id,
           two_factor_enabled: user.two_factor_enabled,
           preferred_auth_method: user.preferred_auth_method,
           hasPassword: !!user.password,
@@ -110,19 +178,41 @@ export class AuthService {
       const payload = this.jwt.verify(token);
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
-        select: { id: true, email: true, name: true, is_active: true, two_factor_enabled: true, preferred_auth_method: true },
+        select: {
+          id: true,
+          email: true,
+          fname: true,
+          lname: true,
+          is_active: true,
+          is_admin: true,
+          role_id: true,
+          department_id: true,
+          client_id: true,
+          two_factor_enabled: true,
+          preferred_auth_method: true,
+          password: true,
+          role: { select: { code: true } },
+        },
       });
       if (!user || !user.is_active) return { success: false, message: 'User not found or inactive' };
+      const dn = this.displayName(user);
       return {
         success: true,
         data: {
           user: {
             id: user.id,
             email: user.email,
-            name: user.name,
+            fname: user.fname,
+            lname: user.lname,
+            name: dn,
+            is_admin: user.is_admin,
+            role_id: user.role_id,
+            role: user.role?.code ?? null,
+            department_id: user.department_id,
+            client_id: user.client_id,
             two_factor_enabled: user.two_factor_enabled,
             preferred_auth_method: user.preferred_auth_method,
-            hasPassword: true,
+            hasPassword: !!user.password,
           },
         },
       };
@@ -134,28 +224,39 @@ export class AuthService {
   async firebaseLogin(dto: FirebaseLoginDto) {
     try {
       const decoded = await this.firebaseService.verifyIdToken(dto.idToken);
-      let user = await this.prisma.user.findUnique({ where: { firebase_uid: decoded.uid } });
+      const email = (decoded.email || `${decoded.uid}@firebase.local`).trim();
+      let user = await this.prisma.user.findUnique({
+        where: { email },
+        include: { role: { select: { code: true } } },
+      });
       if (!user) {
-        user = await this.prisma.user.findUnique({ where: { email: decoded.email } });
-        if (user) {
-          await this.prisma.user.update({
-            where: { id: user.id },
-            data: { firebase_uid: decoded.uid, profile_picture: decoded.picture ?? user.profile_picture },
-          });
-        } else {
-          user = await this.prisma.user.create({
-            data: {
-              email: decoded.email || `${decoded.uid}@firebase`,
-              name: decoded.name || decoded.email || 'User',
-              firebase_uid: decoded.uid,
-              profile_picture: decoded.picture,
-            },
-          });
-        }
+        const { fname, lname } = this.splitRegisterName(decoded.name || decoded.email || 'User');
+        const { client_id, client_secret, client_secret_hash } = this.clientCredentialStrategy.generateClientCredential();
+        user = await this.prisma.user.create({
+          data: {
+            email,
+            fname,
+            lname,
+            password: null,
+            client_id,
+            client_secret: client_secret_hash,
+            is_admin: false,
+          },
+          include: { role: { select: { code: true } } },
+        });
       }
       if (!user.is_active) return { success: false, message: 'Account is deactivated' };
       await this.prisma.user.update({ where: { id: user.id }, data: { last_login_at: new Date() } });
-      const token = this.jwt.sign({ sub: user.id, email: user.email, name: user.name });
+      const dn = this.displayName(user);
+      const token = this.jwt.sign({
+        sub: user.id,
+        email: user.email,
+        fname: user.fname,
+        lname: user.lname,
+        is_admin: user.is_admin,
+        role_id: user.role_id,
+        role_code: user.role?.code ?? null,
+      });
       return {
         success: true,
         message: 'Login successful',
@@ -163,7 +264,14 @@ export class AuthService {
           user: {
             id: user.id,
             email: user.email,
-            name: user.name,
+            fname: user.fname,
+            lname: user.lname,
+            name: dn,
+            is_admin: user.is_admin,
+            role_id: user.role_id,
+            role: user.role?.code ?? null,
+            department_id: user.department_id,
+            client_id: user.client_id,
             two_factor_enabled: user.two_factor_enabled,
             preferred_auth_method: user.preferred_auth_method,
             hasPassword: !!user.password,
@@ -233,7 +341,10 @@ export class AuthService {
     try {
       const payload = this.jwt.verify(tempToken);
       if (!payload.temp2FA) return { success: false, message: 'Invalid token' };
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        include: { role: { select: { code: true } } },
+      });
       if (!user || !user.two_factor_enabled) return { success: false, message: 'User not found or 2FA not enabled' };
       let valid = false;
       if (type === 'totp' && user.two_factor_secret) valid = this.totpService.verifyTOTP(code, user.two_factor_secret);
@@ -244,7 +355,16 @@ export class AuthService {
       }
       if (!valid) return { success: false, message: 'Invalid 2FA code' };
       await this.prisma.user.update({ where: { id: user.id }, data: { last_login_at: new Date() } });
-      const token = this.jwt.sign({ sub: user.id, email: user.email, name: user.name });
+      const dn = this.displayName(user);
+      const token = this.jwt.sign({
+        sub: user.id,
+        email: user.email,
+        fname: user.fname,
+        lname: user.lname,
+        is_admin: user.is_admin,
+        role_id: user.role_id,
+        role_code: user.role?.code ?? null,
+      });
       return {
         success: true,
         message: 'Login successful',
@@ -252,7 +372,14 @@ export class AuthService {
           user: {
             id: user.id,
             email: user.email,
-            name: user.name,
+            fname: user.fname,
+            lname: user.lname,
+            name: dn,
+            is_admin: user.is_admin,
+            role_id: user.role_id,
+            role: user.role?.code ?? null,
+            department_id: user.department_id,
+            client_id: user.client_id,
             two_factor_enabled: user.two_factor_enabled,
             preferred_auth_method: user.preferred_auth_method,
             hasPassword: !!user.password,
@@ -268,10 +395,33 @@ export class AuthService {
   async getUserProfile(user_id: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: user_id },
-      select: { id: true, email: true, name: true, profile_picture: true, email_verified: true, two_factor_enabled: true, preferred_auth_method: true, created_at: true },
+      select: {
+        id: true,
+        email: true,
+        fname: true,
+        lname: true,
+        is_admin: true,
+        role_id: true,
+        department_id: true,
+        client_id: true,
+        email_verified: true,
+        two_factor_enabled: true,
+        preferred_auth_method: true,
+        created_at: true,
+        role: { select: { code: true, name: true } },
+      },
     });
     if (!user) return { success: false, message: 'User not found' };
-    return { success: true, data: user };
+    const dn = this.displayName(user);
+    return {
+      success: true,
+      data: {
+        ...user,
+        name: dn,
+        role: user.role?.code ?? null,
+        role_name: user.role?.name ?? null,
+      },
+    };
   }
 
   async updateUserProfile(user_id: number, updateData: { name?: string; email?: string; preferred_auth_method?: string }, currentPassword?: string) {
@@ -285,10 +435,11 @@ export class AuthService {
       const exists = await this.prisma.user.findUnique({ where: { email: updateData.email } });
       if (exists) return { success: false, message: 'Email already in use' };
     }
+    const nameParts = updateData.name != null ? this.splitRegisterName(updateData.name) : null;
     const updated = await this.prisma.user.update({
       where: { id: user_id },
       data: {
-        ...(updateData.name && { name: updateData.name }),
+        ...(nameParts && { fname: nameParts.fname, lname: nameParts.lname }),
         ...(updateData.email && { email: updateData.email }),
         ...(updateData.preferred_auth_method && { preferred_auth_method: updateData.preferred_auth_method }),
       },
@@ -392,14 +543,23 @@ export class AuthService {
   async validateClientCredential(client_id: string, client_secret: string) {
     const cc = await this.prisma.clientCredential.findFirst({
       where: { client_id, is_active: true },
-      include: { user: { select: { id: true, email: true, name: true, is_active: true } } },
+      include: { user: { select: { id: true, email: true, fname: true, lname: true, is_active: true } } },
     });
     if (!cc || !cc.user.is_active) return { success: false, message: 'Invalid client' };
     if (this.clientCredentialStrategy.isExpired(cc.expires_at)) return { success: false, message: 'Credential expired' };
     const valid = await this.clientCredentialStrategy.verifyClientSecret(client_secret, cc.client_secret_hash);
     if (!valid) return { success: false, message: 'Invalid secret' };
     await this.prisma.clientCredential.update({ where: { id: cc.id }, data: { last_used_at: new Date() } });
-    return { success: true, data: { user: cc.user } };
+    const u = cc.user;
+    return {
+      success: true,
+      data: {
+        user: {
+          ...u,
+          name: this.displayName(u),
+        },
+      },
+    };
   }
 
   async refresh_tokens(dto: RefreshTokenDto) {

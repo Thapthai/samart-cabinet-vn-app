@@ -65,14 +65,14 @@ export default function StaffUsersPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบ Staff User นี้?')) return;
+    if (!confirm('ต้องการปิดการใช้งาน Staff User นี้หรือไม่? (บัญชียังอยู่ในระบบแต่ใช้งานไม่ได้)')) return;
     try {
       const response = (await staffUserApi.deleteStaffUser(id)) as { success?: boolean; message?: string };
       if (response?.success) {
-        toast.success('ลบ Staff User เรียบร้อยแล้ว');
+        toast.success('ปิดการใช้งาน Staff User เรียบร้อยแล้ว');
         fetchStaffUsers();
       } else {
-        toast.error((response as { message?: string }).message || 'ไม่สามารถลบ Staff User ได้');
+        toast.error((response as { message?: string }).message || 'ไม่สามารถปิดการใช้งานได้');
       }
     } catch (error: unknown) {
       const err = error as { message?: string };
@@ -122,7 +122,9 @@ export default function StaffUsersPage() {
           u.email?.toLowerCase().includes(q) ||
           u.client_id?.toLowerCase().includes(q) ||
           u.role?.toLowerCase().includes(q) ||
-          (u.role_name?.trim().toLowerCase().includes(q) ?? false),
+          (u.role_name?.trim().toLowerCase().includes(q) ?? false) ||
+          (u.emp_code?.toLowerCase().includes(q) ?? false) ||
+          (u.employee_display?.toLowerCase().includes(q) ?? false),
       )
     : staffUsers;
 

@@ -119,7 +119,7 @@ export default function DispensedTable({
                     <TableHead>ชื่ออุปกรณ์</TableHead>
                     <TableHead className="text-center">จำนวนชิ้น</TableHead>
                     <TableHead>วันที่เบิก</TableHead>
-                    <TableHead>แผนก</TableHead>
+                    <TableHead>Division</TableHead>
                     <TableHead>ชื่อผู้เบิก</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -193,7 +193,7 @@ export default function DispensedTable({
                                         <TableHead>ชื่ออุปกรณ์</TableHead>
                                         <TableHead className="text-center">จำนวนชิ้น</TableHead>
                                         <TableHead>วันที่เบิก</TableHead>
-                                        <TableHead>แผนก</TableHead>
+                                        <TableHead>Division</TableHead>
                                         <TableHead>RFID Code</TableHead>
                                       </TableRow>
                                     </TableHeader>

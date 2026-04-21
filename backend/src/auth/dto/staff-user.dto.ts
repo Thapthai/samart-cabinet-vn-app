@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsOptional, IsBoolean, IsNumber, MinLength } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsBoolean, IsNumber, MinLength, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class StaffLoginDto {
@@ -51,6 +51,12 @@ export class CreateStaffUserDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  /** รหัสพนักงานจากตาราง employee — ต้องไม่ซ้ำกับ user อื่น */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  emp_code?: string | null;
 }
 
 export class UpdateStaffUserDto {
@@ -94,6 +100,12 @@ export class UpdateStaffUserDto {
   @IsOptional()
   @IsString()
   expires_at?: string;
+
+  /** รหัสพนักงาน — ส่ง null หรือสตริงว่างเพื่อยกเลิกการผูก */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  emp_code?: string | null;
 }
 
 export class RegenerateClientSecretDto {

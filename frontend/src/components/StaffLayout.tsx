@@ -3,6 +3,7 @@
 import React, { ReactNode, useState, useEffect, useRef } from 'react';
 import StaffSidebar from './StaffSidebar';
 import { useRouter, usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
@@ -138,27 +139,25 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
       return;
     }
 
-    // Check if admin is logged in (next-auth session)
     if (isAdminAuth && adminUser) {
-      const role = adminUser?.role;
-      const isAdminRole = role === 'admin' || (typeof role === 'object' && (role.code === 'admin' || role.name === 'admin'));
-      
-      if (isAdminRole) {
-        // Admin can access staff pages
+      const isAdminUser = (adminUser as { is_admin?: boolean }).is_admin === true;
+      if (isAdminUser) {
         setIsAdmin(true);
-        setStaffUser(adminUser); // Use admin user data
+        setStaffUser(adminUser);
         setLoading(false);
         return;
       }
+      setIsAdmin(false);
+      setStaffUser(adminUser);
+      setLoading(false);
+      return;
     }
 
-    // Check if staff is logged in (localStorage)
     const token = localStorage.getItem('staff_token');
     const user = localStorage.getItem('staff_user');
 
     if (!token || !user) {
-      // Next.js automatically handles basePath, so we don't need to include it
-      router.push('/auth/staff/login');
+      router.push('/auth/login');
       return;
     }
 
@@ -167,23 +166,21 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
       setStaffUser(JSON.parse(user));
     } catch (error) {
       console.error('Error parsing staff user:', error);
-      // Next.js automatically handles basePath, so we don't need to include it
-      router.push('/auth/staff/login');
+      router.push('/auth/login');
     } finally {
       setLoading(false);
     }
   }, [router, isAdminAuth, adminUser, adminLoading]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (isAdmin) {
-      // Admin logout - redirect to admin login
       router.push('/auth/logout');
-    } else {
-      // Staff logout
-      localStorage.removeItem('staff_token');
-      localStorage.removeItem('staff_user');
-      router.push('/auth/staff/login');
+      return;
     }
+    localStorage.removeItem('staff_token');
+    localStorage.removeItem('staff_user');
+    await signOut({ redirect: false });
+    router.push('/auth/login');
   };
 
   if (loading) {

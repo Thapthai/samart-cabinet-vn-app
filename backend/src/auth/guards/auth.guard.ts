@@ -59,10 +59,28 @@ export class AuthGuard implements CanActivate {
       const payload = this.jwtService.verify(token);
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
-        select: { id: true, email: true, name: true, is_active: true, preferred_auth_method: true },
+        select: {
+          id: true,
+          email: true,
+          fname: true,
+          lname: true,
+          is_active: true,
+          is_admin: true,
+          role_id: true,
+          preferred_auth_method: true,
+          role: { select: { code: true } },
+        },
       });
       if (!user || !user.is_active) return null;
-      return { user, authMethod: AuthMethod.JWT };
+      const name = `${user.fname ?? ''} ${user.lname ?? ''}`.trim() || user.email;
+      return {
+        user: {
+          ...user,
+          name,
+          role: user.role?.code ?? null,
+        },
+        authMethod: AuthMethod.JWT,
+      };
     } catch {
       return null;
     }
@@ -76,7 +94,17 @@ export class AuthGuard implements CanActivate {
         where: { prefix, is_active: true },
         include: {
           user: {
-            select: { id: true, email: true, name: true, is_active: true, preferred_auth_method: true },
+            select: {
+              id: true,
+              email: true,
+              fname: true,
+              lname: true,
+              is_active: true,
+              is_admin: true,
+              role_id: true,
+              preferred_auth_method: true,
+              role: { select: { code: true } },
+            },
           },
         },
       });
@@ -88,8 +116,10 @@ export class AuthGuard implements CanActivate {
         where: { id: apiKeyRecord.id },
         data: { last_used_at: new Date() },
       });
+      const u = apiKeyRecord.user;
+      const name = `${u.fname ?? ''} ${u.lname ?? ''}`.trim() || u.email;
       return {
-        user: apiKeyRecord.user,
+        user: { ...u, name, role: u.role?.code ?? null },
         authMethod: AuthMethod.API_KEY,
         apiKey: { id: apiKeyRecord.id, name: apiKeyRecord.name, prefix: apiKeyRecord.prefix },
       };

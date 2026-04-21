@@ -159,29 +159,27 @@ export class StaffDepartmentScopeService {
     if (bearer) {
       try {
         const payload = this.jwt.verify<{ sub?: number | string; staff?: boolean }>(bearer);
-        if (payload.staff === true) {
-          const sub =
-            typeof payload.sub === 'string' ? parseInt(payload.sub, 10) : Number(payload.sub);
-          if (Number.isFinite(sub) && sub >= 1) {
-            const u = await this.prisma.staffUser.findFirst({
-              where: { id: sub, is_active: true },
-              select: { id: true, role_id: true },
-            });
-            if (u) return u;
-          }
+        const sub =
+          typeof payload.sub === 'string' ? parseInt(payload.sub, 10) : Number(payload.sub);
+        if (Number.isFinite(sub) && sub >= 1) {
+          const u = await this.prisma.user.findFirst({
+            where: { id: sub, is_active: true, role_id: { not: null } },
+            select: { id: true, role_id: true },
+          });
+          if (u?.role_id != null) return { id: u.id, role_id: u.role_id };
         }
       } catch {
-        /* ไม่ใช่ staff JWT */
+        /* ไม่ใช่ JWT ที่อ่านได้ */
       }
     }
 
     const clientId = this.headerString(h['client_id'])?.trim();
     if (clientId) {
-      const u = await this.prisma.staffUser.findFirst({
-        where: { client_id: clientId, is_active: true },
+      const u = await this.prisma.user.findFirst({
+        where: { client_id: clientId, is_active: true, role_id: { not: null } },
         select: { id: true, role_id: true },
       });
-      if (u) return u;
+      if (u?.role_id != null) return { id: u.id, role_id: u.role_id };
     }
 
     return null;

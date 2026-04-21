@@ -83,6 +83,7 @@ export function StaffUsersTable({
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>ชื่อ-นามสกุล</TableHead>
+                  <TableHead>รหัสพนักงาน</TableHead>
                   <TableHead>อีเมล</TableHead>
                   <TableHead>บทบาท</TableHead>
                   <TableHead>Client ID</TableHead>
@@ -96,6 +97,16 @@ export function StaffUsersTable({
                   <TableRow key={staff.id}>
                     <TableCell className="font-medium">{staff.id}</TableCell>
                     <TableCell>{`${staff.fname} ${staff.lname}`}</TableCell>
+                    <TableCell className="text-sm">
+                      {staff.emp_code ? (
+                        <span className="font-mono text-xs">{staff.emp_code}</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                      {staff.employee_display ? (
+                        <span className="block text-muted-foreground truncate max-w-[140px]">{staff.employee_display}</span>
+                      ) : null}
+                    </TableCell>
                     <TableCell>{staff.email}</TableCell>
                     <TableCell>
                       <span className="inline-block max-w-[220px] truncate rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm text-foreground dark:border-slate-700 dark:bg-slate-900/40">
@@ -115,7 +126,7 @@ export function StaffUsersTable({
                         <Button size="icon" variant="outline" onClick={() => onRegenerateSecret(staff.id)} title="สร้าง Client Secret ใหม่">
                           <Key className="h-4 w-4" />
                         </Button>
-                        <Button size="icon" variant="destructive" onClick={() => onDelete(staff.id)} title="ลบ">
+                        <Button size="icon" variant="destructive" onClick={() => onDelete(staff.id)} title="ปิดการใช้งาน">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

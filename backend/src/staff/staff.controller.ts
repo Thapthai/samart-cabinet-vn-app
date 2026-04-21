@@ -13,6 +13,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { StaffService } from './staff.service';
+import { AuthService } from '../auth/auth.service';
 import {
   CreateStaffUserDto,
   UpdateStaffUserDto,
@@ -25,12 +26,16 @@ import { SetStaffRolePermissionDepartmentsDto } from '../auth/dto/staff-role-per
 
 @Controller('staff-users')
 export class StaffUsersController {
-  constructor(private readonly staffService: StaffService) {}
+  constructor(
+    private readonly staffService: StaffService,
+    private readonly authService: AuthService,
+  ) {}
 
+  /** รองรับ client เดิม — delegate ไปยัง /auth/login (ตาราง User เดียว) */
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: StaffLoginDto) {
-    return this.staffService.loginStaffUser(dto.email, dto.password);
+    return this.authService.login({ email: dto.email, password: dto.password });
   }
 
   @Get()
@@ -45,6 +50,30 @@ export class StaffUsersController {
       keyword: keyword?.trim() || undefined,
     };
     return this.staffService.findAllStaffUsers(params);
+  }
+
+  /** รายชื่อพนักงานจาก HR สำหรับเลือกผูก emp_code (ต้องอยู่ก่อน @Get(':id')) */
+  @Get('employees')
+  async listEmployees(
+    @Query('keyword') keyword?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('exclude_linked') exclude_linked?: string,
+    @Query('except_user_id') except_user_id?: string,
+  ) {
+    const exceptId =
+      except_user_id != null && except_user_id !== '' && !Number.isNaN(parseInt(except_user_id, 10))
+        ? parseInt(except_user_id, 10)
+        : undefined;
+    const exclude =
+      exclude_linked === '0' || exclude_linked === 'false' ? false : true;
+    return this.staffService.findEmployeesForPicker({
+      keyword: keyword?.trim() || undefined,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      exclude_linked: exclude,
+      except_user_id: exceptId,
+    });
   }
 
   @Get(':id')

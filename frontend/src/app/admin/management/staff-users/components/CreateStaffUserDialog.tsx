@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { StaffRoleOption } from './types';
 import { ClientCredentialsPanel } from './ClientCredentialsPanel';
+import { StaffEmployeePicker } from './StaffEmployeePicker';
 
 const emptyForm = {
   email: '',
@@ -40,6 +41,7 @@ export function CreateStaffUserDialog({
   onCopy,
 }: CreateStaffUserDialogProps) {
   const [formData, setFormData] = useState(emptyForm);
+  const [empCode, setEmpCode] = useState<string | null>(null);
   const [issued, setIssued] = useState<{ client_id: string; client_secret: string } | null>(null);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export function CreateStaffUserDialog({
       return;
     }
     setFormData(emptyForm);
+    setEmpCode(null);
     setIssued(null);
   }, [open]);
 
@@ -73,6 +76,7 @@ export function CreateStaffUserDialog({
         role_code: formData.role.trim(),
         password: formData.password,
         expires_at: formData.expires_at || undefined,
+        emp_code: empCode ?? undefined,
       };
       const response = await staffUserApi.createStaffUser(payload);
       if (response?.success && response?.data) {
@@ -124,6 +128,7 @@ export function CreateStaffUserDialog({
               <Label htmlFor="lname">นามสกุล *</Label>
               <Input id="lname" value={formData.lname} onChange={(e) => setFormData({ ...formData, lname: e.target.value })} required />
             </div>
+            <StaffEmployeePicker value={empCode} onChange={setEmpCode} />
             <div>
               <Label>บทบาท (Role) *</Label>
               <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })} required disabled={staffRoles.length === 0}>

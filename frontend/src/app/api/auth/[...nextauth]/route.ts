@@ -38,16 +38,20 @@ const authOptions: NextAuthOptions = {
 
             const profileData = await validateResponse.json();
             
-            if (profileData.success && profileData.data && profileData.data.user) {
-              const userData = profileData.data.user;
-              
+            const profileUser = profileData.data?.user ?? profileData.data;
+            if (profileData.success && profileUser) {
+              const userData = profileUser as Record<string, unknown>;
+              const displayName =
+                (typeof userData.name === "string" && userData.name) ||
+                `${(userData.fname as string) ?? ""} ${(userData.lname as string) ?? ""}`.trim() ||
+                String(userData.email ?? "");
               return {
-                id: userData.id.toString(),
-                email: userData.email,
-                name: userData.name,
-                image: userData.profile_image || userData.profile_picture,
+                id: String(userData.id),
+                email: userData.email as string,
+                name: displayName,
+                image: (userData.profile_image as string) || (userData.profile_picture as string),
                 accessToken: token,
-                user: userData
+                user: { ...userData, name: displayName },
               };
             } else {
               console.error('❌ Profile data invalid:', profileData);
@@ -75,13 +79,18 @@ const authOptions: NextAuthOptions = {
             const token = response.data.token;
 
             // Return user object with token
+            const u = response.data.user as unknown as Record<string, unknown>;
+            const displayName =
+              (typeof u.name === 'string' && u.name) ||
+              `${(u.fname as string) ?? ''} ${(u.lname as string) ?? ''}`.trim() ||
+              String(u.email ?? '');
             const userObj = {
               id: response.data.user.id.toString(),
               email: response.data.user.email,
-              name: response.data.user.name,
-              image: response.data.user.profile_image,
+              name: displayName,
+              image: (u.profile_image as string) || (u.profile_picture as string),
               accessToken: token,
-              user: response.data.user
+              user: { ...response.data.user, name: displayName },
             };
 
 
@@ -123,13 +132,18 @@ const authOptions: NextAuthOptions = {
           if (response.success && response.data) {
             const token = response.data.token || response.data.accessToken;
 
+            const u = response.data.user as unknown as Record<string, unknown>;
+            const displayName =
+              (typeof u.name === 'string' && u.name) ||
+              `${(u.fname as string) ?? ''} ${(u.lname as string) ?? ''}`.trim() ||
+              String(u.email ?? '');
             const userObj = {
               id: response.data.user.id.toString(),
               email: response.data.user.email,
-              name: response.data.user.name,
-              image: response.data.user.profile_picture,
+              name: displayName,
+              image: u.profile_picture as string | undefined,
               accessToken: token,
-              user: response.data.user
+              user: { ...response.data.user, name: displayName },
             };
 
 
@@ -155,18 +169,23 @@ const authOptions: NextAuthOptions = {
         token.id = (user as any).id;
         token.email = (user as any).email;
         token.name = (user as any).name;
+        const u = (user as any).user as Record<string, unknown> | undefined;
+        token.is_admin = u?.is_admin === true;
       }
 
       // Handle session update (when updateSession is called)
       if (trigger === "update" && session) {
-
-        // Merge updated user data into token
         if (session.user) {
           token.user = {
             ...(token.user || {}),
             ...session.user,
           };
+          token.is_admin = (token.user as { is_admin?: boolean }).is_admin === true;
         }
+      }
+
+      if (!user && token.user) {
+        token.is_admin = (token.user as { is_admin?: boolean }).is_admin === true;
       }
 
       return token;

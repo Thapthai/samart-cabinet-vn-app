@@ -28,15 +28,16 @@ export class EmailOTPService {
 
       const user = await this.prisma.user.findUnique({
         where: { id: user_id },
-        select: { name: true, email: true },
+        select: { fname: true, lname: true, email: true },
       });
       if (!user) return { success: false, message: 'User not found' };
 
+      const displayName = `${user.fname ?? ''} ${user.lname ?? ''}`.trim() || user.email;
       const result = await this.emailService.sendTemplateEmail({
         to: email,
         template: EmailTemplate.EMAIL_OTP,
         templateData: {
-          name: user.name,
+          name: displayName,
           email: user.email,
           otp,
           purpose,

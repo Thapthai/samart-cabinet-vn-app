@@ -237,7 +237,7 @@ export default function ReturnFormTab({
                     <TableHead className="w-12 text-center">ลำดับ</TableHead>
                     <TableHead>รหัสอุปกรณ์</TableHead>
                     <TableHead>ชื่ออุปกรณ์</TableHead>
-                    <TableHead>ตู้ แผนก</TableHead>
+                    <TableHead>ตู้ Division</TableHead>
                     <TableHead className="text-center min-w-[140px]">เบิก | ใช้แล้ว | สูงสุดแจ้งได้</TableHead>
                     <TableHead className="w-24 text-center">จำนวน</TableHead>
                     <TableHead className="w-48">สาเหตุ</TableHead>
@@ -263,7 +263,7 @@ export default function ReturnFormTab({
                           {item.itemname ?? item.ItemCode}
                         </TableCell>
                         <TableCell className="text-slate-600 text-sm whitespace-pre-line">
-                          แผนก {item.department_name ?? '-'}
+                          Division {item.department_name ?? '-'}
                           {'\n'}
                           ตู้ {item.cabinet_code || item.cabinet_name || '-'}
                         </TableCell>
