@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield, Building2 } from 'lucide-react';
+import { Package, Users, Shield, Building2, Boxes, Layers, UserCog } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
+/** ลิงก์ทั้งหมดภายใต้ /staff/management เท่านั้น — ไม่ชี้ไป /admin */
 const managementMenus = [
   {
     name: 'จัดการตู้ Cabinet',
-    href: '/admin/management/cabinets',
+    href: '/staff/management/cabinets',
     icon: Package,
     description: 'จัดการตู้ Cabinet ตั้งค่าและเชื่อมโยงกับแผนก',
     color: 'from-blue-500 to-indigo-600',
@@ -17,10 +18,21 @@ const managementMenus = [
     iconColor: 'text-blue-600',
   },
   {
+    name: 'จัดการ Item (Master)',
+    href: '/staff/management/items',
+    icon: Boxes,
+    description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
+    color: 'from-amber-500 to-orange-600',
+    bgLight: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-700',
+  },
+  {
     name: 'จัดการแผนก',
     href: '/staff/management/departments',
     icon: Building2,
-    description: 'แผนกหลัก + รหัสแผนกย่อยจับคู่ Location (Staff portal)',
+    description: 'แผนกหลัก + รหัสแผนกย่อยจับคู่ Location',
     color: 'from-cyan-500 to-teal-600',
     bgLight: 'bg-cyan-50',
     borderColor: 'border-cyan-200',
@@ -28,10 +40,10 @@ const managementMenus = [
     iconColor: 'text-cyan-700',
   },
   {
-    name: 'Staff Users',
-    href: '/admin/management/staff-users',
+    name: 'จัดการผู้ใช้งาน Staff',
+    href: '/staff/management/permission-users',
     icon: Users,
-    description: 'จัดการ Staff Users และ Client Credentials',
+    description: 'Staff Users และ Client Credentials',
     color: 'from-emerald-500 to-teal-600',
     bgLight: 'bg-emerald-50',
     borderColor: 'border-emerald-200',
@@ -39,10 +51,32 @@ const managementMenus = [
     iconColor: 'text-emerald-600',
   },
   {
-    name: 'Staff Permission Role',
-    href: '/admin/management/permission-role',
+    name: 'จัดการ Staff Role',
+    href: '/staff/management/staff-roles',
+    icon: UserCog,
+    description: 'แก้ไขชื่อ Role ระดับสิทธิ์และสถานะ',
+    color: 'from-slate-500 to-slate-700',
+    bgLight: 'bg-slate-50',
+    borderColor: 'border-slate-200',
+    iconBg: 'bg-slate-100',
+    iconColor: 'text-slate-700',
+  },
+  {
+    name: 'กำหนดสิทธิ์ Roles Staff',
+    href: '/staff/management/permission-roles',
     icon: Shield,
-    description: 'จัดการ Staff Permission Role และสิทธิ์การใช้งาน',
+    description: 'สิทธิ์การเข้าถึงเมนูตาม Role',
+    color: 'from-indigo-500 to-blue-600',
+    bgLight: 'bg-indigo-50',
+    borderColor: 'border-indigo-200',
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-600',
+  },
+  {
+    name: 'Division หลักตาม Staff Role',
+    href: '/staff/management/staff-role-permission-department',
+    icon: Layers,
+    description: 'จำกัด Division หลักที่แต่ละ Role เห็นได้',
     color: 'from-violet-500 to-purple-600',
     bgLight: 'bg-violet-50',
     borderColor: 'border-violet-200',
@@ -55,20 +89,16 @@ export default function ManagementPage() {
   return (
     <>
       <div className="space-y-8">
-        {/* Header */}
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 shadow-lg">
             <Package className="h-6 w-6 text-white" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">การจัดการ</h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              จัดการระบบ ตู้ Cabinet ผู้ใช้ Staff และสิทธิ์
-            </p>
+            <p className="text-sm text-slate-500 mt-0.5">จัดการระบบ ตู้ Cabinet ผู้ใช้ Staff และสิทธิ์ (Staff portal)</p>
           </div>
         </div>
 
-        {/* Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {managementMenus.map((menu) => {
             const Icon = menu.icon;
@@ -83,12 +113,8 @@ export default function ManagementPage() {
                     >
                       <Icon className="h-7 w-7" />
                     </div>
-                    <CardTitle className="text-lg text-slate-800 group-hover:text-slate-900">
-                      {menu.name}
-                    </CardTitle>
-                    <CardDescription className="text-slate-600 leading-relaxed">
-                      {menu.description}
-                    </CardDescription>
+                    <CardTitle className="text-lg text-slate-800 group-hover:text-slate-900">{menu.name}</CardTitle>
+                    <CardDescription className="text-slate-600 leading-relaxed">{menu.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <span
