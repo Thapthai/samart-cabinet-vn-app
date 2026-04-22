@@ -16,7 +16,9 @@ import {
   Tags,
   Building2,
   Layers,
+  Printer,
 } from 'lucide-react';
+import { PRINT_STICKER_APP_URL } from '@/lib/printStickerUrl';
 
 // Type definitions for menu and submenu
 export interface StaffMenuSubItem {
@@ -26,6 +28,8 @@ export interface StaffMenuSubItem {
   icon?: LucideIcon;
   /** ถ้ากำหนด: แสดงเมนูนี้เฉพาะ role ที่ระบุ (คู่กับสิทธิ์จาก API ที่ไม่ถูกปิด) */
   roles?: string[];
+  /** เปิด URL ภายนอกแทน `href` — ใช้กับ `target="_blank"` ใน Sidebar */
+  externalHref?: string;
 }
 
 export interface StaffMenuItem {
@@ -140,6 +144,13 @@ export const adminMenuItems: StaffMenuItem[] = [
     description: 'ตั้งค่าระบบ',
     noHref: true,
     submenu: [
+      {
+        name: 'พิมพ์สติกเกอร์',
+        href: '/staff/management/print-sticker',
+        externalHref: PRINT_STICKER_APP_URL,
+        icon: Printer,
+        description: 'พิมพ์สติกเกอร์',
+      },
       {
         name: 'จัดการ Item (Master)',
         href: '/admin/management/items',

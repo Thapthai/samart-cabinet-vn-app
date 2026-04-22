@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { MenuNavLink } from '@/components/MenuNavLink';
 import { staffRolePermissionApi } from '@/lib/api';
 import { Menu, X, ChevronLeft, ChevronRight, LogOut, Shield } from 'lucide-react';
 import {
@@ -63,11 +64,12 @@ function StaffCollapsedSubIcons({
     <div className="flex flex-col gap-0.5 border-t border-sky-200/50 py-1">
       {items.map((sub) => {
         const SubIcon = sub.icon;
-        const subActive = isPathActive(pathname, sub.href);
+        const subActive = sub.externalHref ? false : isPathActive(pathname, sub.href);
         return (
-          <Link
+          <MenuNavLink
             key={sub.href}
             href={sub.href}
+            externalHref={sub.externalHref}
             title={sub.name}
             onClick={onNavigate}
             className={cn(
@@ -82,7 +84,7 @@ function StaffCollapsedSubIcons({
             ) : (
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
             )}
-          </Link>
+          </MenuNavLink>
         );
       })}
     </div>
@@ -390,11 +392,12 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                   <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-sky-300/80 pl-3">
                     {item.submenu!.map((sub) => {
                       const SubIcon = sub.icon;
-                      const subActive = isPathActive(pathname, sub.href);
+                      const subActive = sub.externalHref ? false : isPathActive(pathname, sub.href);
                       return (
-                        <Link
+                        <MenuNavLink
                           key={sub.href}
                           href={sub.href}
+                          externalHref={sub.externalHref}
                           onClick={() => setIsMobileOpen(false)}
                           className={cn(
                             'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-base transition-colors',
@@ -409,7 +412,7 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
                           )}
                           <span className="break-words leading-snug">{sub.name}</span>
-                        </Link>
+                        </MenuNavLink>
                       );
                     })}
                   </div>

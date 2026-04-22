@@ -67,12 +67,12 @@ export default function LoginPage() {
             // Continue with regular error handling
           }
         }
-        
+
         // Check for specific error types
         const errorMessage = result.error;
 
         console.log(errorMessage);
-        
+
         if (errorMessage.includes('Invalid credentials')) {
           // Show error in alert box and red borders on both fields
           setEmailError('error'); // Just mark as error for styling
@@ -214,7 +214,7 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Firebase Login Button */}
-            <div className="space-y-3">
+            {/* <div className="space-y-3">
               <Button
                 type="button"
                 variant="outline"
@@ -248,32 +248,29 @@ export default function LoginPage() {
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-white px-4 text-gray-500 font-medium">หรือ</span>
               </div>
-            </div>
+            </div> */}
 
             {/* Email/Password Login Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <div className="space-y-2">
-                <Label 
-                  htmlFor="email" 
-                  className={`text-sm font-medium transition-colors ${
-                    errors.email || emailError ? 'text-red-600' : 'text-gray-700'
-                  }`}
+                <Label
+                  htmlFor="email"
+                  className={`text-sm font-medium transition-colors ${errors.email || emailError ? 'text-red-600' : 'text-gray-700'
+                    }`}
                 >
                   อีเมล *
                 </Label>
                 <div className="relative">
-                  <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors ${
-                    errors.email || emailError ? 'text-red-400' : 'text-gray-400'
-                  }`} />
+                  <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors ${errors.email || emailError ? 'text-red-400' : 'text-gray-400'
+                    }`} />
                   <Input
                     id="email"
                     type="email"
                     placeholder="your@email.com"
-                    className={`pl-10 h-12 border-2 transition-all duration-200 ${
-                      errors.email || emailError
-                        ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 shadow-sm shadow-red-100 animate-shake' 
+                    className={`pl-10 h-12 border-2 transition-all duration-200 ${errors.email || emailError
+                        ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 shadow-sm shadow-red-100 animate-shake'
                         : 'border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
-                    }`}
+                      }`}
                     {...register('email')}
                   />
                 </div>
@@ -292,27 +289,24 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label 
-                  htmlFor="password" 
-                  className={`text-sm font-medium transition-colors ${
-                    errors.password || passwordError ? 'text-red-600' : 'text-gray-700'
-                  }`}
+                <Label
+                  htmlFor="password"
+                  className={`text-sm font-medium transition-colors ${errors.password || passwordError ? 'text-red-600' : 'text-gray-700'
+                    }`}
                 >
                   รหัสผ่าน *
                 </Label>
                 <div className="relative">
-                  <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors ${
-                    errors.password || passwordError ? 'text-red-400' : 'text-gray-400'
-                  }`} />
+                  <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors ${errors.password || passwordError ? 'text-red-400' : 'text-gray-400'
+                    }`} />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
-                    className={`pl-10 pr-10 h-12 border-2 transition-all duration-200 ${
-                      errors.password || passwordError
-                        ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 shadow-sm shadow-red-100 animate-shake' 
+                    className={`pl-10 pr-10 h-12 border-2 transition-all duration-200 ${errors.password || passwordError
+                        ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 shadow-sm shadow-red-100 animate-shake'
                         : 'border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
-                    }`}
+                      }`}
                     {...register('password')}
                   />
                   <button

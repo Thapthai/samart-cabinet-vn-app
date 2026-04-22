@@ -5,6 +5,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import { staffRolePermissionApi, staffRoleApi } from "@/lib/api";
 import { staffRoleIsStaffPermissionHead } from "@/lib/staffRolePolicy";
+import { staffMenuItems } from "@/app/staff/menus";
 import {
   Card,
   CardContent,
@@ -92,7 +93,7 @@ export default function ManageStaffRolesPage() {
 
       // Initialize permissions map: all roles × all menus = false
       const permissionsMap: Record<string, Record<string, boolean>> = {};
-      const hrefs = getAllStaffPermissionHrefs();
+      const hrefs = getAllStaffPermissionHrefs(staffMenuItems);
       activeRoles.forEach((role) => {
         permissionsMap[role.code] = {};
         hrefs.forEach((href) => {
@@ -136,7 +137,7 @@ export default function ManageStaffRolesPage() {
 
   const initializeDefaultPermissions = () => {
     const defaultPermissions: Record<string, Record<string, boolean>> = {};
-    const hrefs = getAllStaffPermissionHrefs();
+    const hrefs = getAllStaffPermissionHrefs(staffMenuItems);
     const manageUserPaths = [
       "/staff/management/permission-users",
       "/staff/permissions/users",
@@ -249,7 +250,8 @@ export default function ManageStaffRolesPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">กำหนดสิทธิ์</h1>
               <p className="text-sm text-gray-500 mt-1">
-                กำหนดสิทธิ์การเข้าถึงเมนูตามบทบาท (Role)
+                กำหนดสิทธิ์การเข้าถึงเมนูตามบทบาท (Role) — รายการเมนูตรงกับ Staff portal ใน{" "}
+                <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">app/staff/menus.ts</code>
               </p>
             </div>
           </div>
@@ -310,7 +312,7 @@ export default function ManageStaffRolesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getStaffPermissionTableRows().map((row, rowIdx) => {
+                    {getStaffPermissionTableRows(staffMenuItems).map((row, rowIdx) => {
                       if (row.type === "section") {
                         return (
                           <TableRow

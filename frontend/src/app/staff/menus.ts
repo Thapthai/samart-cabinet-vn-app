@@ -1,3 +1,23 @@
+import {
+    LayoutDashboard,
+    Box,
+    Package,
+    History,
+    FileBarChart,
+    Settings,
+    Users,
+    Shield,
+    UserCog,
+    Network,
+    RotateCcw,
+    ClipboardList,
+    Building2,
+    Boxes,
+    Layers,
+    Printer,
+} from 'lucide-react';
+import { PRINT_STICKER_APP_URL } from '@/lib/printStickerUrl';
+
 // Type definitions for menu and submenu
 export interface StaffMenuSubItem {
     name: string;
@@ -6,6 +26,8 @@ export interface StaffMenuSubItem {
     icon?: any;
     /** ถ้ากำหนด: แสดงเมนูนี้เฉพาะ role ที่ระบุ (คู่กับสิทธิ์จาก API ที่ไม่ถูกปิด) */
     roles?: string[];
+    /** เปิด URL ภายนอกแทน `href` (เช่น แอปอื่น) — ใช้กับ `target="_blank"` ใน Sidebar */
+    externalHref?: string;
 }
 
 export interface StaffMenuItem {
@@ -53,21 +75,6 @@ export function filterMenuByPermissions(
             return permissions[item.href] !== false;
         });
 }
-import {
-    LayoutDashboard,
-    Box,
-    Package,
-    History,
-    FileBarChart,
-    Settings,
-    Users,
-    Shield,
-    UserCog,
-    Network,
-    RotateCcw,
-    ClipboardList,
-    Building2,
-} from 'lucide-react';
 
 export const staffMenuItems = [
     {
@@ -138,10 +145,17 @@ export const staffMenuItems = [
         noHref: true,
         submenu: [
             {
-                name: 'จัดการตู้ Cabinet',
-                href: '/staff/management/cabinets',
-                icon: Package,
-                description: 'จัดการตู้ Cabinet',
+                name: 'พิมพ์สติกเกอร์',
+                href: '/staff/management/print-sticker',
+                externalHref: PRINT_STICKER_APP_URL,
+                icon: Printer,
+                description: 'พิมพ์สติกเกอร์',
+            },
+            {
+                name: 'จัดการ Item (Master)',
+                href: '/staff/management/items',
+                icon: Boxes,
+                description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
             },
             {
                 name: 'จัดการ Division',
@@ -150,10 +164,22 @@ export const staffMenuItems = [
                 description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
             },
             {
+                name: 'จัดการตู้ Cabinet',
+                href: '/staff/management/cabinets',
+                icon: Package,
+                description: 'จัดการตู้ Cabinet',
+            },
+            {
                 name: 'จัดการ ผู้ใช้งาน Staff',
                 href: '/staff/management/permission-users',
                 icon: Users,
                 description: 'จัดการ User',
+            },
+            {
+                name: 'จัดการ Staff Role',
+                href: '/staff/management/staff-roles',
+                icon: UserCog,
+                description: 'แก้ไขชื่อ Role ระดับสิทธิ์และสถานะ — ตามสิทธิ์ระดับของคุณ',
             },
             {
                 name: ' กำหนดสิทธิ์ Roles Staff',
@@ -162,10 +188,10 @@ export const staffMenuItems = [
                 description: 'กำหนดสิทธิ์การเข้าถึงเมนู Roles Staff',
             },
             {
-                name: 'จัดการ Staff Role',
-                href: '/staff/management/staff-roles',
-                icon: UserCog,
-                description: 'แก้ไขชื่อ Role ระดับสิทธิ์และสถานะ — ตามสิทธิ์ระดับของคุณ',
+                name: 'Division หลักตาม Staff Role',
+                href: '/staff/management/staff-role-permission-department',
+                icon: Layers,
+                description: 'จำกัด Division หลักที่แต่ละ Role เห็นได้ (ว่าง = เห็นทุก Division)',
             },
         ],
     },

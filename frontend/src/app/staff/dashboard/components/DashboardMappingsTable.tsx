@@ -70,9 +70,9 @@ export default function DashboardMappingsTable({ mappings, loading }: DashboardM
                       <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">ลำดับ</TableHead>
                       <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">ชื่อตู้</TableHead>
                       <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">Division</TableHead>
-                      <TableHead className="px-3 py-3.5 text-center text-slate-600 sm:px-4 sm:py-4">
-                        จำนวนอุปกรณ์
-                      </TableHead>
+                        {/* <TableHead className="px-3 py-3.5 text-center text-slate-600 sm:px-4 sm:py-4">
+                          จำนวนอุปกรณ์
+                        </TableHead> */}
                       <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">สถานะ</TableHead>
                       <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">หมายเหตุ</TableHead>
                     </TableRow>
@@ -103,12 +103,12 @@ export default function DashboardMappingsTable({ mappings, loading }: DashboardM
                           <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
                             {mapping.department?.DepName || "-"}
                           </TableCell>
-                          <TableCell className="px-3 py-3.5 text-center sm:px-4 sm:py-4">
+                          {/* <TableCell className="px-3 py-3.5 text-center sm:px-4 sm:py-4">
                             <span className="font-medium text-slate-700">
                               {mapping.itemstock_dispensed_count ?? 0} / {mapping.itemstock_count ?? 0}
                             </span>
                             <span className="ml-1 text-xs text-slate-500">(ถูกเบิก / ในตู้)</span>
-                          </TableCell>
+                          </TableCell> */}
                           <TableCell className="px-3 py-3.5 sm:px-4 sm:py-4">
                             <Badge
                               variant={mapping.status === "ACTIVE" ? "default" : "secondary"}
