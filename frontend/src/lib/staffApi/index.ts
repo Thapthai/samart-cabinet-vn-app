@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { getSession } from 'next-auth/react';
 
-// Create axios instance for staff API
+// Create axios instance for staff API (ควรใช้ base เดียวกับ lib/api.ts)
 const staffApi = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/smart-cabinet-cu/api/v1',
+    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/smart-cabinet-vn/v1',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -10,9 +11,12 @@ const staffApi = axios.create({
 
 
 // Request interceptor to add client_id and client_secret for staff endpoints
-staffApi.interceptors.request.use((config) => { 
-    // Attach staff_token
-    const staffToken = localStorage.getItem('staff_token');
+staffApi.interceptors.request.use(async (config) => { 
+    let staffToken = typeof window !== 'undefined' ? localStorage.getItem('staff_token') : null;
+    if (!staffToken && typeof window !== 'undefined') {
+        const session = (await getSession()) as { accessToken?: string } | null;
+        if (session?.accessToken) staffToken = session.accessToken;
+    }
     if (staffToken) {
         config.headers.Authorization = `Bearer ${staffToken}`;
     }

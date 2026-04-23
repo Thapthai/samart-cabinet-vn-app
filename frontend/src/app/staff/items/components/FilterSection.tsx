@@ -102,11 +102,17 @@ export default function FilterSection({
   const loadDepartments = async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
+      /** ref ยังเป็น undefined ได้ถ้า user เปิดค้นหา Division ก่อน effect แรกเสร็จ — โหลด scope ก่อน */
+      let allowed = allowedDepartmentIdsRef.current;
+      if (allowed === undefined) {
+        allowed = await getStaffAllowedDepartmentIds();
+        allowedDepartmentIdsRef.current = allowed;
+      }
       const list = await fetchStaffDepartmentsForFilter({
         keyword,
         page: 1,
         limit: 50,
-        allowedDepartmentIds: allowedDepartmentIdsRef.current,
+        allowedDepartmentIds: allowed,
       });
       setDepartments(list as Department[]);
     } catch (error) {

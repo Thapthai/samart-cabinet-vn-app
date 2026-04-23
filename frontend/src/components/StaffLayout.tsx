@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { User, Settings, LogOut, ChevronDown, ZoomIn, ZoomOut } from 'lucide-react';
+import { clearStaffDepartmentScopeCache } from '@/lib/staffDepartmentScope';
 
 interface StaffLayoutProps {
   children: ReactNode;
@@ -141,6 +142,28 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
 
     if (isAdminAuth && adminUser) {
       const isAdminUser = (adminUser as { is_admin?: boolean }).is_admin === true;
+      /** staffApi อ่าน staff_token จาก localStorage — sync จาก NextAuth ก่อนลูกหน้าเรียก /staff/me */
+      if (typeof window !== 'undefined') {
+        const u = adminUser as Record<string, unknown>;
+        const token = u.accessToken as string | undefined;
+        if (token) {
+          const prev = localStorage.getItem('staff_token');
+          if (prev !== token) clearStaffDepartmentScopeCache();
+          localStorage.setItem('staff_token', token);
+        }
+        const uid = u.id ?? u.staff_user_id ?? u.user_id;
+        if (uid != null && Number.isFinite(Number(uid))) {
+          localStorage.setItem(
+            'staff_user',
+            JSON.stringify({
+              id: Number(uid),
+              email: u.email,
+              client_id: (u.client_id as string) || (u.clientId as string) || '',
+              client_secret: (u.client_secret as string) || (u.clientSecret as string) || '',
+            }),
+          );
+        }
+      }
       if (isAdminUser) {
         setIsAdmin(true);
         setStaffUser(adminUser);

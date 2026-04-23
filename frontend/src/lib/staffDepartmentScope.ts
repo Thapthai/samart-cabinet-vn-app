@@ -26,8 +26,9 @@ function staffUserIdFromStorage(): number | null {
   try {
     const raw = localStorage.getItem('staff_user');
     if (!raw) return null;
-    const u = JSON.parse(raw) as { id?: number };
-    if (u?.id != null && Number.isFinite(Number(u.id))) return Number(u.id);
+    const u = JSON.parse(raw) as { id?: number; staff_user_id?: number; user_id?: number };
+    const n = u.id ?? u.staff_user_id ?? u.user_id;
+    if (n != null && Number.isFinite(Number(n))) return Number(n);
   } catch {
     return null;
   }
@@ -35,14 +36,22 @@ function staffUserIdFromStorage(): number | null {
 }
 
 async function ensureMeScopeLoaded(): Promise<MeScopeCache | null> {
-  const staffUserId = staffUserIdFromStorage();
-  if (staffUserId == null) return null;
+  const storageUserId = staffUserIdFromStorage();
 
-  if (meScopeCache?.staffUserId === staffUserId) return meScopeCache;
+  if (meScopeCache) {
+    if (storageUserId != null && meScopeCache.staffUserId !== storageUserId) {
+      meScopeCache = null;
+    } else {
+      return meScopeCache;
+    }
+  }
 
   try {
     const res = await fetchStaffMeDepartments();
     if (!res?.success || !res.data) return null;
+
+    const serverUserId = res.data.staff_user_id;
+    if (serverUserId == null || !Number.isFinite(Number(serverUserId))) return null;
 
     const unrestricted = res.data.unrestricted === true;
     const departments = res.data.departments ?? [];
@@ -51,7 +60,7 @@ async function ensureMeScopeLoaded(): Promise<MeScopeCache | null> {
       : [...new Set(departments.map((d) => d.ID).filter((n) => Number.isFinite(n) && n > 0))].sort((a, b) => a - b);
 
     meScopeCache = {
-      staffUserId,
+      staffUserId: Number(serverUserId),
       unrestricted,
       allowedIds,
       departments,
