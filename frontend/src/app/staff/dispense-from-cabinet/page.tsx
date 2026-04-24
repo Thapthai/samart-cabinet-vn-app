@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DispensedItemsApi } from '@/lib/staffApi/dispensedItemsApi';
 import { toast } from 'sonner';
 import { Package } from 'lucide-react';
@@ -37,15 +37,12 @@ export default function DispenseFromCabinetPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  const fetchDispensedList = async (page: number = 1, customFilters?: FilterState) => {
+  const fetchDispensedList = async (
+    page: number = 1,
+    customFilters?: FilterState,
+    opts?: { silent?: boolean },
+  ) => {
     const activeFilters = customFilters || filters;
-    if (!activeFilters.departmentId?.trim() || !activeFilters.cabinetId?.trim()) {
-      setDispensedList([]);
-      setTotalItems(0);
-      setTotalPages(0);
-      setLoadingList(false);
-      return;
-    }
     try {
       setLoadingList(true);
       const params: Record<string, string | number> = {
@@ -55,9 +52,11 @@ export default function DispenseFromCabinetPage() {
       if (activeFilters.startDate) params.startDate = activeFilters.startDate;
       if (activeFilters.endDate) params.endDate = activeFilters.endDate;
       if (activeFilters.searchItemCode) params.keyword = activeFilters.searchItemCode;
-      if (activeFilters.departmentId) params.departmentId = activeFilters.departmentId;
-      if (activeFilters.subDepartmentId) params.subDepartmentId = activeFilters.subDepartmentId;
-      if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
+      if (activeFilters.departmentId?.trim()) params.departmentId = activeFilters.departmentId;
+      if (activeFilters.subDepartmentId?.trim()) {
+        params.subDepartmentId = activeFilters.subDepartmentId;
+      }
+      if (activeFilters.cabinetId?.trim()) params.cabinetId = activeFilters.cabinetId;
 
       const response = await DispensedItemsApi.getDispensedItems(params);
 
@@ -76,10 +75,12 @@ export default function DispenseFromCabinetPage() {
         setTotalPages(totalPagesNum);
         setCurrentPage(response.page || page);
 
-        if (dispensedData.length === 0) {
-          toast.info('ไม่พบข้อมูลการเบิกอุปกรณ์ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
-        } else {
-          toast.success(`พบ ${total} รายการเบิกอุปกรณ์`);
+        if (!opts?.silent) {
+          if (dispensedData.length === 0) {
+            toast.info('ไม่พบข้อมูลการเบิกอุปกรณ์ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
+          } else {
+            toast.success(`พบ ${total} รายการเบิกอุปกรณ์`);
+          }
         }
       } else {
         toast.error(response?.message || 'ไม่สามารถโหลดข้อมูลได้');
@@ -91,15 +92,16 @@ export default function DispenseFromCabinetPage() {
     }
   };
 
+  const initialFetchDone = useRef(false);
+  useEffect(() => {
+    if (initialFetchDone.current) return;
+    initialFetchDone.current = true;
+    void fetchDispensedList(1, undefined, { silent: true });
+    // โหลดครั้งแรกด้วยตัวกรองว่าง = ทั้งหมดตามช่วงวันที่
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSearch = () => {
-    if (!filters.departmentId?.trim()) {
-      toast.error('กรุณาเลือก Division');
-      return;
-    }
-    if (!filters.cabinetId?.trim()) {
-      toast.error('กรุณาเลือกตู้ Cabinet');
-      return;
-    }
     setCurrentPage(1);
     fetchDispensedList(1);
   };
@@ -116,9 +118,7 @@ export default function DispenseFromCabinetPage() {
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
-    setDispensedList([]);
-    setTotalItems(0);
-    setTotalPages(0);
+    void fetchDispensedList(1, clearedFilters, { silent: true });
   };
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
@@ -164,7 +164,6 @@ export default function DispenseFromCabinetPage() {
   };
 
   const handlePageChange = (newPage: number) => {
-    if (!filters.departmentId?.trim() || !filters.cabinetId?.trim()) return;
     setCurrentPage(newPage);
     fetchDispensedList(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
 import { getStaffAllowedDepartmentIds } from "@/lib/staffDepartmentScope";
 import { Loader2, Network } from "lucide-react";
@@ -40,8 +39,6 @@ export default function ItemStockDepartmentsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedMapping, setSelectedMapping] = useState<CabinetDepartment | null>(null);
   const [filterVersion, setFilterVersion] = useState(0);
-  /** แสดงตารางเฉพาะหลังกดค้นหาและมีแผนก */
-  const [filtersApplied, setFiltersApplied] = useState(false);
   /** undefined = ยังโหลดขอบเขตแผนกตาม role */
   const [allowedDepartmentIds, setAllowedDepartmentIds] = useState<number[] | null | undefined>(undefined);
 
@@ -85,16 +82,10 @@ export default function ItemStockDepartmentsPage() {
   };
 
   const handleSearch = (filters: { cabinetId: string; departmentId: string; status: string }) => {
-    if (!filters.departmentId?.trim()) {
-      toast.error("กรุณาเลือกแผนก");
-      return;
-    }
     setActiveFilters(filters);
-    setFiltersApplied(true);
   };
 
   const resetFilters = () => {
-    setFiltersApplied(false);
     setActiveFilters({
       cabinetId: "",
       departmentId: "",
@@ -105,7 +96,6 @@ export default function ItemStockDepartmentsPage() {
   };
 
   const handleFilterFormReset = () => {
-    setFiltersApplied(false);
     setActiveFilters({
       cabinetId: "",
       departmentId: "",
@@ -311,21 +301,13 @@ export default function ItemStockDepartmentsPage() {
         departmentDisabled={false}
       />
 
-      {filtersApplied ? (
-        <MappingTable
-          mappings={filteredMappings}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onExportExcel={() => handleExportReport("excel")}
-          onExportPdf={() => handleExportReport("pdf")}
-        />
-      ) : (
-        <Card className="border-slate-200/80 shadow-sm rounded-xl">
-          <CardContent className="py-16 text-center text-slate-500 text-sm">
-            เลือกแผนก (และตู้ถ้าต้องการ) แล้วกดค้นหาเพื่อดูรายการเชื่อมโยง
-          </CardContent>
-        </Card>
-      )}
+      <MappingTable
+        mappings={filteredMappings}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onExportExcel={() => handleExportReport("excel")}
+        onExportPdf={() => handleExportReport("pdf")}
+      />
 
       <CreateMappingDialog
         open={showCreateDialog}

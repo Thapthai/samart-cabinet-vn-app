@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Search, RotateCcw, Filter } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
-import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
+import { staffCabinetDepartmentApi, staffCabinetApi } from "@/lib/staffApi/cabinetApi";
 import {
   clampDepartmentIdString,
   fetchStaffDepartmentsForFilter,
@@ -22,16 +22,34 @@ interface Cabinet {
   id: number;
   cabinet_name?: string;
   cabinet_code?: string;
+  cabinet_status?: string;
+  cabinetDepartments?: Array<{
+    id: number;
+    department_id: number;
+    status: string;
+  }>;
 }
 
 interface CabinetDepartmentMapping {
   id: number;
   cabinet_id: number;
   department_id: number;
+  status?: string;
   cabinet?: {
     id: number;
     cabinet_name?: string;
     cabinet_code?: string;
+    cabinet_status?: string;
+  };
+}
+
+function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping["cabinet"]): Cabinet | null {
+  if (!cabinet || typeof cabinet.id !== "number") return null;
+  return {
+    id: cabinet.id,
+    cabinet_name: cabinet.cabinet_name,
+    cabinet_code: cabinet.cabinet_code,
+    cabinet_status: cabinet.cabinet_status,
   };
 }
 
@@ -89,44 +107,53 @@ export default function FilterSection({
     }
   }, []);
 
-  const loadCabinetsByDepartment = async (departmentId: string, keyword?: string) => {
-    if (!departmentId || departmentId === "") {
-      setCabinets([]);
-      return;
-    }
-
+  const resolveCabinets = useCallback(async (departmentIdStr: string, keyword?: string) => {
     try {
       setLoadingCabinets(true);
-      const response = await staffCabinetDepartmentApi.getAll({
-        departmentId: parseInt(departmentId, 10),
-        keyword: keyword,
-      });
-
-      if (response.success && response.data) {
-        const mappings = response.data as CabinetDepartmentMapping[];
-        const uniqueCabinets = new Map<number, Cabinet>();
-
-        mappings.forEach((mapping) => {
-          if (mapping.cabinet && !uniqueCabinets.has(mapping.cabinet.id)) {
-            uniqueCabinets.set(mapping.cabinet.id, {
-              id: mapping.cabinet.id,
-              cabinet_name: mapping.cabinet.cabinet_name,
-              cabinet_code: mapping.cabinet.cabinet_code,
-            });
-          }
-        });
-
-        setCabinets(Array.from(uniqueCabinets.values()));
+      let next: Cabinet[] = [];
+      if (!departmentIdStr?.trim()) {
+        const response = await staffCabinetApi.getAll({ page: 1, limit: 50, keyword });
+        if (response?.data?.length) {
+          const allCabinets = response.data as Cabinet[];
+          next = allCabinets.filter((cabinet) => {
+            if (cabinet.cabinetDepartments && cabinet.cabinetDepartments.length > 0) {
+              return cabinet.cabinetDepartments.some((cd) => cd.status === "ACTIVE");
+            }
+            return cabinet.cabinet_status === "ACTIVE";
+          });
+        }
       } else {
-        setCabinets([]);
+        const deptId = parseInt(departmentIdStr, 10);
+        if (Number.isNaN(deptId)) {
+          setCabinets([]);
+          return;
+        }
+        const response = await staffCabinetDepartmentApi.getAll({
+          departmentId: deptId,
+          keyword: keyword || undefined,
+        });
+        if (response.success && response.data) {
+          const mappings = response.data as CabinetDepartmentMapping[];
+          const uniqueCabinets = new Map<number, Cabinet>();
+          mappings
+            .filter((mapping) => mapping.status === "ACTIVE")
+            .forEach((mapping) => {
+              const mapped = mapCabinetFromMapping(mapping.cabinet);
+              if (mapped && !uniqueCabinets.has(mapped.id)) {
+                uniqueCabinets.set(mapped.id, mapped);
+              }
+            });
+          next = Array.from(uniqueCabinets.values());
+        }
       }
+      setCabinets(next);
     } catch (error) {
-      console.error("Failed to load cabinets by department:", error);
+      console.error("Failed to load cabinets:", error);
       setCabinets([]);
     } finally {
       setLoadingCabinets(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -168,14 +195,19 @@ export default function FilterSection({
   }, [departmentDisabled, initialDepartmentId]);
 
   useEffect(() => {
-    loadCabinetsByDepartment(formFilters.departmentId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- trigger when department changes
-  }, [formFilters.departmentId]);
+    void resolveCabinets(formFilters.departmentId);
+  }, [formFilters.departmentId, resolveCabinets]);
+
+  useEffect(() => {
+    if (formFilters.cabinetId && cabinets.length > 0) {
+      const exists = cabinets.some((c) => c.id.toString() === formFilters.cabinetId);
+      if (!exists) {
+        setFormFilters((prev) => ({ ...prev, cabinetId: "" }));
+      }
+    }
+  }, [cabinets, formFilters.cabinetId]);
 
   const handleSearch = () => {
-    if (!formFilters.departmentId?.trim()) {
-      return;
-    }
     onSearch(formFilters);
   };
 
@@ -193,25 +225,28 @@ export default function FilterSection({
     onReset?.();
   };
 
-  const departmentOptions = departments.map((dept) => ({
-    value: dept.ID.toString(),
-    label: dept.DepName || "",
-    subLabel: dept.DepName2 || "",
-  }));
+  const departmentOptions = [
+    { value: "", label: "ทั้งหมด" },
+    ...departments.map((dept) => ({
+      value: dept.ID.toString(),
+      label: dept.DepName || "",
+      subLabel: dept.DepName2 || "",
+    })),
+  ];
 
   return (
     <Card className="mb-6 border-slate-200/80 shadow-sm rounded-xl">
       <CardHeader className="border-b border-slate-100 bg-slate-50/50">
         <CardTitle className="flex items-center gap-2 text-slate-800">
           <Filter className="h-5 w-5 text-blue-600" />
-          ค้นหาและกรอง
+          กรองข้อมูล
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
           <SearchableSelect
             label="Division"
-            placeholder="— เลือก Division —"
+            placeholder="ทั้งหมด (ไม่บังคับ)"
             value={formFilters.departmentId}
             onValueChange={(value) => {
               if (departmentDisabled) return;
@@ -230,11 +265,15 @@ export default function FilterSection({
 
           <SearchableSelect
             label="ตู้ Cabinet"
-            placeholder={formFilters.departmentId ? "เลือกตู้ Cabinet" : "กรุณาเลือกแผนกก่อน"}
+            placeholder={
+              formFilters.departmentId?.trim()
+                ? "ทั้งหมดหรือเลือกตู้ (ในแผนกนี้)"
+                : "ทั้งหมดหรือเลือกตู้ (ทุกตู้ที่ใช้งาน)"
+            }
             value={formFilters.cabinetId}
             onValueChange={(value) => setFormFilters({ ...formFilters, cabinetId: value })}
             options={[
-              { value: "", label: "ทุกตู้ (ในแผนกนี้)" },
+              { value: "", label: "ทั้งหมด" },
               ...cabinets.map((cabinet) => ({
                 value: cabinet.id.toString(),
                 label: cabinet.cabinet_name || "",
@@ -243,21 +282,15 @@ export default function FilterSection({
             ]}
             loading={loadingCabinets}
             onSearch={(searchKeyword) => {
-              if (formFilters.departmentId) {
-                loadCabinetsByDepartment(formFilters.departmentId, searchKeyword);
-              }
+              void resolveCabinets(formFilters.departmentId, searchKeyword);
             }}
-            searchPlaceholder={formFilters.departmentId ? "ค้นหารหัสหรือชื่อตู้..." : "กรุณาเลือกแผนกก่อน"}
-            disabled={!formFilters.departmentId}
+            searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
+            disabled={false}
           />
         </div>
 
         <div className="flex gap-3 pt-1">
-          <Button
-            onClick={handleSearch}
-            className="flex-1"
-            disabled={!formFilters.departmentId?.trim()}
-          >
+          <Button onClick={handleSearch} className="flex-1">
             <Search className="mr-2 h-4 w-4" />
             ค้นหา
           </Button>

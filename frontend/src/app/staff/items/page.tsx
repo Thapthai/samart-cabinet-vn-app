@@ -15,6 +15,7 @@ import FilterSection, { type StaffItemsSearchFilters } from './components/Filter
 import ItemsTable from './components/ItemsTable';
 
 export default function ItemsPage() {
+  const [itemsFilterKey, setItemsFilterKey] = useState(0);
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
@@ -141,6 +142,7 @@ export default function ItemsPage() {
   };
 
   const handleResetFilters = () => {
+    setItemsFilterKey((k) => k + 1);
     setHasSearched(false);
     setCurrentPage(1);
     setActiveFilters({
@@ -235,10 +237,12 @@ export default function ItemsPage() {
 
         {/* Filter Section */}
         <FilterSection
+          key={itemsFilterKey}
           onSearch={handleSearch}
           onBeforeSearch={() => setCurrentPage(1)}
           onReset={handleResetFilters}
           departmentDisabled={false}
+          initialAutoSearch
         />
 
         {/* Table Section */}

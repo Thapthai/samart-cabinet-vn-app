@@ -171,13 +171,12 @@ export default function ItemComparisonPage() {
         setSubDepartmentsMaster([]);
       }
 
-      const deptCode = mapped[0] ? String(mapped[0].ID) : '';
       const initialFilters: FilterState = {
         searchItemCode: '',
         startDate: getTodayDate(),
         endDate: getTodayDate(),
         itemTypeFilter: 'all',
-        departmentCode: deptCode,
+        departmentCode: '',
         subDepartmentId: '',
         cabinetId: '',
       };
@@ -276,13 +275,12 @@ export default function ItemComparisonPage() {
   };
 
   const handleClearSearch = () => {
-    const defaultDept = departments[0] ? String(departments[0].ID) : '';
     const clearedFilters: FilterState = {
       searchItemCode: '',
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentCode: defaultDept,
+      departmentCode: '',
       subDepartmentId: '',
       cabinetId: '',
     };

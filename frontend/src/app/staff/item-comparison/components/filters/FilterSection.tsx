@@ -68,7 +68,6 @@ export function FilterSection({
   const subDepartmentId = filters.subDepartmentId;
   const cabinetId = filters.cabinetId;
 
-  const hasMainDepartment = Boolean(departmentCode?.trim()) || departmentDisabled;
   const hasSubDepartmentFilter = Boolean(subDepartmentId?.trim());
 
   const filteredDepartments = useMemo(() => {
@@ -111,7 +110,7 @@ export function FilterSection({
     (departmentCode ? `แผนก ${departmentCode}` : 'ไม่ระบุแผนก');
 
   const divisionTriggerLabel = () => {
-    if (!departmentCode) return 'เลือก Division...';
+    if (!departmentCode) return 'ทั้งหมด';
     const d = departments.find((x) => String(x.ID) === departmentCode);
     return d?.DepName || d?.DepName2 || `Division ${departmentCode}`;
   };
@@ -133,7 +132,7 @@ export function FilterSection({
     if (!cabinetId?.trim()) {
       if (hasSubDepartmentFilter && cabinets.length === 0) return 'แผนกนี้ยังไม่มีตู้ที่ผูก';
       if (departmentCode && cabinets.length === 0) return 'ไม่มีตู้ในแผนกนี้';
-      return 'เลือกตู้ Cabinet...';
+      return 'ทั้งหมด';
     }
     const id = parseInt(cabinetId, 10);
     const c = cabinets.find((x) => x.id === id);
@@ -145,7 +144,7 @@ export function FilterSection({
     <Card>
       <CardHeader>
         <CardTitle>กรองข้อมูล</CardTitle>
-        <CardDescription>ค้นหาและกรองรายการเปรียบเทียบ</CardDescription>
+        <CardDescription>Division เริ่มที่ทั้งหมด — ระบุแผนก/ตู้เพื่อแคบลงได้</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
@@ -219,7 +218,7 @@ export function FilterSection({
                           setDepartmentSearch('');
                         }}
                       >
-                        -- ทุก Division --
+                        ทั้งหมด
                       </button>
                       {filteredDepartments.map((dept) => (
                         <button
@@ -254,7 +253,7 @@ export function FilterSection({
                     variant="outline"
                     className="h-10 w-full justify-between font-normal"
                     type="button"
-                    disabled={!hasMainDepartment}
+                    disabled={departmentDisabled}
                   >
                     <span className="truncate text-left">{subDepartmentTriggerLabel()}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
@@ -286,11 +285,7 @@ export function FilterSection({
                     >
                       -- ทุกแผนก --
                     </button>
-                    {!hasMainDepartment ? (
-                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">
-                        เลือกแผนก (Division) ก่อน
-                      </div>
-                    ) : filteredSubDepartments.length === 0 ? (
+                    {filteredSubDepartments.length === 0 ? (
                       <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
                     ) : (
                       filteredSubDepartments.map((sub) => (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,15 @@ function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping["cabinet"]): Ca
   };
 }
 
+/** ตู้แรก + Division ว่าง (ทั้งหมด) — เปิดหน้าแล้วโหลดได้ทันที (API staff ต้องมี cabinet_id) */
+function pickDefaultCabinetAllDivisions(cabinets: Cabinet[]): {
+  departmentId: string;
+  cabinetId: string;
+} | null {
+  const first = cabinets[0];
+  return first ? { departmentId: "", cabinetId: String(first.id) } : null;
+}
+
 export type StaffItemsSearchFilters = {
   searchTerm: string;
   departmentId: string;
@@ -71,6 +80,8 @@ interface FilterSectionProps {
   onReset?: () => void;
   initialDepartmentId?: string;
   departmentDisabled?: boolean;
+  /** โหลดแล้วเลือกตู้เริ่มต้นและค้นหาให้ (ค่าเริ่มต้น true) */
+  initialAutoSearch?: boolean;
 }
 
 export default function FilterSection({
@@ -79,12 +90,14 @@ export default function FilterSection({
   onReset,
   initialDepartmentId,
   departmentDisabled,
+  initialAutoSearch = true,
 }: FilterSectionProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
   const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
+  const initialSearchDoneRef = useRef(false);
 
   const [formFilters, setFormFilters] = useState({
     searchTerm: "",
@@ -223,11 +236,48 @@ export default function FilterSection({
     }
   }, [cabinets, formFilters.cabinetId]);
 
-  const handleSearch = () => {
-    if (!formFilters.departmentId?.trim()) {
-      toast.error("กรุณาเลือก Division");
-      return;
+  useEffect(() => {
+    if (!initialAutoSearch) return;
+    if (initialSearchDoneRef.current) return;
+    if (loadingDepartments || loadingCabinets) return;
+
+    let pick: { departmentId: string; cabinetId: string } | null = null;
+    if (departmentDisabled) {
+      const dept = (initialDepartmentId ?? "").trim();
+      const first = cabinets[0];
+      if (first && dept) pick = { departmentId: dept, cabinetId: String(first.id) };
+      else if (first) pick = { departmentId: "", cabinetId: String(first.id) };
+    } else {
+      pick = pickDefaultCabinetAllDivisions(cabinets);
     }
+    if (!pick?.cabinetId) return;
+
+    initialSearchDoneRef.current = true;
+    setFormFilters((prev) => ({
+      ...prev,
+      departmentId: pick!.departmentId,
+      cabinetId: pick!.cabinetId,
+    }));
+    onBeforeSearch?.();
+    onSearch({
+      searchTerm: "",
+      departmentId: pick.departmentId,
+      cabinetId: pick.cabinetId,
+      statusFilter: "all",
+      keyword: "",
+    });
+  }, [
+    initialAutoSearch,
+    departmentDisabled,
+    initialDepartmentId,
+    loadingDepartments,
+    loadingCabinets,
+    cabinets,
+    onSearch,
+    onBeforeSearch,
+  ]);
+
+  const handleSearch = () => {
     if (!formFilters.cabinetId?.trim()) {
       toast.error("กรุณาเลือกตู้ Cabinet");
       return;
@@ -268,8 +318,11 @@ export default function FilterSection({
       <CardHeader>
         <div className="flex items-center space-x-2">
           <Filter className="h-5 w-5 text-gray-500" />
-          <CardTitle>ค้นหาและกรอง</CardTitle>
+          <CardTitle>กรองข้อมูล</CardTitle>
         </div>
+        <CardDescription>
+          ค่าเริ่มต้นแสดงรายการจากตู้ที่เข้าถึงได้ (ตู้แรกในรายการ) — เลือก Division / ตู้เพื่อแคบลงได้
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-2 mb-4">
@@ -290,7 +343,7 @@ export default function FilterSection({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
           <SearchableSelect
             label="Division"
-            placeholder="เลือก Division"
+            placeholder="ทั้งหมด (ไม่บังคับ)"
             value={formFilters.departmentId}
             onValueChange={(value) => {
               if (departmentDisabled) return;
@@ -301,6 +354,7 @@ export default function FilterSection({
               });
             }}
             options={[
+              { value: "", label: "ทั้งหมด" },
               ...departments.map((dept) => ({
                 value: dept.ID.toString(),
                 label: dept.DepName || "",
@@ -316,7 +370,9 @@ export default function FilterSection({
           <SearchableSelect
             label="ตู้ Cabinet"
             placeholder={
-              formFilters.departmentId ? "เลือกตู้ (บังคับ)" : "กรุณาเลือก Division ก่อน"
+              formFilters.departmentId
+                ? "เลือกตู้ (บังคับต่อการค้นหา)"
+                : "เลือกตู้ — โหลดจากทุกตู้ที่ใช้งาน (ไม่บังคับ Division)"
             }
             value={formFilters.cabinetId}
             onValueChange={(value) => setFormFilters({ ...formFilters, cabinetId: value })}
@@ -331,10 +387,8 @@ export default function FilterSection({
             onSearch={(searchKeyword) => {
               void resolveCabinets(formFilters.departmentId, searchKeyword);
             }}
-            searchPlaceholder={
-              formFilters.departmentId ? "ค้นหารหัสหรือชื่อตู้..." : "กรุณาเลือก Division ก่อน"
-            }
-            disabled={!formFilters.departmentId}
+            searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
+            disabled={false}
           />
         </div>
 

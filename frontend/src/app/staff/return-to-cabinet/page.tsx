@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { RotateCcw } from 'lucide-react';
 import FilterSection from './components/FilterSection';
@@ -43,15 +43,9 @@ export default function ReturnToCabinetPage() {
 
   const fetchReturnedList = async (
     overrideFilters?: FilterState,
-    options?: { resetPage?: boolean },
+    options?: { resetPage?: boolean; silent?: boolean },
   ) => {
     const activeFilters = overrideFilters ?? filters;
-    if (!activeFilters.departmentId?.trim() || !activeFilters.cabinetId?.trim()) {
-      setReturnedList([]);
-      setTotalRawItems(0);
-      setLoadingList(false);
-      return;
-    }
     try {
       setLoadingList(true);
       const params: Record<string, unknown> = {
@@ -64,9 +58,11 @@ export default function ReturnToCabinetPage() {
       if (activeFilters.itemTypeFilter && activeFilters.itemTypeFilter !== 'all') {
         params.itemTypeId = parseInt(activeFilters.itemTypeFilter, 10);
       }
-      if (activeFilters.departmentId) params.departmentId = activeFilters.departmentId;
-      if (activeFilters.subDepartmentId) params.subDepartmentId = activeFilters.subDepartmentId;
-      if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
+      if (activeFilters.departmentId?.trim()) params.departmentId = activeFilters.departmentId;
+      if (activeFilters.subDepartmentId?.trim()) {
+        params.subDepartmentId = activeFilters.subDepartmentId;
+      }
+      if (activeFilters.cabinetId?.trim()) params.cabinetId = activeFilters.cabinetId;
 
       const aggregated: DispensedItem[] = [];
       let reportedTotal = 0;
@@ -108,10 +104,12 @@ export default function ReturnToCabinetPage() {
         setCurrentPage(1);
       }
 
-      if (aggregated.length === 0) {
-        toast.info('ไม่พบข้อมูลการคืนอุปกรณ์เข้าตู้ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
-      } else {
-        toast.success(`พบ ${reportedTotal} รายการคืนอุปกรณ์เข้าตู้`);
+      if (!options?.silent) {
+        if (aggregated.length === 0) {
+          toast.info('ไม่พบข้อมูลการคืนอุปกรณ์เข้าตู้ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
+        } else {
+          toast.success(`พบ ${reportedTotal} รายการคืนอุปกรณ์เข้าตู้`);
+        }
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || error.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -124,15 +122,15 @@ export default function ReturnToCabinetPage() {
     setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
   }, [totalPages]);
 
+  const initialFetchDone = useRef(false);
+  useEffect(() => {
+    if (initialFetchDone.current) return;
+    initialFetchDone.current = true;
+    void fetchReturnedList(undefined, { resetPage: true, silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSearch = () => {
-    if (!filters.departmentId?.trim()) {
-      toast.error('กรุณาเลือก Division');
-      return;
-    }
-    if (!filters.cabinetId?.trim()) {
-      toast.error('กรุณาเลือกตู้ Cabinet');
-      return;
-    }
     fetchReturnedList(undefined, { resetPage: true });
   };
 
@@ -147,8 +145,7 @@ export default function ReturnToCabinetPage() {
       cabinetId: '',
     };
     setFilters(resetFilters);
-    setReturnedList([]);
-    setTotalRawItems(0);
+    void fetchReturnedList(resetFilters, { resetPage: true, silent: true });
   };
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {

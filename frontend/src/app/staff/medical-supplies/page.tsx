@@ -170,13 +170,6 @@ export default function MedicalSuppliesPage() {
     load();
   }, []);
 
-  useEffect(() => {
-    if (departments.length === 0) return;
-    const first = String(departments[0].ID);
-    setFormFilters((prev) => (prev.departmentCode ? prev : { ...prev, departmentCode: first }));
-    setActiveFilters((prev) => (prev.departmentCode ? prev : { ...prev, departmentCode: first }));
-  }, [departments]);
-
   /** Staff ใช้ staff_token — ไม่ต้องรอ NextAuth user */
   useEffect(() => {
     fetchSupplies(activeFilters, currentPage);
@@ -199,7 +192,6 @@ export default function MedicalSuppliesPage() {
   };
 
   const handleReset = () => {
-    const defaultDept = departments[0] ? String(departments[0].ID) : '';
     const resetFilters = {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
@@ -212,7 +204,7 @@ export default function MedicalSuppliesPage() {
       lastName: '',
       assessionNo: '',
       itemName: '',
-      departmentCode: defaultDept,
+      departmentCode: '',
       usageType: '',
       printDate: '',
       timePrintDate: '',

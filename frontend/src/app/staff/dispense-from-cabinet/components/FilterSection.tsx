@@ -237,7 +237,7 @@ export default function FilterSection({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SearchableSelect
               label="Division"
-              placeholder="เลือก Division"
+              placeholder="ทั้งหมด (ไม่บังคับ)"
               value={filters.departmentId}
               onValueChange={(value) => {
                 if (departmentDisabled) return;
@@ -275,11 +275,14 @@ export default function FilterSection({
             <SearchableSelect
               label="ตู้ Cabinet"
               placeholder={
-                filters.departmentId ? 'เลือกตู้ Cabinet (บังคับ)' : 'กรุณาเลือก Division ก่อน'
+                filters.departmentId
+                  ? 'เลือกตู้ Cabinet (ไม่บังคับ — ว่าง = ทั้งหมด)'
+                  : 'ทั้งหมดหรือเลือกตู้ (ไม่บังคับ Division)'
               }
               value={filters.cabinetId}
               onValueChange={(value) => onFilterChange('cabinetId', value)}
               options={[
+                { value: '', label: 'ทั้งหมด' },
                 ...cabinets.map((cabinet) => ({
                   value: cabinet.id.toString(),
                   label: cabinet.cabinet_name || '',
@@ -290,12 +293,8 @@ export default function FilterSection({
               onSearch={(searchKeyword) => {
                 void resolveCabinets(filters.departmentId, searchKeyword);
               }}
-              searchPlaceholder={
-                filters.departmentId
-                  ? 'ค้นหารหัสหรือชื่อตู้...'
-                  : 'กรุณาเลือก Division ก่อน'
-              }
-              disabled={!filters.departmentId}
+              searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
+              disabled={false}
             />
           </div>
         </div>

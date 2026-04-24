@@ -145,7 +145,7 @@ export default function MedicalSuppliesSearchFilters({
                       ? departments.find((d) => String(d.ID) === formFilters.departmentCode)?.DepName ||
                       departments.find((d) => String(d.ID) === formFilters.departmentCode)?.DepName2 ||
                       `Division ${formFilters.departmentCode}`
-                      : 'เลือก Division...'}
+                      : 'ทั้งหมด'}
                   </span>
                   <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
                 </Button>
@@ -164,6 +164,17 @@ export default function MedicalSuppliesSearchFilters({
                   />
                 </div>
                 <div className="max-h-60 overflow-auto">
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                    onClick={() => {
+                      patch({ departmentCode: '', usageType: '' });
+                      onDepartmentDropdownOpenChange(false);
+                      onDepartmentSearchChange('');
+                    }}
+                  >
+                    ทั้งหมด
+                  </button>
                   {departments
                     .filter(
                       (d) =>
