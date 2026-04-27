@@ -226,7 +226,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
       <StaffSidebar staffUser={staffUser} onLogout={handleLogout} isAdmin={isAdmin} />
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col transition-all duration-300">
         {/* Top Bar */}
         <header className="sticky top-0 z-20 bg-white border-b border-gray-200">
           <div className="h-14 flex items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -341,7 +341,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
         </header>
         
         {/* Main Content Area - เต็มความกว้างเหมือน admin */}
-        <main className="flex-1 overflow-y-auto bg-rose-50/30" style={{ zoom: zoomLevel / 100 }}>
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-rose-50/30" style={{ zoom: zoomLevel / 100 }}>
           <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 py-6">
             {children}
           </div>

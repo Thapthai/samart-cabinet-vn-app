@@ -1,11 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield, Building2, Boxes, Layers, UserCog } from 'lucide-react';
+import { Package, Users, Shield, Building2, Boxes, Layers, UserCog, Printer } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 /** ลิงก์ทั้งหมดภายใต้ /staff/management เท่านั้น — ไม่ชี้ไป /admin */
 const managementMenus = [
+  {
+    name: 'พิมพ์สติกเกอร์',
+    href: '/staff/management/print-sticker',
+    icon: Printer,
+    description: 'ส่ง SBPL ไปเครื่องปริ้น SATO',
+    color: 'from-rose-500 to-red-600',
+    bgLight: 'bg-rose-50',
+    borderColor: 'border-rose-200',
+    iconBg: 'bg-rose-100',
+    iconColor: 'text-rose-700',
+  },
   {
     name: 'จัดการตู้ Cabinet',
     href: '/staff/management/cabinets',

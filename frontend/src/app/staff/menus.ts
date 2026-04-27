@@ -16,8 +16,6 @@ import {
     Layers,
     Printer,
 } from 'lucide-react';
-import { PRINT_STICKER_APP_URL } from '@/lib/printStickerUrl';
-
 // Type definitions for menu and submenu
 export interface StaffMenuSubItem {
     name: string;
@@ -147,9 +145,8 @@ export const staffMenuItems = [
             {
                 name: 'พิมพ์สติกเกอร์',
                 href: '/staff/management/print-sticker',
-                externalHref: PRINT_STICKER_APP_URL,
                 icon: Printer,
-                description: 'พิมพ์สติกเกอร์',
+                description: 'พิมพ์สติกเกอร์ผ่านเครื่อง SATO (SBPL)',
             },
             {
                 name: 'จัดการ Item (Master)',

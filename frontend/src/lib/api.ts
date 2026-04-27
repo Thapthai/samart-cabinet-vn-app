@@ -29,6 +29,7 @@ function staffUsersManagementPath(url: string | undefined): boolean {
 function staffPortalApiPath(url: string | undefined): boolean {
   if (!url) return false;
   if (url.startsWith('/staff-users')) return false;
+  if (url.startsWith('/sticker-print')) return true;
   return url.startsWith('/staff/') || url === '/staff';
 }
 
@@ -1980,6 +1981,57 @@ export const weighingApi = {
   /** รายการตู้ที่มีสต๊อก Weighing (สำหรับ dropdown หน้า weighing-departments) */
   getCabinets: async (): Promise<{ success: boolean; data: { id: number; cabinet_name: string | null; cabinet_code: string | null; cabinet_status?: string; stock_id: number | null }[] }> => {
     const response = await api.get('/weighing/cabinets/list');
+    return response.data;
+  },
+};
+
+// =========================== Sticker print (SATO SBPL) ===========================
+export const stickerPrintApi = {
+  printLabel: async (body?: { ip?: string; port?: number | string }): Promise<{
+    success: true;
+    bytesSent: number;
+    host: string;
+    port: number;
+    template: string;
+  }> => {
+    const response = await api.post('/sticker-print/printLabel', body ?? {});
+    return response.data;
+  },
+
+  printLabelItem: async (body: {
+    itemcode: string;
+    QrCode1?: string;
+    Qrcode?: string;
+    QrCode2?: string;
+    itemcode2?: string;
+    num2?: string;
+    num3?: string;
+    num4?: string;
+  }): Promise<{
+    success: true;
+    bytesSent: number;
+    host: string;
+    port: number;
+    template: string;
+    itemcode: string;
+  }> => {
+    const response = await api.post('/sticker-print/printLabel-item', body);
+    return response.data;
+  },
+
+  printLabelItems: async (body: { items: { itemcode: string; copies?: number }[] }): Promise<{
+    success: true;
+    message: string;
+    printedAt: string;
+    lineCount: number;
+    host: string;
+    port: number;
+    template: string;
+    count: number;
+    totalBytesSent: number;
+    items: { itemcode: string; copies: number; bytesSent: number }[];
+  }> => {
+    const response = await api.post('/sticker-print/printLabel-items', body);
     return response.data;
   },
 };

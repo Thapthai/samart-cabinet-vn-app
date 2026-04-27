@@ -1,12 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield, UserCog, Boxes, Building2, Layers } from 'lucide-react';
+import { Package, Users, Shield, UserCog, Boxes, Building2, Layers, Printer } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const managementMenus = [
+  {
+    name: 'พิมพ์สติกเกอร์',
+    href: '/admin/management/print-sticker',
+    icon: Printer,
+    description: 'ส่ง SBPL ไปเครื่องปริ้น SATO (หลายรายการ)',
+    color: 'from-rose-500 to-red-600',
+    bgLight: 'bg-rose-50',
+    borderColor: 'border-rose-200',
+    iconBg: 'bg-rose-100',
+    iconColor: 'text-rose-700',
+  },
   {
     name: 'จัดการ Item (Master)',
     href: '/admin/management/items',
