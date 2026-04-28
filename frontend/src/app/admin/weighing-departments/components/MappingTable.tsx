@@ -37,7 +37,7 @@ interface WeighingSlot {
   SlotNo: number;
   Sensor: number;
   Qty: number;
-  item?: { itemname?: string | null; Alternatename?: string | null } | null;
+  item?: { itemname?: string | null } | null;
 }
 
 interface MappingTableProps {
@@ -149,7 +149,7 @@ export default function MappingTable({ mappings, onEdit, onDelete }: MappingTabl
                 <div className="w-fit md:min-w-[500px]">
                   <span className="text-gray-500">ชื่อสินค้า:</span>
                   <span className="ml-2 font-medium">
-                    {row.item?.itemname || row.item?.Alternatename || "-"}
+                    {row.item?.itemname || "-"}
                   </span>
                 </div>
                 <div>

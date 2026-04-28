@@ -28,7 +28,7 @@ export interface ItemSlotInCabinetRow {
   Sensor: number;
   Qty: number;
   cabinet?: { id: number; cabinet_name: string | null; cabinet_code: string | null; stock_id: number | null } | null;
-  item?: { itemcode: string; itemname: string | null; Alternatename: string | null; Barcode: string | null } | null;
+  item?: { itemcode: string; itemname: string | null; Barcode: string | null } | null;
   _count?: { itemSlotInCabinetDetail: number };
 }
 
@@ -305,7 +305,7 @@ export default function WeighingPage() {
                               {(currentPage - 1) * itemsPerPage + index + 1}
                             </TableCell>
                             <TableCell className="min-w-[140px] sm:max-w-[220px] max-w-[180px] truncate font-medium text-xs sm:text-sm py-2 sm:py-3" title={row.item?.itemname ?? undefined}>
-                              {row.item?.itemname || row.item?.Alternatename || '-'}
+                              {row.item?.itemname || '-'}
                             </TableCell>
                             <TableCell className="text-center text-gray-700 text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">
                               {row.cabinet

@@ -26,7 +26,7 @@ interface DetailRow {
   Qty: number;
   ModifyDate: string;
   Sign: string;
-  item?: { itemname: string | null; Alternatename: string | null } | null;
+  item?: { itemname: string | null } | null;
   userCabinet?: {
     legacyUser?: { employee?: { FirstName: string | null; LastName: string | null } | null } | null;
   } | null;
@@ -235,7 +235,7 @@ export default function WeighingDashboardPage() {
                         <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-gray-900 truncate">
-                              {row.item?.itemname || row.item?.Alternatename || row.itemcode || '-'}
+                              {row.item?.itemname || row.itemcode || '-'}
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5">
                               {row.userCabinet?.legacyUser?.employee
@@ -282,7 +282,7 @@ export default function WeighingDashboardPage() {
                         <div className="flex justify-between items-start gap-2">
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-gray-900 truncate">
-                              {row.item?.itemname || row.item?.Alternatename || row.itemcode || '-'}
+                              {row.item?.itemname || row.itemcode || '-'}
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5">
                               {row.userCabinet?.legacyUser?.employee

@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Search, RotateCcw, Filter } from "lucide-react";
-import { toast } from "sonner";
 import SearchableSelect from "./SearchableSelect";
 import { staffCabinetApi, staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
 import {
@@ -54,15 +53,6 @@ function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping["cabinet"]): Ca
     cabinet_code: cabinet.cabinet_code,
     cabinet_status: cabinet.cabinet_status,
   };
-}
-
-/** ตู้แรก + Division ว่าง (ทั้งหมด) — เปิดหน้าแล้วโหลดได้ทันที (API staff ต้องมี cabinet_id) */
-function pickDefaultCabinetAllDivisions(cabinets: Cabinet[]): {
-  departmentId: string;
-  cabinetId: string;
-} | null {
-  const first = cabinets[0];
-  return first ? { departmentId: "", cabinetId: String(first.id) } : null;
 }
 
 export type StaffItemsSearchFilters = {
@@ -239,24 +229,16 @@ export default function FilterSection({
   useEffect(() => {
     if (!initialAutoSearch) return;
     if (initialSearchDoneRef.current) return;
-    if (loadingDepartments || loadingCabinets) return;
+    if (loadingDepartments) return;
 
-    let pick: { departmentId: string; cabinetId: string } | null = null;
-    if (departmentDisabled) {
-      const dept = (initialDepartmentId ?? "").trim();
-      const first = cabinets[0];
-      if (first && dept) pick = { departmentId: dept, cabinetId: String(first.id) };
-      else if (first) pick = { departmentId: "", cabinetId: String(first.id) };
-    } else {
-      pick = pickDefaultCabinetAllDivisions(cabinets);
-    }
-    if (!pick?.cabinetId) return;
+    const dept = departmentDisabled ? (initialDepartmentId ?? "").trim() : "";
+    const pick = { departmentId: dept, cabinetId: "" };
 
     initialSearchDoneRef.current = true;
     setFormFilters((prev) => ({
       ...prev,
-      departmentId: pick!.departmentId,
-      cabinetId: pick!.cabinetId,
+      departmentId: pick.departmentId,
+      cabinetId: pick.cabinetId,
     }));
     onBeforeSearch?.();
     onSearch({
@@ -271,17 +253,11 @@ export default function FilterSection({
     departmentDisabled,
     initialDepartmentId,
     loadingDepartments,
-    loadingCabinets,
-    cabinets,
     onSearch,
     onBeforeSearch,
   ]);
 
   const handleSearch = () => {
-    if (!formFilters.cabinetId?.trim()) {
-      toast.error("กรุณาเลือกตู้ Cabinet");
-      return;
-    }
     onBeforeSearch?.();
     const kw = formFilters.searchTerm.trim();
     onSearch({

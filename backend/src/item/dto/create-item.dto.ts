@@ -11,10 +11,6 @@ export class CreateItemDto {
 
   @IsOptional()
   @IsString()
-  Alternatename?: string;
-
-  @IsOptional()
-  @IsString()
   Barcode?: string;
 
   @IsOptional()

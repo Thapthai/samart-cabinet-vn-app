@@ -7,7 +7,7 @@ export class WeighingService {
 
   /**
    * ดึงรายการ ItemSlotInCabinet แบบแบ่งหน้า (รวม relation cabinet)
-   * itemName: ค้นหาจากชื่ออุปกรณ์ (itemname / Alternatename)
+   * itemName: ค้นหาจากชื่ออุปกรณ์ (itemname)
    */
   async findAll(params: { page?: number; limit?: number; itemcode?: string; itemName?: string; stockId?: number }) {
     const page = params.page ?? 1;
@@ -18,10 +18,7 @@ export class WeighingService {
     if (params.itemName?.trim()) {
       const k = params.itemName.trim();
       where.item = {
-        OR: [
-          { itemname: { contains: k } },
-          { Alternatename: { contains: k } },
-        ],
+        itemname: { contains: k },
       };
     } else if (params.itemcode?.trim()) {
       where.itemcode = { contains: params.itemcode.trim() };
@@ -43,7 +40,6 @@ export class WeighingService {
             select: {
               itemcode: true,
               itemname: true,
-              Alternatename: true,
               Barcode: true,
             },
           },
@@ -105,7 +101,6 @@ export class WeighingService {
             select: {
               itemcode: true,
               itemname: true,
-              Alternatename: true,
               Barcode: true,
             },
           },
@@ -140,7 +135,7 @@ export class WeighingService {
   /**
    * ดึงรายการ ItemSlotInCabinetDetail แบบแบ่งหน้า ตาม Sign (เบิก = '-', เติม = '+')
    * dateFrom/dateTo: YYYY-MM-DD, กรองตาม ModifyDate (ต้นวัน - ปลายวัน UTC)
-   * itemName: ค้นหาจากชื่ออุปกรณ์ (itemname / Alternatename)
+   * itemName: ค้นหาจากชื่ออุปกรณ์ (itemname)
    */
   async findDetailsBySign(
     sign: string,
@@ -170,10 +165,7 @@ export class WeighingService {
     if (params.itemName?.trim()) {
       const k = params.itemName.trim();
       where.item = {
-        OR: [
-          { itemname: { contains: k } },
-          { Alternatename: { contains: k } },
-        ],
+        itemname: { contains: k },
       };
     } else if (params.itemcode?.trim()) {
       where.itemcode = { contains: params.itemcode.trim() };
@@ -205,7 +197,6 @@ export class WeighingService {
             select: {
               itemcode: true,
               itemname: true,
-              Alternatename: true,
               Barcode: true,
             },
           },

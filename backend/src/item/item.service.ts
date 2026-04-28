@@ -32,6 +32,11 @@ export class ItemService {
         cleanData.itemcode2 = String(cleanData.itemcode).trim().slice(0, 20);
       }
 
+      // Alternatename ไม่ใช้ในแอปแล้วแต่ยังมีใน DB (มัก NOT NULL) — ส่งค่าว่างถ้าไม่ระบุ
+      if (cleanData.Alternatename === undefined || cleanData.Alternatename === null) {
+        cleanData.Alternatename = '';
+      }
+
       const item = await this.prisma.item.create({
         data: cleanData,
       });
@@ -60,6 +65,10 @@ export class ItemService {
     cabinet_id?: number,
     department_id?: number,
     status?: string,
+    staffListOptions?: {
+      restrictedStockIds?: number[];
+      usageDepartmentIds?: string[] | null;
+    },
   ) {
     try {
       const emptyPage = () => ({
@@ -133,6 +142,13 @@ export class ItemService {
           deptCodesForUsage = cabinet.cabinetDepartments
             .map((cd) => String(cd.department_id))
             .filter(Boolean);
+        }
+      } else if (staffListOptions?.restrictedStockIds?.length) {
+        itemStocksWhere.StockID = { in: staffListOptions.restrictedStockIds };
+        if (staffListOptions.usageDepartmentIds?.length) {
+          deptCodesForUsage = staffListOptions.usageDepartmentIds;
+        } else if (department_id) {
+          deptCodesForUsage = [String(department_id)];
         }
       } else if (department_id) {
         deptCodesForUsage = [String(department_id)];
@@ -496,7 +512,6 @@ export class ItemService {
             itemcode: true,
             itemname: true,
             Barcode: true,
-            Alternatename: true,
             item_status: true,
             CreateDate: true,
             CostPrice: true,
@@ -1170,6 +1185,7 @@ export class ItemService {
                     ist.StockID
                 FROM itemstock ist
                 WHERE ist.IsStock = 0
+                  AND COALESCE(ist.DeptID, 0) = 0
                   AND ${dateCondition}
                 GROUP BY ist.StockID,
                 ist.ItemCode

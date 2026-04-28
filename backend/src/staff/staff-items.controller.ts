@@ -13,7 +13,7 @@ import { StaffDepartmentScopeService } from './staff-department-scope.service';
 
 /**
  * รายการสต็อกอุปกรณ์ในตู้ — Staff portal เท่านั้น
- * บังคับ cabinet_id เพื่อไม่ดึงข้ามตู้โดยไม่ตั้งใจ
+ * ไม่ส่ง cabinet_id = รวมทุกตู้ที่เข้าถึงได้ (จำกัดตาม role แผนก)
  */
 @Controller('staff/items')
 export class StaffItemsController {
@@ -34,20 +34,46 @@ export class StaffItemsController {
     @Query('department_id') department_id?: string,
     @Query('status') status?: string,
   ) {
-    if (cabinet_id == null || String(cabinet_id).trim() === '') {
-      throw new BadRequestException('กรุณาระบุ cabinet_id');
-    }
-    const cabinetId = parseInt(String(cabinet_id), 10);
-    if (!Number.isFinite(cabinetId) || cabinetId < 1) {
-      throw new BadRequestException('cabinet_id ไม่ถูกต้อง');
-    }
-
     const departmentId =
       department_id != null && String(department_id).trim() !== ''
         ? parseInt(String(department_id), 10)
         : undefined;
     if (departmentId != null && (!Number.isFinite(departmentId) || departmentId < 1)) {
       throw new BadRequestException('department_id ไม่ถูกต้อง');
+    }
+
+    if (cabinet_id == null || String(cabinet_id).trim() === '') {
+      const { stockIds, usageDepartmentIds } =
+        await this.staffDepartmentScope.resolveAccessibleStocksForStaffItemsList(
+          req,
+          departmentId,
+        );
+      if (stockIds.length === 0) {
+        return {
+          success: true,
+          data: [],
+          total: 0,
+          page,
+          limit,
+          lastPage: 0,
+        };
+      }
+      return this.itemService.findAllItems(
+        page,
+        limit,
+        keyword,
+        sort_by || 'itemcode',
+        sort_order || 'asc',
+        undefined,
+        departmentId,
+        status,
+        { restrictedStockIds: stockIds, usageDepartmentIds },
+      );
+    }
+
+    const cabinetId = parseInt(String(cabinet_id), 10);
+    if (!Number.isFinite(cabinetId) || cabinetId < 1) {
+      throw new BadRequestException('cabinet_id ไม่ถูกต้อง');
     }
 
     await this.staffDepartmentScope.assertStaffCabinetAccess(req, cabinetId, departmentId);

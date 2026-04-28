@@ -109,13 +109,6 @@ function ItemsList({
                 {item.item_status === 0 ? 'ใช้งาน' : 'ไม่ใช้งาน'}
               </Badge>
             </div>
-            {item.Alternatename && (
-              <div className="w-full bg-blue-50 border border-blue-200 rounded-lg p-2 mt-2">
-                <p className="text-xs text-gray-600">
-                  {item.Alternatename}
-                </p>
-              </div>
-            )}
           </CardHeader>
           <CardContent>
             {item.Description && (

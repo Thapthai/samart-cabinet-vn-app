@@ -8,10 +8,6 @@ export class UpdateItemDto {
 
   @IsOptional()
   @IsString()
-  Alternatename?: string;
-
-  @IsOptional()
-  @IsString()
   Barcode?: string;
 
   @IsOptional()

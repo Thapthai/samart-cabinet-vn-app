@@ -165,8 +165,18 @@ export default function StaffSidebar({ staffUser, onLogout, isAdmin = false }: S
         });
         setPermissions(permissionsMap);
       }
-    } catch (error) {
-      console.error('Failed to load permissions:', error);
+    } catch (error: unknown) {
+      const code =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? String((error as { code?: string }).code)
+          : '';
+      if (code === 'ERR_NETWORK' && process.env.NODE_ENV === 'development') {
+        console.warn(
+          '[Staff] API unreachable (ERR_NETWORK). Run the Nest backend on the host/port in NEXT_PUBLIC_API_URL, or fix that env to match backend PORT.',
+        );
+      } else {
+        console.error('Failed to load permissions:', error);
+      }
     }
   };
 

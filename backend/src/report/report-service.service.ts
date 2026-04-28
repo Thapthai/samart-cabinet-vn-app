@@ -2997,7 +2997,7 @@ export class ReportServiceService {
         summary: { total_rows: rows.length, total_qty: totalQty },
         data: rows.map((r: any, i: number) => ({
           seq: i + 1,
-          item_name: r?.item?.itemname || r?.item?.Alternatename || r?.itemcode || '-',
+          item_name: r?.item?.itemname || r?.itemcode || '-',
           operator_name: employeeName(r),
           qty: Number(r?.Qty) || 0,
           modify_date: formatDate(r?.ModifyDate),
@@ -3058,7 +3058,7 @@ export class ReportServiceService {
         summary: { total_rows: rows.length, total_qty: totalQty },
         data: rows.map((r: any, i: number) => ({
           seq: i + 1,
-          item_name: r?.item?.itemname || r?.item?.Alternatename || r?.itemcode || '-',
+          item_name: r?.item?.itemname || r?.itemcode || '-',
           operator_name: employeeName(r),
           qty: Number(r?.Qty) || 0,
           modify_date: formatDate(r?.ModifyDate),
@@ -3113,7 +3113,7 @@ export class ReportServiceService {
         summary: { total_rows: rows.length, total_qty: totalQty },
         data: rows.map((r: any, i: number) => ({
           seq: i + 1,
-          item_name: r?.item?.itemname || r?.item?.Alternatename || r?.itemcode || '-',
+          item_name: r?.item?.itemname || r?.itemcode || '-',
           operator_name: employeeName(r),
           qty: Number(r?.Qty) || 0,
           modify_date: formatDate(r?.ModifyDate),
@@ -3168,7 +3168,7 @@ export class ReportServiceService {
         summary: { total_rows: rows.length, total_qty: totalQty },
         data: rows.map((r: any, i: number) => ({
           seq: i + 1,
-          item_name: r?.item?.itemname || r?.item?.Alternatename || r?.itemcode || '-',
+          item_name: r?.item?.itemname || r?.itemcode || '-',
           operator_name: employeeName(r),
           qty: Number(r?.Qty) || 0,
           modify_date: formatDate(r?.ModifyDate),
@@ -3211,7 +3211,7 @@ export class ReportServiceService {
         summary: { total_rows: rows.length, total_qty: totalQty },
         data: rows.map((r: any, i: number) => ({
           seq: i + 1,
-          item_name: r?.item?.itemname || r?.item?.Alternatename || r?.itemcode || '-',
+          item_name: r?.item?.itemname || r?.itemcode || '-',
           cabinet_name: cabinetName(r),
           slot_no: Number(r?.SlotNo) ?? 0,
           sensor: Number(r?.Sensor) ?? 0,
@@ -3257,7 +3257,7 @@ export class ReportServiceService {
         summary: { total_rows: rows.length, total_qty: totalQty },
         data: rows.map((r: any, i: number) => ({
           seq: i + 1,
-          item_name: r?.item?.itemname || r?.item?.Alternatename || r?.itemcode || '-',
+          item_name: r?.item?.itemname || r?.itemcode || '-',
           cabinet_name: cabinetName(r),
           slot_no: Number(r?.SlotNo) ?? 0,
           sensor: Number(r?.Sensor) ?? 0,

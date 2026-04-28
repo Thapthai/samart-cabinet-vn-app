@@ -23,7 +23,6 @@ export interface Item {
   
   // Basic Information
   itemname?: string;
-  Alternatename?: string;
   Barcode?: string;
   Description?: string;
   
@@ -134,7 +133,6 @@ export interface CreateItemDto {
   
   // Basic Info
   itemname?: string;
-  Alternatename?: string;
   Barcode?: string;
   Description?: string;
   
@@ -181,7 +179,6 @@ export interface CreateItemDto {
 export interface UpdateItemDto {
   // All fields optional for update
   itemname?: string;
-  Alternatename?: string;
   Barcode?: string;
   Description?: string;
   

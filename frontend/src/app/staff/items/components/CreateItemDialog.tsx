@@ -31,7 +31,6 @@ export default function CreateItemDialog({
     defaultValues: {
       itemcode: '',
       itemname: '',
-      Alternatename: '',
       Barcode: '',
       Description: '',
       CostPrice: 0,
@@ -115,25 +114,6 @@ export default function CreateItemDialog({
                     <Input
                       placeholder="เช่น ชุดเครื่องมือผ่าตัดใหญ่"
                       maxLength={255}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* ชื่อสำรอง */}
-            <FormField
-              control={form.control}
-              name="Alternatename"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>ชื่อสำรอง (EN)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="เช่น Major Surgical Instrument Set"
-                      maxLength={100}
                       {...field}
                     />
                   </FormControl>

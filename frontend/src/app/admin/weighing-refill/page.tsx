@@ -38,7 +38,6 @@ interface DetailRow {
   item?: {
     itemcode: string;
     itemname: string | null;
-    Alternatename: string | null;
     Barcode: string | null;
   } | null;
   userCabinet?: {
@@ -349,7 +348,7 @@ export default function WeighingRefillPage() {
                               {(currentPage - 1) * itemsPerPage + index + 1}
                             </TableCell>
                             <TableCell className="max-w-[220px] truncate font-medium" title={row.item?.itemname ?? undefined}>
-                              {row.item?.itemname || row.item?.Alternatename || '-'}
+                              {row.item?.itemname || '-'}
                             </TableCell>
                             <TableCell className="text-sm text-gray-700">
                               {row.userCabinet?.legacyUser?.employee

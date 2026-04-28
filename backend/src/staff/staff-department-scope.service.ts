@@ -120,6 +120,83 @@ export class StaffDepartmentScopeService {
     await this.assertStaffDepartmentAccess(req, sub.department_id);
   }
 
+  /**
+   * GET /staff/items ไม่ส่ง cabinet_id — รวมทุกตู้ที่ staff เข้าถึงได้ (จำกัดตาม role แผนก)
+   * หลักเดียวกับ DepartmentService.getAllCabinets: ผูกแผนกผ่าน app_cabinet_departments โดยไม่บังคับ status = ACTIVE
+   * (ข้อมูลเก่าอาจมี status ว่าง/ค่าอื่น — เดิมบังคับ ACTIVE ทำให้ stockIds ว่างและได้ data: [])
+   */
+  async resolveAccessibleStocksForStaffItemsList(
+    req: RequestLike,
+    departmentFilter?: number,
+  ): Promise<{ stockIds: number[]; usageDepartmentIds: string[] | null }> {
+    const staff = await this.resolveStaffFromRequest(req);
+    if (!staff) {
+      throw new UnauthorizedException('ต้องล็อกอิน Staff');
+    }
+
+    if (departmentFilter != null) {
+      if (!Number.isFinite(departmentFilter) || departmentFilter < 1) {
+        throw new BadRequestException('department_id ไม่ถูกต้อง');
+      }
+      await this.assertStaffDepartmentAccess(req, departmentFilter);
+    }
+
+    const allowed = await this.resolveAllowedDepartmentIds(req);
+
+    const whereCabinet: {
+      stock_id: { not: null };
+      id?: { in: number[] };
+      cabinetDepartments?: { some: { department_id: number } };
+    } = { stock_id: { not: null } };
+
+    if (departmentFilter != null) {
+      whereCabinet.cabinetDepartments = {
+        some: { department_id: departmentFilter },
+      };
+    } else if (allowed != null) {
+      if (allowed.length === 0) {
+        return { stockIds: [], usageDepartmentIds: null };
+      }
+      const links = await this.prisma.cabinetDepartment.findMany({
+        where: { department_id: { in: allowed } },
+        select: { cabinet_id: true },
+      });
+      const scopedIds = [
+        ...new Set(
+          links
+            .map((l) => l.cabinet_id)
+            .filter((id): id is number => typeof id === 'number' && Number.isFinite(id)),
+        ),
+      ];
+      if (scopedIds.length === 0) {
+        return { stockIds: [], usageDepartmentIds: null };
+      }
+      whereCabinet.id = { in: scopedIds };
+    }
+
+    const cabinets = await this.prisma.cabinet.findMany({
+      where: whereCabinet,
+      select: { stock_id: true },
+    });
+
+    const stockIds = [
+      ...new Set(
+        cabinets
+          .map((c) => c.stock_id)
+          .filter((id): id is number => typeof id === 'number' && Number.isFinite(id)),
+      ),
+    ];
+
+    let usageDepartmentIds: string[] | null = null;
+    if (departmentFilter != null) {
+      usageDepartmentIds = [String(departmentFilter)];
+    } else if (allowed != null && allowed.length > 0) {
+      usageDepartmentIds = allowed.map(String);
+    }
+
+    return { stockIds, usageDepartmentIds };
+  }
+
   /** แผนกย่อยต้องเป็นของแผนกหลักที่เลือก (ไม่ต้องมีตู้เดียว) — will-return แบบทุกตู้ */
   async assertSubDepartmentBelongsToDepartment(
     subDepartmentId: number,

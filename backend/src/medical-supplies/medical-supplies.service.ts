@@ -539,7 +539,7 @@ export class MedicalSuppliesService {
       const itemcode2 = safeCode.slice(0, 20);
       try {
         await this.prisma.item.create({
-          data: { itemcode: safeCode, itemname: name, itemcode2 },
+          data: { itemcode: safeCode, itemname: name, itemcode2, Alternatename: '' },
         });
       } catch {
         // race / duplicate — ignore
@@ -4787,6 +4787,7 @@ export class MedicalSuppliesService {
       const sqlConditions: Prisma.Sql[] = [
         Prisma.sql`ist.IsStock = 0`,
         Prisma.sql`ist.RfidCode <> ''`,
+        Prisma.sql`COALESCE(ist.DeptID, 0) = 0`,
       ];
 
       if (filters?.itemCode) {
@@ -4951,6 +4952,7 @@ export class MedicalSuppliesService {
                 LastCabinetModify = NOW()
             WHERE RowID IN (${Prisma.join(rowIds.map((id) => Prisma.sql`${id}`), ',')})
               AND StockID = 0
+              AND COALESCE(DeptID, 0) = 0
           `;
         }
       });
@@ -5004,6 +5006,7 @@ export class MedicalSuppliesService {
             LastCabinetModify = NOW()
         WHERE RowID IN (${Prisma.join(rowIds.map(id => Prisma.sql`${id}`), ',')})
           AND StockID = 0
+          AND COALESCE(DeptID, 0) = 0
       `;
 
       const updatedCount = Number(updateResult || 0);
@@ -5059,6 +5062,7 @@ export class MedicalSuppliesService {
       const sqlConditions: Prisma.Sql[] = [
         Prisma.sql`ist.StockID = 1`,
         Prisma.sql`ist.RfidCode <> ''`,
+        Prisma.sql`COALESCE(ist.DeptID, 0) = 0`,
       ];
 
       if (filters?.itemCode) {
@@ -5176,6 +5180,7 @@ export class MedicalSuppliesService {
             LastCabinetModify = NOW()
         WHERE RowID IN (${Prisma.join(rowIds.map(id => Prisma.sql`${id}`), ',')})
           AND StockID = 1
+          AND COALESCE(DeptID, 0) = 0
       `;
 
       const updatedCount = Number(updateResult || 0);
