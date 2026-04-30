@@ -147,6 +147,12 @@ export class ItemController {
       DepartmentID: cleanBody.DepartmentID ? parseInt(cleanBody.DepartmentID, 10) : undefined,
       item_status: cleanBody.item_status !== undefined ? parseInt(cleanBody.item_status, 10) : undefined,
     };
+    if (cleanBody.UnitID !== undefined && cleanBody.UnitID !== null && String(cleanBody.UnitID).trim() !== '') {
+      const uid = parseInt(String(cleanBody.UnitID), 10);
+      if (!Number.isNaN(uid)) {
+        updateItemDto.UnitID = uid;
+      }
+    }
     if (file) {
       updateItemDto.Picture = `uploads/items/${file.filename}`;
     }

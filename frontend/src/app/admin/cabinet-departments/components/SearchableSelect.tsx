@@ -28,6 +28,11 @@ interface SearchableSelectProps {
   disabled?: boolean;
   /** ส่ง ref ของ container ใน modal เพื่อให้ dropdown ไปโผล่ด้านนอก (scroll ได้ปกติ) */
   portalTargetRef?: React.RefObject<HTMLElement | null>;
+  /**
+   * inline = วางใต้ trigger ในกล่อง relative (รองรับ `zoom` ที่ main ของ AppLayout — ไม่เพี้ยน)
+   * floating = portal ไป body + fixed (ใช้ใน dialog ที่ไม่ส่ง portalTargetRef แต่ต้องลอยนอก overflow)
+   */
+  positionMode?: "inline" | "floating";
   /** แสดงแถวล้างค่าในรายการ (เมื่อมีค่าแล้ว) เพื่อให้เปลี่ยนใจไม่เลือกได้ */
   allowClear?: boolean;
   clearLabel?: string;
@@ -48,6 +53,7 @@ export default function SearchableSelect({
   initialDisplay,
   disabled = false,
   portalTargetRef,
+  positionMode = "inline",
   allowClear = false,
   clearLabel = "ล้างการเลือก (ว่างช่องนี้)",
   disabledDisplay,
@@ -65,28 +71,53 @@ export default function SearchableSelect({
   };
   const [position, setPosition] = useState<PositionState | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
   const initialLoadDone = useRef(false);
 
   const updatePosition = () => {
     if (!triggerRef.current) return;
     const tr = triggerRef.current.getBoundingClientRect();
+    // floating ก่อน — ถ้าส่งทั้ง floating + portalTargetRef ให้ลอยไป body (เลเยอร์บนสุด)
+    if (positionMode === "floating") {
+      const gap = 4;
+      const pad = 8;
+      const spaceBelow = window.innerHeight - tr.bottom - gap - pad;
+      const maxH = Math.max(100, Math.min(320, spaceBelow));
+      const width = Math.max(tr.width, 200);
+      let left = tr.left;
+      if (left + width > window.innerWidth - pad) {
+        left = Math.max(pad, window.innerWidth - pad - width);
+      }
+      setPosition({
+        top: tr.bottom + gap,
+        left,
+        width,
+        isFixed: true,
+        maxHeight: maxH,
+      });
+      return;
+    }
     if (portalTargetRef?.current) {
-      const cr = portalTargetRef.current.getBoundingClientRect();
+      const scrollEl = portalTargetRef.current;
+      const cr = scrollEl.getBoundingClientRect();
+      const st = scrollEl.scrollTop;
+      const sl = scrollEl.scrollLeft;
       const inset = 12;
       const gap = 6;
-      const relLeft = tr.left - cr.left;
-      let width = Math.min(tr.width, cr.width - inset * 2);
+      /** พิกัด absolute ภายใน scroll container ต้องรวม scroll — ไม่งั้นเมนูลอยทับ trigger */
+      const relLeft = tr.left - cr.left + sl;
+      const clientW = scrollEl.clientWidth;
+      let width = Math.min(tr.width, clientW - inset * 2);
       let left = relLeft;
-      if (left + width > cr.width - inset) {
-        left = Math.max(inset, cr.width - inset - width);
+      if (left + width > clientW - inset) {
+        left = Math.max(inset, clientW - inset - width);
       }
       if (left < inset) {
         left = inset;
       }
-      width = Math.min(width, cr.width - left - inset);
-      const top = tr.bottom - cr.top + gap;
+      width = Math.min(width, clientW - left - inset);
+      const top = tr.bottom - cr.top + st + gap;
       const spaceBelow = cr.bottom - tr.bottom - gap - inset;
       const maxHeight = Math.max(160, Math.min(300, spaceBelow));
       setPosition({
@@ -97,41 +128,56 @@ export default function SearchableSelect({
       });
       return;
     }
-    const spaceAbove = tr.top;
-    const spaceBelow = window.innerHeight - tr.bottom;
-    const openAbove = spaceAbove >= spaceBelow;
-    const gap = 4;
-    if (openAbove) {
-      setPosition({
-        bottom: window.innerHeight - tr.top + gap,
-        left: tr.left,
-        width: tr.width,
-        isFixed: true,
-      });
-    } else {
-      setPosition({
-        top: tr.bottom + gap,
-        left: tr.left,
-        width: tr.width,
-        isFixed: true,
-      });
-    }
   };
+
+  /** มี portal ref (แม้ .current ยังว่าง) หรือโหมดลอย body — ต้องคำนวณพิกัด */
+  const useFloatingLayout =
+    positionMode === "floating" || portalTargetRef != null;
 
   useLayoutEffect(() => {
     if (!isOpen) {
       setPosition(null);
       return;
     }
-    updatePosition();
+    if (!useFloatingLayout) {
+      setPosition(null);
+      return;
+    }
+    let cancelled = false;
+    let rafId = 0;
+    let attempts = 0;
+    const run = () => {
+      if (cancelled) return;
+      if (
+        positionMode !== "floating" &&
+        portalTargetRef != null &&
+        !portalTargetRef.current
+      ) {
+        attempts += 1;
+        if (attempts < 30) {
+          rafId = requestAnimationFrame(run);
+        }
+        return;
+      }
+      updatePosition();
+    };
+    run();
     const onScrollOrResize = () => updatePosition();
     window.addEventListener("scroll", onScrollOrResize, true);
     window.addEventListener("resize", onScrollOrResize);
+    const portalScrollEl =
+      portalTargetRef != null && positionMode !== "floating"
+        ? portalTargetRef.current
+        : null;
+    portalScrollEl?.addEventListener("scroll", onScrollOrResize, { passive: true });
     return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
+      portalScrollEl?.removeEventListener("scroll", onScrollOrResize);
     };
-  }, [isOpen]);
+  }, [isOpen, useFloatingLayout, positionMode]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -188,8 +234,24 @@ export default function SearchableSelect({
           opt.subLabel?.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
-  const selectedOption = options.find((opt) => opt.value === value);
   const trimmedValue = value?.trim() ?? "";
+  const selectedOption = options.find((opt) => opt.value === value);
+  /** ค่าที่เลือกแล้วแต่ไม่อยู่ในรายการ (เช่น หลังค้นหา) — แปะไว้บนสุดให้เห็นว่าเลือกอะไรอยู่ */
+  const pinnedSelectedOption: Option | null =
+    trimmedValue && !filteredOptions.some((o) => o.value === trimmedValue)
+      ? selectedOption ??
+        ((initialDisplay?.label || initialDisplay?.subLabel) && initialDisplay
+          ? {
+              value: trimmedValue,
+              label: initialDisplay.label || "—",
+              subLabel: initialDisplay.subLabel,
+            }
+          : { value: trimmedValue, label: trimmedValue })
+      : null;
+  const listOptions: Option[] = pinnedSelectedOption
+    ? [pinnedSelectedOption, ...filteredOptions]
+    : filteredOptions;
+
   // แสดงรายการที่เลือกใน trigger: จาก options → initialDisplay → อย่างน้อยแสดงค่า value
   const displayValue =
     selectedOption ||
@@ -208,15 +270,86 @@ export default function SearchableSelect({
   const listMaxHeight =
     position?.maxHeight != null ? Math.max(72, panelMaxHeight - 56) : 240;
 
+  const optionsBlock = loading ? (
+    <div className="flex items-center justify-center py-6">
+      <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+      <span className="ml-2 text-sm text-slate-500">กำลังโหลด...</span>
+    </div>
+  ) : (
+    <>
+      {allowClear && value.trim() ? (
+        <button
+          type="button"
+          onClick={() => {
+            onValueChange("");
+            setIsOpen(false);
+            setSearchTerm("");
+          }}
+          className={cn(
+            "w-full border-b border-amber-100 bg-amber-50/80 px-3 py-2.5 text-left text-sm text-amber-900",
+            "hover:bg-amber-100/90 focus:bg-amber-100/90 focus:outline-none",
+          )}
+        >
+          {clearLabel}
+        </button>
+      ) : null}
+      {listOptions.length === 0 ? (
+        <div className="py-6 text-center text-sm text-slate-500">ไม่พบข้อมูล</div>
+      ) : (
+        listOptions.map((option, idx) => (
+          <button
+            key={`opt-${option.value}-${idx}`}
+            type="button"
+            onClick={() => {
+              onValueChange(option.value);
+              setIsOpen(false);
+              setSearchTerm("");
+            }}
+            className={cn(
+              "w-full text-left px-3 py-2.5 text-sm transition-colors border-b border-slate-50 last:border-0",
+              "hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
+              option.value === value && "bg-blue-50 text-blue-700 font-medium",
+            )}
+          >
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium">{option.label || "—"}</span>
+              {option.subLabel != null && option.subLabel !== "" && (
+                <span className="text-xs text-slate-500">{option.subLabel}</span>
+              )}
+            </div>
+          </button>
+        ))
+      )}
+    </>
+  );
+
+  const searchHeader = (
+    <div className="border-b border-slate-100 bg-slate-50/50 p-2 shrink-0">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Input
+          placeholder={searchPlaceholder}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="h-9 border-slate-200 bg-white pl-8 text-sm"
+          autoFocus
+        />
+      </div>
+    </div>
+  );
+
+  const showInlinePanel = isOpen && !useFloatingLayout;
+
   const dropdownContent = position ? (
     <div
       ref={portalRef}
       className={cn(
-        "z-[9999] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg",
+        "overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl ring-1 ring-slate-900/5",
         position.maxHeight == null && "max-h-[300px]",
       )}
       style={{
         position: position.isFixed ? "fixed" : "absolute",
+        zIndex: position.isFixed ? 100_002 : 10_000,
         left: position.left,
         width: position.width,
         minWidth: 200,
@@ -226,74 +359,12 @@ export default function SearchableSelect({
           : { top: position.top ?? 0 }),
       }}
     >
-      <div className="border-b border-slate-100 bg-slate-50/50 p-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            placeholder={searchPlaceholder}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-9 border-slate-200 bg-white pl-8 text-sm"
-            autoFocus
-          />
-        </div>
-      </div>
+      {searchHeader}
       <div
         className="overflow-y-auto overscroll-contain"
         style={{ maxHeight: listMaxHeight }}
       >
-        {loading ? (
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
-            <span className="ml-2 text-sm text-slate-500">กำลังโหลด...</span>
-          </div>
-        ) : (
-          <>
-            {allowClear && value.trim() ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onValueChange("");
-                  setIsOpen(false);
-                  setSearchTerm("");
-                }}
-                className={cn(
-                  "w-full border-b border-amber-100 bg-amber-50/80 px-3 py-2.5 text-left text-sm text-amber-900",
-                  "hover:bg-amber-100/90 focus:bg-amber-100/90 focus:outline-none",
-                )}
-              >
-                {clearLabel}
-              </button>
-            ) : null}
-            {filteredOptions.length === 0 ? (
-              <div className="py-6 text-center text-sm text-slate-500">ไม่พบข้อมูล</div>
-            ) : (
-              filteredOptions.map((option, idx) => (
-                <button
-                  key={`opt-${option.value}-${idx}`}
-                  type="button"
-                  onClick={() => {
-                    onValueChange(option.value);
-                    setIsOpen(false);
-                    setSearchTerm("");
-                  }}
-                  className={cn(
-                    "w-full text-left px-3 py-2.5 text-sm transition-colors border-b border-slate-50 last:border-0",
-                    "hover:bg-slate-50 focus:bg-slate-50 focus:outline-none",
-                    option.value === value && "bg-blue-50 text-blue-700 font-medium",
-                  )}
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-medium">{option.label || "—"}</span>
-                    {option.subLabel != null && option.subLabel !== "" && (
-                      <span className="text-xs text-slate-500">{option.subLabel}</span>
-                    )}
-                  </div>
-                </button>
-              ))
-            )}
-          </>
-        )}
+        {optionsBlock}
       </div>
     </div>
   ) : null;
@@ -303,15 +374,20 @@ export default function SearchableSelect({
       <Label>
         {label} {required && <span className="text-red-500">*</span>}
       </Label>
-      <div className="relative" ref={triggerRef}>
-        {/* Trigger Button */}
+      <div
+        className={cn(
+          "relative",
+          showInlinePanel && "z-[10000]",
+        )}
+      >
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => {
             if (disabled) return;
             setIsOpen(!isOpen);
             if (!isOpen) {
-              setSearchTerm(""); // Reset search when opening
+              setSearchTerm("");
             }
           }}
           disabled={disabled}
@@ -338,8 +414,20 @@ export default function SearchableSelect({
           <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "transform rotate-180")} />
         </button>
 
-        {/* Dropdown: portal ไป body (overlay ลอยเหนือทุกอย่าง) หรือไป container ใน modal */}
-        {dropdownContent &&
+        {showInlinePanel && (
+          <div
+            className={cn(
+              "absolute left-0 right-0 top-full z-[10001] mt-1 flex max-h-[min(300px,50vh)] flex-col overflow-hidden",
+              "rounded-lg border border-slate-200 bg-white shadow-xl ring-1 ring-slate-900/5",
+            )}
+          >
+            {searchHeader}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{optionsBlock}</div>
+          </div>
+        )}
+
+        {useFloatingLayout &&
+          dropdownContent &&
           typeof document !== "undefined" &&
           (() => {
             const target = position?.isFixed ? document.body : portalTargetRef?.current;

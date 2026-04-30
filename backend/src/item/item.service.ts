@@ -6,6 +6,16 @@ import { UpdateItemDto } from './dto/update-item.dto';
 import { UpdateItemMinMaxDto } from './dto/update-item-minmax.dto';
 import { ItemStockDto } from './dto/item-stock.dto';
 
+/** ค่า DB สำหรับพิมพ์สติกเกอร์ / legacy — ใส่เมื่อสร้าง Item ใหม่ถ้าไม่ส่งมาจาก client */
+const ITEM_CREATE_STICKER_DEFAULTS: Record<string, string | number> = {
+  Alternatename: '',
+  Barcode: '',
+  IsSet: '0',
+  IsReuse: '1',
+  IsNormal: '1',
+  itemtypeID: 74,
+};
+
 @Injectable()
 export class ItemService {
   constructor(private prisma: PrismaService) {}
@@ -32,9 +42,10 @@ export class ItemService {
         cleanData.itemcode2 = String(cleanData.itemcode).trim().slice(0, 20);
       }
 
-      // Alternatename ไม่ใช้ในแอปแล้วแต่ยังมีใน DB (มัก NOT NULL) — ส่งค่าว่างถ้าไม่ระบุ
-      if (cleanData.Alternatename === undefined || cleanData.Alternatename === null) {
-        cleanData.Alternatename = '';
+      for (const [key, defaultVal] of Object.entries(ITEM_CREATE_STICKER_DEFAULTS)) {
+        if (!(key in cleanData)) {
+          cleanData[key] = defaultVal;
+        }
       }
 
       const item = await this.prisma.item.create({
@@ -163,6 +174,7 @@ export class ItemService {
         select: {
           itemcode: true,
           itemname: true,
+          UnitID: true,
           CostPrice: true,
           SalePrice: true,
           CreateDate: true,
@@ -512,6 +524,7 @@ export class ItemService {
             itemcode: true,
             itemname: true,
             Barcode: true,
+            UnitID: true,
             item_status: true,
             CreateDate: true,
             CostPrice: true,

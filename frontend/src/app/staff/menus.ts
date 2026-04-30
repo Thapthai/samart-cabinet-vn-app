@@ -15,6 +15,7 @@ import {
     Boxes,
     Layers,
     Printer,
+    Ruler,
 } from 'lucide-react';
 // Type definitions for menu and submenu
 export interface StaffMenuSubItem {
@@ -153,6 +154,12 @@ export const staffMenuItems = [
                 href: '/staff/management/items',
                 icon: Boxes,
                 description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
+            },
+            {
+                name: 'จัดการหน่วยนับ (Unit)',
+                href: '/staff/management/units',
+                icon: Ruler,
+                description: 'หน่วยนับสำหรับผูกกับรายการ Item',
             },
             {
                 name: 'จัดการ Division',

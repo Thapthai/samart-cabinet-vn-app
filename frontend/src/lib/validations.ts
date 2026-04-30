@@ -29,6 +29,8 @@ export const itemSchema = z.object({
   stock_max: z.number().int().min(0).optional(),
   item_status: z.number().int().optional(),
   warehouseID: z.number().int().optional(),
+  /** ไม่บังคับ — เลือกจาก SearchableSelect (ค่าเป็นตัวเลขหรือ undefined) */
+  UnitID: z.number().int().positive().optional(),
 });
 
 export const categorySchema = z.object({

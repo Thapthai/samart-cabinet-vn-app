@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield, UserCog, Boxes, Building2, Layers, Printer } from 'lucide-react';
+import { Package, Users, Shield, UserCog, Boxes, Building2, Layers, Printer, Ruler } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,17 @@ const managementMenus = [
     borderColor: 'border-amber-200',
     iconBg: 'bg-amber-100',
     iconColor: 'text-amber-700',
+  },
+  {
+    name: 'จัดการหน่วยนับ (Unit)',
+    href: '/admin/management/units',
+    icon: Ruler,
+    description: 'เพิ่ม แก้ไข ยกเลิกหน่วยนับสำหรับผูกกับ Item',
+    color: 'from-sky-500 to-blue-600',
+    bgLight: 'bg-sky-50',
+    borderColor: 'border-sky-200',
+    iconBg: 'bg-sky-100',
+    iconColor: 'text-sky-800',
   },
   {
     name: 'จัดการแผนก',

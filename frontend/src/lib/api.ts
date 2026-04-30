@@ -1888,6 +1888,61 @@ export const itemStockApi = {
   },
 };
 
+// =========================== Units API (หน่วยนับ) ===========================
+export type UnitRow = {
+  id: number;
+  unitName: string;
+  isCancel: boolean;
+  bId: number | null;
+};
+
+export const unitsApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    include_cancelled?: boolean;
+    only_cancelled?: boolean;
+  }): Promise<PaginatedResponse<UnitRow>> => {
+    const apiParams: Record<string, string | number> = {};
+    if (params?.page !== undefined) apiParams.page = params.page;
+    if (params?.limit !== undefined) apiParams.limit = params.limit;
+    if (params?.keyword) apiParams.keyword = params.keyword;
+    if (params?.include_cancelled) apiParams.include_cancelled = '1';
+    if (params?.only_cancelled) apiParams.only_cancelled = '1';
+    const response = await api.get('/units', { params: apiParams });
+    return response.data;
+  },
+
+  getActive: async (): Promise<ApiResponse<Array<{ id: number; unitName: string }>>> => {
+    const response = await api.get('/units/active');
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<ApiResponse<UnitRow>> => {
+    const response = await api.get(`/units/${id}`);
+    return response.data;
+  },
+
+  create: async (data: { UnitName: string; B_ID?: number }): Promise<ApiResponse<UnitRow>> => {
+    const response = await api.post('/units', data);
+    return response.data;
+  },
+
+  update: async (
+    id: number,
+    data: { UnitName?: string; B_ID?: number; IsCancel?: boolean },
+  ): Promise<ApiResponse<UnitRow>> => {
+    const response = await api.put(`/units/${id}`, data);
+    return response.data;
+  },
+
+  softDelete: async (id: number): Promise<ApiResponse<UnitRow>> => {
+    const response = await api.delete(`/units/${id}`);
+    return response.data;
+  },
+};
+
 // =========================== Cabinet API ===========================
 export const cabinetApi = {
   getAll: async (params?: { page?: number; limit?: number; keyword?: string; sort_by?: string; sort_order?: string }): Promise<PaginatedResponse<any>> => {

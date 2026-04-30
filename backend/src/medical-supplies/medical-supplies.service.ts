@@ -539,7 +539,17 @@ export class MedicalSuppliesService {
       const itemcode2 = safeCode.slice(0, 20);
       try {
         await this.prisma.item.create({
-          data: { itemcode: safeCode, itemname: name, itemcode2, Alternatename: '' },
+          data: {
+            itemcode: safeCode,
+            itemname: name,
+            itemcode2,
+            Alternatename: '',
+            Barcode: '',
+            IsSet: '0',
+            IsReuse: '1',
+            IsNormal: '1',
+            itemtypeID: 74,
+          },
         });
       } catch {
         // race / duplicate — ignore

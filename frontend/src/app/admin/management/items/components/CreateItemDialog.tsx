@@ -1,15 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { itemsApi } from '@/lib/api';
+import { itemsApi, unitsApi, type UnitRow } from '@/lib/api';
 import { itemSchema, type ItemFormData } from '@/lib/validations';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
+import SearchableSelect from '@/app/admin/cabinet-departments/components/SearchableSelect';
 
 interface CreateItemDialogProps {
   open: boolean;
@@ -25,6 +33,31 @@ export default function CreateItemDialog({
   onSuccess,
 }: CreateItemDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [unitRows, setUnitRows] = useState<UnitRow[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [unitInitialDisplay, setUnitInitialDisplay] = useState<
+    { label: string; subLabel?: string } | undefined
+  >(undefined);
+  const unitRequestSeq = useRef(0);
+
+  const loadUnits = useCallback(async (keyword?: string) => {
+    const seq = ++unitRequestSeq.current;
+    setLoadingUnits(true);
+    try {
+      const res = await unitsApi.getAll({
+        page: 1,
+        limit: 50,
+        keyword: keyword?.trim() || undefined,
+      });
+      if (unitRequestSeq.current !== seq) return;
+      const list = Array.isArray(res?.data) ? res.data : [];
+      setUnitRows(list);
+    } catch {
+      if (unitRequestSeq.current === seq) setUnitRows([]);
+    } finally {
+      if (unitRequestSeq.current === seq) setLoadingUnits(false);
+    }
+  }, []);
 
   const form = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -36,6 +69,7 @@ export default function CreateItemDialog({
       CostPrice: 0,
       stock_balance: 0,
       item_status: 0,
+      UnitID: undefined,
     },
   });
 
@@ -43,14 +77,17 @@ export default function CreateItemDialog({
   useEffect(() => {
     if (!open) {
       form.reset();
+      setUnitInitialDisplay(undefined);
     }
   }, [open, form]);
 
   const onSubmit = async (data: ItemFormData) => {
     try {
       setLoading(true);
+      const { UnitID, ...rest } = data;
       const response = await itemsApi.create({
-        ...data,
+        ...rest,
+        ...(UnitID != null && UnitID > 0 ? { UnitID } : {}),
         IsNormal: '1',
         IsStock: true,
         item_status: data.item_status || 0,
@@ -73,8 +110,8 @@ export default function CreateItemDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+      <DialogContent className="sm:max-w-2xl min-w-0">
         <DialogHeader>
           <DialogTitle>เพิ่มอุปกรณ์ใหม่</DialogTitle>
           <DialogDescription>
@@ -83,7 +120,8 @@ export default function CreateItemDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="relative grid min-w-0 gap-4 overflow-x-hidden py-4">
             {/* รหัสสินค้า */}
             <FormField
               control={form.control}
@@ -134,6 +172,48 @@ export default function CreateItemDialog({
                       placeholder="เช่น 8859876543210"
                       maxLength={50}
                       {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="UnitID"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <SearchableSelect
+                      positionMode="floating"
+                      label="หน่วยนับ (Unit)"
+                      placeholder="เลือกหน่วย (ค้นหาได้)"
+                      value={field.value != null && field.value > 0 ? String(field.value) : ''}
+                      onValueChange={(value) => {
+                        field.onChange(value === '' ? undefined : parseInt(value, 10));
+                        if (!value.trim()) {
+                          setUnitInitialDisplay(undefined);
+                          return;
+                        }
+                        const id = parseInt(value, 10);
+                        const row = unitRows.find((u) => u.id === id);
+                        if (row) {
+                          setUnitInitialDisplay({
+                            label: row.unitName || `หน่วย #${id}`,
+                            subLabel: `ID ${id}`,
+                          });
+                        }
+                      }}
+                      options={unitRows.map((u) => ({
+                        value: String(u.id),
+                        label: u.unitName || `หน่วย #${u.id}`,
+                        subLabel: `ID ${u.id}`,
+                      }))}
+                      loading={loadingUnits}
+                      onSearch={loadUnits}
+                      searchPlaceholder="ค้นหาชื่อหน่วย..."
+                      initialDisplay={unitInitialDisplay}
                     />
                   </FormControl>
                   <FormMessage />
@@ -204,8 +284,9 @@ export default function CreateItemDialog({
                 </FormItem>
               )}
             />
+            </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
+            <DialogFooter>
               <Button
                 variant="outline"
                 type="button"
@@ -217,7 +298,7 @@ export default function CreateItemDialog({
               <Button type="submit" disabled={loading}>
                 {loading ? 'กำลังบันทึก...' : 'บันทึกสินค้า'}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>

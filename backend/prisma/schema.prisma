@@ -322,6 +322,7 @@ model Item {
   itemStocks              ItemStock[]
   itemSlotInCabinet       ItemSlotInCabinet[]
   itemSlotInCabinetDetail ItemSlotInCabinetDetail[] @relation("DetailToItem")
+  unit                    Unit?                     @relation(fields: [UnitID], references: [ID], onDelete: SetNull)
 
   @@index([itemtypeID])
   @@map("item")
@@ -768,4 +769,17 @@ model DailyCabinetStockReportArchive {
   @@unique([report_date, format, filter_key], map: "uq_daily_cab_stock_archive")
   @@index([report_date(sort: Desc)], map: "idx_daily_cab_stock_report_date")
   @@map("app_daily_cabinet_stock_report_archives")
+}
+
+/// หน่วยนับ (เช่น ชิ้น, กล่อง) — ตาราง `unit`
+model Unit {
+  ID       Int      @id @default(autoincrement()) @map("ID")
+  UnitName String?  @map("UnitName") @db.VarChar(50)
+  IsCancel Boolean? @default(false) @map("IsCancel") @db.Bit(1)
+  B_ID     Int?     @map("B_ID")
+
+  // Relations
+  items Item[]
+
+  @@map("units")
 }

@@ -2,18 +2,18 @@
 A
 A3V+00000H+0000A107500700ZA
 
-%2V00510H0600RH0,tahoma.ttf,1,40,40,รายการ
+%2V00510H0650RH0,tahoma.ttf,1,40,40,รายการ
 
-%2V00440H0600RH0,tahoma.ttf,0,30,30,QrCode1
+%2V00440H0650RH0,tahoma.ttf,0,30,30,QrCode1
 
-%2V00390H06002D30,L,9,0,0DS2,Qrcode  
+%2V00390H06502D30,L,9,0,0DS2,Qrcode  
 
-%2V00180H0600RH0,tahoma.ttf,0,19,19,QrCode2
+%2V00180H0650RH0,tahoma.ttf,0,19,19,QrCode2
 
-%2V00370H0385RH0,tahoma.ttf,1,30,30,Code : itemcode2
-%2V00320H0385RH0,tahoma.ttf,1,30,30,Serial No : num2
-%2V00270H0385RH0,tahoma.ttf,1,30,30,Lot No : num3
-%2V00180H0375RH0,tahoma.ttf,1,35,35, EXP: num4
-%2V00190H0385(0390,060
+%2V00370H0435RH0,tahoma.ttf,1,30,30,Code : itemcode2
+%2V00320H0435RH0,tahoma.ttf,1,30,30,Serial No : num2
+%2V00270H0435RH0,tahoma.ttf,1,30,30,Lot No : num3
+%2V00180H0425RH0,tahoma.ttf,1,35,35, EXP: num4
+%2V00190H0435(0390,060
 
 CT0Q1Z
