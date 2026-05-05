@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, useMemo } from "react";
 import { Package, RefreshCw, Gauge, ChevronDown, ChevronRight, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +45,11 @@ function isNearExpiry(expireStr: string | null | undefined): boolean {
   return d.getTime() >= now && d.getTime() <= end.getTime();
 }
 
+/** จำนวนในตู้ — ตรงกับคอลัมน์ในตาราง */
+function getCabinetQty(item: Item): number {
+  return (item as Item & { count_itemstock?: number }).count_itemstock ?? item.itemStocks?.length ?? 0;
+}
+
 function getItemDepartmentDisplay(item: Item): string {
   if (item.department?.DepName || item.department?.DepName2) {
     return item.department.DepName || item.department.DepName2 || "-";
@@ -73,6 +78,12 @@ export default function ItemsTable({
   headerActions,
 }: ItemsTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  /** ไม่แสดงแถวที่จำนวนในตู้ = 0 */
+  const visibleItems = useMemo(
+    () => items.filter((item) => getCabinetQty(item) !== 0),
+    [items],
+  );
 
   const getStatusBadge = (status: number | undefined) => {
     if (status === 0) {
@@ -121,7 +132,11 @@ export default function ItemsTable({
         <div className="space-y-1.5">
           <CardTitle>รายการอุปกรณ์</CardTitle>
           <CardDescription>
-            แสดง {items.length} รายการ จากทั้งหมด {totalItems} อุปกรณ์
+            แสดง {visibleItems.length} รายการ
+            {items.length !== visibleItems.length
+              ? ` (ซ่อน ${items.length - visibleItems.length} รายการที่จำนวนในตู้เป็น 0)`
+              : ""}{" "}
+            · จากทั้งหมด {totalItems} อุปกรณ์
           </CardDescription>
         </div>
         {headerActions ? <div className="flex shrink-0 items-center gap-2">{headerActions}</div> : null}
@@ -141,6 +156,13 @@ export default function ItemsTable({
               {hasSearched
                 ? 'ไม่พบข้อมูลอุปกรณ์'
                 : 'กำหนดเงื่อนไขแล้วกด «ค้นหา» เพื่อแสดงรายการ'}
+            </p>
+          </div>
+        ) : visibleItems.length === 0 ? (
+          <div className="text-center py-12">
+            <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">
+              ไม่มีรายการที่แสดง — รายการในหน้านี้ทั้งหมดมีจำนวนในตู้เป็น 0 ({items.length} รายการ)
             </p>
           </div>
         ) : (
@@ -165,8 +187,8 @@ export default function ItemsTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item, index) => {
-                    const countItemStock = (item as Item & { count_itemstock?: number }).count_itemstock ?? item.itemStocks?.length ?? 0;
+                  {visibleItems.map((item, index) => {
+                    const countItemStock = getCabinetQty(item);
                     const stockMin = item.stock_min ?? 0;
                     const isLowStock = stockMin > 0 && countItemStock < stockMin;
                     const itemStocks = (item.itemStocks ?? []).filter(
@@ -221,16 +243,12 @@ export default function ItemsTable({
                           </TableCell>
                           <TableCell className="text-muted-foreground">{getItemDepartmentDisplay(item)}</TableCell>
                           <TableCell className="text-center">
-                            {countItemStock !== 0 ? (
-                              <div className="flex items-center justify-center gap-1">
-                                <Archive className="h-4 w-4 text-blue-600" />
-                                <span className={`font-semibold ${isLowStock ? "text-red-600" : "text-blue-600"}`}>
-                                  {countItemStock.toLocaleString()}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
+                            <div className="flex items-center justify-center gap-1">
+                              <Archive className="h-4 w-4 text-blue-600" />
+                              <span className={`font-semibold ${isLowStock ? "text-red-600" : "text-blue-600"}`}>
+                                {countItemStock.toLocaleString()}
+                              </span>
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <span className="font-medium text-slate-700">{item.qty_in_use ?? 0}</span>
