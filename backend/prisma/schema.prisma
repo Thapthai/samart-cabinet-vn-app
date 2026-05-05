@@ -549,7 +549,8 @@ model ItemStock {
   UsageName             String?   @map("UsageName") @db.VarChar(255)
   ProductSerial         String?   @map("ProductSerial") @db.VarChar(25)
   StockID               Int?      @map("StockID")
-  HNCode                String?   @map("HNCode") @db.VarChar(20)
+  /** Legacy DB เก็บเป็นตัวเลข (มักเป็น 0 เมื่อไม่ผูก HN ผู้ป่วย) — ไม่ใช่ VarChar */
+  HNCode                Int?      @default(0) @map("HNCode")
   CabinetUserID         Int?      @map("CabinetUserID")
   LastCabinetModify     DateTime? @map("LastCabinetModify")
   InsertRfidDocNo       String?   @map("InsertRfidDocNo") @db.VarChar(20)

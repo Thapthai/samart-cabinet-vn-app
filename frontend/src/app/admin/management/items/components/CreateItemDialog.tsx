@@ -220,51 +220,7 @@ export default function CreateItemDialog({
                 </FormItem>
               )}
             />
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* ราคาทุน */}
-              <FormField
-                control={form.control}
-                name="CostPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ราคาทุน</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* จำนวนในสต็อก */}
-              <FormField
-                control={form.control}
-                name="stock_balance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>จำนวนในสต็อก</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        placeholder="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+ 
 
             {/* คำอธิบาย */}
             <FormField

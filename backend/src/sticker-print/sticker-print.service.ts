@@ -225,21 +225,25 @@ export class StickerPrintService {
     const host = this.resolvePrintHost(undefined);
     const resolvedPort = this.resolvePrintPort(undefined);
 
-    const lines = dto.items
+    const entries = dto.items
       .map((l) => ({
         code: l.itemcode.trim(),
         copies:
           l.copies != null && Number.isFinite(l.copies)
             ? Math.min(50, Math.max(1, Math.floor(l.copies)))
             : 1,
+        expire_date:
+          l.expire_date != null && String(l.expire_date).trim() !== ''
+            ? String(l.expire_date).trim().slice(0, 10)
+            : undefined,
       }))
       .filter((l) => l.code.length > 0);
 
-    if (lines.length === 0) {
+    if (entries.length === 0) {
       throw new BadRequestException('เลือกอย่างน้อย 1 รายการ');
     }
 
-    const uniqueCodes = [...new Set(lines.map((l) => l.code))];
+    const uniqueCodes = [...new Set(entries.map((l) => l.code))];
     const rows = await this.prisma.item.findMany({
       where: { itemcode: { in: uniqueCodes } },
     });
@@ -252,7 +256,7 @@ export class StickerPrintService {
       );
     }
 
-    const totalLabels = lines.reduce((s, l) => s + l.copies, 0);
+    const totalLabels = entries.reduce((s, l) => s + l.copies, 0);
     if (totalLabels > 2000) {
       throw new BadRequestException(
         `จำนวนฉลากรวมเกิน 2000 (ตอนนี้รวม ${totalLabels} แผ่น)`,
@@ -261,20 +265,24 @@ export class StickerPrintService {
 
     const items: { itemcode: string; copies: number; bytesSent: number }[] = [];
     let totalBytesSent = 0;
-    for (const line of lines) {
-      const row = byCode.get(line.code)!;
-      const tokens = this.mergeItemStickerTokens(row, { itemcode: row.itemcode } as PrintLabelItemDto);
+    for (const entry of entries) {
+      const row = byCode.get(entry.code)!;
+      const labelDto: PrintLabelItemDto = { itemcode: row.itemcode };
+      if (entry.expire_date) {
+        labelDto.num4 = entry.expire_date;
+      }
+      const tokens = this.mergeItemStickerTokens(row, labelDto);
       const payload = this.buildSatoSbplPayload({
         host,
         port: resolvedPort,
         ...tokens,
       } as PrintSatoSbplDto);
       let itemBytes = 0;
-      for (let c = 0; c < line.copies; c++) {
+      for (let c = 0; c < entry.copies; c++) {
         const { bytesSent } = await this.sendSbplLikePrintLabel(host, resolvedPort, payload);
         itemBytes += bytesSent;
       }
-      items.push({ itemcode: row.itemcode, copies: line.copies, bytesSent: itemBytes });
+      items.push({ itemcode: row.itemcode, copies: entry.copies, bytesSent: itemBytes });
       totalBytesSent += itemBytes;
     }
 
@@ -282,7 +290,7 @@ export class StickerPrintService {
       success: true,
       message: 'ส่งคำสั่งพิมพ์ไปเครื่องปริ้นแล้ว',
       printedAt: new Date().toISOString(),
-      lineCount: lines.length,
+      lineCount: entries.length,
       host,
       port: resolvedPort,
       template: 'SBPL1.txt',

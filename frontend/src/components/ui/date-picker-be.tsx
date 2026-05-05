@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { formatCEToBEDMY, parseBEDMYToCE } from '@/lib/datePickerBE';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,8 @@ interface DatePickerBEProps {
   className?: string;
   id?: string;
   disabled?: boolean;
+  /** เปิดปฏิทินเป็น fixed + portal ไป body (ใช้ใน table/overflow — ไม่โดนตัดขอบกล่อง) */
+  popoverPortal?: boolean;
 }
 
 export function DatePickerBE({
@@ -26,6 +29,7 @@ export function DatePickerBE({
   className,
   id,
   disabled,
+  popoverPortal = false,
 }: DatePickerBEProps) {
   const [inputText, setInputText] = React.useState(() => formatCEToBEDMY(value));
   const [open, setOpen] = React.useState(false);
@@ -37,6 +41,45 @@ export function DatePickerBE({
     return new Date();
   });
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const portalPanelRef = React.useRef<HTMLDivElement>(null);
+  const [portalPlacement, setPortalPlacement] = React.useState<{
+    top: number;
+    left: number;
+    minWidth: number;
+  } | null>(null);
+
+  const updatePortalPlacement = React.useCallback(() => {
+    if (!popoverPortal || !open || !containerRef.current) return;
+    const r = containerRef.current.getBoundingClientRect();
+    const gap = 4;
+    const pad = 8;
+    const minW = Math.max(r.width, 260);
+    let left = r.left;
+    if (left + minW > window.innerWidth - pad) {
+      left = Math.max(pad, window.innerWidth - pad - minW);
+    }
+    let top = r.bottom + gap;
+    const estPanelH = 280;
+    if (top + estPanelH > window.innerHeight - pad) {
+      top = Math.max(pad, r.top - gap - estPanelH);
+    }
+    setPortalPlacement({ top, left, minWidth: minW });
+  }, [popoverPortal, open]);
+
+  React.useLayoutEffect(() => {
+    if (!popoverPortal || !open) {
+      setPortalPlacement(null);
+      return;
+    }
+    updatePortalPlacement();
+    const onMove = () => updatePortalPlacement();
+    window.addEventListener('scroll', onMove, true);
+    window.addEventListener('resize', onMove);
+    return () => {
+      window.removeEventListener('scroll', onMove, true);
+      window.removeEventListener('resize', onMove);
+    };
+  }, [popoverPortal, open, updatePortalPlacement]);
 
   React.useEffect(() => {
     setInputText(formatCEToBEDMY(value));
@@ -87,7 +130,10 @@ export function DatePickerBE({
 
   React.useEffect(() => {
     const onOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (containerRef.current?.contains(t)) return;
+      if (portalPanelRef.current?.contains(t)) return;
+      setOpen(false);
     };
     if (open) {
       document.addEventListener('mousedown', onOutside);
@@ -96,6 +142,69 @@ export function DatePickerBE({
   }, [open]);
 
   const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+  const calendarPanel = (
+    <div
+      ref={popoverPortal ? portalPanelRef : undefined}
+      className={cn(
+        'rounded-md border bg-white p-3 shadow-lg',
+        !popoverPortal && 'absolute top-full left-0 z-50 mt-1',
+      )}
+      style={
+        popoverPortal && portalPlacement
+          ? {
+              position: 'fixed',
+              top: portalPlacement.top,
+              left: portalPlacement.left,
+              minWidth: portalPlacement.minWidth,
+              zIndex: 100_003,
+            }
+          : undefined
+      }
+    >
+      <div className="flex items-center justify-between mb-2">
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}>
+          ‹
+        </Button>
+        <span className="text-sm font-medium tabular-nums">
+          {monthNames[viewMonth]} {viewYearBE}
+        </span>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}>
+          ›
+        </Button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 text-center text-xs">
+        {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((w) => (
+          <div key={w} className="font-medium text-gray-500 py-1">
+            {w}
+          </div>
+        ))}
+        {days.map((d, i) =>
+          d === null ? (
+            <div key={`e-${i}`} />
+          ) : (
+            <button
+              key={d}
+              type="button"
+              className={cn(
+                'h-8 w-8 rounded hover:bg-blue-100',
+                value === `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'text-gray-800'
+              )}
+              onClick={() => handleSelectDay(viewYear, viewMonth + 1, d)}
+            >
+              {d}
+            </button>
+          )
+        )}
+      </div>
+    </div>
+  );
+
+  const showInlineCalendar = open && !popoverPortal;
+  const showPortalCalendar =
+    popoverPortal && open && portalPlacement != null && typeof document !== 'undefined';
 
   return (
     <div ref={containerRef} className={cn('relative flex', className)}>
@@ -122,47 +231,8 @@ export function DatePickerBE({
       >
         <CalendarIcon className="h-4 w-4" />
       </Button>
-      {open && (
-        <div className="absolute top-full left-0 z-50 mt-1 rounded-md border bg-white p-3 shadow-lg">
-          <div className="flex items-center justify-between mb-2">
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}>
-              ‹
-            </Button>
-            <span className="text-sm font-medium tabular-nums">
-              {monthNames[viewMonth]} {viewYearBE}
-            </span>
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}>
-              ›
-            </Button>
-          </div>
-          <div className="grid grid-cols-7 gap-0.5 text-center text-xs">
-            {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map((w) => (
-              <div key={w} className="font-medium text-gray-500 py-1">
-                {w}
-              </div>
-            ))}
-            {days.map((d, i) =>
-              d === null ? (
-                <div key={`e-${i}`} />
-              ) : (
-                <button
-                  key={d}
-                  type="button"
-                  className={cn(
-                    'h-8 w-8 rounded hover:bg-blue-100',
-                    value === `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'text-gray-800'
-                  )}
-                  onClick={() => handleSelectDay(viewYear, viewMonth + 1, d)}
-                >
-                  {d}
-                </button>
-              )
-            )}
-          </div>
-        </div>
-      )}
+      {showInlineCalendar ? calendarPanel : null}
+      {showPortalCalendar ? createPortal(calendarPanel, document.body) : null}
     </div>
   );
 }

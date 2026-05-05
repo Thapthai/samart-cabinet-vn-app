@@ -20,6 +20,7 @@ import { ItemService } from './item.service';
 import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { UpdateItemMinMaxDto } from './dto/update-item-minmax.dto';
+import { CreateItemStocksForPrintDto } from './dto/create-item-stocks-for-print.dto';
 
 const fileInterceptorOptions = {
   storage: diskStorage({
@@ -176,6 +177,12 @@ export class ItemController {
 @Controller('item-stocks')
 export class ItemStockController {
   constructor(private readonly itemService: ItemService) {}
+
+  /** สร้าง itemstock + RFID เฮกซ์ 24 ตัว (สุ่ม) ตามจำนวนแผ่น — ใช้ก่อนพิมพ์สติกเกอร์ */
+  @Post('for-print')
+  async createForPrint(@Body() body: CreateItemStocksForPrintDto) {
+    return this.itemService.createItemStocksForPrint(body.lines);
+  }
 
   @Get()
   async findAll(

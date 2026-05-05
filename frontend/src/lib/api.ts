@@ -1886,6 +1886,25 @@ export const itemStockApi = {
     const response = await api.get('/item-stocks', { params });
     return response.data;
   },
+
+  /** สร้างแถว itemstock + RFID เฮกซ์ 24 ตัวตามจำนวนแผ่น (ก่อนพิมพ์ฉลาก) */
+  createForPrint: async (body: {
+    lines: Array<{
+      itemcode: string;
+      cabinet_id: number;
+      department_id: number;
+      copies: number;
+      expire_date?: string;
+    }>;
+  }): Promise<{
+    success?: boolean;
+    message?: string;
+    data?: { count: number; rows: Array<{ RowID: number; ItemCode?: string | null; RfidCode?: string | null }> };
+    error?: string;
+  }> => {
+    const response = await api.post('/item-stocks/for-print', body);
+    return response.data;
+  },
 };
 
 // =========================== Units API (หน่วยนับ) ===========================
@@ -2074,7 +2093,9 @@ export const stickerPrintApi = {
     return response.data;
   },
 
-  printLabelItems: async (body: { items: { itemcode: string; copies?: number }[] }): Promise<{
+  printLabelItems: async (body: {
+    items: Array<{ itemcode: string; copies?: number; expire_date?: string }>;
+  }): Promise<{
     success: true;
     message: string;
     printedAt: string;

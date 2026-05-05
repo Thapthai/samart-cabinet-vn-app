@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { randomBytes, randomInt } from 'crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateItemDto } from './dto/create-item.dto';
@@ -1280,6 +1281,175 @@ export class ItemService {
         success: false,
         message: 'Failed to fetch itemstock will return count',
         error: (error as any)?.message ?? String(error),
+      };
+    }
+  }
+
+  /** RFID เฮกซ์ 24 ตัว (12 bytes) แบบ EPC เช่น E28068940000502DDB1720EC — ตรวจซ้ำใน itemstock.RfidCode */
+  private async generateUniqueRfid24(): Promise<string> {
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const rfid = randomBytes(12).toString('hex').toUpperCase();
+      const exists = await this.prisma.itemStock.findFirst({
+        where: { RfidCode: rfid },
+        select: { RowID: true },
+      });
+      if (!exists) return rfid;
+    }
+    throw new Error('ไม่สามารถสร้าง RFID ไม่ซ้ำได้');
+  }
+
+  /** วันหมดอายุจาก YYYY-MM-DD — local noon เพื่อเลี่ยง UTC เลื่อนวัน */
+  private parsePrintExpireDateYmd(raw?: string): Date | null {
+    if (raw == null || typeof raw !== 'string') return null;
+    const s = raw.trim();
+    if (!s) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    const dt = new Date(y, mo - 1, d, 12, 0, 0, 0);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+    return dt;
+  }
+
+  /** เลขที่เอกสาร Insert RFID — VarChar(20) ตาม legacy InsertRfidDocNo */
+  private generateInsertRfidDocNo(): string {
+    const ts = Date.now().toString(36).toUpperCase();
+    const x = randomInt(10000, 99999);
+    return `RF${x}${ts}`.slice(0, 20);
+  }
+
+  /**
+   * สร้างแถว itemstock ก่อนพิมพ์สติกเกอร์ — แต่ละแผ่น = 1 RFID เฮกซ์ 24 ตัว (สุ่ม)
+   * ฟิลด์สอดคล้อง INSERT legacy: IsStatus=5, PackDate, UsageCode(≈Barcode), ProductSerial(≈itemcode2),
+   * lotNo, RemarkExpress, IsDeproom, departmentroomId, InsertRfidDocNo + StockID/DeptID/Qty
+   */
+  async createItemStocksForPrint(
+    lines: Array<{
+      itemcode: string;
+      cabinet_id: number;
+      department_id: number;
+      copies: number;
+      expire_date?: string;
+    }>,
+  ) {
+    try {
+      const totalCopies = lines.reduce((s, l) => s + l.copies, 0);
+      if (totalCopies > 2000) {
+        return {
+          success: false,
+          message: 'จำนวนแผ่นรวมเกิน 2000',
+        };
+      }
+
+      const insertRfidDocNo = this.generateInsertRfidDocNo();
+      const packDate = new Date();
+      /** lot ร่วมสำหรับชุดพิมพ์ครั้งนี้ — legacy ใช้ LotNo */
+      const lotNoBatch = `P-${insertRfidDocNo}`.slice(0, 50);
+
+      const created: Array<{ RowID: number; ItemCode: string | null; RfidCode: string | null }> = [];
+
+      for (const line of lines) {
+        const itemCodeKey =
+          typeof line.itemcode === 'string' ? line.itemcode.trim() : '';
+        if (!itemCodeKey) {
+          return {
+            success: false,
+            message: 'itemcode ต้องไม่ว่าง',
+          };
+        }
+
+        const cab = await this.prisma.cabinet.findUnique({
+          where: { id: line.cabinet_id },
+          select: { id: true, stock_id: true },
+        });
+        if (!cab?.stock_id) {
+          return {
+            success: false,
+            message: `ไม่พบตู้หรือไม่มี stock_id (cabinet_id=${line.cabinet_id})`,
+          };
+        }
+
+        const link = await this.prisma.cabinetDepartment.findFirst({
+          where: {
+            cabinet_id: line.cabinet_id,
+            department_id: line.department_id,
+            status: 'ACTIVE',
+          },
+        });
+        if (!link) {
+          return {
+            success: false,
+            message: `Division ไม่ได้ผูกกับตู้นี้ (department_id=${line.department_id}, cabinet_id=${line.cabinet_id})`,
+          };
+        }
+
+        const item = await this.prisma.item.findUnique({
+          where: { itemcode: itemCodeKey },
+          select: { itemcode: true, Barcode: true, itemcode2: true },
+        });
+
+        if (!item) {
+          return {
+            success: false,
+            message: `ไม่พบ Item ${itemCodeKey}`,
+          };
+        }
+
+        /** UsageCode ใน legacy = QrCode — ใช้ Barcode แล้ว fallback itemcode */
+        const usageCode = (item.Barcode?.trim() || item.itemcode || '').slice(0, 20);
+        /** ProductSerial = ItemCode2 */
+        const productSerial = (item.itemcode2?.trim() || '').slice(0, 25);
+        const expireAt = this.parsePrintExpireDateYmd(line.expire_date);
+
+        for (let _n = 0; _n < line.copies; _n++) {
+          const rfid = await this.generateUniqueRfid24();
+          const row = await this.prisma.itemStock.create({
+            data: {
+              CreateDate: packDate,
+              ItemCode: itemCodeKey.slice(0, 20),
+              UsageCode: usageCode || null,
+              RfidCode: rfid,
+              IsStatus: 5,
+              PackDate: packDate,
+              ExpireDate: expireAt,
+              Qty: 1,
+              RemarkExpress: '',
+              ProductSerial: productSerial || null,
+              lotNo: lotNoBatch || null,
+              expDate: expireAt,
+              IsDeproom: '0',
+              departmentroomId: line.department_id,
+              InsertRfidDocNo: insertRfidDocNo,
+              StockID: cab.stock_id,
+              IsStock: true,
+              DeptID: line.department_id,
+              HNCode: 0,
+            },
+          });
+          created.push({
+            RowID: row.RowID,
+            ItemCode: row.ItemCode,
+            RfidCode: row.RfidCode,
+          });
+        }
+      }
+
+      return {
+        success: true,
+        message: `บันทึก item stock ${created.length} รายการ (RFID เฮกซ์ 24 ตัว)`,
+        data: {
+          count: created.length,
+          insertRfidDocNo,
+          rows: created,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'สร้าง item stock ไม่สำเร็จ',
+        error: (error as Error)?.message ?? String(error),
       };
     }
   }

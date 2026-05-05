@@ -7,9 +7,11 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
@@ -27,6 +29,12 @@ export class PrintLabelItemLineDto {
   @Min(1)
   @Max(50)
   copies?: number;
+
+  /** แสดงเป็นบรรทัดหมดอายุบนฉลาก (SBPL num4) — YYYY-MM-DD */
+  @IsOptional()
+  @ValidateIf((_, v) => v != null && String(v).trim() !== '')
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'expire_date must be YYYY-MM-DD' })
+  expire_date?: string;
 }
 
 /** พิมพ์หลายฉลากจาก Item master ตามลำดับแถว — host/port จาก .env */

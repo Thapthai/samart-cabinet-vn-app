@@ -8,8 +8,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api/smart-cabinet-vn/v1');
   app.useGlobalPipes(
     new ValidationPipe({
+      /** ตัด property ที่ไม่มีใน DTO — ไม่ reject (หลีกเลี่ยง 400 เมื่อ client แนบฟิลด์เกิน เช่น payload มิกซ์กับระบบอื่น) */
       whitelist: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false,
       transform: true,
     }),
   );
