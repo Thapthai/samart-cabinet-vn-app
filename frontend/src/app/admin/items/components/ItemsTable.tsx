@@ -221,12 +221,16 @@ export default function ItemsTable({
                           </TableCell>
                           <TableCell className="text-muted-foreground">{getItemDepartmentDisplay(item)}</TableCell>
                           <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <Archive className="h-4 w-4 text-blue-600" />
-                              <span className={`font-semibold ${isLowStock ? "text-red-600" : "text-blue-600"}`}>
-                                {countItemStock.toLocaleString()}
-                              </span>
-                            </div>
+                            {countItemStock !== 0 ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <Archive className="h-4 w-4 text-blue-600" />
+                                <span className={`font-semibold ${isLowStock ? "text-red-600" : "text-blue-600"}`}>
+                                  {countItemStock.toLocaleString()}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <span className="font-medium text-slate-700">{item.qty_in_use ?? 0}</span>
