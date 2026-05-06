@@ -4,7 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Package, Edit, Trash2, Plus, FolderOpen, Tag } from 'lucide-react';
 import type { Item } from '@/types/item';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 import { ItemsGridSkeleton } from './ItemsSkeleton';
+
+function getCabinetQty(item: Item): number {
+  return (item as Item & { count_itemstock?: number }).count_itemstock ?? item.itemStocks?.length ?? 0;
+}
 import Pagination from '@/components/Pagination';
 
 interface ItemsGridProps {
@@ -92,10 +97,12 @@ function ItemsList({
         <Card key={item.itemcode} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
           <CardHeader className="pb-3">
             <div className="flex justify-between items-start mb-2">
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {item.itemname || 'ไม่มีชื่อ'}
-                </h3>
+              <div className="flex-1 min-w-0">
+                <ItemNameWithUnit
+                  item={item}
+                  qtyMain={getCabinetQty(item)}
+                  nameClassName="text-lg font-semibold text-gray-900"
+                />
                 <p className="text-xs text-gray-500 font-mono mt-1">
                   {item.itemcode}
                 </p>

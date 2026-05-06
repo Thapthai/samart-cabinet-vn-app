@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import StatusBadge from './StatusBadge';
 import type { ComparisonItem } from '../types';
+import type { Item } from '@/types/item';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 
 interface ItemInfoCardProps {
   item: ComparisonItem;
@@ -59,9 +61,9 @@ export default function ItemInfoCard({
             <p className="text-sm text-gray-500">รหัสเวชภัณฑ์</p>
             <p className="font-semibold">{item.itemcode}</p>
           </div>
-          <div>
+          <div className="min-w-0 md:col-span-2">
             <p className="text-sm text-gray-500">ชื่อเวชภัณฑ์</p>
-            <p className="font-semibold">{item.itemname || '-'}</p>
+            <ItemNameWithUnit item={item as unknown as Item} nameClassName="font-semibold" />
           </div>
           <div>
             <p className="text-sm text-gray-500">ประเภท</p>

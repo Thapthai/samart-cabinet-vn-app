@@ -6,6 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 import DispensedPagination from './DispensedPagination';
 import type { DispensedItem } from '../types';
+import type { Item } from '@/types/item';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
+import QtyWithMainUnit from '@/components/QtyWithMainUnit';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 import {
   buildDispensedGroups,
@@ -117,7 +120,10 @@ export default function DispensedTable({
                     <TableHead className="w-[100px]">ลำดับ</TableHead>
                     <TableHead>รหัสอุปกรณ์</TableHead>
                     <TableHead>ชื่ออุปกรณ์</TableHead>
-                    <TableHead className="text-center">จำนวนชิ้น</TableHead>
+                    <TableHead className="text-center">
+                      <span className="block">จำนวน</span>
+                      <span className="block text-xs font-normal text-muted-foreground">หน่วยหลัก</span>
+                    </TableHead>
                     <TableHead>วันที่เบิก</TableHead>
                     <TableHead>Division</TableHead>
                     <TableHead>ชื่อผู้เบิก</TableHead>
@@ -161,9 +167,10 @@ export default function DispensedTable({
                             {group.itemname || '-'}
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="font-semibold text-slate-700">
-                              {group.totalQty.toLocaleString()}
-                            </span>
+                            <QtyWithMainUnit
+                              qty={group.totalQty}
+                              item={group.items[0] as unknown as Item}
+                            />
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {formatUtcDateTime(group.dispenseTime)}
@@ -191,16 +198,20 @@ export default function DispensedTable({
                                         <TableHead className="w-12">ลำดับ</TableHead>
                                         <TableHead>รหัสอุปกรณ์</TableHead>
                                         <TableHead>ชื่ออุปกรณ์</TableHead>
-                                        <TableHead className="text-center">จำนวนชิ้น</TableHead>
+                                        <TableHead className="text-center">
+                                          <span className="block">จำนวน</span>
+                                          <span className="block text-xs font-normal text-muted-foreground">
+                                            หน่วยหลัก
+                                          </span>
+                                        </TableHead>
                                         <TableHead>วันที่เบิก</TableHead>
                                         <TableHead>Division</TableHead>
-                                        <TableHead>RFID Code</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                       {group.items.map((item, idx) => (
                                         <TableRow
-                                          key={item.RowID}
+                                          key={`${group.key}-${idx}-${item.RowID}-${item.RfidCode ?? ''}-${item.modifyDate ?? ''}`}
                                           className="hover:bg-gray-100/80"
                                         >
                                           <TableCell className="font-medium">{idx + 1}</TableCell>
@@ -209,18 +220,23 @@ export default function DispensedTable({
                                               {item.itemcode || '-'}
                                             </code>
                                           </TableCell>
-                                          <TableCell className="text-slate-700">{item.itemname || '-'}</TableCell>
+                                          <TableCell className="min-w-0 max-w-[220px] text-slate-700">
+                                            <ItemNameWithUnit
+                                              item={item as unknown as Item}
+                                              showUnitBracket={false}
+                                            />
+                                          </TableCell>
                                           <TableCell className="text-center font-medium text-slate-700">
-                                            {(item.qty ?? 1).toLocaleString()}
+                                            <QtyWithMainUnit
+                                              qty={item.qty ?? 1}
+                                              item={item as unknown as Item}
+                                            />
                                           </TableCell>
                                           <TableCell className="text-muted-foreground text-sm">
                                             {formatUtcDateTime(item.modifyDate)}
                                           </TableCell>
                                           <TableCell className="text-muted-foreground text-sm">
                                             {item.departmentName || '-'}
-                                          </TableCell>
-                                          <TableCell className="text-muted-foreground text-sm font-mono">
-                                            {item.RfidCode || '-'}
                                           </TableCell>
                                         </TableRow>
                                       ))}

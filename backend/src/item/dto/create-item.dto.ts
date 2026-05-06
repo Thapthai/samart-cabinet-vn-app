@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsString, IsInt, IsBoolean, IsNumber, IsOptional, IsNotEmpty, IsDecimal } from 'class-validator';
+import { IsString, IsInt, IsBoolean, IsNumber, IsOptional, IsNotEmpty, IsDecimal, Min } from 'class-validator';
 
 export class CreateItemDto {
   @IsString()
@@ -34,6 +34,19 @@ export class CreateItemDto {
   @IsInt()
   @Type(() => Number)
   UnitID?: number;
+
+  /** หน่วยย่อย (FK เดียวกับ units) — แสดงผล/ป้ายเท่านั้น */
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  SubUnitID?: number;
+
+  /** เช่น 18 เม็ดต่อ 1 กล่อง — ไม่ใช้คูณ stock */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  SubUnitQty?: number;
 
   @IsOptional()
   @IsInt()

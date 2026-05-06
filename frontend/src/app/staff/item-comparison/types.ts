@@ -12,6 +12,11 @@ export interface ComparisonItem {
   last_dispensed?: string | null;
   first_used?: string | null;
   last_used?: string | null;
+  UnitID?: number;
+  SubUnitID?: number;
+  SubUnitQty?: number;
+  unit?: { ID?: number; UnitName?: string | null };
+  subUnit?: { ID?: number; UnitName?: string | null };
 }
 
 export interface UsageItem {

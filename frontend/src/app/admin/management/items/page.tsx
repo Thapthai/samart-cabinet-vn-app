@@ -23,6 +23,7 @@ import {
 import CreateItemDialog from './components/CreateItemDialog';
 import EditItemDialog from '@/app/admin/items/components/EditItemDialog';
 import DeleteItemDialog from '@/app/admin/items/components/DeleteItemDialog';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 
 /** ตรงกับ admin/items (itemsPerPage = 10) */
 const PAGE_SIZE = 10;
@@ -215,7 +216,7 @@ export default function AdminItemManagementPage() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
+            <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-2">
               <div>
                 <CardTitle>รายการ Item</CardTitle>
                 <CardDescription>
@@ -224,6 +225,15 @@ export default function AdminItemManagementPage() {
                     : `แสดง ${items.length} รายการ จากทั้งหมด ${total} รายการ`}
                 </CardDescription>
               </div>
+              <Button
+                type="button"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+                เพิ่ม Item
+              </Button>
             </CardHeader>
             <CardContent>
               {loading && items.length === 0 ? (
@@ -231,7 +241,13 @@ export default function AdminItemManagementPage() {
                   <RefreshCw className="h-8 w-8 animate-spin" />
                 </div>
               ) : items.length === 0 ? (
-                <p className="py-10 text-center text-muted-foreground">ไม่พบรายการ</p>
+                <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+                  <p className="text-muted-foreground">ไม่พบรายการ</p>
+                  <Button type="button" className="gap-2" onClick={() => setCreateOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                    เพิ่ม Item
+                  </Button>
+                </div>
               ) : (
                 <div className="overflow-x-auto rounded-md border">
                   <Table>
@@ -239,9 +255,11 @@ export default function AdminItemManagementPage() {
                       <TableRow>
                         <TableHead className="w-14">#</TableHead>
                         <TableHead>รหัส Item</TableHead>
-                        <TableHead>ชื่อ</TableHead>
+                        <TableHead className="min-w-[200px]">ชื่อ / หน่วย</TableHead>
                         <TableHead>บาร์โค้ด</TableHead>
                         <TableHead>สถานะ</TableHead>
+                        <TableHead>หน่วยหลัก</TableHead>
+                        <TableHead>หน่วยย่อย</TableHead>
                         <TableHead className="w-[120px] text-right">จัดการ</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -254,14 +272,26 @@ export default function AdminItemManagementPage() {
                           <TableCell>
                             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{it.itemcode}</code>
                           </TableCell>
-                          <TableCell className="max-w-[280px] truncate font-medium" title={it.itemname}>
-                            {it.itemname || '—'}
+                          <TableCell className="max-w-[320px] min-w-0">
+                            <ItemNameWithUnit item={it} />
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{it.Barcode || '—'}</TableCell>
                           <TableCell>
                             <StatusBadge status={it.item_status} />
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-sm">
+                            {it.unit?.UnitName?.trim() ? it.unit.UnitName : '—'}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {it.subUnit?.UnitName?.trim()
+                              ? `${it.subUnit.UnitName}${
+                                  it.SubUnitQty != null && Number(it.SubUnitQty) > 0
+                                    ? ` ×${it.SubUnitQty}`
+                                    : ''
+                                }`
+                              : '—'}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
                             <Button
                               type="button"
                               size="icon"

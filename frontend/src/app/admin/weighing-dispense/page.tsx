@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import Pagination from '@/components/Pagination';
+import type { Item } from '@/types/item';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 
 function getTodayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -348,8 +350,17 @@ export default function WeighingDispensePage() {
                             <TableCell className="text-center text-muted-foreground tabular-nums">
                               {(currentPage - 1) * itemsPerPage + index + 1}
                             </TableCell>
-                            <TableCell className="max-w-[220px] truncate font-medium" title={row.item?.itemname ?? undefined}>
-                              {row.item?.itemname || '-'}
+                            <TableCell className="min-w-0 max-w-[240px]">
+                              <ItemNameWithUnit
+                                item={
+                                  {
+                                    itemcode: row.itemcode,
+                                    itemname: row.item?.itemname ?? undefined,
+                                    ...(row.item as Item | null | undefined),
+                                  } as Item
+                                }
+                                qtyMain={row.Qty}
+                              />
                             </TableCell>
                             <TableCell className="text-sm text-gray-700">
                               {row.userCabinet?.legacyUser?.employee

@@ -9,6 +9,11 @@ import {
   imageExtensionFromPath,
   paintExcelMergedTitleHeader,
 } from '../utils/excel-report-header.util';
+import {
+  formatQtyWithMainUnitForReport,
+  formatSignedQtyWithMainUnitForReport,
+  type ReportItemUnitFields,
+} from '../utils/format-item-qty';
 
 /** ธีมเดียวกับชีตสรุป */
 const THEME = {
@@ -130,11 +135,18 @@ export class ItemComparisonExcelService {
 
     let summaryDataRowIndex = 5;
     comparisonData.forEach((item, idx) => {
+      const u = item as ReportItemUnitFields;
       const difference =
         (item.total_dispensed ?? 0) - (item.total_used ?? 0) - (item.total_returned ?? 0);
       const sumRow = summarySheet.getRow(summaryDataRowIndex);
       const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8F9FA';
-      const sCells = [idx + 1, item.itemname ?? '-', item.total_dispensed ?? 0, item.total_used ?? 0, difference];
+      const sCells = [
+        idx + 1,
+        item.itemname ?? '-',
+        formatQtyWithMainUnitForReport(item.total_dispensed ?? 0, u),
+        formatQtyWithMainUnitForReport(item.total_used ?? 0, u),
+        formatSignedQtyWithMainUnitForReport(difference, u),
+      ];
       sCells.forEach((val, colIndex) => {
         const cell = sumRow.getCell(colIndex + 1);
         cell.value = val;
@@ -171,9 +183,9 @@ export class ItemComparisonExcelService {
 
     summarySheet.getColumn(1).width = 13;
     summarySheet.getColumn(2).width = 44;
-    summarySheet.getColumn(3).width = 14;
-    summarySheet.getColumn(4).width = 14;
-    summarySheet.getColumn(5).width = 14;
+    summarySheet.getColumn(3).width = 22;
+    summarySheet.getColumn(4).width = 22;
+    summarySheet.getColumn(5).width = 22;
   }
 
   private buildMedicalSupplyOrderSheet(
@@ -202,7 +214,7 @@ export class ItemComparisonExcelService {
       'วัน - เวลา',
       'Item Code',
       'รายละเอียด',
-      'จำนวน',
+      'จำนวน (หน่วยหลัก)',
       'Assession No',
       'สถานะ',
       'HN',
@@ -234,6 +246,7 @@ export class ItemComparisonExcelService {
         return ta - tb;
       });
 
+      const uctx = item as ReportItemUnitFields;
       let groupQty = 0;
       for (const u of sorted) {
         const dt = (u as any).supply_item_created_at ?? u.usage_datetime;
@@ -257,7 +270,7 @@ export class ItemComparisonExcelService {
           dt,
           code,
           desc,
-          qty,
+          formatQtyWithMainUnitForReport(qty, uctx),
           assessionNo,
           status,
           hn,
@@ -293,7 +306,18 @@ export class ItemComparisonExcelService {
         r++;
       }
 
-      const subRow = ws.addRow(['', '', 'Sub-Total', groupQty, '', '', '', '', '', '']);
+      const subRow = ws.addRow([
+        '',
+        '',
+        'Sub-Total',
+        formatQtyWithMainUnitForReport(groupQty, uctx),
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ]);
       subRow.height = 22;
       for (let c = 1; c <= 10; c++) {
         const cell = subRow.getCell(c);
@@ -315,7 +339,7 @@ export class ItemComparisonExcelService {
     ws.getColumn(1).width = 24;
     ws.getColumn(2).width = 16;
     ws.getColumn(3).width = 38;
-    ws.getColumn(4).width = 10;
+    ws.getColumn(4).width = 22;
     ws.getColumn(5).width = 16;
     ws.getColumn(6).width = 12;
     ws.getColumn(7).width = 12;

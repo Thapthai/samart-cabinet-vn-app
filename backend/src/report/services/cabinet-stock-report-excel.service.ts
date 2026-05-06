@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
+import {
+  formatQtyWithMainUnitForReport,
+  type ReportItemUnitFields,
+} from '../utils/format-item-qty';
 
 /** แถวรายงานสต๊อกอุปกรณ์ในตู้ */
 export interface CabinetStockRow {
@@ -14,6 +18,9 @@ export interface CabinetStockRow {
   stock_max: number | null;
   stock_min: number | null;
   refill_qty: number;
+  unit?: { UnitName?: string | null };
+  subUnit?: { UnitName?: string | null };
+  SubUnitQty?: number | null;
 }
 
 export interface CabinetStockReportData {
@@ -96,7 +103,17 @@ export class CabinetStockReportExcelService {
 
     // ---- ตารางข้อมูล (แสดงก่อน สรุปผล/เงื่อนไข) ----
     const tableStartRow = 5;
-    const headers = ['ลำดับ', 'แผนก', 'รหัสอุปกรณ์', 'อุปกรณ์', 'จำนวนในตู้', 'ถูกใช้งาน', 'ไม่ถูกใช้งาน', 'Min / Max', 'จำนวนที่ต้องเติม'];
+    const headers = [
+      'ลำดับ',
+      'แผนก',
+      'รหัสอุปกรณ์',
+      'อุปกรณ์',
+      'จำนวนในตู้ (หน่วยหลัก)',
+      'ถูกใช้งาน (หน่วยหลัก)',
+      'ไม่ถูกใช้งาน (หน่วยหลัก)',
+      'Min / Max (หน่วยหลัก)',
+      'จำนวนที่ต้องเติม (หน่วยหลัก)',
+    ];
     const headerRow = worksheet.getRow(tableStartRow);
     headers.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
@@ -114,24 +131,29 @@ export class CabinetStockReportExcelService {
       const excelRow = worksheet.getRow(dataRowIndex);
       const hasRefill = (row.refill_qty ?? 0) > 0;
       const bg = hasRefill ? LIGHT_RED : (idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8F9FA');
+      const u: ReportItemUnitFields = {
+        unit: row.unit,
+        subUnit: row.subUnit,
+        SubUnitQty: row.SubUnitQty,
+      };
       const minMaxStr =
         row.stock_min != null && row.stock_max != null
-          ? `${row.stock_min} / ${row.stock_max}`
+          ? `${formatQtyWithMainUnitForReport(row.stock_min, u)} / ${formatQtyWithMainUnitForReport(row.stock_max, u)}`
           : row.stock_min != null
-            ? `${row.stock_min} / -`
+            ? `${formatQtyWithMainUnitForReport(row.stock_min, u)} / -`
             : row.stock_max != null
-              ? `- / ${row.stock_max}`
+              ? `- / ${formatQtyWithMainUnitForReport(row.stock_max, u)}`
               : '-';
       [
         row.seq,
         row.department_name ?? '-',
         row.item_code,
         row.item_name ?? '-',
-        row.balance_qty,
-        row.qty_in_use ?? 0,
-        row.damaged_qty ?? 0,
+        formatQtyWithMainUnitForReport(row.balance_qty, u),
+        formatQtyWithMainUnitForReport(row.qty_in_use ?? 0, u),
+        formatQtyWithMainUnitForReport(row.damaged_qty ?? 0, u),
         minMaxStr,
-        row.refill_qty,
+        formatQtyWithMainUnitForReport(row.refill_qty, u),
       ].forEach((val, colIndex) => {
         const cell = excelRow.getCell(colIndex + 1);
         cell.value = val;
@@ -169,11 +191,11 @@ export class CabinetStockReportExcelService {
     worksheet.getColumn(2).width = 18;
     worksheet.getColumn(3).width = 25;
     worksheet.getColumn(4).width = 58;
-    worksheet.getColumn(5).width = 15;
-    worksheet.getColumn(6).width = 18;
-    worksheet.getColumn(7).width = 18;
-    worksheet.getColumn(8).width = 18;
-    worksheet.getColumn(9).width = 25;
+    worksheet.getColumn(5).width = 22;
+    worksheet.getColumn(6).width = 22;
+    worksheet.getColumn(7).width = 22;
+    worksheet.getColumn(8).width = 28;
+    worksheet.getColumn(9).width = 28;
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);

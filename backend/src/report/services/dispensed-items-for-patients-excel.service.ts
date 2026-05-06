@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { formatReportDateOnly, formatReportDateTime } from '../utils/date-timeformat';
 import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
+import { formatQtyWithMainUnitForReport } from '../utils/format-item-qty';
 
 /** ธีมฟอนต์/แถวให้ใกล้เคียง item-comparison-excel.service.ts */
 const THEME = {
@@ -36,6 +37,9 @@ export interface DispensedItemLine {
   uom?: string;
   assession_no?: string;
   order_item_status?: string;
+  unit?: { UnitName?: string | null };
+  subUnit?: { UnitName?: string | null };
+  SubUnitQty?: number | null;
 }
 
 /** แปลงสถานะให้แสดงเหมือนเว็บ: discontinue→ยกเลิก, verified→ยืนยันแล้ว */
@@ -148,7 +152,7 @@ export class DispensedItemsForPatientsExcelService {
       'แผนกย่อย',     // 5
       'วันที่เบิก',   // 6
       'ชื่ออุปกรณ์',  // 7
-      'จำนวนอุปกรณ์', // 8
+      'จำนวน (หน่วยหลัก)', // 8
       'Assession No', // 9
       'สถานะ',        // 10
     ];
@@ -212,7 +216,7 @@ export class DispensedItemsForPatientsExcelService {
         const subCells: (string | number)[] = [
           '', '', '', '', '', '',
           item.itemname ?? '-',
-          item.qty ?? 0,
+          formatQtyWithMainUnitForReport(item.qty ?? 0, item),
           item.assession_no ?? '-',
           statusLabel,
         ];
@@ -270,7 +274,7 @@ export class DispensedItemsForPatientsExcelService {
     worksheet.getColumn(5).width = 14;
     worksheet.getColumn(6).width = 22;
     worksheet.getColumn(7).width = 34;
-    worksheet.getColumn(8).width = 20;
+    worksheet.getColumn(8).width = 26;
     worksheet.getColumn(9).width = 16;
     worksheet.getColumn(10).width = 12;
 

@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { DispensedItemsForPatientsReportData } from './dispensed-items-for-patients-excel.service';
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
 import { formatReportDateOnly, formatReportDateTime } from '../utils/date-timeformat';
+import { formatQtyWithMainUnitForReport } from '../utils/format-item-qty';
 
 /** filter วันที่เริ่ม/สิ้นสุด: ว่าง = ทั้งหมด, มีค่า = วันที่อย่างเดียว (ไม่มีเวลา) */
 function formatFilterDateOnly(v?: string | null): string {
@@ -159,13 +160,13 @@ export class DispensedItemsForPatientsPdfService {
         const cellPadding = 4;
         const totalTableWidth = contentWidth;
         // ลำดับ, HN/EN, ชื่อคนไข้, แผนก/แผนกย่อย(รวม), วันที่เบิก, ชื่ออุปกรณ์, จำนวน, Assession, สถานะ
-        const colPct = [0.06, 0.10, 0.13, 0.13, 0.10, 0.16, 0.08, 0.12, 0.09];
+        const colPct = [0.06, 0.10, 0.12, 0.12, 0.09, 0.14, 0.14, 0.11, 0.09];
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
         if (sumW < totalTableWidth) colWidths[5] += totalTableWidth - sumW;
         const headers = [
           'ลำดับ', 'HN / EN', 'ชื่อคนไข้', 'แผนก / แผนกย่อย',
-          'วันที่เบิก', 'ชื่ออุปกรณ์', 'จำนวน', 'Assession No', 'สถานะ',
+          'วันที่เบิก', 'ชื่ออุปกรณ์', 'จำนวน (หน่วยหลัก)', 'Assession No', 'สถานะ',
         ];
 
         const drawTableHeader = (y: number) => {
@@ -285,7 +286,7 @@ export class DispensedItemsForPatientsPdfService {
               drawRow([
                 '', '', '', '', '',
                 item.itemname ?? '-',
-                String(item.qty ?? 0),
+                formatQtyWithMainUnitForReport(item.qty ?? 0, item),
                 item.assession_no ?? '-',
                 statusLabel,
               ], '#F0F8FF', statusLabel);

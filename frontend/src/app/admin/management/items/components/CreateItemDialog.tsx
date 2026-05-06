@@ -38,6 +38,9 @@ export default function CreateItemDialog({
   const [unitInitialDisplay, setUnitInitialDisplay] = useState<
     { label: string; subLabel?: string } | undefined
   >(undefined);
+  const [subUnitInitialDisplay, setSubUnitInitialDisplay] = useState<
+    { label: string; subLabel?: string } | undefined
+  >(undefined);
   const unitRequestSeq = useRef(0);
 
   const loadUnits = useCallback(async (keyword?: string) => {
@@ -70,24 +73,33 @@ export default function CreateItemDialog({
       stock_balance: 0,
       item_status: 0,
       UnitID: undefined,
+      SubUnitID: undefined,
+      SubUnitQty: undefined,
     },
   });
+
+  useEffect(() => {
+    if (open) void loadUnits();
+  }, [open, loadUnits]);
 
   // Reset form when dialog is closed
   useEffect(() => {
     if (!open) {
       form.reset();
       setUnitInitialDisplay(undefined);
+      setSubUnitInitialDisplay(undefined);
     }
   }, [open, form]);
 
   const onSubmit = async (data: ItemFormData) => {
     try {
       setLoading(true);
-      const { UnitID, ...rest } = data;
+      const { UnitID, SubUnitID, SubUnitQty, ...rest } = data;
       const response = await itemsApi.create({
         ...rest,
         ...(UnitID != null && UnitID > 0 ? { UnitID } : {}),
+        ...(SubUnitID != null && SubUnitID > 0 ? { SubUnitID } : {}),
+        ...(SubUnitQty != null && SubUnitQty >= 1 ? { SubUnitQty } : {}),
         IsNormal: '1',
         IsStock: true,
         item_status: data.item_status || 0,
@@ -187,8 +199,8 @@ export default function CreateItemDialog({
                   <FormControl>
                     <SearchableSelect
                       positionMode="floating"
-                      label="หน่วยนับ (Unit)"
-                      placeholder="เลือกหน่วย (ค้นหาได้)"
+                      label="หน่วยหลัก (stock / ธุรกรรม)"
+                      placeholder="เช่น กล่อง — เลือกจากตาราง unit"
                       value={field.value != null && field.value > 0 ? String(field.value) : ''}
                       onValueChange={(value) => {
                         field.onChange(value === '' ? undefined : parseInt(value, 10));
@@ -220,7 +232,80 @@ export default function CreateItemDialog({
                 </FormItem>
               )}
             />
- 
+
+            <FormField
+              control={form.control}
+              name="SubUnitID"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <SearchableSelect
+                      positionMode="floating"
+                      label="หน่วยย่อย (แสดงผลเท่านั้น)"
+                      placeholder="เช่น เม็ด — ไม่ใช้คำนวณ stock"
+                      value={field.value != null && field.value > 0 ? String(field.value) : ''}
+                      onValueChange={(value) => {
+                        field.onChange(value === '' ? undefined : parseInt(value, 10));
+                        if (!value.trim()) {
+                          setSubUnitInitialDisplay(undefined);
+                          return;
+                        }
+                        const id = parseInt(value, 10);
+                        const row = unitRows.find((u) => u.id === id);
+                        if (row) {
+                          setSubUnitInitialDisplay({
+                            label: row.unitName || `หน่วย #${id}`,
+                            subLabel: `ID ${id}`,
+                          });
+                        }
+                      }}
+                      options={unitRows.map((u) => ({
+                        value: String(u.id),
+                        label: u.unitName || `หน่วย #${u.id}`,
+                        subLabel: `ID ${u.id}`,
+                      }))}
+                      loading={loadingUnits}
+                      onSearch={loadUnits}
+                      searchPlaceholder="ค้นหาชื่อหน่วย..."
+                      initialDisplay={subUnitInitialDisplay}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="SubUnitQty"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>จำนวนหน่วยย่อยต่อ 1 หน่วยหลัก</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      placeholder="เช่น 18 (เม็ดต่อกล่อง)"
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '') {
+                          field.onChange(undefined);
+                          return;
+                        }
+                        const n = parseInt(v, 10);
+                        field.onChange(Number.isFinite(n) ? n : undefined);
+                      }}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    ใช้แสดงเท่านั้น (เช่น ฉลาก) — ไม่แปลง stock
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* คำอธิบาย */}
             <FormField

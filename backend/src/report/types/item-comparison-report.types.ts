@@ -28,6 +28,9 @@ export interface ComparisonItem {
   difference: number;
   status: 'MATCHED' | 'DISPENSED_NOT_USED' | 'USED_WITHOUT_DISPENSE' | 'DISPENSE_EXCEEDS_USAGE' | 'USAGE_EXCEEDS_DISPENSE';
   usageItems?: UsageDetail[];
+  unit?: { UnitName?: string | null };
+  subUnit?: { UnitName?: string | null };
+  SubUnitQty?: number | null;
 }
 
 export interface UsageDetail {

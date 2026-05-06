@@ -143,6 +143,9 @@ export default function StaffPrintStickerPage() {
           cabinetId: '',
           refillCap: MAX_COPIES_WHEN_NO_REFILL,
           expireDate: '',
+          SubUnitQty: row.SubUnitQty,
+          unit: row.unit,
+          subUnit: row.subUnit,
         },
       ];
     });
@@ -163,6 +166,9 @@ export default function StaffPrintStickerPage() {
             cabinetId: '',
             refillCap: MAX_COPIES_WHEN_NO_REFILL,
             expireDate: '',
+            SubUnitQty: row.SubUnitQty,
+            unit: row.unit,
+            subUnit: row.subUnit,
           });
         }
       }

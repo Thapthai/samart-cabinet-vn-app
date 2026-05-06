@@ -51,7 +51,12 @@ export interface Item {
   
   // IDs
   itemtypeID?: number;
+  /** หน่วยหลัก — stock / ธุรกรรม */
   UnitID?: number;
+  /** หน่วยย่อย — แสดงผลเท่านั้น */
+  SubUnitID?: number;
+  /** เช่น 18 = เม็ดต่อ 1 หน่วยหลัก — ไม่ใช้คูณ stock */
+  SubUnitQty?: number;
   DepartmentID?: number;
   SupllierID?: number;
   warehouseID?: number;
@@ -89,6 +94,11 @@ export interface Item {
     DepName?: string;
     DepName2?: string;
   };
+
+  /** จาก Prisma include `unit` (หน่วยหลัก) */
+  unit?: { ID?: number; UnitName?: string | null };
+  /** จาก Prisma include `subUnit` (หน่วยย่อย) */
+  subUnit?: { ID?: number; UnitName?: string | null };
 
   // Item stocks (from API when included, e.g. findAllItems)
   itemStocks?: ItemStockRow[];
@@ -159,6 +169,8 @@ export interface CreateItemDto {
   // IDs
   itemtypeID?: number;
   UnitID?: number;
+  SubUnitID?: number;
+  SubUnitQty?: number;
   DepartmentID?: number;
   SupllierID?: number;
   warehouseID?: number;
@@ -205,6 +217,8 @@ export interface UpdateItemDto {
   // IDs
   itemtypeID?: number;
   UnitID?: number;
+  SubUnitID?: number | null;
+  SubUnitQty?: number | null;
   DepartmentID?: number;
   SupllierID?: number;
   warehouseID?: number;

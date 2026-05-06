@@ -14,6 +14,7 @@ import { Package, Plus, ArrowRight } from 'lucide-react';
 import { SkeletonTable } from '@/components/Skeleton';
 import Pagination from '@/components/Pagination';
 import type { Item } from '@/types/item';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 
 interface RecentItemsTableProps {
   loading: boolean;
@@ -176,7 +177,9 @@ function ItemsTable({
                     {item.itemcode}
                   </code> */}
                 </TableCell>
-                <TableCell className="font-medium">{item.itemname || '-'}</TableCell>
+                <TableCell className="min-w-0 max-w-[280px]">
+                  <ItemNameWithUnit item={item} qtyMain={item.stock_balance ?? undefined} />
+                </TableCell>
                 <TableCell className="text-center">
                   <span className="font-semibold text-gray-900">
                     {stockBalance.toLocaleString()}

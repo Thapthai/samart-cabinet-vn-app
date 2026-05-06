@@ -1,6 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '../common/StatusBadge';
 import type { ComparisonItem } from '../../types';
+import type { Item } from '@/types/item';
+import QtyWithMainUnit from '@/components/QtyWithMainUnit';
 
 interface ComparisonDetailsCardProps {
   item: ComparisonItem;
@@ -18,12 +20,24 @@ export function ComparisonDetailsCard({ item }: ComparisonDetailsCardProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
             <div>
               <p className="text-sm font-medium text-gray-600">จำนวนเบิกทั้งหมด</p>
-              <p className="text-2xl font-bold text-blue-600">{item.total_dispensed}</p>
+              <div className="mt-1 flex text-blue-600">
+                <QtyWithMainUnit
+                  className="[&>span:first-child]:text-2xl [&>span:first-child]:font-bold [&>span:last-child]:text-sm"
+                  qty={item.total_dispensed}
+                  item={item as unknown as Item}
+                />
+              </div>
               <p className="text-xs text-gray-500 mt-1">จำนวนที่เบิกจากคลัง</p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">จำนวนใช้งานจริง</p>
-              <p className="text-2xl font-bold text-green-600">{item.total_used}</p>
+              <div className="mt-1 flex text-green-600">
+                <QtyWithMainUnit
+                  className="[&>span:first-child]:text-2xl [&>span:first-child]:font-bold [&>span:last-child]:text-sm"
+                  qty={item.total_used}
+                  item={item as unknown as Item}
+                />
+              </div>
               <p className="text-xs text-gray-500 mt-1">จำนวนที่บันทึกใช้กับผู้ป่วย</p>
             </div>
             <div>

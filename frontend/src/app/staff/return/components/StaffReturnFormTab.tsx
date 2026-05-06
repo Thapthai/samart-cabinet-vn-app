@@ -13,6 +13,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
+import type { Item } from '@/types/item';
 import type { WillReturnItem } from '../types';
 
 export interface StaffReturnFormSubmitParams {
@@ -139,7 +141,7 @@ export default function StaffReturnFormTab({
                           <code className="text-xs bg-slate-100 px-2 py-0.5 rounded">{item.ItemCode}</code>
                         </TableCell>
                         <TableCell className="font-medium text-slate-800">
-                          {item.itemname ?? item.ItemCode}
+                          <ItemNameWithUnit item={item as unknown as Item} />
                         </TableCell>
                         <TableCell className="text-slate-600 text-sm whitespace-pre-line">
                           แผนก {item.department_name ?? '-'}

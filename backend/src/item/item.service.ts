@@ -176,12 +176,16 @@ export class ItemService {
           itemcode: true,
           itemname: true,
           UnitID: true,
+          SubUnitID: true,
+          SubUnitQty: true,
           CostPrice: true,
           SalePrice: true,
           CreateDate: true,
           stock_max: true,
           stock_min: true,
           item_status: true,
+          unit: { select: { ID: true, UnitName: true } },
+          subUnit: { select: { ID: true, UnitName: true } },
           itemStocks: {
             where: itemStocksWhere,
             select: {
@@ -526,6 +530,8 @@ export class ItemService {
             itemname: true,
             Barcode: true,
             UnitID: true,
+            SubUnitID: true,
+            SubUnitQty: true,
             item_status: true,
             CreateDate: true,
             CostPrice: true,
@@ -534,6 +540,8 @@ export class ItemService {
             Maximum: true,
             IsStock: true,
             Note: true,
+            unit: { select: { ID: true, UnitName: true } },
+            subUnit: { select: { ID: true, UnitName: true } },
           },
         }),
       ]);
@@ -788,11 +796,9 @@ export class ItemService {
         return { success: false, message: 'Item not found' };
       }
 
-      // Remove undefined/null values from the DTO
+      // Keep null to clear nullable FK/columns (e.g. SubUnitID)
       const cleanData = Object.fromEntries(
-        Object.entries(updateItemDto).filter(
-          ([_, value]) => value !== undefined && value !== null,
-        ),
+        Object.entries(updateItemDto).filter(([_, value]) => value !== undefined),
       ) as any;
 
       // ถ้ายังไม่มี itemcode2 ใน DB และผู้ใช้ไม่ส่งมาใน DTO — เติมจาก itemcode (คอลัมน์ VarChar(20))

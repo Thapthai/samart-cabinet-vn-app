@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Item } from "@/types/item";
+import ItemNameWithUnit from "@/components/ItemNameWithUnit";
 import { formatUtcDateTime } from "@/lib/formatThaiDateTime";
 
 /** itemcode -> max_available_qty (แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน / รอแจ้ง) จาก will-return */
@@ -235,11 +236,17 @@ export default function ItemsTable({
                               {item.itemcode}
                             </code>
                           </TableCell>
-                          <TableCell className={cn("font-medium", hasExpired && "text-red-600 font-semibold")}>
-                            {item.itemname || "-"}
-                            {hasExpired && (
-                              <span className="ml-2 text-xs font-medium text-red-600">(มีอุปกรณ์หมดอายุ)</span>
-                            )}
+                          <TableCell className={cn("min-w-0 max-w-[280px]", hasExpired && "text-red-600")}>
+                            <div className="flex flex-col gap-1">
+                              <ItemNameWithUnit
+                                item={item}
+                                qtyMain={getCabinetQty(item)}
+                                nameClassName={hasExpired ? "text-red-600 font-semibold" : undefined}
+                              />
+                              {hasExpired ? (
+                                <span className="text-xs font-medium text-red-600">(มีอุปกรณ์หมดอายุ)</span>
+                              ) : null}
+                            </div>
                           </TableCell>
                           <TableCell className="text-muted-foreground">{getItemDepartmentDisplay(item)}</TableCell>
                           <TableCell className="text-center">

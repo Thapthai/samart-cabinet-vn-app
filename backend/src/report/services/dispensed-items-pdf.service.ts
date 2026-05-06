@@ -3,6 +3,7 @@ import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { DispensedItemsReportData, DispensedItemsReportGroup } from './dispensed-items-excel.service';
 import { ReportConfig, resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import { formatQtyWithMainUnitForReport } from '../utils/format-item-qty';
 
 /** ให้ตรงกับหน้าเว็บ: เวลาใน DB เป็น Bangkok แต่ส่งมาเป็น UTC → ลบ 7 ชม. แล้วแสดงใน Asia/Bangkok (รับได้ทั้ง string และ Date จาก Prisma) */
 const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -186,7 +187,7 @@ export class DispensedItemsPdfService {
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
         if (sumW < totalTableWidth) colWidths[2] += totalTableWidth - sumW;
-        const headers = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวนชิ้น', 'วันที่เบิก', 'แผนก', 'ชื่อผู้เบิก'];
+        const headers = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวน (หน่วยหลัก)', 'วันที่เบิก', 'แผนก', 'ชื่อผู้เบิก'];
 
         const drawTableHeader = (y: number) => {
           let x = margin;
@@ -226,7 +227,7 @@ export class DispensedItemsPdfService {
           const groups = data.groups as DispensedItemsReportGroup[];
           let rowNum = 1;
           for (const group of groups) {
-            const qtyDisplay = `${group.totalQty}`;
+            const qtyDisplay = formatQtyWithMainUnitForReport(group.totalQty, group.items[0] ?? {});
             const groupCellTexts = [
               String(rowNum),
               group.itemcode ?? '-',
@@ -275,7 +276,7 @@ export class DispensedItemsPdfService {
                 '',
                 item?.itemcode ?? '-',
                 item?.itemname ?? '-',
-                String(item?.qty ?? 1),
+                formatQtyWithMainUnitForReport(item?.qty ?? 1, item ?? {}),
                 formatReportDateTime(item?.modifyDate as string),
                 item?.departmentName ?? '-',
                 // item?.RfidCode ?? '-',
@@ -318,7 +319,7 @@ export class DispensedItemsPdfService {
               String(idx + 1),
               item?.itemcode ?? '-',
               item?.itemname ?? '-',
-              String(item?.qty ?? 1),
+              formatQtyWithMainUnitForReport(item?.qty ?? 1, item ?? {}),
               formatReportDateTime(item?.modifyDate as string),
               item?.departmentName ?? '-',
               item?.cabinetUserName ?? 'ไม่ระบุ',

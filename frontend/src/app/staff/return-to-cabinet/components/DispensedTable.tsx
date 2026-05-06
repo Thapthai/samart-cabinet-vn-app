@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import DispensedPagination from './DispensedPagination';
 import type { DispensedItem } from '../types';
+import type { Item } from '@/types/item';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
+import QtyWithMainUnit from '@/components/QtyWithMainUnit';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 
 interface DispensedTableProps {
@@ -86,22 +89,29 @@ export default function DispensedTable({
                     <TableHead className="w-[60px]">ลำดับ</TableHead>
                     <TableHead>ชื่ออุปกรณ์</TableHead>
                     <TableHead>ผู้เบิก</TableHead>
-                    <TableHead className="text-right">จำนวนเบิก</TableHead>
+                    <TableHead className="text-right">
+                      <span className="block">จำนวนเบิก</span>
+                      <span className="block text-xs font-normal text-muted-foreground">หน่วยหลัก</span>
+                    </TableHead>
                     <TableHead>วันที่เบิก</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map((item, index) => (
                     <TableRow
-                      key={item.RowID}
+                      key={`${item.RowID}-${index}-${item.RfidCode ?? ''}-${item.modifyDate ?? ''}`}
                       className="hover:bg-purple-50 transition-colors"
                     >
                       <TableCell className="text-center text-gray-500">
                         {((currentPage - 1) * itemsPerPage) + index + 1}
                       </TableCell>
-                      <TableCell className="font-medium">{item.itemname || '-'}</TableCell>
+                      <TableCell className="min-w-0 max-w-[260px] font-medium">
+                        <ItemNameWithUnit item={item as unknown as Item} qtyMain={item.qty} />
+                      </TableCell>
                       <TableCell>{item.cabinetUserName || 'ไม่ระบุ'}</TableCell>
-                      <TableCell className="text-right font-medium">{item.qty}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        <QtyWithMainUnit qty={item.qty} item={item as unknown as Item} align="end" />
+                      </TableCell>
                       <TableCell>
                         {item.modifyDate ? formatUtcDateTime(String(item.modifyDate)) : '-'}
                       </TableCell>

@@ -154,6 +154,27 @@ export class ItemController {
         updateItemDto.UnitID = uid;
       }
     }
+
+    const rawSubId = cleanBody.SubUnitID ?? cleanBody.sub_unit_id;
+    if (rawSubId !== undefined && rawSubId !== null && String(rawSubId).trim() !== '') {
+      const sid = parseInt(String(rawSubId), 10);
+      if (!Number.isNaN(sid) && sid > 0) {
+        updateItemDto.SubUnitID = sid;
+      }
+    } else if (rawSubId === '' || rawSubId === null) {
+      updateItemDto.SubUnitID = null;
+    }
+
+    const rawSubQty = cleanBody.SubUnitQty ?? cleanBody.sub_unit_qty;
+    if (rawSubQty !== undefined && rawSubQty !== null && String(rawSubQty).trim() !== '') {
+      const q = parseInt(String(rawSubQty), 10);
+      if (!Number.isNaN(q) && q >= 1) {
+        updateItemDto.SubUnitQty = q;
+      }
+    } else if (rawSubQty === '' || rawSubQty === null) {
+      updateItemDto.SubUnitQty = null;
+    }
+
     if (file) {
       updateItemDto.Picture = `uploads/items/${file.filename}`;
     }

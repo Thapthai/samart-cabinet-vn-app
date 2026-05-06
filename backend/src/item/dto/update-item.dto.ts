@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsString, IsInt, IsBoolean, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsInt, IsBoolean, IsNumber, IsOptional, Min, ValidateIf } from 'class-validator';
 
 export class UpdateItemDto {
   @IsOptional()
@@ -31,6 +31,19 @@ export class UpdateItemDto {
   @IsInt()
   @Type(() => Number)
   UnitID?: number;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsInt()
+  @Type(() => Number)
+  SubUnitID?: number | null;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  SubUnitQty?: number | null;
 
   @IsOptional()
   @IsInt()

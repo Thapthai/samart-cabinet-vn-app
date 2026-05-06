@@ -2643,9 +2643,9 @@ export class MedicalSuppliesService {
       const codeRows =
         subIds.length > 0
           ? await this.prisma.medicalSupplySubDepartment.findMany({
-              where: { id: { in: subIds } },
-              select: { id: true, code: true },
-            })
+            where: { id: { in: subIds } },
+            select: { id: true, code: true },
+          })
           : [];
       const codeById = new Map(codeRows.map((r) => [r.id, r.code]));
       const totalByType = totalBySubDept.map((row) => ({
@@ -3448,28 +3448,43 @@ export class MedicalSuppliesService {
       if (filters?.departmentId) {
         const deptId = parseInt(filters.departmentId, 10);
         if (!Number.isNaN(deptId)) {
-          sqlConditions.push(Prisma.sql`app_cabinet_departments.department_id = ${deptId}`);
+          sqlConditions.push(Prisma.sql`EXISTS (
+            SELECT 1 FROM app_cabinet_departments acd_f
+            WHERE acd_f.cabinet_id = app_cabinets.id
+              AND acd_f.department_id = ${deptId}
+              AND acd_f.status = 'ACTIVE'
+          )`);
         }
       }
 
       if (filters?.cabinetId) {
         const cabId = parseInt(filters.cabinetId, 10);
         if (!Number.isNaN(cabId)) {
-          sqlConditions.push(Prisma.sql`app_cabinets.ID = ${cabId}`);
+          sqlConditions.push(Prisma.sql`app_cabinets.id = ${cabId}`);
         }
       }
 
       // Combine WHERE conditions with AND
       const whereClause = Prisma.join(sqlConditions, ' AND ');
 
-      // Get total count first (include cabinet/department JOINs when filtering by them)
+      // Get total count first — เชื่อม Division แถวเดียวต่อตู้ (ไม่คูณแถวจากหลาย app_cabinet_departments)
       const countResult: any[] = await this.prisma.$queryRaw`
         SELECT COUNT(*) as total
         FROM itemstock ist
         INNER JOIN item i ON ist.ItemCode = i.itemcode
         LEFT JOIN itemtype it ON i.itemtypeID = it.ID
-        LEFT JOIN app_cabinets ON app_cabinets.stock_id = ist.StockID
-        LEFT JOIN app_cabinet_departments ON app_cabinet_departments.cabinet_id = app_cabinets.ID
+        INNER JOIN app_cabinets ON app_cabinets.stock_id = ist.StockID
+        INNER JOIN (
+          SELECT acd1.cabinet_id, acd1.department_id
+          FROM app_cabinet_departments acd1
+          INNER JOIN (
+            SELECT cabinet_id, MIN(id) AS pick_id
+            FROM app_cabinet_departments
+            WHERE status = 'ACTIVE'
+            GROUP BY cabinet_id
+          ) pick ON pick.pick_id = acd1.id
+        ) cd_one ON cd_one.cabinet_id = app_cabinets.id
+        INNER JOIN department ON department.ID = cd_one.department_id
         WHERE ${whereClause}
       `;
       const totalCount = Number(countResult[0]?.total || 0);
@@ -3491,9 +3506,16 @@ export class MedicalSuppliesService {
           COALESCE(CONCAT(employee.FirstName, ' ', employee.LastName), 'ไม่ระบุ') AS cabinetUserName,
           department.DepName AS departmentName,
           app_cabinets.cabinet_name AS cabinetName,
-          app_cabinets.cabinet_code AS cabinetCode
+          app_cabinets.cabinet_code AS cabinetCode,
+          i.UnitID AS ItemUnitID,
+          i.sub_unit_id AS ItemSubUnitID,
+          i.sub_unit_qty AS ItemSubUnitQty,
+          u_main.UnitName AS ItemMainUnitName,
+          u_sub.UnitName AS ItemSubUnitUnitName
         FROM itemstock ist
-        LEFT JOIN item i ON ist.ItemCode = i.itemcode
+        INNER JOIN item i ON ist.ItemCode = i.itemcode
+        LEFT JOIN units u_main ON u_main.ID = i.UnitID
+        LEFT JOIN units u_sub ON u_sub.ID = i.sub_unit_id
         -- LEFT JOIN (
         --       SELECT uc.*
         --       FROM user_cabinet uc
@@ -3505,23 +3527,56 @@ export class MedicalSuppliesService {
         --   ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_finger_id
         LEFT JOIN users ON users.ID = ist.CabinetUserID
         LEFT JOIN employee ON employee.EmpCode = users.EmpCode
-        LEFT JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
-        LEFT JOIN app_cabinet_departments on app_cabinet_departments.cabinet_id = app_cabinets.ID
-        LEFT JOIN department on department.ID = app_cabinet_departments.department_id
+        INNER JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
+        INNER JOIN (
+          SELECT acd1.cabinet_id, acd1.department_id
+          FROM app_cabinet_departments acd1
+          INNER JOIN (
+            SELECT cabinet_id, MIN(id) AS pick_id
+            FROM app_cabinet_departments
+            WHERE status = 'ACTIVE'
+            GROUP BY cabinet_id
+          ) pick ON pick.pick_id = acd1.id
+        ) cd_one ON cd_one.cabinet_id = app_cabinets.id
+        INNER JOIN department on department.ID = cd_one.department_id
         WHERE ${whereClause}
         ORDER BY ist.LastCabinetModify DESC , i.itemname ASC
         LIMIT ${limit}
         OFFSET ${offset}
       `;
 
-      // Convert BigInt to Number for JSON serialization
-      const result = dispensedItems.map(item => ({
-        ...item,
-        RowID: item.RowID ? Number(item.RowID) : null,
-        qty: Number(item.qty),
-        itemtypeID: item.itemtypeID ? Number(item.itemtypeID) : null,
-        StockID: item.StockID ? Number(item.StockID) : null,
-      }));
+      // Convert BigInt to Number for JSON serialization + หน่วยหลัก/ย่อยสำหรับ UI
+      const result = dispensedItems.map((raw: any) => {
+        const uid = raw.ItemUnitID ?? raw.itemunitid;
+        const suid = raw.ItemSubUnitID ?? raw.itemsubunitid;
+        const sqty = raw.ItemSubUnitQty ?? raw.itemsubunitqty;
+        const uName = raw.ItemMainUnitName ?? raw.itemmainunitname;
+        const suName = raw.ItemSubUnitUnitName ?? raw.itemsubunitunitname;
+        const mainLabel = uName != null ? String(uName).trim() : '';
+        const subLabel = suName != null ? String(suName).trim() : '';
+        return {
+          RowID: raw.RowID != null ? Number(raw.RowID) : null,
+          itemcode: raw.itemcode,
+          itemname: raw.itemname,
+          modifyDate: raw.modifyDate,
+          qty: Number(raw.qty),
+          itemCategory: raw.itemCategory,
+          itemtypeID: raw.itemtypeID != null ? Number(raw.itemtypeID) : null,
+          RfidCode: raw.RfidCode,
+          StockID: raw.StockID != null ? Number(raw.StockID) : null,
+          Istatus_rfid: raw.Istatus_rfid,
+          CabinetUserID: raw.CabinetUserID,
+          cabinetUserName: raw.cabinetUserName,
+          departmentName: raw.departmentName,
+          cabinetName: raw.cabinetName,
+          cabinetCode: raw.cabinetCode,
+          UnitID: uid != null ? Number(uid) : undefined,
+          SubUnitID: suid != null ? Number(suid) : undefined,
+          SubUnitQty: sqty != null ? Number(sqty) : undefined,
+          unit: mainLabel ? { ID: uid != null ? Number(uid) : undefined, UnitName: mainLabel } : undefined,
+          subUnit: subLabel ? { ID: suid != null ? Number(suid) : undefined, UnitName: subLabel } : undefined,
+        };
+      });
 
       const totalPages = Math.ceil(totalCount / limit);
 
@@ -3601,27 +3656,44 @@ export class MedicalSuppliesService {
       }
 
       if (filters?.departmentId) {
-        sqlConditions.push(Prisma.raw(`department.ID = '${filters.departmentId}'`));
+        const deptId = parseInt(filters.departmentId, 10);
+        if (!Number.isNaN(deptId)) {
+          sqlConditions.push(Prisma.sql`EXISTS (
+            SELECT 1 FROM app_cabinet_departments acd_f
+            WHERE acd_f.cabinet_id = app_cabinets.id
+              AND acd_f.department_id = ${deptId}
+              AND acd_f.status = 'ACTIVE'
+          )`);
+        }
       }
 
       if (filters?.cabinetId) {
-        sqlConditions.push(Prisma.raw(`app_cabinets.id = '${filters.cabinetId}'`));
+        const cabId = parseInt(filters.cabinetId, 10);
+        if (!Number.isNaN(cabId)) {
+          sqlConditions.push(Prisma.sql`app_cabinets.id = ${cabId}`);
+        }
       }
 
       // Combine WHERE conditions with AND
       const whereClause = Prisma.join(sqlConditions, ' AND ');
 
-      // Get total count first - Same structure as main query
+      // Get total count — โครงสร้างเดียวกับ main query; เชื่อม Division แถวเดียวต่อตู้ (ไม่คูณแถว)
       const countResult: any[] = await this.prisma.$queryRaw`
-        SELECT count(ist.RowID) as total
+        SELECT COUNT(*) as total
         FROM itemstock ist
         INNER JOIN item i ON ist.ItemCode = i.itemcode
-        LEFT JOIN user_cabinet ON ist.CabinetUserID = user_cabinet.user_id
-        LEFT JOIN users ON user_cabinet.user_id = users.ID
-        LEFT JOIN employee ON employee.EmpCode = users.EmpCode
-        LEFT JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
-        LEFT JOIN app_cabinet_departments on app_cabinet_departments.cabinet_id = app_cabinets.ID
-        LEFT JOIN department on department.id = app_cabinet_departments.department_id
+        INNER JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
+        INNER JOIN (
+          SELECT acd1.cabinet_id, acd1.department_id
+          FROM app_cabinet_departments acd1
+          INNER JOIN (
+            SELECT cabinet_id, MIN(id) AS pick_id
+            FROM app_cabinet_departments
+            WHERE status = 'ACTIVE'
+            GROUP BY cabinet_id
+          ) pick ON pick.pick_id = acd1.id
+        ) cd_one ON cd_one.cabinet_id = app_cabinets.id
+        INNER JOIN department on department.ID = cd_one.department_id
         WHERE ${whereClause}
       `;
       const totalCount = Number(countResult[0]?.total || 0);
@@ -3642,9 +3714,16 @@ export class MedicalSuppliesService {
           ist.CabinetUserID,
           COALESCE(CONCAT(employee.FirstName, ' ', employee.LastName), 'ไม่ระบุ') AS cabinetUserName,
           app_cabinets.cabinet_name AS cabinetName,
-          department.DepName AS departmentName
+          department.DepName AS departmentName,
+          i.UnitID AS ItemUnitID,
+          i.sub_unit_id AS ItemSubUnitID,
+          i.sub_unit_qty AS ItemSubUnitQty,
+          u_main.UnitName AS ItemMainUnitName,
+          u_sub.UnitName AS ItemSubUnitUnitName
         FROM itemstock ist
         INNER JOIN item i ON ist.ItemCode = i.itemcode
+        LEFT JOIN units u_main ON u_main.ID = i.UnitID
+        LEFT JOIN units u_sub ON u_sub.ID = i.sub_unit_id
         -- LEFT JOIN (
         --       SELECT uc.*
         --       FROM user_cabinet uc
@@ -3656,9 +3735,18 @@ export class MedicalSuppliesService {
         --   ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_finger_id
         LEFT JOIN users ON users.ID = ist.CabinetUserID
         LEFT JOIN employee ON employee.EmpCode = users.EmpCode
-        LEFT JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
-        LEFT JOIN app_cabinet_departments on app_cabinet_departments.cabinet_id = app_cabinets.ID
-        LEFT JOIN department on department.ID = app_cabinet_departments.department_id
+        INNER JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
+        INNER JOIN (
+          SELECT acd1.cabinet_id, acd1.department_id
+          FROM app_cabinet_departments acd1
+          INNER JOIN (
+            SELECT cabinet_id, MIN(id) AS pick_id
+            FROM app_cabinet_departments
+            WHERE status = 'ACTIVE'
+            GROUP BY cabinet_id
+          ) pick ON pick.pick_id = acd1.id
+        ) cd_one ON cd_one.cabinet_id = app_cabinets.id
+        INNER JOIN department on department.ID = cd_one.department_id
         WHERE ${whereClause}
         ORDER BY ist.LastCabinetModify DESC , i.itemname ASC
         LIMIT ${limit}
@@ -3666,25 +3754,40 @@ export class MedicalSuppliesService {
       `;
 
 
-      // Convert BigInt to Number for JSON serialization
-      const result = returnedItems.map(item => ({
-        ...item,
-        RowID: item.RowID ? Number(item.RowID) : null,
-        qty: Number(item.qty),
-        itemtypeID: item.itemtypeID ? Number(item.itemtypeID) : null,
-        StockID: item.StockID ? Number(item.StockID) : null,
-      }));
+      // Convert BigInt to Number for JSON serialization + หน่วยหลัก/ย่อยสำหรับ UI
+      const result = returnedItems.map((raw: any) => {
+        const uid = raw.ItemUnitID ?? raw.itemunitid;
+        const suid = raw.ItemSubUnitID ?? raw.itemsubunitid;
+        const sqty = raw.ItemSubUnitQty ?? raw.itemsubunitqty;
+        const uName = raw.ItemMainUnitName ?? raw.itemmainunitname;
+        const suName = raw.ItemSubUnitUnitName ?? raw.itemsubunitunitname;
+        const mainLabel = uName != null ? String(uName).trim() : '';
+        const subLabel = suName != null ? String(suName).trim() : '';
+        return {
+          RowID: raw.RowID != null ? Number(raw.RowID) : null,
+          itemcode: raw.itemcode,
+          itemname: raw.itemname,
+          modifyDate: raw.modifyDate,
+          qty: Number(raw.qty),
+          itemtypeID: raw.itemtypeID != null ? Number(raw.itemtypeID) : null,
+          RfidCode: raw.RfidCode,
+          StockID: raw.StockID != null ? Number(raw.StockID) : null,
+          Istatus_rfid: raw.Istatus_rfid,
+          IsStock: raw.IsStock,
+          CabinetUserID: raw.CabinetUserID,
+          cabinetUserName: raw.cabinetUserName,
+          cabinetName: raw.cabinetName,
+          departmentName: raw.departmentName,
+          UnitID: uid != null ? Number(uid) : undefined,
+          SubUnitID: suid != null ? Number(suid) : undefined,
+          SubUnitQty: sqty != null ? Number(sqty) : undefined,
+          unit: mainLabel ? { ID: uid != null ? Number(uid) : undefined, UnitName: mainLabel } : undefined,
+          subUnit: subLabel ? { ID: suid != null ? Number(suid) : undefined, UnitName: subLabel } : undefined,
+        };
+      });
 
       const totalPages = Math.ceil(totalCount / limit);
 
-      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
-      // await this.createLog(null, {
-      //   type: 'QUERY',
-      //   status: 'SUCCESS',
-      //   action: 'getReturnedItems',
-      //   filters: filters || {},
-      //   result_count: result.length,
-      // });
 
       return {
         success: true,
@@ -3696,15 +3799,6 @@ export class MedicalSuppliesService {
         filters: filters || {},
       };
     } catch (error) {
-      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
-      // await this.createLog(null, {
-      //   type: 'QUERY',
-      //   status: 'ERROR',
-      //   action: 'getReturnedItems',
-      //   filters: filters || {},
-      //   error_message: error.message,
-      //   error_code: error.code,
-      // });
       throw error;
     }
   }
@@ -4456,6 +4550,11 @@ export class MedicalSuppliesService {
                     IFNULL(u.total_usage_items, 0) AS total_used,
                     IFNULL(r.total_returned, 0) AS total_returned,
                     i.itemtypeID,
+                    i.UnitID AS ItemUnitID,
+                    i.sub_unit_id AS ItemSubUnitID,
+                    i.sub_unit_qty AS ItemSubUnitQty,
+                    u_main.UnitName AS ItemMainUnitName,
+                    u_sub.UnitName AS ItemSubUnitUnitName,
                     CASE
                         WHEN IFNULL(d.total_dispensed, 0) = 0
                             AND IFNULL(u.total_usage_items, 0) > 0
@@ -4487,6 +4586,8 @@ export class MedicalSuppliesService {
                           AND EXISTS (SELECT 1 FROM itemstock ist WHERE ist.ItemCode = sui.order_item_code)
                       ) x
                       JOIN item i ON i.itemcode = x.itemcode
+                      LEFT JOIN units u_main ON u_main.ID = i.UnitID
+                      LEFT JOIN units u_sub ON u_sub.ID = i.sub_unit_id
                       LEFT JOIN (
                             SELECT
                                 ItemCode,
@@ -4540,18 +4641,41 @@ export class MedicalSuppliesService {
         }
       }
 
-      // Convert BigInt to Number for JSON serialization
-      const result = paginatedDispensedItems.map(item => ({
-        ...item,
-        difference: Number(item.total_dispensed) - Number(item.total_used) + Number(item.total_returned ?? 0),
-        total_dispensed: Number(item.total_dispensed),
-        dispensed_records: Number(item.dispensed_records),
-        total_used: Number(item.total_used),
-        total_returned: Number(item.total_returned ?? 0),
-        dispensed_datetime: item.dispensed_datetime ? new Date(item.dispensed_datetime) : null,
-        itemType: item.itemType || null,
-        itemtypeID: item.itemtypeID ? Number(item.itemtypeID) : null,
-      }));
+      // Convert BigInt to Number for JSON serialization + หน่วยจาก item / units
+      const result = paginatedDispensedItems.map((raw: any) => {
+        const uid = raw.ItemUnitID ?? raw.itemunitid;
+        const suid = raw.ItemSubUnitID ?? raw.itemsubunitid;
+        const sqty = raw.ItemSubUnitQty ?? raw.itemsubunitqty;
+        const uName = raw.ItemMainUnitName ?? raw.itemmainunitname;
+        const suName = raw.ItemSubUnitUnitName ?? raw.itemsubunitunitname;
+        const mainLabel = uName != null ? String(uName).trim() : '';
+        const subLabel = suName != null ? String(suName).trim() : '';
+        const unit = mainLabel
+          ? { ID: uid != null ? Number(uid) : undefined, UnitName: mainLabel }
+          : undefined;
+        const subUnit = subLabel
+          ? { ID: suid != null ? Number(suid) : undefined, UnitName: subLabel }
+          : undefined;
+        return {
+          itemcode: raw.itemcode,
+          itemname: raw.itemname,
+          total_dispensed: Number(raw.total_dispensed),
+          dispensed_records: Number(raw.dispensed_records),
+          total_used: Number(raw.total_used),
+          total_returned: Number(raw.total_returned ?? 0),
+          difference:
+            Number(raw.total_dispensed) - Number(raw.total_used) + Number(raw.total_returned ?? 0),
+          status: raw.status,
+          itemtypeID: raw.itemtypeID != null ? Number(raw.itemtypeID) : null,
+          UnitID: uid != null ? Number(uid) : undefined,
+          SubUnitID: suid != null ? Number(suid) : undefined,
+          SubUnitQty: sqty != null ? Number(sqty) : undefined,
+          unit,
+          subUnit,
+          dispensed_datetime: raw.dispensed_datetime ? new Date(raw.dispensed_datetime) : null,
+          itemType: raw.itemType || null,
+        };
+      });
 
       return {
         data: result,

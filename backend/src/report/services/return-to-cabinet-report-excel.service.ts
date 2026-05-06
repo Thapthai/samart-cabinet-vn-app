@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 import { ReportConfig } from '../config/report.config';
+import { formatQtyWithMainUnitForReport } from '../utils/format-item-qty';
 
 /** ให้ตรงกับหน้าเว็บ: เวลาใน DB เป็น Bangkok แต่ส่งมาเป็น UTC → ลบ 7 ชม. แล้วแสดงใน Asia/Bangkok (รับได้ทั้ง string และ Date จาก Prisma) */
 const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -53,6 +54,9 @@ export interface ReturnToCabinetItemRow {
   cabinetUserName?: string;
   departmentName?: string;
   cabinetName?: string;
+  unit?: { UnitName?: string | null };
+  subUnit?: { UnitName?: string | null };
+  SubUnitQty?: number | null;
 }
 
 export interface ReturnToCabinetReportGroup {
@@ -150,7 +154,7 @@ export class ReturnToCabinetReportExcelService {
 
     // ---- แถว 5: Table header 7 คอลัมน์ (ตรง dispensed: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ชื่อผู้เติม) ----
     const tableStartRow = 5;
-    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวนชิ้น', 'วันที่เติม', 'แผนก', 'ชื่อผู้เติม'];
+    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวน (หน่วยหลัก)', 'วันที่เติม', 'แผนก', 'ชื่อผู้เติม'];
     const headerRow = worksheet.getRow(tableStartRow);
     tableHeaders.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
@@ -171,7 +175,7 @@ export class ReturnToCabinetReportExcelService {
       for (const group of data.groups) {
         // แถวสรุปกลุ่ม 7 คอลัมน์ (ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ชื่อผู้เติม) เหมือน dispensed
         const groupRow = worksheet.getRow(dataRowIndex);
-        const qtyDisplay = `${group.totalQty.toLocaleString()} `;
+        const qtyDisplay = formatQtyWithMainUnitForReport(group.totalQty, group.items[0] ?? {});
         const mainRowFiller = (() => {
           const n = group.items[0]?.cabinetUserName?.trim();
           return n && n !== 'ไม่ระบุ' ? n : '-';
@@ -203,7 +207,7 @@ export class ReturnToCabinetReportExcelService {
             subLabel,
             item.itemcode ?? '-',
             item.itemname ?? '-',
-            item.qty ?? 1,
+            formatQtyWithMainUnitForReport(item.qty ?? 1, item),
             formatReportDateTime(item.modifyDate),
             item.departmentName ?? '-',
             // item.RfidCode ?? '-',
@@ -229,7 +233,7 @@ export class ReturnToCabinetReportExcelService {
           idx + 1,
           item.itemcode ?? '-',
           item.itemname ?? '-',
-          item.qty ?? 1,
+          formatQtyWithMainUnitForReport(item.qty ?? 1, item),
           formatReportDateTime(item.modifyDate),
           item.departmentName ?? '-',
           item.cabinetUserName ?? 'ไม่ระบุ',
@@ -272,7 +276,7 @@ export class ReturnToCabinetReportExcelService {
     worksheet.getColumn(1).width = 14;
     worksheet.getColumn(2).width = 22;
     worksheet.getColumn(3).width = 50;
-    worksheet.getColumn(4).width = 18;
+    worksheet.getColumn(4).width = 22;
     worksheet.getColumn(5).width = 30;
     worksheet.getColumn(6).width = 24;
     worksheet.getColumn(7).width = 30;

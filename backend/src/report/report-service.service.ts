@@ -2356,8 +2356,13 @@ export class ReportServiceService {
             i.stock_min,
             MIN(ist.ExpireDate) AS earliest_expire_date,
             MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < ${cabStockDaySql} THEN 1 ELSE 0 END) AS has_expired,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
+            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire,
+            MAX(u_main.UnitName) AS ItemMainUnitName,
+            MAX(u_sub.UnitName) AS ItemSubUnitName,
+            MAX(i.sub_unit_qty) AS ItemSubUnitQty
           FROM item i
+          LEFT JOIN units u_main ON u_main.ID = i.UnitID
+          LEFT JOIN units u_sub ON u_sub.ID = i.sub_unit_id
           INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
           INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
           INNER JOIN app_cabinet_departments cd_filter ON cd_filter.cabinet_id = c.id AND cd_filter.department_id = ${params.departmentId} AND cd_filter.status = 'ACTIVE'
@@ -2386,8 +2391,13 @@ export class ReportServiceService {
             i.stock_min,
             MIN(ist.ExpireDate) AS earliest_expire_date,
             MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < ${cabStockDaySql} THEN 1 ELSE 0 END) AS has_expired,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
+            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire,
+            MAX(u_main.UnitName) AS ItemMainUnitName,
+            MAX(u_sub.UnitName) AS ItemSubUnitName,
+            MAX(i.sub_unit_qty) AS ItemSubUnitQty
           FROM item i
+          LEFT JOIN units u_main ON u_main.ID = i.UnitID
+          LEFT JOIN units u_sub ON u_sub.ID = i.sub_unit_id
           INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
           INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
           LEFT JOIN (
@@ -2414,8 +2424,13 @@ export class ReportServiceService {
             i.stock_min,
             MIN(ist.ExpireDate) AS earliest_expire_date,
             MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < ${cabStockDaySql} THEN 1 ELSE 0 END) AS has_expired,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire
+            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire,
+            MAX(u_main.UnitName) AS ItemMainUnitName,
+            MAX(u_sub.UnitName) AS ItemSubUnitName,
+            MAX(i.sub_unit_qty) AS ItemSubUnitQty
           FROM item i
+          LEFT JOIN units u_main ON u_main.ID = i.UnitID
+          LEFT JOIN units u_sub ON u_sub.ID = i.sub_unit_id
           INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
           INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
           LEFT JOIN (
@@ -2617,6 +2632,10 @@ export class ReportServiceService {
         const M = stockMax ?? 0;
         const refillQty = Math.max(0, M - balanceQty);
 
+        const ru = row as Record<string, unknown>;
+        const mainUnitName = ru.ItemMainUnitName ?? ru.itemmainunitname;
+        const subUnitName = ru.ItemSubUnitName ?? ru.itemsubunitname;
+        const subQtyRaw = ru.ItemSubUnitQty ?? ru.itemsubunitqty;
         data.push({
           seq,
           department_name: row.department_name ?? '-',
@@ -2628,6 +2647,15 @@ export class ReportServiceService {
           stock_max: stockMax,
           stock_min: stockMin,
           refill_qty: refillQty,
+          unit:
+            mainUnitName != null && String(mainUnitName).trim() !== ''
+              ? { UnitName: String(mainUnitName).trim() }
+              : undefined,
+          subUnit:
+            subUnitName != null && String(subUnitName).trim() !== ''
+              ? { UnitName: String(subUnitName).trim() }
+              : undefined,
+          SubUnitQty: subQtyRaw != null ? Number(subQtyRaw) : undefined,
         });
         seq++;
       }
@@ -3361,16 +3389,45 @@ export class ReportServiceService {
         departments.map((d) => [d.ID, d.DepName ?? ''])
       );
 
+      const itemCodesForUnits = new Set<string>();
+      for (const usage of data) {
+        const supplyItems = (usage as { supply_items?: Array<{ order_item_code?: string; supply_code?: string }> }).supply_items ?? [];
+        for (const si of supplyItems) {
+          const c = si?.order_item_code ?? si?.supply_code;
+          if (c && c !== '-') itemCodesForUnits.add(String(c));
+        }
+      }
+      const unitRows =
+        itemCodesForUnits.size > 0
+          ? await this.prisma.item.findMany({
+              where: { itemcode: { in: [...itemCodesForUnits] } },
+              select: {
+                itemcode: true,
+                SubUnitQty: true,
+                unit: { select: { UnitName: true } },
+                subUnit: { select: { UnitName: true } },
+              },
+            })
+          : [];
+      const unitByItemCode = new Map(unitRows.map((r) => [r.itemcode, r]));
+
       const reportData: DispensedItemsForPatientsReportData['data'] = data.map((usage, index) => {
         const supplyItems = (usage as { supply_items?: Array<{ order_item_code?: string; supply_code?: string; order_item_description?: string; supply_name?: string; qty?: number; quantity?: number; uom?: string; unit?: string; assession_no?: string; order_item_status?: string }> }).supply_items ?? [];
-        const supply_items: DispensedItemsForPatientsReportData['data'][0]['supply_items'] = supplyItems.map((item) => ({
-          itemcode: item?.order_item_code ?? item?.supply_code ?? '-',
-          itemname: item?.order_item_description ?? item?.supply_name ?? '-',
-          qty: Number(item?.qty ?? item?.quantity ?? 0),
-          uom: item?.uom ?? item?.unit ?? undefined,
-          assession_no: item?.assession_no ?? undefined,
-          order_item_status: item?.order_item_status ?? undefined,
-        }));
+        const supply_items: DispensedItemsForPatientsReportData['data'][0]['supply_items'] = supplyItems.map((item) => {
+          const ic = item?.order_item_code ?? item?.supply_code ?? '-';
+          const uinfo = unitByItemCode.get(ic);
+          return {
+            itemcode: ic,
+            itemname: item?.order_item_description ?? item?.supply_name ?? '-',
+            qty: Number(item?.qty ?? item?.quantity ?? 0),
+            uom: item?.uom ?? item?.unit ?? undefined,
+            assession_no: item?.assession_no ?? undefined,
+            order_item_status: item?.order_item_status ?? undefined,
+            unit: uinfo?.unit ?? undefined,
+            subUnit: uinfo?.subUnit ?? undefined,
+            SubUnitQty: uinfo?.SubUnitQty ?? undefined,
+          };
+        });
         const patientName = [usage.first_name, usage.lastname].filter(Boolean).join(' ').trim()
           || (usage.patient_name_th ?? usage.patient_name_en ?? '-');
         const deptCodeInt = usage.department_id ?? NaN;

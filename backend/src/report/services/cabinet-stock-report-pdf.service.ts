@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
-import { CabinetStockReportData } from './cabinet-stock-report-excel.service';
+import { CabinetStockReportData, CabinetStockRow } from './cabinet-stock-report-excel.service';
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import {
+  formatQtyWithMainUnitForReport,
+  type ReportItemUnitFields,
+} from '../utils/format-item-qty';
 
 @Injectable()
 export class CabinetStockReportPdfService {
@@ -152,7 +156,17 @@ export class CabinetStockReportPdfService {
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
         if (sumW < totalTableWidth) colWidths[3] += totalTableWidth - sumW;
-        const headers = ['ลำดับ', 'แผนก', 'รหัสอุปกรณ์', 'อุปกรณ์', 'จำนวนในตู้', 'ถูกใช้งาน', 'ไม่ถูกใช้งาน', 'Min / Max', 'จำนวนที่ต้องเติม'];
+        const headers = [
+          'ลำดับ',
+          'แผนก',
+          'รหัสอุปกรณ์',
+          'อุปกรณ์',
+          'จำนวนในตู้ (หน่วยหลัก)',
+          'ถูกใช้งาน (หน่วยหลัก)',
+          'ไม่ถูกใช้งาน (หน่วยหลัก)',
+          'Min / Max (หน่วยหลัก)',
+          'จำนวนที่ต้องเติม (หน่วยหลัก)',
+        ];
 
         const drawTableHeader = (y: number) => {
           let x = margin;
@@ -192,35 +206,40 @@ export class CabinetStockReportPdfService {
           doc.y = rowY + itemHeight;
         } else {
           for (let idx = 0; idx < rows.length; idx++) {
-            const row = rows[idx];
+            const row = rows[idx] as CabinetStockRow;
             const seq = row.seq ?? idx + 1;
-            const dept = (row as { department_name?: string }).department_name ?? '-';
-            const code = (row as { item_code?: string }).item_code ?? '-';
-            const name = (row as { item_name?: string }).item_name ?? '-';
-            const bal = (row as { balance_qty?: number }).balance_qty ?? 0;
-            const qtyInUse = (row as { qty_in_use?: number }).qty_in_use ?? 0;
-            const damagedQty = (row as { damaged_qty?: number }).damaged_qty ?? 0;
-            const smax = (row as { stock_max?: number | null }).stock_max;
-            const smin = (row as { stock_min?: number | null }).stock_min;
-            const refill = (row as { refill_qty?: number }).refill_qty ?? 0;
+            const dept = row.department_name ?? '-';
+            const code = row.item_code ?? '-';
+            const name = row.item_name ?? '-';
+            const bal = row.balance_qty ?? 0;
+            const qtyInUse = row.qty_in_use ?? 0;
+            const damagedQty = row.damaged_qty ?? 0;
+            const smax = row.stock_max;
+            const smin = row.stock_min;
+            const refill = row.refill_qty ?? 0;
+            const u: ReportItemUnitFields = {
+              unit: row.unit,
+              subUnit: row.subUnit,
+              SubUnitQty: row.SubUnitQty,
+            };
             const minMaxStr =
               smin != null && smax != null
-                ? `${smin} / ${smax}`
+                ? `${formatQtyWithMainUnitForReport(smin, u)} / ${formatQtyWithMainUnitForReport(smax, u)}`
                 : smin != null
-                  ? `${smin} / -`
+                  ? `${formatQtyWithMainUnitForReport(smin, u)} / -`
                   : smax != null
-                    ? `- / ${smax}`
+                    ? `- / ${formatQtyWithMainUnitForReport(smax, u)}`
                     : '-';
             const cellTexts = [
               String(seq),
               String(dept),
               String(code),
               String(name),
-              String(bal),
-              String(qtyInUse),
-              String(damagedQty),
+              formatQtyWithMainUnitForReport(bal, u),
+              formatQtyWithMainUnitForReport(qtyInUse, u),
+              formatQtyWithMainUnitForReport(damagedQty, u),
               minMaxStr,
-              String(refill),
+              formatQtyWithMainUnitForReport(refill, u),
             ];
 
             // คำนวณความสูงแถวตามข้อความที่อาจขึ้นบรรทัดใหม่
@@ -242,7 +261,7 @@ export class CabinetStockReportPdfService {
             }
 
             const rowY = doc.y;
-            const hasRefill = ((row as { refill_qty?: number }).refill_qty ?? 0) > 0;
+            const hasRefill = (row.refill_qty ?? 0) > 0;
             const bg = hasRefill ? '#F8D7D7' : (idx % 2 === 0 ? '#FFFFFF' : '#F8F9FA');
             let xPos = margin;
             for (let i = 0; i < 9; i++) {

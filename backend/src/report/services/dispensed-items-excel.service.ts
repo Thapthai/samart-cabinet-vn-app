@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 import { ReportConfig } from '../config/report.config';
+import { formatQtyWithMainUnitForReport } from '../utils/format-item-qty';
 
 /** ให้ตรงกับหน้าเว็บ: เวลาใน DB เป็น Bangkok แต่ส่งมาเป็น UTC → ลบ 7 ชม. แล้วแสดงใน Asia/Bangkok (รับได้ทั้ง string และ Date จาก Prisma) */
 const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -53,6 +54,9 @@ export interface DispensedItemRow {
   departmentName?: string;
   cabinetName?: string;
   cabinetCode?: string;
+  unit?: { UnitName?: string | null };
+  subUnit?: { UnitName?: string | null };
+  SubUnitQty?: number | null;
 }
 
 export interface DispensedItemsReportGroup {
@@ -149,7 +153,7 @@ export class DispensedItemsExcelService {
 
     // ---- แถว 5: Table header (ตรงกับหน้าเว็บ: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เบิก, แผนก, ชื่อผู้เบิก) ----
     const tableStartRow = 5;
-    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวนชิ้น', 'วันที่เบิก', 'แผนก', 'ชื่อผู้เบิก'];
+    const tableHeaders = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวน (หน่วยหลัก)', 'วันที่เบิก', 'แผนก', 'ชื่อผู้เบิก'];
     const headerRow = worksheet.getRow(tableStartRow);
     tableHeaders.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);
@@ -170,7 +174,7 @@ export class DispensedItemsExcelService {
       for (const group of data.groups) {
         // แถวสรุปกลุ่ม (ตรงหน้าเว็บ: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เบิก, แผนก, ชื่อผู้เบิก)
         const groupRow = worksheet.getRow(dataRowIndex);
-        const qtyDisplay = `${group.totalQty.toLocaleString()} `;
+        const qtyDisplay = formatQtyWithMainUnitForReport(group.totalQty, group.items[0] ?? {});
         const mainRowDispenser = (() => {
           const n = group.items[0]?.cabinetUserName?.trim();
           return n && n !== 'ไม่ระบุ' ? n : '-';
@@ -203,7 +207,7 @@ export class DispensedItemsExcelService {
             subLabel,
             item.itemcode,
             item.itemname ?? '-',
-            item.qty ?? 1,
+            formatQtyWithMainUnitForReport(item.qty ?? 1, item),
             formatReportDateTime(item.modifyDate),
             item.departmentName ?? '-',
             // item.RfidCode ?? '-',
@@ -229,7 +233,7 @@ export class DispensedItemsExcelService {
           idx + 1,
           item.itemcode,
           item.itemname ?? '-',
-          item.qty ?? 1,
+          formatQtyWithMainUnitForReport(item.qty ?? 1, item),
           formatReportDateTime(item.modifyDate),
           item.departmentName ?? '-',
           item.cabinetUserName ?? 'ไม่ระบุ',
@@ -272,7 +276,7 @@ export class DispensedItemsExcelService {
     worksheet.getColumn(1).width = 14;
     worksheet.getColumn(2).width = 22;
     worksheet.getColumn(3).width = 50;
-    worksheet.getColumn(4).width = 18;
+    worksheet.getColumn(4).width = 22;
     worksheet.getColumn(5).width = 30;
     worksheet.getColumn(6).width = 24;
     worksheet.getColumn(7).width = 30;

@@ -13,6 +13,11 @@ export interface DispensedItem {
   CabinetUserID?: number;
   cabinetUserName?: string;
   departmentName?: string;
+  UnitID?: number;
+  SubUnitID?: number;
+  SubUnitQty?: number;
+  unit?: { ID?: number; UnitName?: string | null };
+  subUnit?: { ID?: number; UnitName?: string | null };
 }
 
 export interface FilterState {

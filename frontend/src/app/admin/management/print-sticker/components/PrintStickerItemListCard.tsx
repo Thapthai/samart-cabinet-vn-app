@@ -2,6 +2,7 @@
 
 import { RefreshCw, Search } from 'lucide-react';
 import type { Item } from '@/types/item';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -149,8 +150,8 @@ export function PrintStickerItemListCard({
                         />
                       </TableCell>
                       <TableCell className="font-mono text-sm">{row.itemcode}</TableCell>
-                      <TableCell className="max-w-[220px] truncate text-sm" title={row.itemname}>
-                        {row.itemname ?? '—'}
+                      <TableCell className="max-w-[240px] min-w-0 text-sm">
+                        <ItemNameWithUnit item={row} />
                       </TableCell>
                       <TableCell className="hidden font-mono text-xs text-slate-600 md:table-cell">
                         {row.Barcode ?? '—'}

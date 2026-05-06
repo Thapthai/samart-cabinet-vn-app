@@ -9,6 +9,9 @@ import { useState, useRef, useEffect } from 'react';
 import { medicalSuppliesApi } from '@/lib/api';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 import type { ComparisonItem, UsageItem } from '../../types';
+import type { Item } from '@/types/item';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
+import QtyWithMainUnit from '@/components/QtyWithMainUnit';
 
 interface ComparisonTableProps {
   loading: boolean;
@@ -302,23 +305,32 @@ export function ComparisonTable({
                           {item.itemcode}
                         </TableCell>
                         <TableCell
-                          className="text-gray-800"
+                          className="max-w-[260px] min-w-0 text-gray-800"
                           onClick={() => onSelectItem(item.itemcode)}
                         >
-                          {item.itemname || '-'}
+                          <ItemNameWithUnit
+                            item={item as unknown as Item}
+                            qtyMain={item.total_dispensed}
+                          />
                         </TableCell>
 
                         <TableCell
                           className="text-center font-semibold text-gray-900"
                           onClick={() => onSelectItem(item.itemcode)}
                         >
-                          {item.total_dispensed}
+                          <QtyWithMainUnit
+                            qty={item.total_dispensed}
+                            item={item as unknown as Item}
+                          />
                         </TableCell>
                         <TableCell
                           className="text-center font-semibold text-gray-900"
                           onClick={() => onSelectItem(item.itemcode)}
                         >
-                          {item.total_used}
+                          <QtyWithMainUnit
+                            qty={item.total_used}
+                            item={item as unknown as Item}
+                          />
                         </TableCell>
                         <TableCell
                           className="text-center font-semibold text-gray-900"
@@ -397,7 +409,10 @@ export function ComparisonTable({
                                 -
                               </TableCell> */}
                               <TableCell className="text-center font-semibold text-sm text-indigo-700">
-                                {usage.qty_used}
+                                <QtyWithMainUnit
+                                  qty={usage.qty_used}
+                                  item={item as unknown as Item}
+                                />
                               </TableCell>
                               <TableCell className="text-center text-sm text-gray-400">-</TableCell>
                               <TableCell className="text-center text-sm">

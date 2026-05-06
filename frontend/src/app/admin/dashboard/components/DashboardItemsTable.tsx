@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import type { Item } from "@/types/item";
+import ItemNameWithUnit from "@/components/ItemNameWithUnit";
 
 interface DashboardItemsTableProps {
   items: Item[];
@@ -89,7 +90,9 @@ export default function DashboardItemsTable({
                         >
                           <TableCell>{startIndex + index + 1}</TableCell>
                           {/* <TableCell>{item.itemcode}</TableCell> */}
-                          <TableCell>{item.itemname || "-"}</TableCell>
+                          <TableCell className="min-w-0 max-w-[280px]">
+                            <ItemNameWithUnit item={item} qtyMain={countItemStock} />
+                          </TableCell>
                           <TableCell>{item.department?.DepName || item.department?.DepName2 || (item.DepartmentID != null ? String(item.DepartmentID) : "-")}</TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">

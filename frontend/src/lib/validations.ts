@@ -16,22 +16,31 @@ export const registerSchema = z.object({
     .regex(/[^a-zA-Z0-9]/, 'รหัสผ่านต้องมีอักษรพิเศษอย่างน้อย 1 ตัว'),
 });
 
-export const itemSchema = z.object({
-  itemcode: z.string().min(1, 'รหัสสินค้าต้องไม่ว่าง').max(25, 'รหัสสินค้าต้องไม่เกิน 25 ตัวอักษร'),
-  itemname: z.string().min(2, 'ชื่อสินค้าต้องมีอย่างน้อย 2 ตัวอักษร').max(255, 'ชื่อสินค้าต้องไม่เกิน 255 ตัวอักษร'),
-  Barcode: z.string().max(50).optional(),
-  Description: z.string().optional(),
-  CostPrice: z.number().min(0, 'ราคาทุนต้องไม่น้อยกว่า 0').optional(),
-  SalePrice: z.number().min(0).optional(),
-  UsagePrice: z.number().min(0).optional(),
-  stock_balance: z.number().int().min(0).optional(),
-  stock_min: z.number().int().min(0).optional(),
-  stock_max: z.number().int().min(0).optional(),
-  item_status: z.number().int().optional(),
-  warehouseID: z.number().int().optional(),
-  /** ไม่บังคับ — เลือกจาก SearchableSelect (ค่าเป็นตัวเลขหรือ undefined) */
-  UnitID: z.number().int().positive().optional(),
-});
+export const itemSchema = z
+  .object({
+    itemcode: z.string().min(1, 'รหัสสินค้าต้องไม่ว่าง').max(25, 'รหัสสินค้าต้องไม่เกิน 25 ตัวอักษร'),
+    itemname: z.string().min(2, 'ชื่อสินค้าต้องมีอย่างน้อย 2 ตัวอักษร').max(255, 'ชื่อสินค้าต้องไม่เกิน 255 ตัวอักษร'),
+    Barcode: z.string().max(50).optional(),
+    Description: z.string().optional(),
+    CostPrice: z.number().min(0, 'ราคาทุนต้องไม่น้อยกว่า 0').optional(),
+    SalePrice: z.number().min(0).optional(),
+    UsagePrice: z.number().min(0).optional(),
+    stock_balance: z.number().int().min(0).optional(),
+    stock_min: z.number().int().min(0).optional(),
+    stock_max: z.number().int().min(0).optional(),
+    item_status: z.number().int().optional(),
+    warehouseID: z.number().int().optional(),
+    /** หน่วยหลัก — stock / ธุรกรรม */
+    UnitID: z.number().int().positive().optional(),
+    /** หน่วยย่อย — แสดงผล */
+    SubUnitID: z.number().int().positive().optional(),
+    /** เช่น 18 เม็ดต่อ 1 หน่วยหลัก */
+    SubUnitQty: z.number().int().min(1).optional(),
+  })
+  .refine((d) => !d.SubUnitQty || (d.SubUnitID != null && d.SubUnitID > 0), {
+    message: 'เลือกหน่วยย่อยเมื่อระบุจำนวนต่อหลัก',
+    path: ['SubUnitID'],
+  });
 
 export const categorySchema = z.object({
   name: z.string().min(2, 'ชื่อหมวดหมู่ต้องมีอย่างน้อย 2 ตัวอักษร').max(100, 'ชื่อหมวดหมู่ต้องไม่เกิน 100 ตัวอักษร'),

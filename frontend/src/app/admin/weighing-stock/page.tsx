@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import Pagination from '@/components/Pagination';
+import type { Item } from '@/types/item';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 
 export interface ItemSlotInCabinetRow {
   id: number;
@@ -304,8 +306,18 @@ export default function WeighingPage() {
                             <TableCell className="text-center text-muted-foreground tabular-nums text-xs sm:text-sm py-2 sm:py-3">
                               {(currentPage - 1) * itemsPerPage + index + 1}
                             </TableCell>
-                            <TableCell className="min-w-[140px] sm:max-w-[220px] max-w-[180px] truncate font-medium text-xs sm:text-sm py-2 sm:py-3" title={row.item?.itemname ?? undefined}>
-                              {row.item?.itemname || '-'}
+                            <TableCell className="min-w-[140px] sm:max-w-[240px] max-w-[200px] py-2 sm:py-3">
+                              <ItemNameWithUnit
+                                item={
+                                  {
+                                    itemcode: row.itemcode,
+                                    itemname: row.item?.itemname ?? undefined,
+                                    ...(row.item as Item | null | undefined),
+                                  } as Item
+                                }
+                                qtyMain={row.Qty}
+                                nameClassName="text-xs sm:text-sm font-medium"
+                              />
                             </TableCell>
                             <TableCell className="text-center text-gray-700 text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">
                               {row.cabinet

@@ -31,6 +31,11 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
   const [unitInitialDisplay, setUnitInitialDisplay] = useState<{ label: string; subLabel?: string } | undefined>(
     undefined,
   );
+  const [subUnitIdStr, setSubUnitIdStr] = useState('');
+  const [subUnitQtyStr, setSubUnitQtyStr] = useState('');
+  const [subUnitInitialDisplay, setSubUnitInitialDisplay] = useState<{ label: string; subLabel?: string } | undefined>(
+    undefined,
+  );
   const [error, setError] = useState('');
   const [unitRows, setUnitRows] = useState<UnitRow[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
@@ -56,16 +61,22 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
   }, []);
 
   useEffect(() => {
+    if (open) void loadUnits();
+  }, [open, loadUnits]);
+
+  useEffect(() => {
     if (!open || !item) return;
 
     setItemname(item.itemname || '');
     setError('');
+    setUnitIdStr(item.UnitID != null && item.UnitID > 0 ? String(item.UnitID) : '');
+    setSubUnitIdStr(item.SubUnitID != null && item.SubUnitID > 0 ? String(item.SubUnitID) : '');
+    setSubUnitQtyStr(item.SubUnitQty != null && item.SubUnitQty > 0 ? String(item.SubUnitQty) : '');
 
-    const uid = item.UnitID;
-    if (uid != null && uid > 0) {
-      setUnitIdStr(String(uid));
-      let cancelled = false;
-      void (async () => {
+    let cancelled = false;
+    void (async () => {
+      const uid = item.UnitID;
+      if (uid != null && uid > 0) {
         try {
           const r = await unitsApi.getById(uid);
           if (cancelled) return;
@@ -80,15 +91,34 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
         } catch {
           if (!cancelled) setUnitInitialDisplay({ label: `หน่วย #${uid}`, subLabel: `ID ${uid}` });
         }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }
+      } else {
+        setUnitInitialDisplay(undefined);
+      }
 
-    setUnitIdStr('');
-    setUnitInitialDisplay(undefined);
-    return undefined;
+      const sid = item.SubUnitID;
+      if (sid != null && sid > 0) {
+        try {
+          const r = await unitsApi.getById(sid);
+          if (cancelled) return;
+          if (r.success && r.data) {
+            setSubUnitInitialDisplay({
+              label: r.data.unitName || `หน่วย #${sid}`,
+              subLabel: `ID ${sid}`,
+            });
+          } else {
+            setSubUnitInitialDisplay({ label: `หน่วย #${sid}`, subLabel: `ID ${sid}` });
+          }
+        } catch {
+          if (!cancelled) setSubUnitInitialDisplay({ label: `หน่วย #${sid}`, subLabel: `ID ${sid}` });
+        }
+      } else {
+        setSubUnitInitialDisplay(undefined);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, item]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,6 +139,11 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
       return;
     }
 
+    if (subUnitQtyStr.trim() && !subUnitIdStr.trim()) {
+      setError('เลือกหน่วยย่อยเมื่อระบุจำนวนต่อหลัก');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
@@ -120,6 +155,23 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
         if (!Number.isNaN(n) && n > 0) {
           payload.UnitID = n;
         }
+      }
+      if (subUnitIdStr.trim()) {
+        const n = parseInt(subUnitIdStr, 10);
+        if (!Number.isNaN(n) && n > 0) {
+          payload.SubUnitID = n;
+        }
+      } else {
+        payload.SubUnitID = null;
+      }
+      const qt = subUnitQtyStr.trim();
+      if (qt) {
+        const n = parseInt(qt, 10);
+        if (!Number.isNaN(n) && n >= 1) {
+          payload.SubUnitQty = n;
+        }
+      } else {
+        payload.SubUnitQty = null;
       }
 
       const response = await itemsApi.update(item.itemcode, payload);
@@ -148,7 +200,9 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
       <DialogContent className="sm:max-w-2xl min-w-0">
         <DialogHeader>
           <DialogTitle>แก้ไขสินค้า (Master)</DialogTitle>
-          <DialogDescription>แก้ไขชื่อและหน่วยนับ: {item?.itemcode || ''}</DialogDescription>
+          <DialogDescription>
+            แก้ไขชื่อ หน่วยหลัก และหน่วยย่อย (แสดงผล): {item?.itemcode || ''}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
@@ -192,8 +246,8 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
 
             <SearchableSelect
               positionMode="floating"
-              label="หน่วยนับ (Unit)"
-              placeholder="เลือกหน่วย (ค้นหาได้)"
+              label="หน่วยหลัก (stock / ธุรกรรม)"
+              placeholder="เลือกหน่วยหลัก"
               value={unitIdStr}
               onValueChange={(value) => {
                 setUnitIdStr(value);
@@ -220,6 +274,53 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
               searchPlaceholder="ค้นหาชื่อหน่วย..."
               initialDisplay={unitInitialDisplay}
             />
+
+            <SearchableSelect
+              positionMode="floating"
+              label="หน่วยย่อย (แสดงผลเท่านั้น)"
+              placeholder="เช่น เม็ด"
+              value={subUnitIdStr}
+              onValueChange={(value) => {
+                setSubUnitIdStr(value);
+                if (value.trim()) {
+                  const id = parseInt(value, 10);
+                  const row = unitRows.find((u) => u.id === id);
+                  if (row) {
+                    setSubUnitInitialDisplay({
+                      label: row.unitName || `หน่วย #${id}`,
+                      subLabel: `ID ${id}`,
+                    });
+                  }
+                } else {
+                  setSubUnitInitialDisplay(undefined);
+                }
+              }}
+              options={unitRows.map((u) => ({
+                value: String(u.id),
+                label: u.unitName || `หน่วย #${u.id}`,
+                subLabel: `ID ${u.id}`,
+              }))}
+              loading={loadingUnits}
+              onSearch={loadUnits}
+              searchPlaceholder="ค้นหาชื่อหน่วย..."
+              initialDisplay={subUnitInitialDisplay}
+            />
+
+            <div>
+              <Label htmlFor="edit-item-subunit-qty">จำนวนหน่วยย่อยต่อ 1 หน่วยหลัก</Label>
+              <Input
+                id="edit-item-subunit-qty"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                placeholder="เช่น 18"
+                value={subUnitQtyStr}
+                onChange={(e) => setSubUnitQtyStr(e.target.value)}
+                disabled={loading}
+                className="mt-1"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">แสดงผลเท่านั้น — ไม่แปลง stock</p>
+            </div>
           </div>
 
           <DialogFooter>

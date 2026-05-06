@@ -24,6 +24,8 @@ import {
 } from '../constants';
 import type { SelectedLine } from '../types';
 import { clampCopies } from '../utils';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
+import type { Item } from '@/types/item';
 
 type Department = { ID: number; DepName?: string; DepName2?: string };
 
@@ -223,8 +225,19 @@ export function PrintStickerOrderCard({
                         </Button>
                       </TableCell>
                       <TableCell className="align-middle py-2 font-mono text-sm">{line.itemcode}</TableCell>
-                      <TableCell className="max-w-[140px] truncate align-middle py-2 text-sm" title={line.itemname}>
-                        {line.itemname}
+                      <TableCell className="max-w-[180px] min-w-0 align-middle py-2 text-sm">
+                        <ItemNameWithUnit
+                          item={
+                            {
+                              itemcode: line.itemcode,
+                              itemname: line.itemname,
+                              SubUnitQty: line.SubUnitQty,
+                              unit: line.unit,
+                              subUnit: line.subUnit,
+                            } as Item
+                          }
+                          qtyMain={line.copies}
+                        />
                       </TableCell>
                       <TableCell className="align-middle py-2">
                         <div className="flex min-h-8 items-center [&_label]:sr-only [&_button]:h-8 [&_button]:min-h-8">

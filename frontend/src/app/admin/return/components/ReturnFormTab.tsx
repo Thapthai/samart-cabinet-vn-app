@@ -15,6 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import ItemNameWithUnit from '@/components/ItemNameWithUnit';
+import type { Item } from '@/types/item';
 import type { WillReturnItem } from '../types';
 
 const ITEM_PAGE_SIZE = 15;
@@ -259,8 +261,8 @@ export default function ReturnFormTab({
                         <TableCell>
                           <code className="text-xs bg-slate-100 px-2 py-0.5 rounded">{item.ItemCode}</code>
                         </TableCell>
-                        <TableCell className="font-medium text-slate-800">
-                          {item.itemname ?? item.ItemCode}
+                        <TableCell className="min-w-0 max-w-[260px] text-slate-800">
+                          <ItemNameWithUnit item={item as unknown as Item} />
                         </TableCell>
                         <TableCell className="text-slate-600 text-sm whitespace-pre-line">
                           Division {item.department_name ?? '-'}

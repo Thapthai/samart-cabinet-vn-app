@@ -8,6 +8,11 @@ import {
   formatReportDateTime,
   formatReportDateTimeUtc,
 } from '../utils/date-timeformat';
+import {
+  formatQtyWithMainUnitForReport,
+  formatSignedQtyWithMainUnitForReport,
+  type ReportItemUnitFields,
+} from '../utils/format-item-qty';
 
 /** filter วันที่เริ่ม/สิ้นสุด: ว่าง = ทั้งหมด — แสดงตาม UTC ให้ตรง DB */
 function formatFilterDateOnly(v?: string | null): string {
@@ -186,14 +191,15 @@ export class ItemComparisonPdfService {
           doc.y = rowY + itemHeight;
         } else {
           comparisonData.forEach((item, sIdx) => {
+            const u = item as ReportItemUnitFields;
             const difference =
               (item.total_dispensed ?? 0) - (item.total_used ?? 0) - (item.total_returned ?? 0);
             const sTexts = [
               String(sIdx + 1),
               item.itemname ?? '-',
-              String(item.total_dispensed ?? 0),
-              String(item.total_used ?? 0),
-              String(difference),
+              formatQtyWithMainUnitForReport(item.total_dispensed ?? 0, u),
+              formatQtyWithMainUnitForReport(item.total_used ?? 0, u),
+              formatSignedQtyWithMainUnitForReport(difference, u),
             ];
             doc.fontSize(14).font(finalFontName);
             const sHeights = sTexts.map((text, i) => {
@@ -299,7 +305,7 @@ export class ItemComparisonPdfService {
           'วัน-เวลา',
           'Item Code',
           'รายละเอียด',
-          'จำนวน',
+          'จำนวน (หน่วยหลัก)',
           'Assession No',
           'สถานะ',
           'HN/EN',
@@ -315,7 +321,7 @@ export class ItemComparisonPdfService {
           const cw = mCw();
           const wDt = 116;
           const wCode = 78;
-          const wQty = 32;
+          const wQty = 140;
           const wAss = 70;
           const wSt = 44;
           const wHnEn = 82;
@@ -389,6 +395,7 @@ export class ItemComparisonPdfService {
           const usages = (item.usageItems ?? []) as UsageDetail[];
           if (usages.length === 0) continue;
 
+          const uctx = item as ReportItemUnitFields;
           const sorted = [...usages].sort((a, b) => {
             const ta = new Date(
               (a as any).supply_item_created_at ?? a.usage_datetime ?? 0,
@@ -421,7 +428,7 @@ export class ItemComparisonPdfService {
               formatReportDateTimeUtc(dt),
               code,
               desc,
-              String(qty),
+              formatQtyWithMainUnitForReport(qty, uctx),
               assessionNo,
               status,
               hnEn,
@@ -465,7 +472,7 @@ export class ItemComparisonPdfService {
             width: labelWidth,
             align: 'center',
           });
-          doc.text(String(groupQty), xQtyCol + 3, subY + 8, {
+          doc.text(formatQtyWithMainUnitForReport(groupQty, uctx), xQtyCol + 3, subY + 8, {
             width: wQtyInner,
             align: 'center',
           });

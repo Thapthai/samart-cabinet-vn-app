@@ -1,5 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import type { ComparisonItem, SummaryData } from '../../types';
+import type { Item } from '@/types/item';
+import QtyWithMainUnit from '@/components/QtyWithMainUnit';
 
 interface SummaryCardsProps {
   selectedItem: ComparisonItem;
@@ -13,7 +15,13 @@ export function SummaryCards({ selectedItem, summary }: SummaryCardsProps) {
         <CardContent className="pt-6">
           <div className="text-center">
             <p className="text-sm text-gray-500">จำนวนเบิก</p>
-            <p className="text-3xl font-bold text-blue-600">{selectedItem.total_dispensed}</p>
+            <div className="mt-1 flex justify-center text-blue-600">
+              <QtyWithMainUnit
+                className="[&>span:first-child]:text-3xl [&>span:first-child]:font-bold [&>span:last-child]:text-sm"
+                qty={selectedItem.total_dispensed}
+                item={selectedItem as unknown as Item}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -21,7 +29,13 @@ export function SummaryCards({ selectedItem, summary }: SummaryCardsProps) {
         <CardContent className="pt-6">
           <div className="text-center">
             <p className="text-sm text-gray-500">จำนวนใช้</p>
-            <p className="text-3xl font-bold text-green-600">{selectedItem.total_used}</p>
+            <div className="mt-1 flex justify-center text-green-600">
+              <QtyWithMainUnit
+                className="[&>span:first-child]:text-3xl [&>span:first-child]:font-bold [&>span:last-child]:text-sm"
+                qty={selectedItem.total_used}
+                item={selectedItem as unknown as Item}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

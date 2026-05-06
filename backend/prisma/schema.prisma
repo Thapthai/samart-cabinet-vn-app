@@ -210,6 +210,10 @@ model Item {
   IsNormal                 String?   @default("1") @db.VarChar(1)
   itemtypeID               Int?
   UnitID                   Int?      @default(0)
+  /// FK units.ID — หน่วยย่อยสำหรับป้าย/คำอธิบาย (เช่น เม็ด) ไม่ใช้ในสูตร stock
+  SubUnitID                Int?      @map("sub_unit_id")
+  /// จำนวนหน่วยย่อยต่อ 1 หน่วยหลัก (เช่น 18 เม็ด/กล่อง) — แสดงผลเท่านั้น
+  SubUnitQty               Int?      @map("sub_unit_qty")
   SpecialID                Int?      @default(0)
   DepartmentID             Int?      @default(0)
   ShelfLifeID              Int?      @default(0)
@@ -322,9 +326,11 @@ model Item {
   itemStocks              ItemStock[]
   itemSlotInCabinet       ItemSlotInCabinet[]
   itemSlotInCabinetDetail ItemSlotInCabinetDetail[] @relation("DetailToItem")
-  unit                    Unit?                     @relation(fields: [UnitID], references: [ID], onDelete: SetNull)
+  unit                    Unit?                     @relation("ItemMainUnit", fields: [UnitID], references: [ID], onDelete: SetNull)
+  subUnit                 Unit?                     @relation("ItemSubUnit", fields: [SubUnitID], references: [ID], onDelete: SetNull)
 
   @@index([itemtypeID])
+  @@index([SubUnitID], map: "idx_item_sub_unit_id")
   @@map("item")
 }
 
@@ -780,7 +786,8 @@ model Unit {
   B_ID     Int?     @map("B_ID")
 
   // Relations
-  items Item[]
+  items        Item[] @relation("ItemMainUnit")
+  itemsSubUnit Item[] @relation("ItemSubUnit")
 
   @@map("units")
 }
