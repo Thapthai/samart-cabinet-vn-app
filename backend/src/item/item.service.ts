@@ -1021,6 +1021,251 @@ export class ItemService {
     }
   }
 
+  /**
+   * รายการ ItemSlotInCabinetDetail ที่ IsBorrow = true
+   * DepID → department.ID (แผนกที่ยืม)
+   * StockID → app_cabinets.stock_id → app_cabinet_departments → department(s) (Division ที่ตั้งตู้ / ที่อยู่)
+   */
+  async findBorrowItemStocks(params: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
+    departmentId?: number;
+    cabinetId?: number;
+    borrowDepartmentId?: number;
+  }) {
+    try {
+      const page = Math.max(1, params.page ?? 1);
+      const limit = Math.min(100, Math.max(1, params.limit ?? 20));
+      const skip = (page - 1) * limit;
+      const keyword = params.keyword?.trim();
+
+      const where: Prisma.ItemSlotInCabinetDetailWhereInput = {
+        IsBorrow: true,
+      };
+      if (keyword) {
+        where.AND = [
+          {
+            OR: [
+              { itemcode: { contains: keyword } },
+              { HnCode: { contains: keyword } },
+              {
+                item: {
+                  OR: [
+                    { itemcode: { contains: keyword } },
+                    { itemname: { contains: keyword } },
+                  ],
+                },
+              },
+            ],
+          },
+        ];
+      }
+      if (params.borrowDepartmentId != null) {
+        where.DepID = params.borrowDepartmentId;
+      }
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (
+        (params.startDate && dateRegex.test(params.startDate)) ||
+        (params.endDate && dateRegex.test(params.endDate))
+      ) {
+        const dateRange: Prisma.DateTimeFilter = {};
+        if (params.startDate && dateRegex.test(params.startDate)) {
+          dateRange.gte = new Date(`${params.startDate}T00:00:00.000Z`);
+        }
+        if (params.endDate && dateRegex.test(params.endDate)) {
+          dateRange.lte = new Date(`${params.endDate}T23:59:59.999Z`);
+        }
+        where.ModifyDate = dateRange;
+      }
+
+      const mergeStockIds = (
+        current: number[] | null,
+        incoming: number[],
+      ): number[] => {
+        if (current == null) return [...new Set(incoming)];
+        const inSet = new Set(incoming);
+        return current.filter((id) => inSet.has(id));
+      };
+
+      let allowedStockIds: number[] | null = null;
+      if (params.cabinetId != null) {
+        const cab = await this.prisma.cabinet.findUnique({
+          where: { id: params.cabinetId },
+          select: { stock_id: true },
+        });
+        const one = cab?.stock_id != null ? [cab.stock_id] : [];
+        allowedStockIds = mergeStockIds(allowedStockIds, one);
+      }
+      if (params.departmentId != null) {
+        const links = await this.prisma.cabinetDepartment.findMany({
+          where: {
+            department_id: params.departmentId,
+            status: 'ACTIVE',
+            cabinet_id: { not: null },
+          },
+          select: { cabinet_id: true },
+        });
+        const cabinetIds = links
+          .map((l) => l.cabinet_id)
+          .filter((id): id is number => id != null);
+        const cabinetsByDept =
+          cabinetIds.length > 0
+            ? await this.prisma.cabinet.findMany({
+                where: { id: { in: cabinetIds }, stock_id: { not: null } },
+                select: { stock_id: true },
+              })
+            : [];
+        const stockIdsByDept = cabinetsByDept
+          .map((c) => c.stock_id)
+          .filter((id): id is number => id != null);
+        allowedStockIds = mergeStockIds(allowedStockIds, stockIdsByDept);
+      }
+      if (allowedStockIds != null && allowedStockIds.length === 0) {
+        return {
+          success: true,
+          data: [],
+          total: 0,
+          page,
+          limit,
+          lastPage: 1,
+        };
+      }
+      if (allowedStockIds != null) {
+        where.StockID = { in: allowedStockIds };
+      }
+
+      const [total, rows] = await Promise.all([
+        this.prisma.itemSlotInCabinetDetail.count({ where }),
+        this.prisma.itemSlotInCabinetDetail.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { id: 'desc' },
+          include: {
+            item: { select: { itemcode: true, itemname: true } },
+            borrowDepartment: {
+              select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
+            },
+          },
+        }),
+      ]);
+
+      const stockIds = [...new Set(rows.map((r) => r.StockID))];
+      const cabinets =
+        stockIds.length > 0
+          ? await this.prisma.cabinet.findMany({
+              where: { stock_id: { in: stockIds } },
+              select: { id: true, stock_id: true, cabinet_name: true, cabinet_code: true },
+            })
+          : [];
+      const stockIdToCabinet = new Map(
+        cabinets.filter((c) => c.stock_id != null).map((c) => [c.stock_id as number, c]),
+      );
+
+      const cabinetIds = cabinets.map((c) => c.id);
+      const cdLinks =
+        cabinetIds.length > 0
+          ? await this.prisma.cabinetDepartment.findMany({
+              where: {
+                cabinet_id: { in: cabinetIds },
+                status: 'ACTIVE',
+                department_id: { not: null },
+              },
+              include: {
+                department: {
+                  select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
+                },
+              },
+            })
+          : [];
+
+      type DivRow = {
+        ID: number;
+        DepName?: string | null;
+        DepName2?: string | null;
+        RefDepID?: string | null;
+      };
+      const divisionsByCabinetId = new Map<number, DivRow[]>();
+      for (const link of cdLinks) {
+        if (link.cabinet_id == null || link.department == null) continue;
+        const d = link.department;
+        const arr = divisionsByCabinetId.get(link.cabinet_id) ?? [];
+        if (!arr.some((x) => x.ID === d.ID)) {
+          arr.push({
+            ID: d.ID,
+            DepName: d.DepName,
+            DepName2: d.DepName2,
+            RefDepID: d.RefDepID,
+          });
+        }
+        divisionsByCabinetId.set(link.cabinet_id, arr);
+      }
+
+      const data = rows.map((d) => {
+        const cab = stockIdToCabinet.get(d.StockID);
+        const cabinetDivisions = cab ? divisionsByCabinetId.get(cab.id) ?? [] : [];
+        const bd = d.borrowDepartment;
+        return {
+          rowId: d.id,
+          sel: d.Sel,
+          itemCode: d.itemcode,
+          itemName: d.item?.itemname ?? null,
+          hnCode: d.HnCode,
+          qty: d.Qty,
+          depId: d.DepID ?? null,
+          /** แผนกที่ยืม (จาก DepID) */
+          borrowDepartment: bd
+            ? {
+                ID: bd.ID,
+                DepName: bd.DepName,
+                DepName2: bd.DepName2,
+                RefDepID: bd.RefDepID,
+              }
+            : null,
+          stockId: d.StockID,
+          slotNo: d.SlotNo,
+          sensor: d.Sensor,
+          sign: d.Sign,
+          userId: d.UserID,
+          isDeproom: d.IsDeproom,
+          modifyDate: d.ModifyDate?.toISOString?.() ?? null,
+          cabinet: cab
+            ? {
+                id: cab.id,
+                cabinet_name: cab.cabinet_name,
+                cabinet_code: cab.cabinet_code,
+              }
+            : null,
+          /** Division ที่ตั้งตู้ (StockID → ตู้ → แผนกที่ผูกตู้) */
+          cabinetDivisions,
+        };
+      });
+
+      return {
+        success: true,
+        data,
+        total,
+        page,
+        limit,
+        lastPage: Math.max(1, Math.ceil(total / limit)),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'ดึงรายการยืมไม่สำเร็จ',
+        error: (error as Error)?.message ?? String(error),
+        data: [],
+        total: 0,
+        page: params.page ?? 1,
+        limit: params.limit ?? 20,
+        lastPage: 1,
+      };
+    }
+  }
+
   // ====================================== Item Stock IN Cabinet API ======================================
 
   async findAllItemStockInCabinet(

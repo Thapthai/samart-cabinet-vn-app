@@ -634,6 +634,7 @@ model Department {
   medicalSupplyUsages            MedicalSupplyUsage[]            @relation("MedicalSupplyUsageMainDepartment")
   staffRolePermissionDepartments StaffRolePermissionDepartment[]
   users                          User[]
+  itemSlotBorrowDetails          ItemSlotInCabinetDetail[]      @relation("ItemSlotDetailBorrowDepartment")
 
   @@map("department")
 }
@@ -720,11 +721,15 @@ model ItemSlotInCabinetDetail {
   UserID     Int      @map("UserID")
   IsDeproom  String   @map("IsDeproom") @db.VarChar(25)
   Sign       String   @map("Sign")
+  IsBorrow   Boolean? @default(false) @map("IsBorrow")
+  /** แผนกที่ยืม — เชื่อม department.ID */
+  DepID      Int?     @map("DepID")
 
   // Relations
   itemSlotInCabinet ItemSlotInCabinet @relation("DetailToSlot", fields: [itemcode], references: [itemcode], map: "detail_to_slot_fkey")
   item              Item?             @relation("DetailToItem", fields: [itemcode], references: [itemcode], map: "detail_to_item_fkey")
   userCabinet       UserCabinet?      @relation(fields: [UserID], references: [cabinet_finger_id])
+  borrowDepartment  Department?       @relation("ItemSlotDetailBorrowDepartment", fields: [DepID], references: [ID], onDelete: SetNull)
 
   @@map("itemslotincabinet_detail")
 }

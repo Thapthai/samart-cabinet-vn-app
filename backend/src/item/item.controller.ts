@@ -205,6 +205,38 @@ export class ItemStockController {
     return this.itemService.createItemStocksForPrint(body.lines);
   }
 
+  /** รายการยืมจาก itemslotincabinet_detail (IsBorrow) + ตู้จาก StockID + Division จาก cabinet→department */
+  @Get('borrow')
+  async findBorrow(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('keyword') keyword?: string,
+    @Query('start_date') start_date?: string,
+    @Query('end_date') end_date?: string,
+    @Query('department_id') department_id?: string,
+    @Query('cabinet_id') cabinet_id?: string,
+    @Query('borrow_department_id') borrow_department_id?: string,
+  ) {
+    const departmentId =
+      department_id != null && department_id !== '' ? parseInt(department_id, 10) : undefined;
+    const cabinetId =
+      cabinet_id != null && cabinet_id !== '' ? parseInt(cabinet_id, 10) : undefined;
+    const borrowDepartmentId =
+      borrow_department_id != null && borrow_department_id !== ''
+        ? parseInt(borrow_department_id, 10)
+        : undefined;
+    return this.itemService.findBorrowItemStocks({
+      page,
+      limit,
+      keyword,
+      startDate: start_date,
+      endDate: end_date,
+      departmentId: Number.isNaN(departmentId) ? undefined : departmentId,
+      cabinetId: Number.isNaN(cabinetId) ? undefined : cabinetId,
+      borrowDepartmentId: Number.isNaN(borrowDepartmentId) ? undefined : borrowDepartmentId,
+    });
+  }
+
   @Get()
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,

@@ -18,6 +18,7 @@ import {
   Layers,
   Printer,
   Ruler,
+  BookMarked,
 } from 'lucide-react';
 // Type definitions for menu and submenu
 export interface StaffMenuSubItem {
@@ -103,6 +104,12 @@ export const adminMenuItems: StaffMenuItem[] = [
         href: '/admin/items',
         description: 'เมนูสต๊อกอุปกรณ์ที่มีในตู้ SmartCabinet',
         icon: Package,
+      },
+      {
+        name: 'อุปกรณ์ยืม',
+        href: '/admin/item-borrow',
+        description: 'รายการยืมจาก slot detail + Division จากตู้',
+        icon: BookMarked,
       },
       {
         name: 'เบิกอุปกรณ์จากตู้',

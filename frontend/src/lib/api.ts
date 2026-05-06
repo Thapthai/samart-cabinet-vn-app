@@ -1887,6 +1887,47 @@ export const itemStockApi = {
     return response.data;
   },
 
+  /** รายการยืมจาก ItemSlotInCabinetDetail (IsBorrow) + ตู้ (StockID) + Division(s) */
+  getBorrowList: async (params?: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    start_date?: string;
+    end_date?: string;
+    department_id?: number;
+    cabinet_id?: number;
+    borrow_department_id?: number;
+  }): Promise<{
+    success: boolean;
+    data: Array<{
+      rowId: number;
+      sel: number;
+      itemCode: string | null;
+      itemName: string | null;
+      hnCode: string | null;
+      qty: number | null;
+      depId: number | null;
+      borrowDepartment: { ID: number; DepName?: string | null; DepName2?: string | null; RefDepID?: string | null } | null;
+      stockId: number | null;
+      slotNo: number | null;
+      sensor: number | null;
+      sign: string | null;
+      userId: number | null;
+      isDeproom: string | null;
+      modifyDate: string | null;
+      cabinet: { id: number; cabinet_name?: string | null; cabinet_code?: string | null } | null;
+      cabinetDivisions: Array<{ ID: number; DepName?: string | null; DepName2?: string | null; RefDepID?: string | null }>;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+    lastPage: number;
+    message?: string;
+  }> => {
+    const response = await api.get('/item-stocks/borrow', { params });
+    return response.data;
+  },
+
   /** สร้างแถว itemstock + RFID เฮกซ์ 24 ตัวตามจำนวนแผ่น (ก่อนพิมพ์ฉลาก) */
   createForPrint: async (body: {
     lines: Array<{
