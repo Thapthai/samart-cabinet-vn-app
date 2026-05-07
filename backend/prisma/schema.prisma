@@ -210,9 +210,9 @@ model Item {
   IsNormal                 String?   @default("1") @db.VarChar(1)
   itemtypeID               Int?
   UnitID                   Int?      @default(0)
-  /// FK units.ID — หน่วยย่อยสำหรับป้าย/คำอธิบาย (เช่น เม็ด) ไม่ใช้ในสูตร stock
+  /// FK units.ID — หน่วยการเบิกสำหรับป้าย/คำอธิบาย (เช่น เม็ด) ไม่ใช้ในสูตร stock
   SubUnitID                Int?      @map("sub_unit_id")
-  /// จำนวนหน่วยย่อยต่อ 1 หน่วยหลัก (เช่น 18 เม็ด/กล่อง) — แสดงผลเท่านั้น
+  /// จำนวนหน่วยการเบิกต่อ 1 หน่วยหลัก (เช่น 18 เม็ด/กล่อง) — แสดงผลเท่านั้น
   SubUnitQty               Int?      @map("sub_unit_qty")
   SpecialID                Int?      @default(0)
   DepartmentID             Int?      @default(0)

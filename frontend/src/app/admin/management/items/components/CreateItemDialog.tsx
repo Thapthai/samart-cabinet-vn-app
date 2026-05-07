@@ -241,7 +241,7 @@ export default function CreateItemDialog({
                   <FormControl>
                     <SearchableSelect
                       positionMode="floating"
-                      label="หน่วยย่อย (แสดงผลเท่านั้น)"
+                      label="หน่วยการเบิก (แสดงผลเท่านั้น)"
                       placeholder="เช่น เม็ด — ไม่ใช้คำนวณ stock"
                       value={field.value != null && field.value > 0 ? String(field.value) : ''}
                       onValueChange={(value) => {
@@ -280,7 +280,7 @@ export default function CreateItemDialog({
               name="SubUnitQty"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>จำนวนหน่วยย่อยต่อ 1 หน่วยหลัก</FormLabel>
+                  <FormLabel>จำนวนหน่วยการเบิกต่อ 1 หน่วยหลัก</FormLabel>
                   <FormControl>
                     <Input
                       type="number"

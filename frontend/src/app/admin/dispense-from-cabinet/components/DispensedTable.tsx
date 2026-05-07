@@ -122,7 +122,7 @@ export default function DispensedTable({
                     <TableHead>ชื่ออุปกรณ์</TableHead>
                     <TableHead className="text-center">
                       <span className="block">จำนวน</span>
-                      <span className="block text-xs font-normal text-muted-foreground">หน่วยหลัก</span>
+                      <span className="block text-xs font-normal text-muted-foreground">หน่วยการเบิก</span>
                     </TableHead>
                     <TableHead>วันที่เบิก</TableHead>
                     <TableHead>Division</TableHead>
@@ -201,11 +201,13 @@ export default function DispensedTable({
                                         <TableHead className="text-center">
                                           <span className="block">จำนวน</span>
                                           <span className="block text-xs font-normal text-muted-foreground">
-                                            หน่วยหลัก
+                                            หน่วยการเบิก
                                           </span>
                                         </TableHead>
                                         <TableHead>วันที่เบิก</TableHead>
-                                        <TableHead>Division</TableHead>
+                                        <TableHead>Division (ที่ตั้งตู้)</TableHead>
+                                        <TableHead className="min-w-[120px]">Division ที่ยืม</TableHead>
+                                        <TableHead className="w-[88px] text-center">หมายเหตุ</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -237,6 +239,20 @@ export default function DispensedTable({
                                           </TableCell>
                                           <TableCell className="text-muted-foreground text-sm">
                                             {item.departmentName || '-'}
+                                          </TableCell>
+                                          <TableCell className="text-muted-foreground text-sm">
+                                            {item.borrowDepartmentName?.trim()
+                                              ? item.borrowDepartmentName
+                                              : '-'}
+                                          </TableCell>
+                                          <TableCell className="text-center text-sm">
+                                            {item.isBorrow || item.borrowRemark ? (
+                                              <span className="inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-amber-900 border border-amber-200/80">
+                                                {item.borrowRemark?.trim() || 'ยืม'}
+                                              </span>
+                                            ) : (
+                                              '—'
+                                            )}
                                           </TableCell>
                                         </TableRow>
                                       ))}

@@ -225,8 +225,8 @@ export default function StaffItemBorrowPage() {
                     <TableHead className="min-w-[140px]">ชื่อสินค้า</TableHead>
                     <TableHead className="w-[100px]">HN</TableHead>
                     <TableHead className="text-center w-[56px]">Qty</TableHead>
-                    <TableHead className="min-w-[180px]">Division ที่ยืม (DepID)</TableHead>
-                    <TableHead className="min-w-[150px]">ตู้ (StockID)</TableHead>
+                    <TableHead className="min-w-[180px]">Division ที่ยืม</TableHead>
+                    <TableHead className="min-w-[150px]">ตู้</TableHead>
                     <TableHead className="min-w-[220px]">Division ที่ตั้งตู้</TableHead>
                     <TableHead className="min-w-[132px] whitespace-nowrap">แก้ไขล่าสุด</TableHead>
                   </TableRow>

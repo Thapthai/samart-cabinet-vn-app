@@ -6,7 +6,7 @@ export type ItemUnitFields = Pick<Item, 'unit' | 'subUnit' | 'SubUnitQty'>;
 /**
  * `กล่อง (90 เม็ด)` — N = จำนวนหน่วยหลัก × SubUnitQty เมื่อมีจำนวน;
  * ถ้าไม่ส่งจำนวน แสดงอัตราต่อหลัก `กล่อง (18 เม็ด)` (= SubUnitQty)
- * จำนวนหลัก = 0 และมีหน่วยย่อย → `0 เม็ด` (ไม่แสดง `0 กล่อง (20 เม็ด)` จากอัตราต่อหลัก)
+ * จำนวนหลัก = 0 และมีหน่วยการเบิก → `0 เม็ด` (ไม่แสดง `0 กล่อง (20 เม็ด)` จากอัตราต่อหลัก)
  */
 export function formatItemUnitBracket(
   item: ItemUnitFields,

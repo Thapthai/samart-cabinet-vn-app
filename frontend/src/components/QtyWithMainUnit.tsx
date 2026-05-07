@@ -14,9 +14,9 @@ type Props = {
 };
 
 /**
- * แสดง `9 กล่อง (18 แผง)` — ตัวเลข + หน่วยหลัก + วงเล็บ N หน่วยย่อย (N = จำนวนหลัก × SubUnitQty)
- * ถ้าไม่มีหน่วยย่อย: `3 กล่อง`
- * จำนวน 0 + มีหน่วยย่อย: `0 เม็ด` (tail จาก formatItemUnitBracket เป็น `0 เม็ด` — ไม่ซ้ำเลข 0)
+ * แสดง `9 กล่อง (18 แผง)` — ตัวเลข + หน่วยหลัก + วงเล็บ N หน่วยการเบิก (N = จำนวนหลัก × SubUnitQty)
+ * ถ้าไม่มีหน่วยการเบิก: `3 กล่อง`
+ * จำนวน 0 + มีหน่วยการเบิก: `0 เม็ด` (tail จาก formatItemUnitBracket เป็น `0 เม็ด` — ไม่ซ้ำเลข 0)
  */
 export default function QtyWithMainUnit({ qty, item, className, align = 'center' }: Props) {
   const tail = formatItemUnitBracket(item, qty);

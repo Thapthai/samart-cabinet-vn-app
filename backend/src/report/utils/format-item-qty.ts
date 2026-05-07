@@ -1,6 +1,6 @@
 /**
  * ให้ตรงกับ frontend `formatItemUnitBracket` + `QtyWithMainUnit` (single string สำหรับ Excel/PDF)
- * — หน่วยหลักเท่านั้นในการคิดจำนวน; หน่วยย่อยเป็นป้ายในวงเล็บ
+ * — หน่วยหลักเท่านั้นในการคิดจำนวน; หน่วยการเบิกเป็นป้ายในวงเล็บ
  */
 
 export type ReportItemUnitFields = {

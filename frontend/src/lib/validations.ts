@@ -32,13 +32,13 @@ export const itemSchema = z
     warehouseID: z.number().int().optional(),
     /** หน่วยหลัก — stock / ธุรกรรม */
     UnitID: z.number().int().positive().optional(),
-    /** หน่วยย่อย — แสดงผล */
+    /** หน่วยการเบิก — แสดงผล */
     SubUnitID: z.number().int().positive().optional(),
     /** เช่น 18 เม็ดต่อ 1 หน่วยหลัก */
     SubUnitQty: z.number().int().min(1).optional(),
   })
   .refine((d) => !d.SubUnitQty || (d.SubUnitID != null && d.SubUnitID > 0), {
-    message: 'เลือกหน่วยย่อยเมื่อระบุจำนวนต่อหลัก',
+    message: 'เลือกหน่วยการเบิกเมื่อระบุจำนวนต่อหลัก',
     path: ['SubUnitID'],
   });
 

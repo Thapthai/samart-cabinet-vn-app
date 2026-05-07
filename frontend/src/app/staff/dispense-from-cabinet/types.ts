@@ -19,6 +19,9 @@ export interface DispensedItem {
   SubUnitQty?: number;
   unit?: { ID?: number; UnitName?: string | null };
   subUnit?: { ID?: number; UnitName?: string | null };
+  borrowDepartmentName?: string | null;
+  isBorrow?: boolean;
+  borrowRemark?: string | null;
 }
 
 export interface FilterState {

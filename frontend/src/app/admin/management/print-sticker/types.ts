@@ -8,7 +8,7 @@ export type SelectedLine = {
   refillCap: number;
   /** วันหมดอายุ YYYY-MM-DD (ค.ศ.) ตรงกับ DatePickerBE / dispense — ว่างได้ */
   expireDate: string;
-  /** แสดงหน่วย `หลัก (N หน่วยย่อย)` — copies × SubUnitQty */
+  /** แสดงหน่วย `หลัก (N หน่วยการเบิก)` — copies × SubUnitQty */
   SubUnitQty?: number;
   unit?: { ID?: number; UnitName?: string | null };
   subUnit?: { ID?: number; UnitName?: string | null };

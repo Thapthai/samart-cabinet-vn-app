@@ -18,6 +18,12 @@ export interface DispensedItem {
   SubUnitQty?: number;
   unit?: { ID?: number; UnitName?: string | null };
   subUnit?: { ID?: number; UnitName?: string | null };
+  /** แผนกที่ยืม — จาก itemslotincabinet_detail (IsBorrow) หรือ itemstock เมื่อเป็นยืม */
+  borrowDepartmentName?: string | null;
+  /** true เมื่อยืม (slot IsBorrow หรือ itemstock.IsBorrow) */
+  isBorrow?: boolean;
+  /** แสดงเป็นหมายเหตุ เช่น "ยืม" */
+  borrowRemark?: string | null;
 }
 
 export interface FilterState {

@@ -259,7 +259,7 @@ export default function AdminItemManagementPage() {
                         <TableHead>บาร์โค้ด</TableHead>
                         <TableHead>สถานะ</TableHead>
                         <TableHead>หน่วยหลัก</TableHead>
-                        <TableHead>หน่วยย่อย</TableHead>
+                        <TableHead>หน่วยการเบิก</TableHead>
                         <TableHead className="w-[120px] text-right">จัดการ</TableHead>
                       </TableRow>
                     </TableHeader>

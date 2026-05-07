@@ -53,7 +53,7 @@ export interface Item {
   itemtypeID?: number;
   /** หน่วยหลัก — stock / ธุรกรรม */
   UnitID?: number;
-  /** หน่วยย่อย — แสดงผลเท่านั้น */
+  /** หน่วยการเบิก — แสดงผลเท่านั้น */
   SubUnitID?: number;
   /** เช่น 18 = เม็ดต่อ 1 หน่วยหลัก — ไม่ใช้คูณ stock */
   SubUnitQty?: number;
@@ -97,7 +97,7 @@ export interface Item {
 
   /** จาก Prisma include `unit` (หน่วยหลัก) */
   unit?: { ID?: number; UnitName?: string | null };
-  /** จาก Prisma include `subUnit` (หน่วยย่อย) */
+  /** จาก Prisma include `subUnit` (หน่วยการเบิก) */
   subUnit?: { ID?: number; UnitName?: string | null };
 
   // Item stocks (from API when included, e.g. findAllItems)

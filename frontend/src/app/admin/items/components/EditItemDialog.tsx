@@ -140,7 +140,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
     }
 
     if (subUnitQtyStr.trim() && !subUnitIdStr.trim()) {
-      setError('เลือกหน่วยย่อยเมื่อระบุจำนวนต่อหลัก');
+      setError('เลือกหน่วยการเบิกเมื่อระบุจำนวนต่อหลัก');
       return;
     }
 
@@ -201,7 +201,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
         <DialogHeader>
           <DialogTitle>แก้ไขสินค้า (Master)</DialogTitle>
           <DialogDescription>
-            แก้ไขชื่อ หน่วยหลัก และหน่วยย่อย (แสดงผล): {item?.itemcode || ''}
+            แก้ไขชื่อ หน่วยหลัก และหน่วยการเบิก (แสดงผล): {item?.itemcode || ''}
           </DialogDescription>
         </DialogHeader>
 
@@ -277,7 +277,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
 
             <SearchableSelect
               positionMode="floating"
-              label="หน่วยย่อย (แสดงผลเท่านั้น)"
+              label="หน่วยการเบิก (แสดงผลเท่านั้น)"
               placeholder="เช่น เม็ด"
               value={subUnitIdStr}
               onValueChange={(value) => {
@@ -307,7 +307,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
             />
 
             <div>
-              <Label htmlFor="edit-item-subunit-qty">จำนวนหน่วยย่อยต่อ 1 หน่วยหลัก</Label>
+              <Label htmlFor="edit-item-subunit-qty">จำนวนหน่วยการเบิกต่อ 1 หน่วยหลัก</Label>
               <Input
                 id="edit-item-subunit-qty"
                 type="number"

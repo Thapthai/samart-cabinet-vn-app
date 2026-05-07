@@ -213,27 +213,6 @@ export default function FilterSection({
               onSearch={loadDepartments}
               searchPlaceholder="ค้นหาชื่อ Division..."
             />
-
-            <SearchableSelect
-              label="แผนกที่ยืม"
-              placeholder="เลือกแผนกที่ยืม"
-              value={filters.borrowDepartmentId}
-              onValueChange={(value) => onFilterChange('borrowDepartmentId', value)}
-              options={[
-                { value: '', label: 'ทั้งหมด' },
-                ...departments.map((dept) => ({
-                  value: dept.ID.toString(),
-                  label: dept.DepName || '',
-                  subLabel: dept.DepName2 || '',
-                })),
-              ]}
-              loading={loadingDepartments}
-              onSearch={loadDepartments}
-              searchPlaceholder="ค้นหาชื่อแผนกที่ยืม..."
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
             <SearchableSelect
               label="ตู้ Cabinet"
               placeholder={filters.departmentId ? 'เลือกตู้ Cabinet' : 'เลือกตู้ (ทุก Division ที่มีการเชื่อม)'}
@@ -252,6 +231,26 @@ export default function FilterSection({
                 void resolveCabinets(filters.departmentId, searchKeyword);
               }}
               searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <SearchableSelect
+              label="Division ที่ยืม"
+              placeholder="เลือก Division ที่ยืม"
+              value={filters.borrowDepartmentId}
+              onValueChange={(value) => onFilterChange('borrowDepartmentId', value)}
+              options={[
+                { value: '', label: 'ทั้งหมด' },
+                ...departments.map((dept) => ({
+                  value: dept.ID.toString(),
+                  label: dept.DepName || '',
+                  subLabel: dept.DepName2 || '',
+                })),
+              ]}
+              loading={loadingDepartments}
+              onSearch={loadDepartments}
+              searchPlaceholder="ค้นหาชื่อ Division ที่ยืม..."
             />
           </div>
         </div>

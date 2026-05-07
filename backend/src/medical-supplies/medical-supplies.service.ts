@@ -3503,6 +3503,7 @@ export class MedicalSuppliesService {
           ist.StockID,
           ist.Istatus_rfid,
           ist.CabinetUserID,
+          ist.IsBorrow AS stockIsBorrow,
           COALESCE(CONCAT(employee.FirstName, ' ', employee.LastName), 'ไม่ระบุ') AS cabinetUserName,
           department.DepName AS departmentName,
           app_cabinets.cabinet_name AS cabinetName,
@@ -3511,7 +3512,34 @@ export class MedicalSuppliesService {
           i.sub_unit_id AS ItemSubUnitID,
           i.sub_unit_qty AS ItemSubUnitQty,
           u_main.UnitName AS ItemMainUnitName,
-          u_sub.UnitName AS ItemSubUnitUnitName
+          u_sub.UnitName AS ItemSubUnitUnitName,
+          (
+            SELECT borrow_dep.DepName
+            FROM itemslotincabinet_detail isd
+            INNER JOIN department borrow_dep ON borrow_dep.ID = isd.DepID
+            WHERE isd.itemcode = i.itemcode
+              AND isd.StockID = ist.StockID
+              AND isd.HnCode = ist.RfidCode
+              AND isd.IsBorrow = 1
+            ORDER BY isd.ModifyDate DESC, isd.id DESC
+            LIMIT 1
+          ) AS slotBorrowDepartmentName,
+          (
+            SELECT CASE WHEN EXISTS (
+              SELECT 1
+              FROM itemslotincabinet_detail isdx
+              WHERE isdx.itemcode = i.itemcode
+                AND isdx.StockID = ist.StockID
+                AND isdx.HnCode = ist.RfidCode
+                AND isdx.IsBorrow = 1
+            ) THEN 1 ELSE 0 END
+          ) AS slotIsBorrow,
+          (
+            SELECT dep_dep.DepName
+            FROM department dep_dep
+            WHERE dep_dep.ID = ist.DepID
+            LIMIT 1
+          ) AS stockDepDepartmentName
         FROM itemstock ist
         INNER JOIN item i ON ist.ItemCode = i.itemcode
         LEFT JOIN units u_main ON u_main.ID = i.UnitID
@@ -3554,6 +3582,21 @@ export class MedicalSuppliesService {
         const suName = raw.ItemSubUnitUnitName ?? raw.itemsubunitunitname;
         const mainLabel = uName != null ? String(uName).trim() : '';
         const subLabel = suName != null ? String(suName).trim() : '';
+        const slotBorrow = Number(raw.slotIsBorrow ?? raw.slotisborrow ?? 0) === 1;
+        const stockBorrow =
+          raw.stockIsBorrow === true ||
+          raw.stockIsBorrow === 1 ||
+          Number(raw.stockIsBorrow ?? raw.stockisborrow ?? 0) === 1;
+        const slotBorrowDept =
+          raw.slotBorrowDepartmentName != null && String(raw.slotBorrowDepartmentName).trim() !== ''
+            ? String(raw.slotBorrowDepartmentName).trim()
+            : undefined;
+        const stockDeptFallback =
+          raw.stockDepDepartmentName != null && String(raw.stockDepDepartmentName).trim() !== ''
+            ? String(raw.stockDepDepartmentName).trim()
+            : undefined;
+        const borrowDepartmentName = slotBorrowDept ?? (stockBorrow ? stockDeptFallback : undefined);
+        const isBorrow = slotBorrow || stockBorrow;
         return {
           RowID: raw.RowID != null ? Number(raw.RowID) : null,
           itemcode: raw.itemcode,
@@ -3575,6 +3618,9 @@ export class MedicalSuppliesService {
           SubUnitQty: sqty != null ? Number(sqty) : undefined,
           unit: mainLabel ? { ID: uid != null ? Number(uid) : undefined, UnitName: mainLabel } : undefined,
           subUnit: subLabel ? { ID: suid != null ? Number(suid) : undefined, UnitName: subLabel } : undefined,
+          borrowDepartmentName,
+          isBorrow,
+          borrowRemark: isBorrow ? 'ยืม' : undefined,
         };
       });
 

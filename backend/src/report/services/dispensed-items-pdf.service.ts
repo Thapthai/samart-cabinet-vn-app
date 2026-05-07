@@ -39,6 +39,19 @@ function formatReportDateTime(value?: string | Date) {
   });
 }
 
+function borrowRemarkCell(item: {
+  isBorrow?: boolean;
+  borrowRemark?: string | null;
+}): string {
+  if (item.isBorrow || (item.borrowRemark != null && String(item.borrowRemark).trim() !== '')) {
+    const r = item.borrowRemark != null ? String(item.borrowRemark).trim() : '';
+    return r || 'ยืม';
+  }
+  return '-';
+}
+
+const COL_LEFT_PDF = new Set([1, 2, 5, 6, 8]);
+
 @Injectable()
 export class DispensedItemsPdfService {
   private async registerThaiFont(doc: PDFKit.PDFDocument): Promise<boolean> {
@@ -183,11 +196,21 @@ export class DispensedItemsPdfService {
         const itemHeight = 28;
         const cellPadding = 4;
         const totalTableWidth = contentWidth;
-        const colPct = [0.07, 0.13, 0.26, 0.10, 0.16, 0.12, 0.16];
+        const colPct = [0.06, 0.09, 0.19, 0.08, 0.13, 0.12, 0.12, 0.07, 0.14];
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
         if (sumW < totalTableWidth) colWidths[2] += totalTableWidth - sumW;
-        const headers = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวน (หน่วยหลัก)', 'วันที่เบิก', 'แผนก', 'ชื่อผู้เบิก'];
+        const headers = [
+          'ลำดับ',
+          'รหัสอุปกรณ์',
+          'ชื่ออุปกรณ์',
+          'จำนวน (หน่วยการเบิก)',
+          'วันที่เบิก',
+          'Division ที่ตั้งตู้',
+          'Division ที่ยืม',
+          'หมายเหตุ',
+          'ชื่อผู้เบิก',
+        ];
 
         const drawTableHeader = (y: number) => {
           let x = margin;
@@ -195,7 +218,7 @@ export class DispensedItemsPdfService {
           doc.rect(margin, y, totalTableWidth, itemHeight).fill('#1A365D');
           doc.fillColor('#FFFFFF');
           headers.forEach((h, i) => {
-            doc.text(h, x + cellPadding, y + 8, {
+            doc.text(h, x + cellPadding, y + 6, {
               width: Math.max(2, colWidths[i] - cellPadding * 2),
               align: 'center',
             });
@@ -228,15 +251,18 @@ export class DispensedItemsPdfService {
           let rowNum = 1;
           for (const group of groups) {
             const qtyDisplay = formatQtyWithMainUnitForReport(group.totalQty, group.items[0] ?? {});
+            const g0 = group.items[0];
             const groupCellTexts = [
               String(rowNum),
               group.itemcode ?? '-',
               group.itemname ?? '-',
               qtyDisplay,
               formatReportDateTime(group.dispenseTime),
-              group.items[0]?.departmentName ?? '-',
+              g0?.departmentName ?? '-',
+              g0?.borrowDepartmentName?.trim() ? g0.borrowDepartmentName : '-',
+              borrowRemarkCell(g0 ?? {}),
               (() => {
-                const n = group.items[0]?.cabinetUserName?.trim();
+                const n = g0?.cabinetUserName?.trim();
                 return n && n !== 'ไม่ระบุ' ? n : '-';
               })(),
             ];
@@ -256,14 +282,14 @@ export class DispensedItemsPdfService {
             }
             const groupRowY = doc.y;
             let xPos = margin;
-            for (let i = 0; i < 7; i++) {
+            for (let i = 0; i < 9; i++) {
               const cw = colWidths[i];
               const w = Math.max(4, cw - cellPadding * 2);
               doc.rect(xPos, groupRowY, cw, groupRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
               doc.fontSize(12).font(finalFontBoldName).fillColor('#1A365D');
               doc.text(groupCellTexts[i] ?? '-', xPos + cellPadding, groupRowY + cellPadding, {
                 width: w,
-                align: i === 1 || i === 2 || i === 4 || i === 6 ? 'left' : 'center',
+                align: COL_LEFT_PDF.has(i) ? 'left' : 'center',
               });
               xPos += cw;
             }
@@ -272,15 +298,15 @@ export class DispensedItemsPdfService {
 
             group.items.forEach((item, subIdx) => {
               const cellTexts = [
-                // `${rowNum}.${subIdx + 1}`,
                 '',
                 item?.itemcode ?? '-',
                 item?.itemname ?? '-',
                 formatQtyWithMainUnitForReport(item?.qty ?? 1, item ?? {}),
                 formatReportDateTime(item?.modifyDate as string),
                 item?.departmentName ?? '-',
-                // item?.RfidCode ?? '-',
-                '',
+                item?.borrowDepartmentName?.trim() ? item.borrowDepartmentName : '-',
+                borrowRemarkCell(item ?? {}),
+                item?.cabinetUserName && item.cabinetUserName !== 'ไม่ระบุ' ? item.cabinetUserName : '-',
               ];
               const cellHeights = cellTexts.map((text, i) => {
                 const w = Math.max(4, colWidths[i] - cellPadding * 2);
@@ -297,14 +323,14 @@ export class DispensedItemsPdfService {
               }
               const rowY = doc.y;
               let x = margin;
-              for (let i = 0; i < 7; i++) {
+              for (let i = 0; i < 9; i++) {
                 const cw = colWidths[i];
                 const w = Math.max(4, cw - cellPadding * 2);
                 doc.rect(x, rowY, cw, rowHeight).fillAndStroke('#FFFFFF', '#DEE2E6');
                 doc.fontSize(12).font(finalFontName).fillColor('#000000');
                 doc.text(cellTexts[i] ?? '-', x + cellPadding, rowY + cellPadding, {
                   width: w,
-                  align: i === 1 || i === 2 || i === 4 || i === 6 ? 'left' : 'center',
+                  align: COL_LEFT_PDF.has(i) ? 'left' : 'center',
                 });
                 x += cw;
               }
@@ -322,6 +348,8 @@ export class DispensedItemsPdfService {
               formatQtyWithMainUnitForReport(item?.qty ?? 1, item ?? {}),
               formatReportDateTime(item?.modifyDate as string),
               item?.departmentName ?? '-',
+              item?.borrowDepartmentName?.trim() ? item.borrowDepartmentName : '-',
+              borrowRemarkCell(item ?? {}),
               item?.cabinetUserName ?? 'ไม่ระบุ',
             ];
             doc.fontSize(13).font(finalFontName);
@@ -341,14 +369,14 @@ export class DispensedItemsPdfService {
             const rowY = doc.y;
             const bg = idx % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
             let xPos = margin;
-            for (let i = 0; i < 7; i++) {
+            for (let i = 0; i < 9; i++) {
               const cw = colWidths[i];
               const w = Math.max(4, cw - cellPadding * 2);
               doc.rect(xPos, rowY, cw, rowHeight).fillAndStroke(bg, '#DEE2E6');
               doc.fontSize(13).font(finalFontName).fillColor('#000000');
               doc.text(cellTexts[i] ?? '-', xPos + cellPadding, rowY + cellPadding, {
                 width: w,
-                align: i === 1 || i === 2 || i === 4 || i === 6 ? 'left' : 'center',
+                align: COL_LEFT_PDF.has(i) ? 'left' : 'center',
               });
               xPos += cw;
             }

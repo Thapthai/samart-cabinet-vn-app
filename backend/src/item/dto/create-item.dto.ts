@@ -35,7 +35,7 @@ export class CreateItemDto {
   @Type(() => Number)
   UnitID?: number;
 
-  /** หน่วยย่อย (FK เดียวกับ units) — แสดงผล/ป้ายเท่านั้น */
+  /** หน่วยการเบิกบิก (FK เดียวกับ units) — แสดงผล/ป้ายเท่านั้น */
   @IsOptional()
   @IsInt()
   @Type(() => Number)
