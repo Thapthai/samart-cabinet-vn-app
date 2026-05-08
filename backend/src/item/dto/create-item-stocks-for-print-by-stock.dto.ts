@@ -38,9 +38,22 @@ export class CreateItemStocksForPrintByStockLineDto {
   @ValidateIf((_, v) => v != null && String(v).trim() !== '')
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'expire_date must be YYYY-MM-DD' })
   expire_date?: string;
+
+  /** Lot No — ถ้าไม่ส่งให้ระบบใช้เลขชุด P-xxx เหมือนเดิม */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  lot_no?: string;
 }
 
 export class CreateItemStocksForPrintByStockDto {
+  /** Division ที่เลือกกับตู้ (ACTIVE) — ถ้าส่งจะใช้แทนการหยิบ Division ตัวแรกของตู้ */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  department_id?: number;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

@@ -482,6 +482,356 @@ export class ItemService {
   }
 
   /**
+   * รายการเวชภัณฑ์ตาม slot ในตู้ (รวมรายการที่ยังไม่มี RFID ในตู้) + min/max/refill ต่อตู้
+   */
+  async findCabinetSlotItemsForPrint(
+    page: number,
+    limit: number,
+    cabinet_id: number,
+    department_id?: number,
+    keyword?: string,
+  ) {
+    try {
+      const skip = (page - 1) * limit;
+
+      const cabinet = await this.prisma.cabinet.findUnique({
+        where: { id: cabinet_id },
+        select: {
+          id: true,
+          stock_id: true,
+          cabinetDepartments: {
+            where: { status: 'ACTIVE' },
+            select: { department_id: true },
+          },
+        },
+      });
+
+      if (!cabinet?.stock_id) {
+        return {
+          success: false,
+          message: 'ไม่พบตู้หรือยังไม่มี stock_id',
+          data: [],
+          total: 0,
+          page,
+          limit,
+          lastPage: 0,
+        };
+      }
+
+      if (department_id != null) {
+        const linked = cabinet.cabinetDepartments.some(
+          (d) => d.department_id === department_id,
+        );
+        if (!linked) {
+          return {
+            success: false,
+            message: 'Division ที่เลือกไม่ได้ผูก ACTIVE กับตู้นี้',
+            data: [],
+            total: 0,
+            page,
+            limit,
+            lastPage: 0,
+          };
+        }
+      }
+
+      const slots = await this.prisma.itemSlotInCabinet.findMany({
+        where: { StockID: cabinet.stock_id },
+        select: { itemcode: true, SlotNo: true },
+        orderBy: [{ SlotNo: 'asc' }, { itemcode: 'asc' }],
+      });
+
+      const orderedUnique: string[] = [];
+      const seen = new Set<string>();
+      for (const s of slots) {
+        const c = typeof s.itemcode === 'string' ? s.itemcode.trim() : '';
+        if (!c || seen.has(c)) continue;
+        seen.add(c);
+        orderedUnique.push(c);
+      }
+
+      let itemcodes = orderedUnique;
+
+      const kw = keyword?.trim();
+      if (kw) {
+        if (!orderedUnique.length) {
+          itemcodes = [];
+        } else {
+          const hits = await this.prisma.item.findMany({
+            where: {
+              itemcode: { in: orderedUnique },
+              item_status: 0,
+              OR: [
+                { itemname: { contains: kw } },
+                { itemcode: { contains: kw } },
+                { itemcode2: { contains: kw } },
+                { itemcode3: { contains: kw } },
+                { Barcode: { contains: kw } },
+              ],
+            },
+            select: { itemcode: true },
+          });
+          const hitSet = new Set(hits.map((h) => h.itemcode));
+          itemcodes = orderedUnique.filter((code) => hitSet.has(code));
+        }
+      }
+
+      const total = itemcodes.length;
+      const lastPage = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
+      const pageCodes = itemcodes.slice(skip, skip + limit);
+
+      if (pageCodes.length === 0) {
+        return {
+          success: true,
+          data: [],
+          total,
+          page,
+          limit,
+          lastPage,
+        };
+      }
+
+      const cabinetStockId = cabinet.stock_id;
+
+      const itemStocksWhere: any = {
+        RfidCode: { not: '' },
+        StockID: cabinetStockId,
+      };
+
+      const deptNestedWhere: Record<string, unknown> = { status: 'ACTIVE' };
+      if (department_id != null) {
+        deptNestedWhere.department_id = department_id;
+      }
+
+      const allItemsQuery = await this.prisma.item.findMany({
+        where: {
+          itemcode: { in: pageCodes },
+          item_status: 0,
+        },
+        select: {
+          itemcode: true,
+          itemname: true,
+          UnitID: true,
+          SubUnitID: true,
+          SubUnitQty: true,
+          CostPrice: true,
+          SalePrice: true,
+          CreateDate: true,
+          stock_max: true,
+          stock_min: true,
+          item_status: true,
+          unit: { select: { ID: true, UnitName: true } },
+          subUnit: { select: { ID: true, UnitName: true } },
+          itemStocks: {
+            where: itemStocksWhere,
+            select: {
+              RowID: true,
+              StockID: true,
+              Qty: true,
+              RfidCode: true,
+              ExpireDate: true,
+              IsStock: true,
+              cabinet: {
+                select: {
+                  id: true,
+                  cabinet_name: true,
+                  cabinet_code: true,
+                  stock_id: true,
+                  cabinetDepartments: {
+                    where: deptNestedWhere,
+                    select: {
+                      id: true,
+                      department_id: true,
+                      status: true,
+                      department: {
+                        select: {
+                          ID: true,
+                          DepName: true,
+                          DepName2: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const byCode = new Map(allItemsQuery.map((i: any) => [i.itemcode, i]));
+
+      let deptCodesForUsage: string[] | null = null;
+      if (department_id != null) {
+        deptCodesForUsage = [String(department_id)];
+      } else {
+        deptCodesForUsage = cabinet.cabinetDepartments
+          .map((d) => d.department_id)
+          .filter((id): id is number => id != null)
+          .map(String);
+      }
+
+      const qtyInUseMap = new Map<string, number>();
+      if (pageCodes.length > 0) {
+        const deptInts =
+          deptCodesForUsage
+            ?.map((c) => parseInt(c, 10))
+            .filter((n) => !Number.isNaN(n)) ?? [];
+        const deptCondition =
+          deptInts.length > 0
+            ? Prisma.sql`AND msu.department_id IN (${Prisma.join(deptInts.map((id) => Prisma.sql`${id}`))})`
+            : Prisma.empty;
+        const qtyInUseRows = await this.prisma.$queryRaw<
+          { order_item_code: string; qty_in_use: bigint }[]
+        >`SELECT
+            sui.order_item_code,
+            SUM(COALESCE(sui.qty, 0) - COALESCE(sui.qty_used_with_patient, 0) - COALESCE(sui.qty_returned_to_cabinet, 0)) AS qty_in_use
+          FROM app_supply_usage_items sui
+          INNER JOIN app_medical_supply_usages msu
+            ON sui.medical_supply_usage_id = msu.id
+          WHERE sui.order_item_code IN (${Prisma.join(pageCodes.map((c) => Prisma.sql`${c}`))})
+            AND sui.order_item_code IS NOT NULL
+            AND sui.order_item_code != ''
+            AND DATE(sui.created_at) = CURDATE()
+            AND sui.order_item_status != 'Discontinue'
+            ${deptCondition}
+          GROUP BY sui.order_item_code
+        `;
+        qtyInUseRows.forEach((row) => {
+          const val = Number(row.qty_in_use ?? 0);
+          if (val > 0) qtyInUseMap.set(row.order_item_code, val);
+        });
+      }
+
+      const damagedReturnMap = new Map<string, number>();
+      if (pageCodes.length > 0) {
+        const damagedRows = await this.prisma.$queryRaw<
+          { item_code: string; total_returned: bigint }[]
+        >` SELECT
+            srr.item_code,
+            SUM(COALESCE(srr.qty_returned, 0)) AS total_returned
+          FROM app_supply_item_return_records srr
+          WHERE srr.item_code IN (${Prisma.join(pageCodes.map((c) => Prisma.sql`${c}`))})
+            AND srr.item_code IS NOT NULL
+            AND srr.item_code != ''
+            AND DATE(srr.return_datetime) = CURDATE()
+            AND (srr.stock_id = ${cabinetStockId})
+          GROUP BY srr.item_code
+        `;
+        damagedRows.forEach((row) => {
+          const val = Number(row.total_returned ?? 0);
+          if (val > 0) damagedReturnMap.set(row.item_code, val);
+        });
+      }
+
+      const overrideMap = new Map<
+        string,
+        { stock_min?: number | null; stock_max?: number | null }
+      >();
+      const overrides = await this.prisma.cabinetItemSetting.findMany({
+        where: {
+          cabinet_id,
+          item_code: { in: pageCodes },
+        },
+        select: { item_code: true, stock_min: true, stock_max: true },
+      });
+      overrides.forEach((o) => {
+        overrideMap.set(o.item_code, {
+          stock_min: o.stock_min,
+          stock_max: o.stock_max,
+        });
+      });
+
+      const now = new Date();
+      const in7Days = new Date(now);
+      in7Days.setDate(in7Days.getDate() + 7);
+
+      const data: any[] = [];
+
+      for (const code of pageCodes) {
+        const item = byCode.get(code) as any;
+        if (!item) continue;
+
+        let matchingItemStocks = item.itemStocks as any[];
+        if (department_id != null) {
+          matchingItemStocks = item.itemStocks.filter(
+            (stock: any) =>
+              stock.cabinet?.cabinetDepartments &&
+              stock.cabinet.cabinetDepartments.length > 0,
+          );
+        }
+
+        const countItemStock = matchingItemStocks.filter(
+          (s: any) => s.IsStock === true || s.IsStock === 1,
+        ).length;
+
+        const override = overrideMap.get(item.itemcode);
+        const effectiveStockMin = override?.stock_min ?? null;
+        const effectiveStockMax = override?.stock_max ?? 0;
+
+        const damagedQty = damagedReturnMap.get(item.itemcode) ?? 0;
+        const qtyInUse = qtyInUseMap.get(item.itemcode) ?? 0;
+
+        const maxForRefill = effectiveStockMax ?? 0;
+        let refillQty = maxForRefill - countItemStock;
+        if (refillQty < 0) refillQty = 0;
+
+        const stockMin = effectiveStockMin ?? 0;
+        const isLowStock = stockMin > 0 && countItemStock < stockMin;
+
+        let earliestExpireDate: Date | null = null;
+        let hasExpired = false;
+        let hasNearExpire = false;
+        matchingItemStocks.forEach((stock: any) => {
+          if (!stock.ExpireDate) return;
+          const exp = new Date(stock.ExpireDate);
+          if (
+            !earliestExpireDate ||
+            exp.getTime() < (earliestExpireDate as Date).getTime()
+          ) {
+            earliestExpireDate = exp;
+          }
+          if (exp < now) {
+            hasExpired = true;
+          } else if (exp >= now && exp <= in7Days) {
+            hasNearExpire = true;
+          }
+        });
+
+        data.push({
+          ...item,
+          stock_min: effectiveStockMin,
+          stock_max: effectiveStockMax,
+          itemStocks: matchingItemStocks,
+          count_itemstock: countItemStock,
+          qty_in_use: qtyInUse,
+          damaged_qty: damagedQty,
+          refill_qty: refillQty,
+          hasExpired,
+          hasNearExpire,
+          isLowStock,
+          earliestExpireDate,
+        });
+      }
+
+      return {
+        success: true,
+        data,
+        total,
+        page,
+        limit,
+        lastPage,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to fetch cabinet slot items',
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  /**
    * รายการ Item จากตาราง master โดยตรง (แบ่งหน้า, ค้นหา)
    * ไม่กรองเฉพาะรายการที่มี RFID ในตู้ — ใช้สำหรับหน้า Item Management
    */
@@ -1712,7 +2062,9 @@ export class ItemService {
       stock_id: number;
       copies: number;
       expire_date?: string;
+      lot_no?: string;
     }>,
+    preferredDepartmentId?: number,
   ) {
     try {
       const totalCopies = lines.reduce((s, l) => s + l.copies, 0);
@@ -1742,35 +2094,57 @@ export class ItemService {
         let finalDeptId = 0;
 
         if (stockId > 0) {
-          const cabinet = await this.prisma.cabinet.findUnique({
+          const cabinetRow = await this.prisma.cabinet.findUnique({
             where: { stock_id: Math.floor(stockId) },
             select: { id: true, stock_id: true },
           });
-          if (!cabinet?.id || !cabinet.stock_id) {
+          if (!cabinetRow?.id || !cabinetRow.stock_id) {
             return {
               success: false,
               message: `ไม่พบตู้จาก stock_id=${stockId}`,
             };
           }
 
-          const activeDept = await this.prisma.cabinetDepartment.findFirst({
-            where: {
-              cabinet_id: cabinet.id,
-              status: 'ACTIVE',
-              department_id: { not: null },
-            },
-            orderBy: { id: 'asc' },
-            select: { department_id: true },
-          });
-          if (!activeDept?.department_id) {
-            return {
-              success: false,
-              message: `ไม่พบ Division (ACTIVE) ของตู้ stock_id=${stockId}`,
-            };
+          const deptIdPrefer = preferredDepartmentId
+            ? Math.floor(Number(preferredDepartmentId))
+            : null;
+
+          if (deptIdPrefer != null && deptIdPrefer > 0) {
+            const deptLink = await this.prisma.cabinetDepartment.findFirst({
+              where: {
+                cabinet_id: cabinetRow.id,
+                status: 'ACTIVE',
+                department_id: deptIdPrefer,
+              },
+              select: { department_id: true },
+            });
+            if (!deptLink?.department_id) {
+              return {
+                success: false,
+                message: `ไม่พบ Division ID ${deptIdPrefer} ที่ผูก ACTIVE กับตู้ stock_id=${stockId}`,
+              };
+            }
+            finalDeptId = deptLink.department_id;
+          } else {
+            const activeDept = await this.prisma.cabinetDepartment.findFirst({
+              where: {
+                cabinet_id: cabinetRow.id,
+                status: 'ACTIVE',
+                department_id: { not: null },
+              },
+              orderBy: { id: 'asc' },
+              select: { department_id: true },
+            });
+            if (!activeDept?.department_id) {
+              return {
+                success: false,
+                message: `ไม่พบ Division (ACTIVE) ของตู้ stock_id=${stockId}`,
+              };
+            }
+            finalDeptId = activeDept.department_id;
           }
 
-          finalStockId = cabinet.stock_id;
-          finalDeptId = activeDept.department_id;
+          finalStockId = cabinetRow.stock_id;
         }
 
         const itemCodeKey =
@@ -1797,6 +2171,13 @@ export class ItemService {
         const productSerial = (item.itemcode2?.trim() || '').slice(0, 25);
         const expireAt = this.parsePrintExpireDateYmd(line.expire_date);
 
+        const lineLotRaw =
+          typeof line.lot_no === 'string' ? line.lot_no.trim().slice(0, 50) : '';
+        const lineLot =
+          lineLotRaw !== ''
+            ? lineLotRaw
+            : lotNoBatch || null;
+
         for (let _n = 0; _n < line.copies; _n++) {
           const rfid = await this.generateUniqueRfid24();
           const row = await this.prisma.itemStock.create({
@@ -1811,7 +2192,7 @@ export class ItemService {
               Qty: 1,
               RemarkExpress: '',
               ProductSerial: productSerial || null,
-              lotNo: lotNoBatch || null,
+              lotNo: lineLot,
               expDate: expireAt,
               IsDeproom: '0',
               departmentroomId: finalDeptId,

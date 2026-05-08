@@ -27,9 +27,11 @@ type PrintStickerOrderCardProps = {
   preparing: boolean;
   onSetCopies: (itemcode: string, raw: number) => void;
   onExpireDateChange: (itemcode: string, ymd: string) => void;
+  onLotNoChange: (itemcode: string, lotNo: string) => void;
   onRemoveLine: (itemcode: string) => void;
   onClearAll: () => void;
   onPrepare: () => void;
+  emptyHint?: string;
 };
 
 export function PrintStickerOrderCard({
@@ -37,9 +39,11 @@ export function PrintStickerOrderCard({
   preparing,
   onSetCopies,
   onExpireDateChange,
+  onLotNoChange,
   onRemoveLine,
   onClearAll,
   onPrepare,
+  emptyHint = 'ยังไม่มีรายการ — เลือกจากตารางด้านบน',
 }: PrintStickerOrderCardProps) {
   const totalSheets = selectedLines.reduce((s, l) => s + clampCopies(l.copies, l.refillCap), 0);
   const hasPrintableSheets = totalSheets > 0;
@@ -52,20 +56,19 @@ export function PrintStickerOrderCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {selectedLines.length === 0 ? (
-          <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
-            ยังไม่มีรายการ — ติ๊กจากตาราง Item
-          </p>
+          <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">{emptyHint}</p>
         ) : (
           <div className="max-h-[min(60vh,28rem)] overflow-auto rounded-md border">
-            <Table className="min-w-[1040px]">
+            <Table className="min-w-[1180px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="sticky left-0 z-[1] w-10 bg-background px-2 align-middle" />
                   <TableHead className="min-w-[100px] align-middle py-2">itemcode</TableHead>
                   <TableHead className="min-w-[120px] align-middle py-2">ชื่อ</TableHead>
+                  <TableHead className="min-w-[120px] align-middle py-2 text-xs">Lot No.</TableHead>
                   <TableHead className="w-[132px] align-middle py-2 text-xs">หมดอายุ</TableHead>
                   <TableHead className="w-[72px] align-middle py-2 text-center text-xs">สูงสุด</TableHead>
-                  <TableHead className="w-[96px] align-middle py-2 text-right">จำนวนแผ่น</TableHead>
+                  <TableHead className="w-[96px] align-middle py-2 text-right text-xs">QTY</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -99,6 +102,17 @@ export function PrintStickerOrderCard({
                             } as Item
                           }
                           qtyMain={line.copies}
+                        />
+                      </TableCell>
+                      <TableCell className="align-middle py-2">
+                        <Input
+                          type="text"
+                          maxLength={50}
+                          className="h-8 min-w-[7rem] text-sm font-mono"
+                          placeholder="ถ้าว่างใช้ P-..."
+                          value={line.lotNo ?? ''}
+                          onChange={(e) => onLotNoChange(line.itemcode, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </TableCell>
                       <TableCell className="align-middle py-2">

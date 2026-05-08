@@ -124,6 +124,47 @@ export class ItemController {
     );
   }
 
+  /** รายการจาก slot ในตู้ (+ จำนวนในตู้ / max / ต้องเติม) — ใช้เลือกพิมพ์สติกเกอร์ */
+  @Get('cabinet-slot-items')
+  async findCabinetSlotItems(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('cabinet_id') cabinet_id?: string,
+    @Query('department_id') department_id?: string,
+    @Query('keyword') keyword?: string,
+  ) {
+    const cabId =
+      cabinet_id != null && cabinet_id !== ''
+        ? parseInt(cabinet_id, 10)
+        : NaN;
+    if (!Number.isFinite(cabId) || cabId < 1) {
+      return {
+        success: false,
+        message: 'cabinet_id จำเป็นและต้องเป็นตัวเลข',
+        data: [],
+        total: 0,
+        page,
+        limit,
+        lastPage: 0,
+      };
+    }
+    const deptRaw =
+      department_id != null && department_id !== ''
+        ? parseInt(department_id, 10)
+        : undefined;
+    const deptId =
+      deptRaw != null && Number.isFinite(deptRaw) && deptRaw > 0
+        ? deptRaw
+        : undefined;
+    return this.itemService.findCabinetSlotItemsForPrint(
+      page,
+      limit,
+      cabId,
+      deptId,
+      keyword,
+    );
+  }
+
   @Get(':itemcode')
   async findOne(@Param('itemcode') itemcode: string) {
     return this.itemService.findOneItem(itemcode);
@@ -210,7 +251,7 @@ export class ItemStockController {
   /** สร้าง itemstock จาก stock_id โดย map cabinet/department อัตโนมัติ (ไม่ต้องเลือก Division/ตู้) */
   @Post('for-print-by-stock')
   async createForPrintByStock(@Body() body: CreateItemStocksForPrintByStockDto) {
-    return this.itemService.createItemStocksForPrintByStock(body.lines);
+    return this.itemService.createItemStocksForPrintByStock(body.lines, body.department_id);
   }
 
   /** ลบ itemstock ที่สร้างเพื่อเตรียมพิมพ์ (เลือกหลายแถวได้) */

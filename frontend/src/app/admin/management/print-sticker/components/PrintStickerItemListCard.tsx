@@ -18,7 +18,8 @@ import {
 import { cn } from '@/lib/utils';
 import { generatePageNumbers } from '../utils';
 
-const COL_MAIN = 4;
+const COL_MASTER = 4;
+const COL_CABINET = 7;
 
 type PrintStickerItemListCardProps = {
   items: Item[];
@@ -35,6 +36,10 @@ type PrintStickerItemListCardProps = {
   onPageChange: (nextPage: number) => void;
   selectedItemcodes: Set<string>;
   onToggleRow: (row: Item) => void;
+  /** รายการจาก slot ในตู้ (แสดงคอลัมภ์ในตู้ / max / ต้องเติม) */
+  variant?: 'master' | 'cabinet';
+  /** ซ่อน pager (เช่น โหมด Auto ดึงรวมครั้งเดียว) */
+  hidePagination?: boolean;
 };
 
 export function PrintStickerItemListCard({
@@ -52,17 +57,29 @@ export function PrintStickerItemListCard({
   onPageChange,
   selectedItemcodes,
   onToggleRow,
+  variant = 'master',
+  hidePagination = false,
 }: PrintStickerItemListCardProps) {
+  const colCount = variant === 'cabinet' ? COL_CABINET : COL_MASTER;
   const onPageSelectedCount = items.filter((r) => selectedItemcodes.has(r.itemcode)).length;
+
+  const descriptionCabinet =
+    loadingList && items.length === 0
+      ? 'กำลังโหลด…'
+      : `แสดง ${items.length} รายการในหน้านี้ จากทั้งหมด ${total} รายการ · เลือก Division + ตู้แล้วกดโหลดรายการ (หรือรอโหลดอัตโนมัติ)`;
 
   return (
     <Card className="min-w-0 border-slate-200 shadow-sm">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg">รายการ Item (ใช้งาน)</CardTitle>
+        <CardTitle className="text-lg">
+          {variant === 'cabinet' ? 'เวชภัณฑ์ในตู้ (ตามช่อง slot)' : 'รายการ Item (ใช้งาน)'}
+        </CardTitle>
         <CardDescription>
-          {loadingList && items.length === 0
-            ? 'กำลังโหลด…'
-            : `แสดง ${items.length} รายการในหน้านี้ จากทั้งหมด ${total} รายการ · ติ๊กเลือกได้หลายแถว ลำดับพิมพ์ตามลำดับที่เลือก`}
+          {variant === 'cabinet'
+            ? descriptionCabinet
+            : loadingList && items.length === 0
+              ? 'กำลังโหลด…'
+              : `แสดง ${items.length} รายการในหน้านี้ จากทั้งหมด ${total} รายการ · ติ๊กเลือกได้หลายแถว ลำดับพิมพ์ตามลำดับที่เลือก`}
         </CardDescription>
         <div className="flex flex-col gap-2 pt-2 sm:flex-row">
           <Input
@@ -117,25 +134,35 @@ export function PrintStickerItemListCard({
                 <TableHead className="w-12 pl-3">เลือก</TableHead>
                 <TableHead>itemcode</TableHead>
                 <TableHead>ชื่อ</TableHead>
+                {variant === 'cabinet' ? (
+                  <>
+                    <TableHead className="w-[76px] text-center text-xs whitespace-nowrap">ในตู้</TableHead>
+                    <TableHead className="w-[76px] text-center text-xs whitespace-nowrap">Max</TableHead>
+                    <TableHead className="w-[88px] text-center text-xs whitespace-nowrap">ต้องเติม</TableHead>
+                  </>
+                ) : null}
                 <TableHead className="hidden md:table-cell">Barcode</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loadingList ? (
                 <TableRow>
-                  <TableCell colSpan={COL_MAIN} className="py-10 text-center text-slate-500">
+                  <TableCell colSpan={colCount} className="py-10 text-center text-slate-500">
                     กำลังโหลด…
                   </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={COL_MAIN} className="py-10 text-center text-slate-500">
+                  <TableCell colSpan={colCount} className="py-10 text-center text-slate-500">
                     ไม่มีรายการ
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map((row) => {
                   const sel = selectedItemcodes.has(row.itemcode);
+                  const qtyIn = typeof row.count_itemstock === 'number' ? row.count_itemstock : 0;
+                  const maxS = typeof row.stock_max === 'number' ? row.stock_max : 0;
+                  const refill = typeof row.refill_qty === 'number' ? row.refill_qty : 0;
                   return (
                     <TableRow
                       key={row.itemcode}
@@ -153,6 +180,15 @@ export function PrintStickerItemListCard({
                       <TableCell className="max-w-[240px] min-w-0 text-sm">
                         <ItemNameWithUnit item={row} />
                       </TableCell>
+                      {variant === 'cabinet' ? (
+                        <>
+                          <TableCell className="text-center tabular-nums text-sm">{qtyIn}</TableCell>
+                          <TableCell className="text-center tabular-nums text-sm">{maxS}</TableCell>
+                          <TableCell className="text-center tabular-nums text-sm font-medium text-amber-800">
+                            {refill}
+                          </TableCell>
+                        </>
+                      ) : null}
                       <TableCell className="hidden font-mono text-xs text-slate-600 md:table-cell">
                         {row.Barcode ?? '—'}
                       </TableCell>
@@ -163,7 +199,7 @@ export function PrintStickerItemListCard({
             </TableBody>
           </Table>
         </div>
-        {totalPages > 1 && (
+        {!hidePagination && totalPages > 1 && (
           <div className="mt-6 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-muted-foreground">
               หน้า {page} จาก {totalPages} ({total} รายการ)

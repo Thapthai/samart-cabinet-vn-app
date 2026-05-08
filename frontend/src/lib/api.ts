@@ -227,6 +227,18 @@ export const itemsApi = {
     return response.data;
   },
 
+  /** รายการจาก slot ในตู้ (พร้อมจำนวนในตู้ / max / ต้องเติม) — พิมพ์สติกเกอร์ */
+  getCabinetSlotItems: async (query: {
+    page?: number;
+    limit?: number;
+    cabinet_id: number;
+    department_id: number;
+    keyword?: string;
+  }): Promise<PaginatedResponse<Item>> => {
+    const response = await api.get('/items/cabinet-slot-items', { params: query });
+    return response.data;
+  },
+
   getStats: async (query?: { cabinet_id?: number; department_id?: number }): Promise<ApiResponse<ItemsStats>> => {
     const response = await api.get('/items/stats', { params: query });
     return response.data;
@@ -1949,11 +1961,13 @@ export const itemStockApi = {
 
   /** สร้างแถว itemstock จาก stock_id โดย map cabinet/department อัตโนมัติ */
   createForPrintByStock: async (body: {
+    department_id?: number;
     lines: Array<{
       itemcode: string;
       stock_id: number;
       copies: number;
       expire_date?: string;
+      lot_no?: string;
     }>;
   }): Promise<{
     success?: boolean;
