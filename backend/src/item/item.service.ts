@@ -1704,4 +1704,176 @@ export class ItemService {
       };
     }
   }
+
+  /** สร้าง itemstock โดยรับ stock_id แล้ว map ไป cabinet_id + department_id (ACTIVE ตัวแรก), หรือ stock_id=0 */
+  async createItemStocksForPrintByStock(
+    lines: Array<{
+      itemcode: string;
+      stock_id: number;
+      copies: number;
+      expire_date?: string;
+    }>,
+  ) {
+    try {
+      const totalCopies = lines.reduce((s, l) => s + l.copies, 0);
+      if (totalCopies > 2000) {
+        return {
+          success: false,
+          message: 'จำนวนแผ่นรวมเกิน 2000',
+        };
+      }
+
+      const insertRfidDocNo = this.generateInsertRfidDocNo();
+      const packDate = new Date();
+      const lotNoBatch = `P-${insertRfidDocNo}`.slice(0, 50);
+
+      const created: Array<{ RowID: number; ItemCode: string | null; RfidCode: string | null }> = [];
+
+      for (const line of lines) {
+        const stockId = Number(line.stock_id);
+        if (!Number.isFinite(stockId) || stockId < 0) {
+          return {
+            success: false,
+            message: `stock_id ไม่ถูกต้อง (${line.stock_id})`,
+          };
+        }
+
+        let finalStockId = 0;
+        let finalDeptId = 0;
+
+        if (stockId > 0) {
+          const cabinet = await this.prisma.cabinet.findUnique({
+            where: { stock_id: Math.floor(stockId) },
+            select: { id: true, stock_id: true },
+          });
+          if (!cabinet?.id || !cabinet.stock_id) {
+            return {
+              success: false,
+              message: `ไม่พบตู้จาก stock_id=${stockId}`,
+            };
+          }
+
+          const activeDept = await this.prisma.cabinetDepartment.findFirst({
+            where: {
+              cabinet_id: cabinet.id,
+              status: 'ACTIVE',
+              department_id: { not: null },
+            },
+            orderBy: { id: 'asc' },
+            select: { department_id: true },
+          });
+          if (!activeDept?.department_id) {
+            return {
+              success: false,
+              message: `ไม่พบ Division (ACTIVE) ของตู้ stock_id=${stockId}`,
+            };
+          }
+
+          finalStockId = cabinet.stock_id;
+          finalDeptId = activeDept.department_id;
+        }
+
+        const itemCodeKey =
+          typeof line.itemcode === 'string' ? line.itemcode.trim() : '';
+        if (!itemCodeKey) {
+          return {
+            success: false,
+            message: 'itemcode ต้องไม่ว่าง',
+          };
+        }
+
+        const item = await this.prisma.item.findUnique({
+          where: { itemcode: itemCodeKey },
+          select: { itemcode: true, Barcode: true, itemcode2: true },
+        });
+        if (!item) {
+          return {
+            success: false,
+            message: `ไม่พบ Item ${itemCodeKey}`,
+          };
+        }
+
+        const usageCode = (item.Barcode?.trim() || item.itemcode || '').slice(0, 20);
+        const productSerial = (item.itemcode2?.trim() || '').slice(0, 25);
+        const expireAt = this.parsePrintExpireDateYmd(line.expire_date);
+
+        for (let _n = 0; _n < line.copies; _n++) {
+          const rfid = await this.generateUniqueRfid24();
+          const row = await this.prisma.itemStock.create({
+            data: {
+              CreateDate: packDate,
+              ItemCode: itemCodeKey.slice(0, 20),
+              UsageCode: usageCode || null,
+              RfidCode: rfid,
+              IsStatus: 5,
+              PackDate: packDate,
+              ExpireDate: expireAt,
+              Qty: 1,
+              RemarkExpress: '',
+              ProductSerial: productSerial || null,
+              lotNo: lotNoBatch || null,
+              expDate: expireAt,
+              IsDeproom: '0',
+              departmentroomId: finalDeptId,
+              InsertRfidDocNo: insertRfidDocNo,
+              StockID: finalStockId,
+              IsStock: true,
+              DeptID: finalDeptId,
+              HNCode: 0,
+            },
+          });
+          created.push({
+            RowID: row.RowID,
+            ItemCode: row.ItemCode,
+            RfidCode: row.RfidCode,
+          });
+        }
+      }
+
+      return {
+        success: true,
+        message: `บันทึก item stock ${created.length} รายการ (RFID เฮกซ์ 24 ตัว)`,
+        data: {
+          count: created.length,
+          insertRfidDocNo,
+          rows: created,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'สร้าง item stock (by stock_id) ไม่สำเร็จ',
+        error: (error as Error)?.message ?? String(error),
+      };
+    }
+  }
+
+  /** ลบแถว itemstock ที่สร้างจาก flow พิมพ์ฉลาก (IsStatus=5) */
+  async deleteItemStocksForPrint(rowIds: number[]) {
+    try {
+      const uniqueRowIds = [...new Set((rowIds || []).map((x) => Number(x)).filter((x) => Number.isFinite(x) && x > 0))];
+      if (uniqueRowIds.length === 0) {
+        return { success: false, message: 'rowIds ต้องมีอย่างน้อย 1 รายการ' };
+      }
+
+      const result = await this.prisma.itemStock.deleteMany({
+        where: {
+          RowID: { in: uniqueRowIds },
+          IsStatus: 5,
+        },
+      });
+
+      return {
+        success: true,
+        message: `ลบ itemstock สำเร็จ ${result.count} รายการ`,
+        data: { count: result.count },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'ลบ itemstock ไม่สำเร็จ',
+        error: (error as Error)?.message ?? String(error),
+      };
+    }
+  }
 }

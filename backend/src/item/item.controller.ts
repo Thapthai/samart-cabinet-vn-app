@@ -21,6 +21,8 @@ import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { UpdateItemMinMaxDto } from './dto/update-item-minmax.dto';
 import { CreateItemStocksForPrintDto } from './dto/create-item-stocks-for-print.dto';
+import { CreateItemStocksForPrintByStockDto } from './dto/create-item-stocks-for-print-by-stock.dto';
+import { DeleteItemStocksForPrintDto } from './dto/delete-item-stocks-for-print.dto';
 
 const fileInterceptorOptions = {
   storage: diskStorage({
@@ -203,6 +205,18 @@ export class ItemStockController {
   @Post('for-print')
   async createForPrint(@Body() body: CreateItemStocksForPrintDto) {
     return this.itemService.createItemStocksForPrint(body.lines);
+  }
+
+  /** สร้าง itemstock จาก stock_id โดย map cabinet/department อัตโนมัติ (ไม่ต้องเลือก Division/ตู้) */
+  @Post('for-print-by-stock')
+  async createForPrintByStock(@Body() body: CreateItemStocksForPrintByStockDto) {
+    return this.itemService.createItemStocksForPrintByStock(body.lines);
+  }
+
+  /** ลบ itemstock ที่สร้างเพื่อเตรียมพิมพ์ (เลือกหลายแถวได้) */
+  @Post('for-print/delete')
+  async deleteForPrint(@Body() body: DeleteItemStocksForPrintDto) {
+    return this.itemService.deleteItemStocksForPrint(body.rowIds);
   }
 
   /** รายการยืมจาก itemslotincabinet_detail (IsBorrow) + ตู้จาก StockID + Division จาก cabinet→department */

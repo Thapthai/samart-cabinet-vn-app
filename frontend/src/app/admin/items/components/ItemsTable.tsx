@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, Fragment, useMemo } from "react";
-import { Package, RefreshCw, Gauge, ChevronDown, ChevronRight, Archive } from "lucide-react";
+import { Package, RefreshCw, Gauge, ChevronDown, ChevronRight, Archive, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Item } from "@/types/item";
 import ItemNameWithUnit from "@/components/ItemNameWithUnit";
@@ -24,6 +33,7 @@ interface ItemsTableProps {
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
   onUpdateMinMax: (item: Item) => void;
+  onPrintSticker: (item: Item, copies: number) => void;
   onPageChange: (page: number) => void;
   headerActions?: React.ReactNode;
 }
@@ -75,10 +85,14 @@ export default function ItemsTable({
   itemsPerPage,
   hasSearched = true,
   onUpdateMinMax,
+  onPrintSticker,
   onPageChange,
   headerActions,
 }: ItemsTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [printTarget, setPrintTarget] = useState<{ item: Item; maxCopies: number } | null>(null);
+  const [printCopiesInput, setPrintCopiesInput] = useState("1");
 
   /** ไม่แสดงแถวที่จำนวนในตู้ = 0 */
   const visibleItems = useMemo(
@@ -127,6 +141,29 @@ export default function ItemsTable({
     }
     return pages;
   };
+
+  const openPrintDialog = (item: Item, refillQty: number) => {
+    if (refillQty <= 0) return;
+    setPrintTarget({ item, maxCopies: refillQty });
+    setPrintCopiesInput(String(refillQty));
+    setPrintDialogOpen(true);
+  };
+
+  const closePrintDialog = () => {
+    setPrintDialogOpen(false);
+    setPrintTarget(null);
+    setPrintCopiesInput("1");
+  };
+
+  const confirmPrintSticker = () => {
+    if (!printTarget) return;
+    const parsed = Number.parseInt(printCopiesInput, 10);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return;
+    const safeCopies = Math.max(1, Math.min(printTarget.maxCopies, parsed));
+    onPrintSticker(printTarget.item, safeCopies);
+    closePrintDialog();
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4 pb-2">
@@ -190,6 +227,10 @@ export default function ItemsTable({
                 <TableBody>
                   {visibleItems.map((item, index) => {
                     const countItemStock = getCabinetQty(item);
+                    const refillQty = Math.max(
+                      0,
+                      Number((item as Item & { refill_qty?: number }).refill_qty ?? 0),
+                    );
                     const stockMin = item.stock_min ?? 0;
                     const isLowStock = stockMin > 0 && countItemStock < stockMin;
                     const itemStocks = (item.itemStocks ?? []).filter(
@@ -275,20 +316,36 @@ export default function ItemsTable({
                           </TableCell>
                           <TableCell className="text-center">
                             <span className="font-medium text-slate-700">
-                              {(item as Item & { refill_qty?: number }).refill_qty ?? 0}
+                              {refillQty}
                             </span>
                           </TableCell>
                           <TableCell>{getStatusBadge(item.item_status)}</TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => onUpdateMinMax(item)}
-                              title="ตั้งค่า Min/Max"
-                              className="text-purple-600 hover:text-purple-700 hover:border-purple-600"
-                            >
-                              <Gauge className="h-4 w-4" />
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openPrintDialog(item, refillQty)}
+                                title={
+                                  refillQty > 0
+                                    ? `พิมพ์สติกเกอร์ (สูงสุด ${refillQty})`
+                                    : "ไม่สามารถพิมพ์ได้ เพราะจำนวนที่ต้องเติมเป็น 0"
+                                }
+                                className="text-sky-600 hover:text-sky-700 hover:border-sky-600"
+                                disabled={refillQty <= 0}
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onUpdateMinMax(item)}
+                                title="ตั้งค่า Min/Max"
+                                className="text-purple-600 hover:text-purple-700 hover:border-purple-600"
+                              >
+                                <Gauge className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
 
@@ -427,6 +484,55 @@ export default function ItemsTable({
           </>
         )}
       </CardContent>
+
+      <Dialog open={printDialogOpen} onOpenChange={(open) => (open ? setPrintDialogOpen(true) : closePrintDialog())}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>พิมพ์สติกเกอร์</DialogTitle>
+            <DialogDescription>
+              {printTarget ? `รหัส: ${printTarget.item.itemcode}` : "กำหนดจำนวนแผ่นที่ต้องการพิมพ์"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-1">
+            <div className="rounded-md border bg-slate-50 p-3 text-sm text-slate-700">
+              สูงสุดที่พิมพ์ได้:{" "}
+              <span className="font-semibold text-slate-900">
+                {printTarget?.maxCopies ?? 0}
+              </span>{" "}
+              แผ่น (ตามจำนวนที่ต้องเติม)
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">จำนวนที่ต้องการพิมพ์</label>
+              <Input
+                type="number"
+                min={1}
+                max={printTarget?.maxCopies ?? 1}
+                value={printCopiesInput}
+                onChange={(e) => setPrintCopiesInput(e.target.value)}
+                placeholder="ระบุจำนวนแผ่น"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closePrintDialog}>
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={confirmPrintSticker}
+              disabled={
+                !printTarget ||
+                !Number.isFinite(Number.parseInt(printCopiesInput, 10)) ||
+                Number.parseInt(printCopiesInput, 10) < 1 ||
+                Number.parseInt(printCopiesInput, 10) > (printTarget?.maxCopies ?? 0)
+              }
+            >
+              พิมพ์สติกเกอร์
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

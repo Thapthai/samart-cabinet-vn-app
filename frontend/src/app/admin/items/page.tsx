@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { itemsApi } from '@/lib/api';
+import { itemStockApi, itemsApi, stickerPrintApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import type { Item } from '@/types/item';
@@ -170,6 +170,58 @@ export default function ItemsPage() {
     setShowMinMaxDialog(true);
   };
 
+  const handleQuickPrintSticker = async (item: Item, copies: number) => {
+    const deptId = parseInt(activeFilters.departmentId, 10);
+    const cabId = parseInt(activeFilters.cabinetId, 10);
+    if (Number.isNaN(deptId) || Number.isNaN(cabId)) {
+      toast.error('กรุณาเลือก Division และตู้ Cabinet ก่อนพิมพ์สติกเกอร์');
+      return;
+    }
+
+    const refillQty = Math.max(0, Number((item as Item & { refill_qty?: number }).refill_qty ?? 0));
+    if (refillQty <= 0) {
+      toast.error('ไม่สามารถพิมพ์ได้ เพราะจำนวนที่ต้องเติมเป็น 0');
+      return;
+    }
+    const safeCopies = Math.max(1, Math.min(refillQty, copies));
+
+    try {
+      const printRes = await stickerPrintApi.printLabelItems({
+        items: [{ itemcode: item.itemcode, copies: safeCopies }],
+      });
+
+      const stockRes = await itemStockApi.createForPrint({
+        lines: [
+          {
+            itemcode: item.itemcode,
+            cabinet_id: cabId,
+            department_id: deptId,
+            copies: safeCopies,
+          },
+        ],
+      });
+
+      if (stockRes?.success === false) {
+        toast.error(stockRes.message || stockRes.error || 'พิมพ์สำเร็จ แต่บันทึก stock ไม่สำเร็จ');
+        return;
+      }
+
+      toast.success(
+        `พิมพ์สติกเกอร์สำเร็จ ${safeCopies} แผ่น (${item.itemcode})`,
+        {
+          description: `${printRes.host}:${printRes.port} · ${printRes.template}`,
+        },
+      );
+      await fetchItems();
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message ??
+        (error as Error)?.message ??
+        'พิมพ์สติกเกอร์ไม่สำเร็จ';
+      toast.error(Array.isArray(msg) ? msg.join(', ') : String(msg));
+    }
+  };
+
   const handleDownloadCabinetStockExcel = async () => {
     try {
       setReportLoading('excel');
@@ -236,6 +288,7 @@ export default function ItemsPage() {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onUpdateMinMax={handleUpdateMinMax}
+            onPrintSticker={handleQuickPrintSticker}
             onPageChange={handlePageChange}
             headerActions={
               <div className="flex flex-wrap items-center gap-2">

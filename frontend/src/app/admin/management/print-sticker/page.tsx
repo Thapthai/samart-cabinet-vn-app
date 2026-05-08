@@ -9,13 +9,18 @@ import type { Item } from '@/types/item';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PrintStickerItemListCard } from './components/PrintStickerItemListCard';
 import { PrintStickerOrderCard } from './components/PrintStickerOrderCard';
 import { PAGE_SIZE, MAX_PRINT, MAX_TOTAL_LABELS, MAX_COPIES_WHEN_NO_REFILL } from './constants';
 import type { SelectedLine } from './types';
-import { clampCopies, maxCopiesFromRefillLookup } from './utils';
+import { clampCopies } from './utils';
 
 export default function AdminPrintStickerPage() {
+  type PreparedStockRow = { RowID: number; ItemCode?: string | null; RfidCode?: string | null };
+
   const [items, setItems] = useState<Item[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [keywordInput, setKeywordInput] = useState('');
@@ -28,102 +33,10 @@ export default function AdminPrintStickerPage() {
   const selectedItemcodes = new Set(selectedLines.map((l) => l.itemcode));
 
   const [printing, setPrinting] = useState(false);
-  const [fetchingItemcode, setFetchingItemcode] = useState<string | null>(null);
-
-  const refreshRefillForLine = useCallback(async (itemcode: string, departmentId: string, cabinetId: string) => {
-    if (!departmentId || !cabinetId) {
-      setSelectedLines((prev) =>
-        prev.map((l) =>
-          l.itemcode === itemcode
-            ? {
-                ...l,
-                refillCap: MAX_COPIES_WHEN_NO_REFILL,
-                copies: clampCopies(l.copies, MAX_COPIES_WHEN_NO_REFILL),
-              }
-            : l,
-        ),
-      );
-      return;
-    }
-
-    const deptId = parseInt(departmentId, 10);
-    const cabId = parseInt(cabinetId, 10);
-    if (Number.isNaN(deptId) || Number.isNaN(cabId)) return;
-
-    setFetchingItemcode(itemcode);
-    try {
-      const res = (await itemsApi.getAll({
-        page: 1,
-        limit: 100,
-        keyword: itemcode,
-        department_id: deptId,
-        cabinet_id: cabId,
-        status: 'ACTIVE',
-        sort_by: 'itemcode',
-        sort_order: 'asc',
-      })) as {
-        success?: boolean;
-        data?: Item[];
-        message?: string;
-      };
-
-      if (res?.success === false) {
-        toast.error(res.message || 'โหลดข้อมูลตู้ไม่สำเร็จ');
-        return;
-      }
-
-      const list = Array.isArray(res?.data) ? res.data : [];
-      const row = list.find((i) => i.itemcode === itemcode);
-      const cap = maxCopiesFromRefillLookup(row);
-      setSelectedLines((prev) =>
-        prev.map((l) =>
-          l.itemcode === itemcode ? { ...l, refillCap: cap, copies: clampCopies(l.copies, cap) } : l,
-        ),
-      );
-    } catch {
-      toast.error('โหลดจำนวนเติมไม่สำเร็จ');
-    } finally {
-      setFetchingItemcode(null);
-    }
-  }, []);
-
-  const onLineDepartmentChange = (itemcode: string, departmentId: string) => {
-    setSelectedLines((prev) =>
-      prev.map((l) =>
-        l.itemcode === itemcode
-          ? {
-              ...l,
-              departmentId,
-              cabinetId: '',
-              refillCap: MAX_COPIES_WHEN_NO_REFILL,
-              copies: clampCopies(l.copies, MAX_COPIES_WHEN_NO_REFILL),
-            }
-          : l,
-      ),
-    );
-  };
-
-  const onLineCabinetChange = (itemcode: string, cabinetId: string) => {
-    setSelectedLines((prev) => {
-      const next = prev.map((l) => {
-        if (l.itemcode !== itemcode) return l;
-        if (!cabinetId) {
-          return {
-            ...l,
-            cabinetId: '',
-            refillCap: MAX_COPIES_WHEN_NO_REFILL,
-            copies: clampCopies(l.copies, MAX_COPIES_WHEN_NO_REFILL),
-          };
-        }
-        return { ...l, cabinetId };
-      });
-      const line = next.find((x) => x.itemcode === itemcode);
-      if (line?.departmentId && cabinetId) {
-        queueMicrotask(() => void refreshRefillForLine(itemcode, line.departmentId, cabinetId));
-      }
-      return next;
-    });
-  };
+  const [preparing, setPreparing] = useState(false);
+  const [preparedRows, setPreparedRows] = useState<PreparedStockRow[]>([]);
+  const [selectedPreparedRowIds, setSelectedPreparedRowIds] = useState<number[]>([]);
+  const [deletingPrepared, setDeletingPrepared] = useState(false);
 
   const toggleRow = (row: Item) => {
     const code = row.itemcode;
@@ -136,8 +49,6 @@ export default function AdminPrintStickerPage() {
           itemcode: code,
           itemname: (row.itemname ?? '—').trim() || '—',
           copies: 1,
-          departmentId: '',
-          cabinetId: '',
           refillCap: MAX_COPIES_WHEN_NO_REFILL,
           expireDate: '',
           SubUnitQty: row.SubUnitQty,
@@ -159,8 +70,6 @@ export default function AdminPrintStickerPage() {
             itemcode: row.itemcode,
             itemname: (row.itemname ?? '—').trim() || '—',
             copies: 1,
-            departmentId: '',
-            cabinetId: '',
             refillCap: MAX_COPIES_WHEN_NO_REFILL,
             expireDate: '',
             SubUnitQty: row.SubUnitQty,
@@ -253,18 +162,14 @@ export default function AdminPrintStickerPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handlePrint = async () => {
+  const buildLinesWithCopies = () => {
     if (selectedLines.length === 0) {
       toast.error('เลือกอย่างน้อย 1 รายการ');
-      return;
-    }
-    if (selectedLines.some((l) => !l.departmentId || !l.cabinetId)) {
-      toast.error('ทุกแถวต้องเลือก Division และ ตู้ Cabinet');
-      return;
+      return null;
     }
     if (selectedLines.length > MAX_PRINT) {
       toast.error(`เลือกได้ไม่เกิน ${MAX_PRINT} รายการต่อครั้ง`);
-      return;
+      return null;
     }
 
     const linesWithCopies = selectedLines
@@ -274,8 +179,7 @@ export default function AdminPrintStickerPage() {
         return {
           itemcode: l.itemcode,
           copies,
-          cabinet_id: parseInt(l.cabinetId, 10),
-          department_id: parseInt(l.departmentId, 10),
+          stock_id: 0,
           ...(exp ? { expire_date: exp } : {}),
         };
       })
@@ -283,31 +187,28 @@ export default function AdminPrintStickerPage() {
 
     if (linesWithCopies.length === 0) {
       toast.error('ไม่มีแผ่นที่พิมพ์ได้ — ตรวจสอบจำนวนแผ่นต่อรายการ');
-      return;
+      return null;
     }
 
     const totalSheets = linesWithCopies.reduce((s, l) => s + l.copies, 0);
     if (totalSheets > MAX_TOTAL_LABELS) {
       toast.error(`จำนวนฉลากรวมเกิน ${MAX_TOTAL_LABELS} แผ่น (ตอนนี้รวม ${totalSheets})`);
-      return;
+      return null;
     }
 
-    const payloadItems = linesWithCopies.map(({ itemcode, copies, expire_date }) => ({
-      itemcode,
-      copies,
-      ...(expire_date ? { expire_date } : {}),
-    }));
+    return linesWithCopies;
+  };
 
+  const handlePrepare = async () => {
+    const linesWithCopies = buildLinesWithCopies();
+    if (!linesWithCopies) return;
     try {
-      setPrinting(true);
-      const res = await stickerPrintApi.printLabelItems({ items: payloadItems });
-
-      const stockRes = await itemStockApi.createForPrint({
+      setPreparing(true);
+      const stockRes = await itemStockApi.createForPrintByStock({
         lines: linesWithCopies.map(
-          ({ itemcode, cabinet_id, department_id, copies, expire_date }) => ({
+          ({ itemcode, stock_id, copies, expire_date }) => ({
             itemcode,
-            cabinet_id,
-            department_id,
+            stock_id,
             copies,
             ...(expire_date ? { expire_date } : {}),
           }),
@@ -319,23 +220,87 @@ export default function AdminPrintStickerPage() {
           typeof stockRes.message === 'string'
             ? stockRes.message
             : stockRes.error ?? 'บันทึก stock ไม่สำเร็จ';
-        toast.error(msg, {
-          description:
-            'ส่งพิมพ์ไปเครื่องแล้ว แต่บันทึก RFID/stock ไม่สำเร็จ — ตรวจสอบและบันทึกซ้ำถ้าจำเป็น',
-        });
+        toast.error(msg);
         return;
       }
 
-      const stockN = stockRes?.data?.count;
-      toast.success(res.message, {
-        description: [
-          stockN != null ? `บันทึก stock ${stockN} แถว (RFID เฮกซ์ 24 ตัว)` : null,
-          `${res.lineCount} แถว · ${res.count} แผ่น · ${res.totalBytesSent} bytes → ${res.host}:${res.port} · ${res.template} · ${new Date(res.printedAt).toLocaleString('th-TH')}`,
-        ]
-          .filter(Boolean)
-          .join(' · '),
-      });
+      const createdRows = (stockRes?.data?.rows ?? []).map((r) => ({
+        RowID: Number(r.RowID),
+        ItemCode: r.ItemCode ?? null,
+        RfidCode: r.RfidCode ?? null,
+      }));
+      setPreparedRows(createdRows);
+      setSelectedPreparedRowIds(createdRows.map((r) => r.RowID));
+      toast.success(`บันทึก itemstock สำเร็จ ${createdRows.length} แถว`);
       setSelectedLines([]);
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message ??
+        (e as Error)?.message ??
+        'บันทึก itemstock ไม่สำเร็จ';
+      const text = Array.isArray(msg) ? msg.join(', ') : String(msg);
+      toast.error(text);
+    } finally {
+      setPreparing(false);
+    }
+  };
+
+  const handleDeletePrepared = async () => {
+    if (selectedPreparedRowIds.length === 0) {
+      toast.error('เลือกแถวที่ต้องการลบก่อน');
+      return;
+    }
+    try {
+      setDeletingPrepared(true);
+      const res = await itemStockApi.deleteForPrintRows(selectedPreparedRowIds);
+      if (res?.success === false) {
+        toast.error(res.message || res.error || 'ลบรายการไม่สำเร็จ');
+        return;
+      }
+
+      const deleted = new Set(selectedPreparedRowIds);
+      const nextRows = preparedRows.filter((r) => !deleted.has(r.RowID));
+      setPreparedRows(nextRows);
+      setSelectedPreparedRowIds(nextRows.map((r) => r.RowID));
+      toast.success(`ลบสำเร็จ ${res?.data?.count ?? selectedPreparedRowIds.length} แถว`);
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message ??
+        (e as Error)?.message ??
+        'ลบรายการไม่สำเร็จ';
+      const text = Array.isArray(msg) ? msg.join(', ') : String(msg);
+      toast.error(text);
+    } finally {
+      setDeletingPrepared(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (preparedRows.length === 0) {
+      toast.error('ยังไม่มีรายการที่บันทึกไว้สำหรับพิมพ์');
+      return;
+    }
+
+    const grouped = new Map<string, number>();
+    for (const row of preparedRows) {
+      const code = row.ItemCode?.trim();
+      if (!code) continue;
+      grouped.set(code, (grouped.get(code) ?? 0) + 1);
+    }
+    const payloadItems = [...grouped.entries()].map(([itemcode, copies]) => ({ itemcode, copies }));
+    if (payloadItems.length === 0) {
+      toast.error('ไม่มี itemcode ที่พิมพ์ได้ในรายการที่บันทึก');
+      return;
+    }
+
+    try {
+      setPrinting(true);
+      const res = await stickerPrintApi.printLabelItems({ items: payloadItems });
+      toast.success(res.message, {
+        description: `${res.lineCount} แถว · ${res.count} แผ่น · ${res.totalBytesSent} bytes → ${res.host}:${res.port} · ${res.template} · ${new Date(res.printedAt).toLocaleString('th-TH')}`,
+      });
+      setPreparedRows([]);
+      setSelectedPreparedRowIds([]);
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message ??
@@ -353,19 +318,12 @@ export default function AdminPrintStickerPage() {
       <AppLayout fullWidth>
         <div className="flex w-full flex-col gap-6">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-2">
-              <Link href="/admin/management" aria-label="กลับการจัดการ">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
             <div className="rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 p-2.5 shadow-lg">
               <Printer className="h-6 w-6 text-white" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">พิมพ์สติกเกอร์</h1>
-              <p className="mt-0.5 text-sm text-slate-500">
-                เลือก Item ด้านบน แล้วระบุ Division / ตู้และจำนวนแผ่นต่อแถว — สูงสุดตามจำนวนเติม หรือ 10 แผ่นเมื่อไม่มีข้อมูลเติม
-              </p>
+            
             </div>
           </div>
 
@@ -389,16 +347,79 @@ export default function AdminPrintStickerPage() {
 
             <PrintStickerOrderCard
               selectedLines={selectedLines}
-              printing={printing}
-              fetchingItemcode={fetchingItemcode}
-              onLineDepartmentChange={onLineDepartmentChange}
-              onLineCabinetChange={onLineCabinetChange}
+              preparing={preparing}
               onSetCopies={setCopiesFor}
               onExpireDateChange={setExpireDateFor}
               onRemoveLine={removeLine}
               onClearAll={() => setSelectedLines([])}
-              onPrint={handlePrint}
+              onPrepare={handlePrepare}
             />
+
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">รายการ itemstock ที่สร้างแล้ว</CardTitle>
+                <CardDescription>
+                  ลบรายการที่ไม่ต้องการก่อน แล้วค่อยกดพิมพ์
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {preparedRows.length === 0 ? (
+                  <p className="rounded-md border border-dashed py-8 text-center text-sm text-muted-foreground">
+                    ยังไม่มีรายการที่บันทึกไว้
+                  </p>
+                ) : (
+                  <div className="max-h-[360px] overflow-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">เลือก</TableHead>
+                          <TableHead className="w-[120px]">RowID</TableHead>
+                          <TableHead>itemcode</TableHead>
+                          <TableHead>RFID</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {preparedRows.map((r) => {
+                          const checked = selectedPreparedRowIds.includes(r.RowID);
+                          return (
+                            <TableRow key={r.RowID}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={checked}
+                                  onCheckedChange={(v) => {
+                                    setSelectedPreparedRowIds((prev) =>
+                                      v ? [...prev, r.RowID] : prev.filter((id) => id !== r.RowID),
+                                    );
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell className="font-mono text-xs">{r.RowID}</TableCell>
+                              <TableCell className="font-mono text-xs">{r.ItemCode ?? '-'}</TableCell>
+                              <TableCell className="font-mono text-xs">{r.RfidCode ?? '-'}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleDeletePrepared}
+                    disabled={deletingPrepared || selectedPreparedRowIds.length === 0}
+                  >
+                    {deletingPrepared ? 'กำลังลบ…' : 'ลบที่เลือก'}
+                  </Button>
+                  <Button
+                    onClick={handlePrint}
+                    disabled={printing || preparing || preparedRows.length === 0}
+                  >
+                    {printing ? 'กำลังส่ง…' : `พิมพ์จากรายการที่บันทึกแล้ว (${preparedRows.length})`}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </AppLayout>

@@ -1946,6 +1946,35 @@ export const itemStockApi = {
     const response = await api.post('/item-stocks/for-print', body);
     return response.data;
   },
+
+  /** สร้างแถว itemstock จาก stock_id โดย map cabinet/department อัตโนมัติ */
+  createForPrintByStock: async (body: {
+    lines: Array<{
+      itemcode: string;
+      stock_id: number;
+      copies: number;
+      expire_date?: string;
+    }>;
+  }): Promise<{
+    success?: boolean;
+    message?: string;
+    data?: { count: number; rows: Array<{ RowID: number; ItemCode?: string | null; RfidCode?: string | null }> };
+    error?: string;
+  }> => {
+    const response = await api.post('/item-stocks/for-print-by-stock', body);
+    return response.data;
+  },
+
+  /** ลบ itemstock ที่สร้างเพื่อเตรียมพิมพ์ (เลือกหลายแถวได้) */
+  deleteForPrintRows: async (rowIds: number[]): Promise<{
+    success?: boolean;
+    message?: string;
+    data?: { count: number };
+    error?: string;
+  }> => {
+    const response = await api.post('/item-stocks/for-print/delete', { rowIds });
+    return response.data;
+  },
 };
 
 // =========================== Units API (หน่วยนับ) ===========================
