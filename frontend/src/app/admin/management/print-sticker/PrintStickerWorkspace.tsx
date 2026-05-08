@@ -279,14 +279,57 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
       return;
     }
 
+    // Manual + เลือกตู้แล้ว: ใช้รายการแบบหน้า Items (มี RFID / meta ครบ)
+    // — ไม่ใช้ endpoint slot เพราะของในตู้อาจไม่มีใน itemslotincabinet
+    if (mode === 'manual') {
+      try {
+        setLoadingList(true);
+        const res = (await itemsApi.getAll({
+          page,
+          limit: PAGE_SIZE,
+          cabinet_id: cab,
+          department_id: dep,
+          status: 'ACTIVE',
+          sort_by: 'itemcode',
+          sort_order: 'asc',
+          ...(activeKeyword.trim() ? { keyword: activeKeyword.trim() } : {}),
+        })) as {
+          success?: boolean;
+          data?: Item[];
+          total?: number;
+          lastPage?: number;
+          message?: string;
+        };
+
+        if (res?.success === false) {
+          toast.error(res.message || 'โหลดรายการในตู้ไม่สำเร็จ');
+          setItems([]);
+          setTotal(0);
+          setTotalPages(1);
+          return;
+        }
+
+        const list = Array.isArray(res?.data) ? res.data : [];
+        const t = res?.total ?? list.length;
+        setItems(list);
+        setTotal(t);
+        setTotalPages(res?.lastPage ?? Math.max(1, Math.ceil(t / PAGE_SIZE)));
+      } catch {
+        toast.error('โหลดรายการในตู้ไม่สำเร็จ');
+        setItems([]);
+        setTotal(0);
+        setTotalPages(1);
+      } finally {
+        setLoadingList(false);
+      }
+      return;
+    }
+
     try {
       setLoadingList(true);
-      const limit = mode === 'auto' ? AUTO_FETCH_LIMIT : PAGE_SIZE;
-      const reqPage = mode === 'auto' ? 1 : page;
-
       const res = (await itemsApi.getCabinetSlotItems({
-        page: reqPage,
-        limit,
+        page: 1,
+        limit: AUTO_FETCH_LIMIT,
         cabinet_id: cab,
         department_id: dep,
         ...(activeKeyword.trim() ? { keyword: activeKeyword.trim() } : {}),
@@ -307,13 +350,9 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
       }
 
       let list = Array.isArray(res?.data) ? res.data : [];
-      let totalFromSource = res?.total ?? list.length;
-      let lastPageFromSource =
-        res?.lastPage ?? Math.max(1, Math.ceil(totalFromSource / PAGE_SIZE));
 
-      // Auto mode: ถ้า endpoint slot ไม่คืนรายการที่ต้องเติมเลย
-      // fallback ไปใช้รายการ items แบบเดิมที่คำนวณ refill_qty อยู่แล้ว
-      if (mode === 'auto' && list.filter((i) => Number(i.refill_qty ?? 0) > 0).length === 0) {
+      // ถ้า endpoint slot ไม่คืนรายการที่ต้องเติมเลย → fallback ไปใช้รายการที่คำนวณ refill_qty
+      if (list.filter((i) => Number(i.refill_qty ?? 0) > 0).length === 0) {
         const fallback = (await itemsApi.getAll({
           page: 1,
           limit: AUTO_FETCH_LIMIT,
@@ -333,33 +372,23 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
 
         if (fallback?.success !== false) {
           list = Array.isArray(fallback?.data) ? fallback.data : list;
-          totalFromSource = fallback?.total ?? list.length;
-          lastPageFromSource =
-            fallback?.lastPage ??
-            Math.max(1, Math.ceil(totalFromSource / PAGE_SIZE));
         }
       }
 
       setItems(list);
-      setTotal(
-        mode === 'auto'
-          ? list.filter((i) => Number(i.refill_qty ?? 0) > 0).length
-          : totalFromSource,
-      );
-      setTotalPages(mode === 'auto' ? 1 : lastPageFromSource);
+      setTotal(list.filter((i) => Number(i.refill_qty ?? 0) > 0).length);
+      setTotalPages(1);
 
-      if (mode === 'auto') {
-        const need = list.filter((i) => Number(i.refill_qty ?? 0) > 0);
-        setSelectedLines(
-          need.map((row) =>
-            buildLineFromRow(
-              row,
-              Math.max(1, Number(row.refill_qty ?? 0)),
-              Math.max(0, Number(row.refill_qty ?? 0)),
-            ),
+      const need = list.filter((i) => Number(i.refill_qty ?? 0) > 0);
+      setSelectedLines(
+        need.map((row) =>
+          buildLineFromRow(
+            row,
+            Math.max(1, Number(row.refill_qty ?? 0)),
+            Math.max(0, Number(row.refill_qty ?? 0)),
           ),
-        );
-      }
+        ),
+      );
     } catch {
       toast.error('โหลดรายการไม่สำเร็จ');
       setItems([]);
@@ -376,24 +405,12 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
       void fetchCabinetItems();
       return;
     }
-    if (
-      !departmentId ||
-      !cabinetId ||
-      cabinetStockId == null ||
-      cabinetStockId <= 0
-    ) {
+    // โหลดจากตู้ทันทีเมื่อเลือก Division + ตู้ (ไม่ต้องรอ stock_id — ใช้แค่ตอนบันทึกเตรียมพิมพ์)
+    if (!departmentId || !cabinetId) {
       return;
     }
     void fetchCabinetItems();
-  }, [
-    mode,
-    departmentId,
-    cabinetId,
-    cabinetStockId,
-    page,
-    activeKeyword,
-    fetchCabinetItems,
-  ]);
+  }, [mode, departmentId, cabinetId, page, activeKeyword, fetchCabinetItems]);
 
   const toggleRow = (row: Item) => {
     const code = row.itemcode;
@@ -693,12 +710,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
 
   const manualShowsAllItems = mode === 'manual' && !departmentId && !cabinetId;
   const manualFilterIncomplete = mode === 'manual' && !!departmentId && !cabinetId;
-  const autoReady =
-    mode === 'auto' &&
-    !!departmentId &&
-    !!cabinetId &&
-    cabinetStockId != null &&
-    cabinetStockId > 0;
+  const cabinetPairSelected = !!departmentId && !!cabinetId;
 
   const reloadButtonLabel = (() => {
     if (loadingList) return 'กำลังโหลด…';
@@ -708,7 +720,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
 
   const reloadDisabled =
     loadingList ||
-    (mode === 'auto' && !autoReady) ||
+    (mode === 'auto' && !cabinetPairSelected) ||
     manualFilterIncomplete;
 
   return (
@@ -886,10 +898,18 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
                 ) : (
                   <span>โหลดจากตู้ที่เลือก — ถ้ามีความเข้ากันใช้ฟิลเตอร์ด้านบนในลิตส์เหมือนเดิม</span>
                 )
-              ) : autoReady ? (
-                <span>พร้อมโหลดของที่ควรเติมจากตู้นี้ได้</span>
+              ) : cabinetPairSelected ? (
+                <span>
+                  พร้อมโหลดจากตู้นี้ได้
+                  {cabinetStockId == null || cabinetStockId <= 0 ? (
+                    <span className="text-amber-800">
+                      {' '}
+                      (ถ้ายังไม่มี Stock ID จะบันทึกเตรียมพิมพ์จากตู้นี้ไม่ได้ — ตรวจการตั้งค่าตู้)
+                    </span>
+                  ) : null}
+                </span>
               ) : (
-                <span>เลือก Division + ตู้ที่มี Stock ID ให้ครบก่อน</span>
+                <span>เลือก Division + ตู้ให้ครบก่อน</span>
               )}
             </p>
             <Button
