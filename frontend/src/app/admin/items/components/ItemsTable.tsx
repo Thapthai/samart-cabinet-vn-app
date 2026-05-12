@@ -76,6 +76,29 @@ function getItemDepartmentDisplay(item: Item): string {
   return names.size > 0 ? [...names].join(", ") : "-";
 }
 
+/** เรียงให้แถวของตู้เดียวกันอยู่ติดกัน — ชื่อตู้ แล้วรหัสตู้ แล้ว RowID */
+function sortItemStocksByCabinet<
+  T extends {
+    RowID?: number;
+    cabinet?: { cabinet_name?: string | null; cabinet_code?: string | null };
+  },
+>(stocks: T[]): T[] {
+  const key = (s: T) => {
+    const name = (s.cabinet?.cabinet_name ?? "").trim().toLowerCase();
+    const code = (s.cabinet?.cabinet_code ?? "").trim().toLowerCase();
+    return { name: name || "\uffff", code: code || "\uffff", row: s.RowID ?? 0 };
+  };
+  return [...stocks].sort((a, b) => {
+    const ka = key(a);
+    const kb = key(b);
+    const byName = ka.name.localeCompare(kb.name, "th", { sensitivity: "base" });
+    if (byName !== 0) return byName;
+    const byCode = ka.code.localeCompare(kb.code, "th", { sensitivity: "base" });
+    if (byCode !== 0) return byCode;
+    return ka.row - kb.row;
+  });
+}
+
 export default function ItemsTable({
   items,
   loading,
@@ -233,8 +256,10 @@ export default function ItemsTable({
                     );
                     const stockMin = item.stock_min ?? 0;
                     const isLowStock = stockMin > 0 && countItemStock < stockMin;
-                    const itemStocks = (item.itemStocks ?? []).filter(
-                      (s) => s.IsStock === true || (s as { IsStock?: boolean | number }).IsStock === 1
+                    const itemStocks = sortItemStocksByCabinet(
+                      (item.itemStocks ?? []).filter(
+                        (s) => s.IsStock === true || (s as { IsStock?: boolean | number }).IsStock === 1,
+                      ),
                     );
                     const isExpanded = expandedRow === item.itemcode;
                     const hasExpired = itemStocks.some((s) => isExpired(s.ExpireDate));

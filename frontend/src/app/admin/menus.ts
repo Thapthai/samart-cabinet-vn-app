@@ -95,12 +95,6 @@ export const adminMenuItems: StaffMenuItem[] = [
     noHref: true,
     submenu: [
       {
-        name: 'จัดการตู้ Cabinet - Division',
-        href: '/admin/cabinet-departments',
-        icon: Network,
-        description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division',
-      },
-      {
         name: 'สต๊อกอุปกรณ์ในตู้',
         href: '/admin/items',
         description: 'เมนูสต๊อกอุปกรณ์ที่มีในตู้ SmartCabinet',
@@ -151,6 +145,12 @@ export const adminMenuItems: StaffMenuItem[] = [
     description: 'ตั้งค่าระบบ',
     noHref: true,
     submenu: [
+      {
+        name: 'Cabinet - Division',
+        href: '/admin/management/cabinet-departments',
+        icon: Network,
+        description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division',
+      },
       {
         name: 'พิมพ์สติกเกอร์',
         href: '/admin/management/print-sticker',

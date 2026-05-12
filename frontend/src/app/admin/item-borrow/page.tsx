@@ -6,7 +6,7 @@ import AppLayout from '@/components/AppLayout';
 import { itemStockApi } from '@/lib/api';
 import FilterSection, { type BorrowFilterState } from './components/FilterSection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import DispensedPagination from '@/app/admin/dispense-from-cabinet/components/DispensedPagination';
+import { Button } from '@/components/ui/button';
 import {
     Table,
     TableBody,
@@ -107,6 +107,32 @@ function initialBorrowFilters(): BorrowFilterState {
     };
 }
 
+/** ตรงกับรูปแบบ pagination ใน ItemsTable (เลขหน้า + …) */
+function generateBorrowPageNumbers(currentPage: number, totalPages: number): (number | string)[] {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        if (currentPage <= 3) {
+            for (let i = 1; i <= 4; i++) pages.push(i);
+            pages.push('...');
+            pages.push(totalPages);
+        } else if (currentPage >= totalPages - 2) {
+            pages.push(1);
+            pages.push('...');
+            for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+        } else {
+            pages.push(1);
+            pages.push('...');
+            for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+            pages.push('...');
+            pages.push(totalPages);
+        }
+    }
+    return pages;
+}
+
 export default function ItemBorrowPage() {
     const [rows, setRows] = useState<BorrowRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -176,8 +202,6 @@ export default function ItemBorrowPage() {
         void fetchData();
     };
 
-    const colCount = 9;
-
     return (
         <ProtectedRoute>
             <AppLayout fullWidth>
@@ -236,7 +260,7 @@ export default function ItemBorrowPage() {
                                                 <TableHead className="text-center w-[56px]">จำนวน</TableHead>
                                                 <TableHead className="min-w-[180px]">Division ที่ยืม</TableHead>
                                                 <TableHead className="min-w-[150px]">ตู้</TableHead>
-                                                <TableHead className="min-w-[220px]">Division ที่ตั้งตู้</TableHead>
+                                                {/* <TableHead className="min-w-[220px]">Division ที่ตั้งตู้</TableHead> */}
                                                 {/* <TableHead className="min-w-[132px] whitespace-nowrap">ชื่อผู้ยืม</TableHead> */}
                                                 <TableHead className="min-w-[132px] whitespace-nowrap">แก้ไขล่าสุด</TableHead>
                                             </TableRow>
@@ -253,12 +277,11 @@ export default function ItemBorrowPage() {
                                                     <TableCell className="text-center">{r.qty ?? '—'}</TableCell>
                                                     <TableCell className="text-sm">{borrowDepartmentLabel(r)}</TableCell>
                                                     <TableCell className="text-sm">
-                                                        {(r.cabinet?.cabinet_name ?? r.cabinet?.cabinet_code ?? '—') +
-                                                            (r.stockId != null ? ` (${r.stockId})` : '')}
+                                                        {(r.cabinet?.cabinet_name ?? r.cabinet?.cabinet_code ?? '—')}
                                                     </TableCell>
-                                                    <TableCell className="text-sm max-w-[280px]" title={cabinetDivisionsLabel(r)}>
+                                                    {/* <TableCell className="text-sm max-w-[280px]" title={cabinetDivisionsLabel(r)}>
                                                         {cabinetDivisionsLabel(r)}
-                                                    </TableCell>
+                                                    </TableCell> */}
                                                     {/* <TableCell className="text-sm whitespace-nowrap">{r.userName ?? '—'}</TableCell> */}
                                                     <TableCell className="text-sm whitespace-nowrap">{formatThDate(r.modifyDate)}</TableCell>
                                                 </TableRow>
@@ -268,14 +291,64 @@ export default function ItemBorrowPage() {
                                 </div>
                             )}
 
-                            <DispensedPagination
-                                currentPage={page}
-                                totalPages={lastPage}
-                                totalItems={total}
-                                itemsPerPage={limit}
-                                countLabel="รายการ"
-                                onPageChange={setPage}
-                            />
+                            {lastPage > 1 && (
+                                <div className="mt-6 flex items-center justify-between border-t pt-4">
+                                    <div className="text-sm text-gray-500">
+                                        หน้า {page} จาก {lastPage} ({total} อุปกรณ์)
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setPage(1)}
+                                            disabled={page === 1 || loading}
+                                        >
+                                            แรกสุด
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                            disabled={page === 1 || loading}
+                                        >
+                                            ก่อนหน้า
+                                        </Button>
+                                        {generateBorrowPageNumbers(page, lastPage).map((pNum, idx) =>
+                                            pNum === '...' ? (
+                                                <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">
+                                                    ...
+                                                </span>
+                                            ) : (
+                                                <Button
+                                                    key={pNum}
+                                                    variant={page === pNum ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    onClick={() => setPage(pNum as number)}
+                                                    disabled={loading}
+                                                >
+                                                    {pNum}
+                                                </Button>
+                                            ),
+                                        )}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
+                                            disabled={page === lastPage || loading}
+                                        >
+                                            ถัดไป
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setPage(lastPage)}
+                                            disabled={page === lastPage || loading}
+                                        >
+                                            สุดท้าย
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
