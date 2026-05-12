@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth';
 import { CategoryModule } from './category/category.module';
+import { CabinetModule } from './cabinet/cabinet.module';
 import { DepartmentModule } from './department/department.module';
 import { ItemModule } from './item/item.module';
 import { MedicalSuppliesModule } from './medical-supplies/medical-supplies.module';
@@ -25,6 +26,7 @@ import { StickerPrintModule } from './sticker-print/sticker-print.module';
     EmailModule,
     AuthModule,
     CategoryModule,
+    CabinetModule,
     DepartmentModule,
     ItemModule,
     MedicalSuppliesModule,

@@ -85,25 +85,33 @@ function cabinetDivisionsLabel(r: BorrowRow): string {
     return list.map(oneDeptLabel).join(' · ');
 }
 
+/** วันนี้ (Asia/Bangkok) เป็น YYYY-MM-DD ค.ศ. — ตรงกับ DatePickerBE */
+function todayBangkokYmd(): string {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date());
+}
+
+function initialBorrowFilters(): BorrowFilterState {
+    const d = todayBangkokYmd();
+    return {
+        searchItemCode: '',
+        startDate: d,
+        endDate: d,
+        departmentId: '',
+        cabinetId: '',
+        borrowDepartmentId: '',
+    };
+}
+
 export default function ItemBorrowPage() {
     const [rows, setRows] = useState<BorrowRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filters, setFilters] = useState<BorrowFilterState>({
-        searchItemCode: '',
-        startDate: '',
-        endDate: '',
-        departmentId: '',
-        cabinetId: '',
-        borrowDepartmentId: '',
-    });
-    const [appliedFilters, setAppliedFilters] = useState<BorrowFilterState>({
-        searchItemCode: '',
-        startDate: '',
-        endDate: '',
-        departmentId: '',
-        cabinetId: '',
-        borrowDepartmentId: '',
-    });
+    const [filters, setFilters] = useState<BorrowFilterState>(initialBorrowFilters);
+    const [appliedFilters, setAppliedFilters] = useState<BorrowFilterState>(initialBorrowFilters);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
     const [lastPage, setLastPage] = useState(1);
@@ -159,14 +167,7 @@ export default function ItemBorrowPage() {
         setFilters((prev) => ({ ...prev, [key]: value }));
     };
     const onClear = () => {
-        const reset: BorrowFilterState = {
-            searchItemCode: '',
-            startDate: '',
-            endDate: '',
-            departmentId: '',
-            cabinetId: '',
-            borrowDepartmentId: '',
-        };
+        const reset = initialBorrowFilters();
         setFilters(reset);
         setAppliedFilters(reset);
         setPage(1);

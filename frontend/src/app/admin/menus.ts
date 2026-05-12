@@ -19,6 +19,7 @@ import {
   Printer,
   Ruler,
   BookMarked,
+  ContactRound,
 } from 'lucide-react';
 // Type definitions for menu and submenu
 export interface StaffMenuSubItem {
@@ -179,6 +180,12 @@ export const adminMenuItems: StaffMenuItem[] = [
         href: '/admin/management/cabinets',
         icon: Package,
         description: 'จัดการตู้ Cabinet',
+      },
+      {
+        name: 'จัดการ User ในตู้',
+        href: '/admin/management/cabinet-users',
+        icon: ContactRound,
+        description: 'จัดการ User ในตู้',
       },
       {
         name: 'จัดการ ผู้ใช้งาน Staff',

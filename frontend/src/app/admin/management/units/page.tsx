@@ -233,7 +233,7 @@ export default function AdminUnitsManagementPage() {
                         <TableHead className="w-14">#</TableHead>
                         <TableHead className="w-20">ID</TableHead>
                         <TableHead>ชื่อหน่วย</TableHead>
-                        <TableHead className="w-24">B_ID</TableHead>
+
                         <TableHead>สถานะ</TableHead>
                         <TableHead className="w-[120px] text-right">จัดการ</TableHead>
                       </TableRow>
@@ -250,7 +250,7 @@ export default function AdminUnitsManagementPage() {
                           <TableCell className="max-w-[280px] truncate font-medium" title={u.unitName}>
                             {u.unitName || '—'}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{u.bId ?? '—'}</TableCell>
+
                           <TableCell>
                             <UnitStatusBadge isCancel={u.isCancel} />
                           </TableCell>

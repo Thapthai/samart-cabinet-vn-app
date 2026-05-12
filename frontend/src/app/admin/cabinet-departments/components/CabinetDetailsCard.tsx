@@ -47,12 +47,37 @@ interface CabinetDetailsCardProps {
   onClose: () => void;
 }
 
+/** ตรงกับ admin/management/items */
+const PAGE_SIZE = 10;
+
+function generatePageNumbers(currentPage: number, totalPages: number): (number | string)[] {
+  const pages: (number | string)[] = [];
+  const maxVisible = 5;
+  if (totalPages <= maxVisible) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else if (currentPage <= 3) {
+    for (let i = 1; i <= 4; i++) pages.push(i);
+    pages.push("...");
+    pages.push(totalPages);
+  } else if (currentPage >= totalPages - 2) {
+    pages.push(1);
+    pages.push("...");
+    for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    pages.push("...");
+    for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+    pages.push("...");
+    pages.push(totalPages);
+  }
+  return pages;
+}
+
 export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDetailsCardProps) {
   const [itemStocks, setItemStocks] = useState<ItemStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const itemsPerPage = 10;
 
   useEffect(() => {
     loadItemStocks(1);
@@ -63,7 +88,7 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
       setLoading(true);
       const response = await cabinetDepartmentApi.getItemStocksByCabinet(selectedRow.cabinet_id, {
         page,
-        limit: itemsPerPage,
+        limit: PAGE_SIZE,
       });
 
       if (response.success && response.data) {
@@ -84,7 +109,15 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
     }
   };
 
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+
+  const handlePageChange = (nextPage: number) => {
+    const next = Math.min(Math.max(1, nextPage), totalPages);
+    void loadItemStocks(next);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   return (
     <Card className="mt-6">
@@ -130,13 +163,13 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
               <p className="text-base break-words whitespace-pre-wrap">{selectedRow.description || "-"}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 mb-2 block">จำนวนอุปกรณ์</label>
+              <label className="text-sm font-medium text-gray-500 mb-2 block">จำนวนอุปกรณ์ที่อยู่ในตู้</label>
               <div className="inline-flex items-center gap-1">
                 <Package className="text-blue-600 h-4 w-4" />
                 <span className="text-lg font-bold text-slate-700">
-                  {selectedRow.itemstock_dispensed_count ?? 0} / {selectedRow.itemstock_count ?? 0}
+                  {selectedRow.itemstock_count ?? 0}
                 </span>
-                <span className="text-sm text-slate-500">(ถูกเบิก / ในตู้)</span>
+                {/* <span className="text-sm text-slate-500">(ในตู้)</span> */}
               </div>
             </div>
           </div>
@@ -171,7 +204,7 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
                   <TableBody>
                     {itemStocks.map((stock, index) => (
                       <TableRow key={`detail-stock-${index}-${stock.StockID ?? ""}`}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPage - 1) * PAGE_SIZE + index + 1}</TableCell>
                         <TableCell>{stock.item?.itemcode || stock.ItemCode || "-"}</TableCell>
                         <TableCell>{stock.item?.itemname || "-"}</TableCell>
                         <TableCell>{stock.Qty || 0}</TableCell>
@@ -197,53 +230,66 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
                 </Table>
               </div>
 
-              {/* Pagination */}
+              {/* Pagination — ให้ตรงกับ admin/management/items */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-gray-600">
-                    แสดง {(currentPage - 1) * itemsPerPage + 1}-
-                    {Math.min(currentPage * itemsPerPage, totalItems)} จาก {totalItems} รายการ
+                <div className="mt-6 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    หน้า {currentPage} จาก {totalPages} ({totalItems} รายการ)
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
+                      type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => loadItemStocks(currentPage - 1)}
-                      disabled={currentPage === 1}
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1 || loading}
+                    >
+                      แรกสุด
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1 || loading}
                     >
                       ก่อนหน้า
                     </Button>
-                    <div className="flex items-center gap-2">
-                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                        let page;
-                        if (totalPages <= 5) {
-                          page = i + 1;
-                        } else if (currentPage <= 3) {
-                          page = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          page = totalPages - 4 + i;
-                        } else {
-                          page = currentPage - 2 + i;
-                        }
-                        return (
-                          <Button
-                            key={`cabinet-detail-page-${i}-${page}`}
-                            variant={currentPage === page ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => loadItemStocks(page)}
-                          >
-                            {page}
-                          </Button>
-                        );
-                      })}
-                    </div>
+                    {generatePageNumbers(currentPage, totalPages).map((pNum, idx) =>
+                      pNum === "..." ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
+                          ...
+                        </span>
+                      ) : (
+                        <Button
+                          key={pNum}
+                          type="button"
+                          variant={currentPage === pNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(pNum as number)}
+                          disabled={loading}
+                        >
+                          {pNum}
+                        </Button>
+                      ),
+                    )}
                     <Button
+                      type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => loadItemStocks(currentPage + 1)}
-                      disabled={currentPage === totalPages}
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages || loading}
                     >
                       ถัดไป
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage === totalPages || loading}
+                    >
+                      สุดท้าย
                     </Button>
                   </div>
                 </div>

@@ -179,7 +179,6 @@ export default function DepartmentMasterTable({
                 <TableHead className="text-slate-600 font-semibold">รหัส Division</TableHead>
                 <TableHead className="text-slate-600 font-semibold">ชื่อ Division</TableHead>
                 <TableHead className="text-slate-600 font-semibold">ชื่อย่อ</TableHead>
-                <TableHead className="text-slate-600 font-semibold min-w-[100px]">RefDepID</TableHead>
                 <TableHead className="text-center text-slate-600 font-semibold">จำนวนรหัสแผนกย่อย</TableHead>
                 {onEditMainDepartment ? (
                   <TableHead className="w-[120px] text-right text-slate-600 font-semibold">จัดการ</TableHead>
@@ -234,9 +233,7 @@ export default function DepartmentMasterTable({
                         <TableCell className="font-medium">{dept.ID}</TableCell>
                         <TableCell>{dept.DepName || '—'}</TableCell>
                         <TableCell className="font-mono text-sm">{dept.DepName2?.trim() ? dept.DepName2 : '—'}</TableCell>
-                        <TableCell className="font-mono text-sm text-muted-foreground max-w-[140px] truncate" title={dept.RefDepID || undefined}>
-                          {dept.RefDepID?.trim() ? dept.RefDepID : '—'}
-                        </TableCell>
+                     
                         <TableCell className="text-center">
                           <span className="font-semibold text-slate-700">{subs.length}</span>
                         </TableCell>

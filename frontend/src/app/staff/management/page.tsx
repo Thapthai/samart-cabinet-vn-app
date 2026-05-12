@@ -21,7 +21,7 @@ const managementMenus = [
     name: 'จัดการตู้ Cabinet',
     href: '/staff/management/cabinets',
     icon: Package,
-    description: 'จัดการตู้ Cabinet ตั้งค่าและเชื่อมโยงกับแผนก',
+    description: 'รายการตู้ เชื่อมแผนก และ User ในตู้ (ชื่อผู้ใช้ตู้ / ตู้ที่ขึ้นได้)',
     color: 'from-blue-500 to-indigo-600',
     bgLight: 'bg-blue-50',
     borderColor: 'border-blue-200',

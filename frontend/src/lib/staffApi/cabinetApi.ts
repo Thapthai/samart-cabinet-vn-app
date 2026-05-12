@@ -1,13 +1,12 @@
 import staffApi from './index';
-import type { ApiResponse, PaginatedResponse } from '@/types/common';
+import { createCabinetListGetAll, createCabinetUsersApi } from '@/lib/cabinet-http-clients';
+import type { ApiResponse } from '@/types/common';
 
-// =========================== Cabinet API ===========================
-export const staffCabinetApi = {
-  getAll: async (params?: { page?: number; limit?: number; keyword?: string; sort_by?: string; sort_order?: string }): Promise<PaginatedResponse<any>> => {
-    const response = await staffApi.get('/cabinets', { params });
-    return response.data;
-  },
-};
+/** ผู้ใช้ในตู้ — โค้ดเดียวกับ admin / `cabinet-http-clients` เปลี่ยนแค่ axios instance → staffApi */
+export const staffCabinetUsersApi = createCabinetUsersApi(staffApi);
+
+/** GET /cabinets — โค้ดเดียวกับ factory ใน cabinet-http-clients */
+export const staffCabinetApi = createCabinetListGetAll(staffApi);
 
 // =========================== Cabinet Department Mapping API ===========================
 export const staffCabinetDepartmentApi = {

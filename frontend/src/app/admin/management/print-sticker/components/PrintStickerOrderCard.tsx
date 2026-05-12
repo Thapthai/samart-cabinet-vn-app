@@ -109,7 +109,7 @@ export function PrintStickerOrderCard({
                           type="text"
                           maxLength={50}
                           className="h-8 min-w-[7rem] text-sm font-mono"
-                          placeholder="ถ้าว่างใช้ P-..."
+                          placeholder=""
                           value={line.lotNo ?? ''}
                           onChange={(e) => onLotNoChange(line.itemcode, e.target.value)}
                           onClick={(e) => e.stopPropagation()}

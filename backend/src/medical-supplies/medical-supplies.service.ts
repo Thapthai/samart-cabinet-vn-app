@@ -3548,11 +3548,11 @@ export class MedicalSuppliesService {
         --       SELECT uc.*
         --       FROM user_cabinet uc
         --       INNER JOIN (
-        --           SELECT cabinet_finger_id, MAX(id) AS max_id
+        --           SELECT cabinet_id, MAX(id) AS max_id
         --           FROM user_cabinet
-        --           GROUP BY cabinet_finger_id
+        --           GROUP BY cabinet_id
         --       ) x ON x.max_id = uc.id
-        --   ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_finger_id
+        --   ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_id
         LEFT JOIN users ON users.ID = ist.CabinetUserID
         LEFT JOIN employee ON employee.EmpCode = users.EmpCode
         INNER JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
@@ -3774,11 +3774,11 @@ export class MedicalSuppliesService {
         --       SELECT uc.*
         --       FROM user_cabinet uc
         --       INNER JOIN (
-        --           SELECT cabinet_finger_id, MAX(id) AS max_id
+        --           SELECT cabinet_id, MAX(id) AS max_id
         --           FROM user_cabinet
-        --           GROUP BY cabinet_finger_id
+        --           GROUP BY cabinet_id
         --       ) x ON x.max_id = uc.id
-        --   ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_finger_id
+        --   ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_id
         LEFT JOIN users ON users.ID = ist.CabinetUserID
         LEFT JOIN employee ON employee.EmpCode = users.EmpCode
         INNER JOIN app_cabinets on app_cabinets.stock_id = ist.StockID

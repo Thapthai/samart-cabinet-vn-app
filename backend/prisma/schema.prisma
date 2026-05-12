@@ -728,17 +728,17 @@ model ItemSlotInCabinetDetail {
   // Relations
   itemSlotInCabinet ItemSlotInCabinet @relation("DetailToSlot", fields: [itemcode], references: [itemcode], map: "detail_to_slot_fkey")
   item              Item?             @relation("DetailToItem", fields: [itemcode], references: [itemcode], map: "detail_to_item_fkey")
-  userCabinet       UserCabinet?      @relation(fields: [UserID], references: [cabinet_finger_id])
+  userCabinet       UserCabinet?      @relation(fields: [UserID], references: [cabinet_id])
   borrowDepartment  Department?       @relation("ItemSlotDetailBorrowDepartment", fields: [DepID], references: [ID], onDelete: SetNull)
 
   @@map("itemslotincabinet_detail")
 }
 
-// user_cabinet: links cabinet_finger_id (UserID in detail) to user_id -> users -> employee
+// user_cabinet.cabinet_id = app_cabinets.stock_id
 model UserCabinet {
-  id                Int @id @default(autoincrement())
-  cabinet_finger_id Int @unique @map("cabinet_finger_id")
-  user_id           Int @map("user_id")
+  id         Int @id @default(autoincrement())
+  cabinet_id Int @unique
+  user_id    Int @map("user_id")
 
   legacyUser              LegacyUsers               @relation(fields: [user_id], references: [id])
   itemSlotInCabinetDetail ItemSlotInCabinetDetail[]
@@ -746,10 +746,31 @@ model UserCabinet {
   @@map("user_cabinet")
 }
 
-// users (legacy) - links to employee by EmpCode
+// users (legacy) — ตารางเดิมของตู้ SmartCabinet / user_cabinet
 model LegacyUsers {
-  id      Int     @id @default(autoincrement())
-  EmpCode String? @unique @map("EmpCode") @db.VarChar(20)
+  id                   Int       @id @default(autoincrement()) @map("ID")
+  EmpCode              String?   @unique @map("EmpCode") @db.VarChar(20)
+  UserName             String?   @map("UserName") @db.VarChar(20)
+  Password             String?   @map("Password") @db.VarChar(20)
+  IsCancel             Int?      @default(0) @map("IsCancel")
+  Lang                 String?   @map("Lang") @db.VarChar(2)
+  images               String?   @map("images") @db.VarChar(100)
+  DeptID               Int?      @default(20) @map("DeptID")
+  B_ID                 Int?      @map("B_ID")
+  GroupType            Int?      @default(1) @map("GroupType")
+  IsChange             Int?      @default(0) @map("IsChange")
+  LastUpdatePassword   DateTime? @map("LastUpdatePassword")
+  PasswordExpireDate   DateTime? @map("PasswordExpireDate")
+  isCssdCheckStock     Boolean?  @map("isCssdCheckStock") @db.Bit(1)
+  RFID_Card            String?   @map("RFID_Card") @db.VarChar(50)
+  permission           Int?      @map("permission")
+  FingerID             Int?      @map("FingerID")
+  display              String?   @map("display") @db.VarChar(2)
+  font                 String?   @map("font") @db.VarChar(2)
+  time_out             Int?      @map("time_out")
+  IsAdmin              Int?      @default(0) @map("IsAdmin")
+  IsFingerPrint1       Int?      @default(0) @map("IsFingerPrint1")
+  IsFingerPrint2       Int?      @default(0) @map("IsFingerPrint2")
 
   userCabinet UserCabinet[]
   employee    Employee?     @relation(fields: [EmpCode], references: [EmpCode])

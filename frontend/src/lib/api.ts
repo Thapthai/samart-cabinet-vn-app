@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getSession } from 'next-auth/react';
+import { createCabinetListGetAll, createCabinetUsersApi } from '@/lib/cabinet-http-clients';
 import type { ApiResponse, PaginatedResponse, ItemsStats } from '@/types/common';
 import type { AuthResponse, User, RegisterDto, LoginDto } from '@/types/auth';
 import type { Item, CreateItemDto, UpdateItemDto, GetItemsQuery } from '@/types/item';
@@ -2047,11 +2048,9 @@ export const unitsApi = {
 };
 
 // =========================== Cabinet API ===========================
+const cabinetList = createCabinetListGetAll(api);
 export const cabinetApi = {
-  getAll: async (params?: { page?: number; limit?: number; keyword?: string; sort_by?: string; sort_order?: string }): Promise<PaginatedResponse<any>> => {
-    const response = await api.get('/cabinets', { params });
-    return response.data;
-  },
+  getAll: cabinetList.getAll,
 
   getById: async (id: number): Promise<ApiResponse<any>> => {
     const response = await api.get(`/cabinets/${id}`);
@@ -2073,6 +2072,9 @@ export const cabinetApi = {
     return response.data;
   },
 };
+
+/** ผู้ใช้ในตู้ — โค้ดเส้นทางเดียวกับ factory ใน `@/lib/cabinet-http-clients` (axios หลัก admin) */
+export const cabinetUsersApi = createCabinetUsersApi(api);
 
 // =========================== Cabinet Department Mapping API ===========================
 // Backend: cabinet-departments (GET/POST/PUT/DELETE), item-stocks/in-cabinet (GET)
