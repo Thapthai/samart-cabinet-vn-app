@@ -222,17 +222,7 @@ export default function ReturnToCabinetPage() {
               </p>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-green-600 font-medium">รายการทั้งหมด</p>
-              <p className="text-2xl font-bold text-green-900">{summary.total}</p>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-600 font-medium">จำนวนรวม</p>
-              <p className="text-2xl font-bold text-blue-900">{summary.totalQty}</p>
-            </div>
-          </div>
+ 
 
           <FilterSection
             filters={filters}
