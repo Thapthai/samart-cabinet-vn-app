@@ -232,11 +232,12 @@ export default function ItemBorrowPage() {
                                                 <TableHead className="w-[72px]">ID</TableHead>
                                                 <TableHead>รหัสสินค้า</TableHead>
                                                 <TableHead className="min-w-[140px]">ชื่อสินค้า</TableHead>
-                                                <TableHead className="w-[100px]">HN</TableHead>
-                                                <TableHead className="text-center w-[56px]">Qty</TableHead>
+                                                {/* <TableHead className="w-[100px]">HN</TableHead> */}
+                                                <TableHead className="text-center w-[56px]">จำนวน</TableHead>
                                                 <TableHead className="min-w-[180px]">Division ที่ยืม</TableHead>
                                                 <TableHead className="min-w-[150px]">ตู้</TableHead>
                                                 <TableHead className="min-w-[220px]">Division ที่ตั้งตู้</TableHead>
+                                                {/* <TableHead className="min-w-[132px] whitespace-nowrap">ชื่อผู้ยืม</TableHead> */}
                                                 <TableHead className="min-w-[132px] whitespace-nowrap">แก้ไขล่าสุด</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -248,8 +249,8 @@ export default function ItemBorrowPage() {
                                                     <TableCell className="max-w-[220px] truncate" title={r.itemName ?? ''}>
                                                         {r.itemName ?? '—'}
                                                     </TableCell>
-                                                    <TableCell className="font-mono text-xs">{r.hnCode?.trim() ? r.hnCode : '—'}</TableCell>
-                                                    <TableCell className="text-center tabular-nums">{r.qty ?? '—'}</TableCell>
+                                                    {/* <TableCell className="font-mono text-xs">{r.hnCode?.trim() ? r.hnCode : '—'}</TableCell> */}
+                                                    <TableCell className="text-center">{r.qty ?? '—'}</TableCell>
                                                     <TableCell className="text-sm">{borrowDepartmentLabel(r)}</TableCell>
                                                     <TableCell className="text-sm">
                                                         {(r.cabinet?.cabinet_name ?? r.cabinet?.cabinet_code ?? '—') +
@@ -258,6 +259,7 @@ export default function ItemBorrowPage() {
                                                     <TableCell className="text-sm max-w-[280px]" title={cabinetDivisionsLabel(r)}>
                                                         {cabinetDivisionsLabel(r)}
                                                     </TableCell>
+                                                    {/* <TableCell className="text-sm whitespace-nowrap">{r.userName ?? '—'}</TableCell> */}
                                                     <TableCell className="text-sm whitespace-nowrap">{formatThDate(r.modifyDate)}</TableCell>
                                                 </TableRow>
                                             ))}

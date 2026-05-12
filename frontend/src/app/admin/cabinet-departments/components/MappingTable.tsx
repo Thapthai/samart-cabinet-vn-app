@@ -132,9 +132,8 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
                   <TableHead className="min-w-[160px] px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">
                     Division ที่เชื่อมโยง
                   </TableHead>
-                  <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">สถานะ</TableHead>
-                  <TableHead className="px-3 py-3.5 text-slate-600 sm:px-4 sm:py-4">หมายเหตุ</TableHead>
-                  <TableHead className="px-3 py-3.5 text-right text-slate-600 sm:px-4 sm:py-4">จัดการ</TableHead>
+
+
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -189,11 +188,7 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
                               {group.mappings.map((m) => divisionLabel(m)).join(" · ")}
                             </p>
                           </TableCell>
-                          <TableCell className="px-3 py-3.5 text-muted-foreground sm:px-4 sm:py-4">—</TableCell>
-                          <TableCell className="px-3 py-3.5 text-muted-foreground sm:px-4 sm:py-4">—</TableCell>
-                          <TableCell className="px-3 py-3.5 text-right text-muted-foreground sm:px-4 sm:py-4">
-                            —
-                          </TableCell>
+
                         </TableRow>
 
                         {isExpanded && (
