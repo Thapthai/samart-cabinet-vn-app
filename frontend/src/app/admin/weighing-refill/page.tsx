@@ -337,7 +337,7 @@ export default function WeighingRefillPage() {
                       <TableHeader>
                         <TableRow className="bg-slate-100/80 hover:bg-slate-100/80 border-b">
                           <TableHead className="w-14 text-center font-semibold">ลำดับ</TableHead>
-                          <TableHead className="min-w-[180px] font-semibold">ชื่อสินค้า</TableHead>
+                          <TableHead className="min-w-[180px] font-semibold">ชื่ออุปกรณ์</TableHead>
                           <TableHead className="min-w-[120px] font-semibold">ผู้ดำเนินการ</TableHead>
                           <TableHead className="w-20 text-center font-semibold">จำนวน</TableHead>
                           <TableHead className="min-w-[140px] text-right font-semibold">วันที่แก้ไข</TableHead>

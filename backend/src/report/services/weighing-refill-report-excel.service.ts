@@ -74,7 +74,7 @@ export class WeighingRefillReportExcelService {
 
     // const tableStartRow = 6;
     const tableStartRow = 4;
-    const headers = ['ลำดับ', 'ชื่อสินค้า', 'ผู้ดำเนินการ', 'จำนวน', 'วันที่แก้ไข'];
+    const headers = ['ลำดับ', 'ชื่ออุปกรณ์', 'ผู้ดำเนินการ', 'จำนวน', 'วันที่แก้ไข'];
     const headerRow = worksheet.getRow(tableStartRow);
     headers.forEach((h, i) => {
       const cell = headerRow.getCell(i + 1);

@@ -66,24 +66,24 @@ export function PrintStickerItemListCard({
   const descriptionCabinet =
     loadingList && items.length === 0
       ? 'กำลังโหลด…'
-      : `แสดง ${items.length} รายการในหน้านี้ จากทั้งหมด ${total} รายการ · เลือก Division + ตู้แล้วกดโหลดรายการ (หรือรอโหลดอัตโนมัติ)`;
+      : `แสดง ${items.length} รายการในหน้านี้ จากทั้งหมด ${total} รายการ`;
 
   return (
     <Card className="min-w-0 border-slate-200 shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg">
-          {variant === 'cabinet' ? 'เวชภัณฑ์ในตู้ (ตามช่อง slot)' : 'รายการ Item (ใช้งาน)'}
+          {variant === 'cabinet' ? 'เวชภัณฑ์ในตู้' : 'รายการ Item (ใช้งาน)'}
         </CardTitle>
         <CardDescription>
           {variant === 'cabinet'
             ? descriptionCabinet
             : loadingList && items.length === 0
               ? 'กำลังโหลด…'
-              : `แสดง ${items.length} รายการในหน้านี้ จากทั้งหมด ${total} รายการ · ติ๊กเลือกได้หลายแถว ลำดับพิมพ์ตามลำดับที่เลือก`}
+              : `แสดง ${items.length} รายการในหน้านี้ จากทั้งหมด ${total} รายการ`}
         </CardDescription>
         <div className="flex flex-col gap-2 pt-2 sm:flex-row">
           <Input
-            placeholder="ค้นหา itemcode / ชื่อ…"
+            placeholder="ค้นหา itemcode / ชื่อ"
             value={keywordInput}
             onChange={(e) => onKeywordInputChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSearch()}

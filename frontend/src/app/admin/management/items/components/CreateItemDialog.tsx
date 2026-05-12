@@ -153,13 +153,13 @@ export default function CreateItemDialog({
               )}
             />
 
-            {/* ชื่อสินค้า */}
+            {/* ชื่ออุปกรณ์ */}
             <FormField
               control={form.control}
               name="itemname"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>ชื่อสินค้า *</FormLabel>
+                  <FormLabel>ชื่ออุปกรณ์ *</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="เช่น ชุดเครื่องมือผ่าตัดใหญ่"
@@ -316,7 +316,7 @@ export default function CreateItemDialog({
                   <FormLabel>คำอธิบาย</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="รายละเอียดของสินค้า..."
+                      placeholder="รายละเอียดของอุปกรณ์..."
                       className="min-h-[100px]"
                       {...field}
                     />
@@ -337,7 +337,7 @@ export default function CreateItemDialog({
                 ยกเลิก
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'กำลังบันทึก...' : 'บันทึกสินค้า'}
+                {loading ? 'กำลังบันทึก...' : 'บันทึกอุปกรณ์'}
               </Button>
             </DialogFooter>
           </form>

@@ -130,12 +130,12 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
     }
 
     if (!itemname || itemname.trim().length < 2) {
-      setError('ชื่อสินค้าต้องมีอย่างน้อย 2 ตัวอักษร');
+      setError('ชื่ออุปกรณ์ต้องมีอย่างน้อย 2 ตัวอักษร');
       return;
     }
 
     if (itemname.length > 255) {
-      setError('ชื่อสินค้าต้องไม่เกิน 255 ตัวอักษร');
+      setError('ชื่ออุปกรณ์ต้องไม่เกิน 255 ตัวอักษร');
       return;
     }
 
@@ -225,12 +225,12 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
 
             <div>
               <Label htmlFor="edit-item-itemname">
-                ชื่อสินค้า <span className="text-red-500">*</span>
+                ชื่ออุปกรณ์ <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="edit-item-itemname"
                 type="text"
-                placeholder="กรอกชื่อสินค้า..."
+                placeholder="กรอกชื่ออุปกรณ์..."
                 value={itemname}
                 onChange={(e) => {
                   setItemname(e.target.value);

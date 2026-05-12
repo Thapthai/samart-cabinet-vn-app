@@ -221,9 +221,8 @@ export default function StaffItemBorrowPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[72px]">ID</TableHead>
-                    <TableHead>รหัสสินค้า</TableHead>
-                    <TableHead className="min-w-[140px]">ชื่อสินค้า</TableHead>
+                    <TableHead>รหัสอุปกรณ์</TableHead>
+                    <TableHead className="min-w-[140px]">ชื่ออุปกรณ์</TableHead>
                     <TableHead className="w-[100px]">HN</TableHead>
                     <TableHead className="text-center w-[56px]">Qty</TableHead>
                     <TableHead className="min-w-[180px]">Division ที่ยืม</TableHead>
@@ -235,7 +234,6 @@ export default function StaffItemBorrowPage() {
                 <TableBody>
                   {rows.map((r) => (
                     <TableRow key={r.rowId}>
-                      <TableCell className="font-mono text-sm">{r.rowId}</TableCell>
                       <TableCell className="font-mono text-sm">{r.itemCode ?? '—'}</TableCell>
                       <TableCell className="max-w-[220px] truncate" title={r.itemName ?? ''}>
                         {r.itemName ?? '—'}

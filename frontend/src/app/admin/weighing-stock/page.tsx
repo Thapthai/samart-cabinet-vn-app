@@ -293,7 +293,7 @@ export default function WeighingPage() {
                       <TableHeader>
                         <TableRow className="bg-slate-100/80 hover:bg-slate-100/80 border-b">
                           <TableHead className="w-12 sm:w-14 text-center font-semibold text-xs sm:text-sm whitespace-nowrap">ลำดับ</TableHead>
-                          <TableHead className="min-w-[140px] sm:min-w-[200px] font-semibold text-xs sm:text-sm">ชื่อสินค้า</TableHead>
+                          <TableHead className="min-w-[140px] sm:min-w-[200px] font-semibold text-xs sm:text-sm">ชื่ออุปกรณ์</TableHead>
                           <TableHead className="min-w-[80px] sm:min-w-[120px] text-center font-semibold text-xs sm:text-sm whitespace-nowrap">ตู้</TableHead>
                           <TableHead className="w-14 sm:w-20 text-center font-semibold text-xs sm:text-sm whitespace-nowrap">ช่อง</TableHead>
                           <TableHead className="w-14 sm:w-20 text-center font-semibold text-xs sm:text-sm whitespace-nowrap">สล็อต</TableHead>

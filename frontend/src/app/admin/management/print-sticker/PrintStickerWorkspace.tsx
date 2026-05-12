@@ -751,16 +751,10 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
       )}
 
       <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="space-y-1 pb-2">
-          <CardTitle className="text-lg">ตั้งค่าก่อนพิมพ์</CardTitle>
-          <CardDescription className="max-w-3xl leading-relaxed">
-            เลือกโหมดก่อน — จากนั้นใช้ช่องด้านล่างตามที่บอกในกรอบ (Auto ต้องเลือกตู้ · Manual
-            เลือกตู้ได้ถ้าอยากดูเฉพาะในตู้หรือปล่อยว่างเพื่อดูรายการ Item เหมือนเดิม)
-          </CardDescription>
-        </CardHeader>
+
         <CardContent className="flex flex-col gap-6 pt-1">
           <div>
-            <p className="mb-2 text-sm font-semibold text-slate-900">ขั้นที่ 1 — โหมด</p>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
@@ -776,11 +770,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
                   <Zap className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0 space-y-0.5">
-                  <span className="block font-medium text-slate-900">Auto — เติมตู้</span>
-                  <span className="block text-xs text-muted-foreground leading-snug">
-                    ต้องเลือก Division + ตู้ แล้วแสดงเฉพาะของที่<strong>ต้องเติม</strong> (จำนวนไม่เกินช่องว่างถึง
-                    Max)
-                  </span>
+                  <span className="block font-medium text-slate-900">Auto</span>
                 </span>
               </button>
               <button
@@ -797,11 +787,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
                   <LayoutList className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0 space-y-0.5">
-                  <span className="block font-medium text-slate-900">Manual — เลือกเอง</span>
-                  <span className="block text-xs text-muted-foreground leading-snug">
-                    ปล่อย Division/ตู้ ว่าง = โหลดรายการ Item ใช้งานเหมือนเดิม · ถ้าเลือกตู้ครบแล้ว
-                    = ของในตู้นั้นตามที่โหลด · ระบุ QTY/Lot/วันหมดเองได้โดยไม่บังคับ max จากตู้
-                  </span>
+                  <span className="block font-medium text-slate-900">Manual</span>
                 </span>
               </button>
             </div>
@@ -815,26 +801,21 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
           >
             <div className="mb-3 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between">
               <p className="text-sm font-semibold text-slate-900">
-                ขั้นที่ 2 — {mode === 'auto' ? 'ระบุ Division และตู้ (จำเป็น)' : 'กรองตู้ (ไม่บังคับ)'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {mode === 'auto'
-                  ? 'เลือกให้ครบทั้งคู่ ระบบจึงโหลดของที่ควรเติมได้'
-                  : 'ว่างไว้ = โหลดจากรายการ Item ใช้งาน · เลือกครบถ้ามองเฉพาะตู้ที่ต้องการ'}
+                {mode === 'auto' ? 'ระบุ Division และตู้' : 'กรองตู้'}
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <SearchableSelect
                 label={
                   mode === 'auto'
-                    ? 'Division (จำเป็น)'
-                    : 'Division (ว่างได้ — ว่างถ้ารายการจาก Item ใช้งาน)'
+                    ? 'Division'
+                    : 'Division'
                 }
-                placeholder={mode === 'manual' ? 'ไม่เลือก = โหลด Item ใช้งาน…' : 'เลือก Division…'}
+                placeholder={mode === 'manual' ? 'ไม่เลือก = โหลด Item ใช้งาน' : 'เลือก Division'}
                 value={departmentId}
                 required={mode === 'auto'}
                 allowClear={mode === 'manual'}
-                clearLabel="ไม่เลือก (รายการ Item ใช้งาน)"
+                clearLabel="ไม่เลือก"
                 onValueChange={(v) => setDepartmentId(v)}
                 options={departmentSelectOptions}
                 loading={loadingDepartments}
@@ -843,17 +824,17 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
               <SearchableSelect
                 label={
                   mode === 'auto'
-                    ? 'ตู้ (จำเป็น)'
-                    : 'ตู้ (เลือกหลัง Division — หรือว่างได้)'
+                    ? 'ตู้'
+                    : 'ตู้'
                 }
                 placeholder={
-                  departmentId ? 'เลือกตู้…' : mode === 'manual' ? 'เลือก Division หรือว่างไว้' : 'เลือก Division ก่อน'
+                  departmentId ? 'เลือกตู้' : mode === 'manual' ? 'เลือก Division' : 'เลือก Division ก่อน'
                 }
                 value={cabinetId}
                 required={mode === 'auto'}
                 disabled={!departmentId}
                 allowClear={mode === 'manual' && !!departmentId}
-                clearLabel="ล้างตู้"
+                clearLabel="ไม่เลือก"
                 onValueChange={(v) => setCabinetId(v)}
                 options={cabOptions}
                 loading={loadingCabinets}
@@ -871,47 +852,21 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
                   </span>
                 ) : cabinetId ? (
                   <span className="text-amber-800">
-                    กำลังโหลด Stock ID… ถ้ามานานยังว่างแปลว่าตู้ยังไม่ผูก stock_id — Auto ไม่สามารถโหลดได้
+                    กำลังโหลด Stock ID...
                   </span>
                 ) : mode === 'auto' ? (
-                  <span>เลือกตู้เมื่อเลือก Division แล้ว แล้วรอให้แสดง Stock ID</span>
+                  <span>เลือกตู้เมื่อเลือก Division แล้ว</span>
                 ) : null}
               </div>
             )}
             {manualFilterIncomplete && (
               <p className="mt-2 text-xs font-medium text-amber-900">
-                เลือก Division อยู่ — ให้เลือกตู้ให้ครบ หรือกดปล่อยว่างใน Division เพื่อกลับโหลดรายการ Item ทั้งหมด
+                เลือก Division อยู่ — ให้เลือกตู้ให้ครบ
               </p>
             )}
           </div>
 
-          <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-slate-700">เริ่มโหลดรายการ: </span>
-              {mode === 'manual' ? (
-                manualShowsAllItems ? (
-                  <span>
-                    พร้อมอยู่แล้วจากรายการ Item (หมายเหตุ: เรียบเรียง/ค้นหาได้จากตารางด้านล่าง)
-                  </span>
-                ) : manualFilterIncomplete ? (
-                  <span className="text-amber-800">แก้ Division/ตู้ ให้สอดคล้องแล้วกดปุ่มขวา</span>
-                ) : (
-                  <span>โหลดจากตู้ที่เลือก — ถ้ามีความเข้ากันใช้ฟิลเตอร์ด้านบนในลิตส์เหมือนเดิม</span>
-                )
-              ) : cabinetPairSelected ? (
-                <span>
-                  พร้อมโหลดจากตู้นี้ได้
-                  {cabinetStockId == null || cabinetStockId <= 0 ? (
-                    <span className="text-amber-800">
-                      {' '}
-                      (ถ้ายังไม่มี Stock ID จะบันทึกเตรียมพิมพ์จากตู้นี้ไม่ได้ — ตรวจการตั้งค่าตู้)
-                    </span>
-                  ) : null}
-                </span>
-              ) : (
-                <span>เลือก Division + ตู้ให้ครบก่อน</span>
-              )}
-            </p>
+          <div className="flex justify-end border-t pt-4">
             <Button
               type="button"
               variant="secondary"
@@ -963,8 +918,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg">รายการ itemstock ที่สร้างแล้ว</CardTitle>
-          <CardDescription>ลบรายการที่ไม่ต้องการก่อน แล้วค่อยกดพิมพ์</CardDescription>
+          <CardDescription>ลบรายการที่ไม่ต้องการก่อน</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {preparedRows.length === 0 ? (

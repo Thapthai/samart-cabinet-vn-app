@@ -63,12 +63,12 @@ export function PrintStickerOrderCard({
               <TableHeader>
                 <TableRow>
                   <TableHead className="sticky left-0 z-[1] w-10 bg-background px-2 align-middle" />
-                  <TableHead className="min-w-[100px] align-middle py-2">itemcode</TableHead>
-                  <TableHead className="min-w-[120px] align-middle py-2">ชื่อ</TableHead>
+                  <TableHead className="min-w-[100px] align-middle py-2">รหัสอุปกรณ์</TableHead>
+                  <TableHead className="min-w-[120px] align-middle py-2">ชื่ออุปกรณ์</TableHead>
                   <TableHead className="min-w-[120px] align-middle py-2 text-xs">Lot No.</TableHead>
                   <TableHead className="w-[132px] align-middle py-2 text-xs">หมดอายุ</TableHead>
                   <TableHead className="w-[72px] align-middle py-2 text-center text-xs">สูงสุด</TableHead>
-                  <TableHead className="w-[96px] align-middle py-2 text-right text-xs">QTY</TableHead>
+                  <TableHead className="align-middle py-2 text-center text-xs">จำนวน</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -132,14 +132,14 @@ export function PrintStickerOrderCard({
                           {line.refillCap}
                         </div>
                       </TableCell>
-                      <TableCell className="align-middle py-2 text-right">
-                        <div className="flex min-h-8 items-center justify-end">
+                      <TableCell className="align-middle py-2 text-center">
+                        <div className="flex min-h-8 items-center justify-center">
                         <Input
                           type="number"
                           inputMode="numeric"
                           min={line.refillCap <= 0 ? 0 : 1}
                           max={Math.max(line.refillCap, 1)}
-                          className="ml-auto h-8 w-[4rem] text-right font-mono text-sm"
+                          className="h-8 w-[4rem] text-center font-mono text-sm"
                           value={line.refillCap <= 0 ? 0 : line.copies}
                           disabled={inputDisabled}
                           onChange={(e) => {

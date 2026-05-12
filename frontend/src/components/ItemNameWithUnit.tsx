@@ -15,7 +15,7 @@ type Props = {
   unitClassName?: string;
 };
 
-/** ชื่อสินค้า + บรรทัดย่อย `หลัก (N หน่วยการเบิก)` เมื่อมีข้อมูลหน่วย */
+/** ชื่ออุปกรณ์ + บรรทัดย่อย `หลัก (N หน่วยการเบิก)` เมื่อมีข้อมูลหน่วย */
 export default function ItemNameWithUnit({
   item,
   qtyMain,

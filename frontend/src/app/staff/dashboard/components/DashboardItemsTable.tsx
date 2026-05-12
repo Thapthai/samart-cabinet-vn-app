@@ -61,7 +61,7 @@ export default function DashboardItemsTable({
                   <TableRow>
                     <TableHead>ลำดับ</TableHead>
                     {/* <TableHead>รหัสอุปกรณ์</TableHead> */}
-                    <TableHead>ชื่อสินค้า</TableHead>
+                    <TableHead>ชื่ออุปกรณ์</TableHead>
                     <TableHead>แผนก</TableHead>
                     <TableHead className="text-center">จำนวนในตู้</TableHead>
                     <TableHead className="text-center">Min/Max</TableHead>

@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Building2, Layers, Loader2, RefreshCw, Save } from 'lucide-react';
+import { Building2, Layers, Loader2, RefreshCw, Save, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface StaffRoleRow {
@@ -39,6 +40,7 @@ export default function StaffRolePermissionDepartmentPage() {
   const [loadingBoot, setLoadingBoot] = useState(true);
   const [loadingRole, setLoadingRole] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deptSearch, setDeptSearch] = useState('');
 
   const loadBootstrap = useCallback(async () => {
     try {
@@ -99,8 +101,10 @@ export default function StaffRolePermissionDepartmentPage() {
     if (!roleId) {
       setSelected(new Set());
       setUnrestrictedFromServer(false);
+      setDeptSearch('');
       return;
     }
+    setDeptSearch('');
     const id = parseInt(roleId, 10);
     if (Number.isNaN(id)) return;
     loadForRole(id);
@@ -151,10 +155,29 @@ export default function StaffRolePermissionDepartmentPage() {
   const roleLabel = (r: StaffRoleRow) => `${r.code} — ${r.name}`;
   const selectedRole = roles.find((r) => String(r.id) === roleId);
 
+  const filteredDepartments = useMemo(() => {
+    const q = deptSearch.trim().toLowerCase();
+    if (!q) return departments;
+    return departments.filter((d) => {
+      const label = mainDepartmentLabel(d).toLowerCase();
+      const idStr = String(d.ID);
+      const n1 = (d.DepName ?? '').toLowerCase();
+      const n2 = (d.DepName2 ?? '').toLowerCase();
+      return idStr.includes(q) || label.includes(q) || n1.includes(q) || n2.includes(q);
+    });
+  }, [departments, deptSearch]);
+
   const deptCountLabel = useMemo(() => {
     if (loadingBoot || loadingRole) return 'กำลังโหลด…';
-    return `${departments.length} แผนกหลัก — มีเครื่องหมายถูก = Role นี้เห็นข้อมูลแผนกนั้น (เวชภัณฑ์/ที่เกี่ยวข้อง)`;
-  }, [loadingBoot, loadingRole, departments.length]);
+    const total = departments.length;
+    const q = deptSearch.trim();
+    const shown = filteredDepartments.length;
+    const hint = 'มีเครื่องหมายถูก = Role นี้เห็นข้อมูลแผนกนั้น (เวชภัณฑ์/ที่เกี่ยวข้อง)';
+    if (q && shown !== total) {
+      return `แสดง ${shown} จาก ${total} รายการที่ตรงคำค้น · ${hint}`;
+    }
+    return `${total} แผนกหลัก — ${hint}`;
+  }, [loadingBoot, loadingRole, departments.length, deptSearch, filteredDepartments.length]);
 
   return (
     <ProtectedRoute>
@@ -288,27 +311,60 @@ export default function StaffRolePermissionDepartmentPage() {
                   ) : departments.length === 0 ? (
                     <p className="text-sm text-slate-500">ไม่มีข้อมูลแผนกหลัก (หรือถูกกรองออก)</p>
                   ) : (
-                    <div className="max-h-[min(60vh,560px)] overflow-y-auto pr-1">
-                      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {departments.map((d) => (
-                          <li
-                            key={d.ID}
-                            className="flex items-start gap-3 rounded-md border border-slate-100 bg-slate-50/80 px-3 py-2.5"
+                    <>
+                      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <div className="relative flex-1 min-w-0">
+                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                          <Input
+                            type="search"
+                            placeholder="ค้นหา ID หรือชื่อ Division…"
+                            value={deptSearch}
+                            onChange={(e) => setDeptSearch(e.target.value)}
+                            className="pl-9"
+                            disabled={loadingRole}
+                            aria-label="ค้นหา Division"
+                          />
+                        </div>
+                        {deptSearch.trim() ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 text-muted-foreground"
+                            onClick={() => setDeptSearch('')}
                           >
-                            <Checkbox
-                              id={`dept-${d.ID}`}
-                              checked={selected.has(d.ID)}
-                              onCheckedChange={(v) => toggle(d.ID, v === true)}
-                              className="mt-0.5"
-                            />
-                            <label htmlFor={`dept-${d.ID}`} className="cursor-pointer text-sm leading-tight">
-                              <span className="font-mono text-xs text-slate-500">ID {d.ID}</span>
-                              <span className="mt-0.5 block font-medium text-slate-800">{mainDepartmentLabel(d)}</span>
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                            ล้างคำค้น
+                          </Button>
+                        ) : null}
+                      </div>
+                      <div className="max-h-[min(60vh,560px)] overflow-y-auto pr-1">
+                        {filteredDepartments.length === 0 ? (
+                          <p className="text-sm text-slate-500 py-6 text-center">
+                            {`ไม่พบรายการที่ตรงกับ "${deptSearch.trim()}"`}
+                          </p>
+                        ) : (
+                          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            {filteredDepartments.map((d) => (
+                              <li
+                                key={d.ID}
+                                className="flex items-start gap-3 rounded-md border border-slate-100 bg-slate-50/80 px-3 py-2.5"
+                              >
+                                <Checkbox
+                                  id={`dept-${d.ID}`}
+                                  checked={selected.has(d.ID)}
+                                  onCheckedChange={(v) => toggle(d.ID, v === true)}
+                                  className="mt-0.5"
+                                />
+                                <label htmlFor={`dept-${d.ID}`} className="cursor-pointer text-sm leading-tight">
+                                  <span className="font-mono text-xs text-slate-500">ID {d.ID}</span>
+                                  <span className="mt-0.5 block font-medium text-slate-800">{mainDepartmentLabel(d)}</span>
+                                </label>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>

@@ -91,13 +91,6 @@ export const staffMenuItems = [
         description: 'จัดการอุปกรณ์และสต๊อก',
         noHref: true,
         submenu: [
-
-            {
-                name: 'จัดการตู้ Cabinet - Division',
-                href: '/staff/cabinet-departments',
-                icon: Network,
-                description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division — กรอง Division เริ่มที่ทั้งหมด',
-            },
             {
                 name: 'สต๊อกอุปกรณ์ในตู้',
                 href: '/staff/items',
@@ -151,6 +144,13 @@ export const staffMenuItems = [
         description: 'ตั้งค่าระบบ',
         noHref: true,
         submenu: [
+            
+            {
+                name: 'Cabinet - Division',
+                href: '/staff/management/cabinet-departments',
+                icon: Network,
+                description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division — กรอง Division เริ่มที่ทั้งหมด',
+            },
             {
                 name: 'พิมพ์สติกเกอร์',
                 href: '/staff/management/print-sticker',
@@ -183,12 +183,6 @@ export const staffMenuItems = [
             },
             {
                 name: 'จัดการ User ในตู้',
-                href: '/staff/management/cabinet-users',
-                icon: ContactRound,
-                description: 'ชื่อผู้ใช้ตู้เชื่อมกับตู้ (Legacy stock_id / finger)',
-            },
-            {
-                name: 'User ในตู้',
                 href: '/staff/management/cabinet-users',
                 icon: ContactRound,
                 description: 'ชื่อผู้ใช้ตู้เชื่อมกับตู้ (Legacy stock_id / finger)',

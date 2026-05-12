@@ -43,7 +43,7 @@ export function formatItemUnitBracket(
   return `${main} (${n} ${sub})`;
 }
 
-/** ชื่อสินค้า · หน่วย — ใช้เมื่อต้องการบรรทัดเดียว */
+/** ชื่ออุปกรณ์ · หน่วย — ใช้เมื่อต้องการบรรทัดเดียว */
 export function formatItemNameWithUnit(
   item: Item & ItemUnitFields,
   opts?: { qtyMain?: number | null },
