@@ -90,10 +90,10 @@ export const staffItemsApi = {
         item_code?: string;
         start_date?: string;
         end_date?: string;
-    }): Promise<{ success: boolean; data: any[] }> => {
+    }): Promise<{ success: boolean; data: unknown[] }> => {
         const response = await staffApi.get('/staff/item-stocks/will-return', {
             params: params && Object.keys(params).length > 0 ? params : undefined,
         });
-        return response.data as { success: boolean; data: any[] };
+        return response.data as { success: boolean; data: unknown[] };
     },
 };

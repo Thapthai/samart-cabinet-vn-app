@@ -91,7 +91,7 @@ export default function ViewMedicalSupplyDialog({
       setLoading(true);
       const response = await staffMedicalSuppliesApi.getById(supplyId);
       if (response.success && response.data) {
-        setSupply(response.data);
+        setSupply(response.data as SupplyDetail);
       }
     } catch (error) {
       console.error('Failed to fetch supply detail:', error);

@@ -21,7 +21,7 @@ function resolveStaffReturnByUserId(explicit?: string): string {
 }
 
 export const staffMedicalSuppliesApi = {
-    create: async (data: Record<string, unknown>): Promise<ApiResponse<any>> => {
+    create: async (data: Record<string, unknown>): Promise<ApiResponse<unknown>> => {
         const response = await staffApi.post('/medical-supplies', data);
         return response.data;
     },
@@ -48,17 +48,17 @@ export const staffMedicalSuppliesApi = {
         item_keyword?: string;
         print_date?: string;
         time_print_date?: string;
-    }): Promise<PaginatedResponse<any>> => {
+    }): Promise<PaginatedResponse<Record<string, unknown>>> => {
         const response = await staffApi.get('/medical-supplies', { params: query });
         return response.data;
     },
 
-    getById: async (id: number): Promise<ApiResponse<any>> => {
+    getById: async (id: number): Promise<ApiResponse<unknown>> => {
         const response = await staffApi.get(`/medical-supplies/${id}`);
         return response.data;
     },
 
-    update: async (id: number, data: Record<string, unknown>): Promise<ApiResponse<any>> => {
+    update: async (id: number, data: Record<string, unknown>): Promise<ApiResponse<unknown>> => {
         const response = await staffApi.put(`/medical-supplies/${id}`, data);
         return response.data;
     },
@@ -67,7 +67,7 @@ export const staffMedicalSuppliesApi = {
         print_location?: string;
         print_date?: Date;
         time_print_date?: Date;
-    }): Promise<ApiResponse<any>> => {
+    }): Promise<ApiResponse<unknown>> => {
         const response = await staffApi.patch(`/medical-supplies/${id}/print-info`, data);
         return response.data;
     },
@@ -77,7 +77,7 @@ export const staffMedicalSuppliesApi = {
         return response.data;
     },
 
-    getStatistics: async (): Promise<ApiResponse<any>> => {
+    getStatistics: async (): Promise<ApiResponse<unknown>> => {
         const response = await staffApi.get('/medical-supplies/statistics');
         return response.data;
     },
@@ -100,11 +100,11 @@ export const staffMedicalSuppliesApi = {
         assession_no?: string;
         page?: number;
         limit?: number;
-    }): Promise<ApiResponse<any>> => {
+    }): Promise<ApiResponse<unknown>> => {
         const response = await staffApi.get('/medical-supplies-usage-by-item-code', { params: query });
         return response.data;
     },
-    getSupplyItemsByUsageId: async (usageId: number): Promise<ApiResponse<any>> => {
+    getSupplyItemsByUsageId: async (usageId: number): Promise<ApiResponse<unknown>> => {
         const response = await staffApi.get(`/medical-supply-items/usage/${usageId}`);
         return response.data;
     },
@@ -120,7 +120,7 @@ export const staffMedicalSuppliesApi = {
         date_to?: string;
         page?: number;
         limit?: number;
-    }): Promise<ApiResponse<any>> => {
+    }): Promise<ApiResponse<unknown>> => {
         const response = await staffApi.get('/medical-supply-items/return-history', { params: query });
         return response.data;
     },
@@ -131,7 +131,7 @@ export const staffMedicalSuppliesApi = {
         return_reason: string;
         return_by_user_id?: string;
         return_note?: string;
-    }): Promise<ApiResponse<any>> => {
+    }): Promise<ApiResponse<unknown>> => {
         const response = await staffApi.post('/medical-supply-items/record-return', data);
         return response.data;
     },
@@ -144,7 +144,7 @@ export const staffMedicalSuppliesApi = {
         endDate?: string;
         page?: number;
         limit?: number;
-    }): Promise<ApiResponse<any>> => {
+    }): Promise<ApiResponse<unknown>> => {
         const queryParams = new URLSearchParams();
         if (filters?.itemCode) queryParams.append('itemCode', filters.itemCode);
         if (filters?.itemTypeId) queryParams.append('itemTypeId', String(filters.itemTypeId));
@@ -161,7 +161,7 @@ export const staffMedicalSuppliesApi = {
         items: Array<{ item_stock_id: number; return_reason: string; return_note?: string }>;
         return_by_user_id?: string;
         stock_id?: number;
-    }): Promise<ApiResponse<any>> => {
+    }): Promise<ApiResponse<unknown>> => {
         const return_by_user_id = resolveStaffReturnByUserId(data.return_by_user_id);
         const response = await staffApi.post('/medical-supply-items/record-stock-returns', {
             ...data,
@@ -187,7 +187,7 @@ export const staffMedicalSuppliesApi = {
             en: string;
             log_count: number;
             last_activity_at: string;
-            logs: any[];
+            logs: unknown[];
         }>;
         total_groups: number;
         page: number;

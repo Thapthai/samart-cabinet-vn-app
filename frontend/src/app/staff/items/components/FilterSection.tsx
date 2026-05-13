@@ -262,7 +262,7 @@ export default function FilterSection({
     if (loadingDepartments) return;
 
     let departmentId = "";
-    let cabinetId = "";
+    const cabinetId = "";
 
     if (departmentDisabled) {
       departmentId = (initialDepartmentId ?? "").trim();
