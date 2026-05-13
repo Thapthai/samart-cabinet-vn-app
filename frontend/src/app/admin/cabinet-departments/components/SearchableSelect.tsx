@@ -239,26 +239,20 @@ export default function SearchableSelect({
   /** ค่าที่เลือกแล้วแต่ไม่อยู่ในรายการ (เช่น หลังค้นหา) — แปะไว้บนสุดให้เห็นว่าเลือกอะไรอยู่ */
   const pinnedSelectedOption: Option | null =
     trimmedValue && !filteredOptions.some((o) => o.value === trimmedValue)
-      ? selectedOption ??
-        ((initialDisplay?.label || initialDisplay?.subLabel) && initialDisplay
-          ? {
-              value: trimmedValue,
-              label: initialDisplay.label || "—",
-              subLabel: initialDisplay.subLabel,
-            }
-          : { value: trimmedValue, label: trimmedValue })
+      ? selectedOption ?? { value: trimmedValue, label: trimmedValue }
       : null;
   const listOptions: Option[] = pinnedSelectedOption
     ? [pinnedSelectedOption, ...filteredOptions]
     : filteredOptions;
 
-  // แสดงรายการที่เลือกใน trigger: จาก options → initialDisplay → อย่างน้อยแสดงค่า value
+  // แสดงรายการที่เลือกใน trigger: options → pinned (หลังค้นหาแล้วรายการไม่มี id ที่เลือก) → initialDisplay เฉพาะ value ว่าง
   const displayValue =
     selectedOption ||
-    (trimmedValue
-      ? (initialDisplay?.label || initialDisplay?.subLabel) && initialDisplay
-        ? initialDisplay
-        : { label: trimmedValue }
+    pinnedSelectedOption ||
+    (trimmedValue === "" &&
+    initialDisplay &&
+    (initialDisplay.label || initialDisplay.subLabel)
+      ? initialDisplay
       : null) ||
     (disabled && !trimmedValue && disabledDisplay
       ? (disabledDisplay.label || disabledDisplay.subLabel) && disabledDisplay

@@ -1,17 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
-import { staffVendingReportsApi } from '@/lib/staffApi/vendingReportsApi';
-import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { History } from 'lucide-react';
+import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
+import { staffVendingReportsApi } from '@/lib/staffApi/vendingReportsApi';
 import MedicalSuppliesTable from './components/MedicalSuppliesTable';
-import MedicalSuppliesSearchFilters, {
-  type DepartmentOption,
-  type SubDepartmentOption,
-} from './components/MedicalSuppliesSearchFilters';
-import { staffMedicalSupplySubDepartmentsApi } from '@/lib/staffApi/medicalSupplySubDepartmentsApi';
+import MedicalSuppliesSearchFilters from './components/MedicalSuppliesSearchFilters';
 import MedicalSupplySelectedDetailSection from './components/MedicalSupplySelectedDetailSection';
 import { todayYyyyMmDdUtc } from '@/lib/formatThaiDateTime';
 
@@ -21,14 +16,6 @@ export default function MedicalSuppliesPage() {
   const [selectedSupply, setSelectedSupply] = useState<any>(null);
   const [selectedSupplyId, setSelectedSupplyId] = useState<number | null>(null);
   const [exportLoading, setExportLoading] = useState<'excel' | 'pdf' | null>(null);
-
-  /** รายการแผนกสำหรับ filter — โหลดผ่าน staffApi */
-  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
-  const [departmentSearch, setDepartmentSearch] = useState('');
-  const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
-  const [subDepartments, setSubDepartments] = useState<SubDepartmentOption[]>([]);
-  const [subDepartmentSearch, setSubDepartmentSearch] = useState('');
-  const [subDepartmentDropdownOpen, setSubDepartmentDropdownOpen] = useState(false);
 
   /** วันนี้ YYYY-MM-DD ตาม UTC — ให้ตรงกับ filter ฝั่ง API ไม่บวก +7 */
   const getTodayDate = () => todayYyyyMmDdUtc();
@@ -78,13 +65,17 @@ export default function MedicalSuppliesPage() {
   const itemsPerPage = 10;
 
 
-  const fetchSupplies = async (customFilters?: typeof activeFilters, customPage?: number) => {
+  const fetchSupplies = async (
+    customFilters?: typeof activeFilters,
+    customPage?: number,
+    opts?: { silent?: boolean },
+  ) => {
     try {
       setLoading(true);
-      const filtersToUse = customFilters || activeFilters;
+      const filtersToUse = customFilters ?? activeFilters;
       const activePage = customPage !== undefined ? customPage : currentPage;
 
-      const params: any = {
+      const params: Record<string, string | number> = {
         page: activePage,
         limit: itemsPerPage,
       };
@@ -104,91 +95,92 @@ export default function MedicalSuppliesPage() {
       if (filtersToUse.printDate?.trim()) params.print_date = filtersToUse.printDate.trim();
       if (filtersToUse.timePrintDate?.trim()) params.time_print_date = filtersToUse.timePrintDate.trim();
 
-      const response: any = await staffMedicalSuppliesApi.getAll(params);
+      const response = (await staffMedicalSuppliesApi.getAll(params)) as {
+        success?: boolean;
+        message?: string;
+        data?: unknown;
+        total?: number;
+        limit?: number;
+        totalPages?: number;
+      };
+
+      const raw = response?.data;
+      const dataArray: unknown[] = Array.isArray(raw)
+        ? raw
+        : raw != null && typeof raw === 'object' && Array.isArray((raw as { data?: unknown }).data)
+          ? ((raw as { data: unknown[] }).data ?? [])
+          : raw != null && typeof raw === 'object'
+            ? [raw]
+            : [];
 
       if (response?.success === false) {
-        toast.error(response.message || 'โหลดข้อมูลไม่สำเร็จ');
+        toast.error(response?.message || 'ไม่สามารถโหลดข้อมูลได้');
         setSupplies([]);
         setTotalPages(1);
         setTotalItems(0);
         return;
       }
-      if (response && response.data) {
-        let dataArray: any[] = [];
 
-        if (Array.isArray(response.data)) {
-          dataArray = response.data;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          dataArray = response.data.data;
-        } else if (response.data && typeof response.data === 'object') {
-          dataArray = [response.data];
+      setSupplies(dataArray as any[]);
+
+      const total =
+        typeof response.total === 'number' && Number.isFinite(response.total)
+          ? response.total
+          : dataArray.length;
+      const limit =
+        typeof response.limit === 'number' && response.limit > 0 ? response.limit : itemsPerPage;
+      const pagesFromApi =
+        typeof response.totalPages === 'number' && response.totalPages > 0
+          ? response.totalPages
+          : Math.ceil(total / limit) || 1;
+
+      setTotalPages(pagesFromApi);
+      setTotalItems(total);
+
+      if (!opts?.silent) {
+        if (dataArray.length === 0) {
+          toast.info('ไม่พบข้อมูลการใช้อุปกรณ์กับคนไข้ กรุณาตรวจสอบช่วงวันที่หรือเงื่อนไขค้นหา');
+        } else {
+          toast.success(`พบ ${total} รายการ`);
         }
-
-        setSupplies(dataArray);
-
-        const totalItems = response.total || dataArray.length;
-        const calculatedPages = Math.ceil(totalItems / itemsPerPage);
-
-        setTotalPages(calculatedPages || 1);
-        setTotalItems(totalItems);
-      } else {
-        setSupplies([]);
-        setTotalPages(1);
-        setTotalItems(0);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to fetch medical supplies:', error);
-      toast.error('ไม่สามารถโหลดข้อมูลได้');
+      const msg =
+        error && typeof error === 'object' && 'response' in error
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      toast.error(msg || (error instanceof Error ? error.message : null) || 'ไม่สามารถโหลดข้อมูลได้');
+      setSupplies([]);
+      setTotalPages(1);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
   };
 
+  const initialFetchDone = useRef(false);
   useEffect(() => {
-    const load = async () => {
-      try {
-        const list = await fetchStaffDepartmentsForFilter({ limit: 500 });
-        if (list.length > 0) setDepartments(list);
-      } catch {
-        // ignore
-      }
-    };
-    load();
-  }, []);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await staffMedicalSupplySubDepartmentsApi.getAll();
-        if (res?.success && Array.isArray(res.data)) {
-          setSubDepartments(res.data as SubDepartmentOption[]);
-        }
-      } catch {
-        // ignore
-      }
-    };
-    load();
-  }, []);
-
-  /** Staff ใช้ staff_token — ไม่ต้องรอ NextAuth user */
-  useEffect(() => {
-    fetchSupplies(activeFilters, currentPage);
+    if (initialFetchDone.current) return;
+    initialFetchDone.current = true;
+    void fetchSupplies(undefined, 1, { silent: true });
+    // โหลดครั้งแรกด้วยตัวกรองเริ่มต้น
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, currentPage]);
+  }, []);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+    void fetchSupplies(activeFilters, page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSearch = () => {
-    // Copy formFilters to activeFilters to trigger search
-    setActiveFilters(formFilters);
+    const next = { ...formFilters };
+    setActiveFilters(next);
     setCurrentPage(1);
-    // ปิดการ์ดรายละเอียด "รายการอุปกรณ์ที่เบิก" เมื่อมีการกรอง/ค้นหาใหม่ (จะโหลดใหม่เมื่อเลือกแถวอีกครั้ง)
     setSelectedSupply(null);
     setSelectedSupplyId(null);
-    // useEffect will trigger fetchSupplies when activeFilters and currentPage change
+    void fetchSupplies(next, 1);
   };
 
   const handleReset = () => {
@@ -214,9 +206,7 @@ export default function MedicalSuppliesPage() {
     setCurrentPage(1);
     setSelectedSupply(null);
     setSelectedSupplyId(null);
-    setDepartmentSearch('');
-    setSubDepartmentSearch('');
-    // useEffect will trigger fetchSupplies when activeFilters and currentPage change
+    void fetchSupplies(resetFilters, 1, { silent: true });
   };
 
   const handleSelectSupply = (supply: any) => {
@@ -284,20 +274,11 @@ export default function MedicalSuppliesPage() {
         <MedicalSuppliesSearchFilters
           formFilters={formFilters}
           onPatchFormFilters={(patch) => setFormFilters((prev) => ({ ...prev, ...patch }))}
-          departments={departments}
-          departmentSearch={departmentSearch}
-          onDepartmentSearchChange={setDepartmentSearch}
-          departmentDropdownOpen={departmentDropdownOpen}
-          onDepartmentDropdownOpenChange={setDepartmentDropdownOpen}
-          subDepartments={subDepartments}
-          subDepartmentSearch={subDepartmentSearch}
-          onSubDepartmentSearchChange={setSubDepartmentSearch}
-          subDepartmentDropdownOpen={subDepartmentDropdownOpen}
-          onSubDepartmentDropdownOpenChange={setSubDepartmentDropdownOpen}
           loading={loading}
           onSearch={handleSearch}
           onReset={handleReset}
-          onReload={() => fetchSupplies()}
+          onReload={() => void fetchSupplies(activeFilters, currentPage)}
+          departmentDisabled={false}
         />
 
         {/* Table */}

@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { RotateCcw } from 'lucide-react';
+import { returnedItemsApi } from '@/lib/staffApi/returnedItemsApi';
+import { buildReturnedGroups } from '@/lib/returnToCabinet/buildReturnedGroups';
 import FilterSection from './components/FilterSection';
 import ReturnedTable from './components/ReturnedTable';
 import type { DispensedItem, FilterState, SummaryData } from './types';
-import { returnedItemsApi } from '@/lib/staffApi/returnedItemsApi';
-import { buildReturnedGroups } from '@/lib/returnToCabinet/buildReturnedGroups';
+
+// วันที่วันนี้ในรูปแบบ YYYY-MM-DD
 const getTodayDate = () => {
   const today = new Date();
   const year = today.getFullYear();
@@ -73,16 +75,24 @@ export default function ReturnToCabinetPage() {
           ...params,
           page,
           limit: FETCH_BATCH_LIMIT,
-        })) as any;
+        })) as {
+          success?: boolean;
+          message?: string;
+          data?: unknown;
+          total?: number;
+        };
 
-        if (!(response.success || response.data)) {
-          toast.error(response.message || 'ไม่สามารถโหลดข้อมูลได้');
+        if (response?.success !== true) {
+          toast.error(response?.message || 'ไม่สามารถโหลดข้อมูลได้');
           break;
         }
 
-        const returnedData = Array.isArray(response.data)
-          ? response.data
-          : (response.data?.data || response.data || []);
+        const raw = response.data;
+        const returnedData = Array.isArray(raw)
+          ? raw
+          : raw != null && typeof raw === 'object' && Array.isArray((raw as { data?: unknown }).data)
+            ? ((raw as { data: DispensedItem[] }).data ?? [])
+            : [];
 
         reportedTotal = Number(response.total ?? reportedTotal ?? 0);
         aggregated.push(...returnedData);
@@ -127,11 +137,13 @@ export default function ReturnToCabinetPage() {
     if (initialFetchDone.current) return;
     initialFetchDone.current = true;
     void fetchReturnedList(undefined, { resetPage: true, silent: true });
+    // โหลดครั้งแรกด้วยตัวกรองว่าง = ทั้งหมดตามช่วงวันที่
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSearch = () => {
-    fetchReturnedList(undefined, { resetPage: true });
+    setCurrentPage(1);
+    void fetchReturnedList(undefined, { resetPage: true });
   };
 
   const handleClearSearch = () => {
@@ -145,6 +157,7 @@ export default function ReturnToCabinetPage() {
       cabinetId: '',
     };
     setFilters(resetFilters);
+    setCurrentPage(1);
     void fetchReturnedList(resetFilters, { resetPage: true, silent: true });
   };
 
@@ -181,7 +194,7 @@ export default function ReturnToCabinetPage() {
         await returnedItemsApi.downloadReturnToCabinetReportPdf(params);
       }
 
-      toast.success(`กำลังดาวน์โหลดรายงาน ${format.toUpperCase()}`);
+      toast.success(`ดาวน์โหลดรายงาน ${format.toUpperCase()} สำเร็จ`);
     } catch (error: any) {
       toast.error(`ไม่สามารถสร้างรายงาน ${format.toUpperCase()} ได้: ${error.message}`);
     }
@@ -226,24 +239,14 @@ export default function ReturnToCabinetPage() {
             </p>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-green-50 p-4 rounded-lg">
-            <p className="text-sm text-green-600 font-medium">รายการทั้งหมด</p>
-            <p className="text-2xl font-bold text-green-900">{summary.total}</p>
-          </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm text-blue-600 font-medium">จำนวนรวม</p>
-            <p className="text-2xl font-bold text-blue-900">{summary.totalQty}</p>
-          </div>
-        </div>
+ 
 
         <FilterSection
           filters={filters}
           onFilterChange={handleFilterChange}
           onSearch={handleSearch}
           onClear={handleClearSearch}
-          onRefresh={() => fetchReturnedList(undefined, { resetPage: false })}
+          onRefresh={() => void fetchReturnedList(undefined, { resetPage: false })}
           itemTypes={getItemTypes()}
           loading={loadingList}
           departmentDisabled={false}

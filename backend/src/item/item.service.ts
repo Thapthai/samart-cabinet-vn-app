@@ -166,6 +166,30 @@ export class ItemService {
         deptCodesForUsage = [String(department_id)];
       }
 
+      /** กรอง app_cabinet_departments แบบ department_id IN (...) — staff หลายแผนก (ทั้งหมดตาม role) */
+      const cabinetDepartmentsNestedWhere: Record<string, unknown> = {};
+      if (department_id != null && Number.isFinite(department_id) && department_id >= 1) {
+        cabinetDepartmentsNestedWhere.department_id = department_id;
+      } else if (
+        !cabinet_id &&
+        staffListOptions?.restrictedStockIds?.length &&
+        staffListOptions.usageDepartmentIds?.length
+      ) {
+        const inIds = [
+          ...new Set(
+            staffListOptions.usageDepartmentIds
+              .map((s) => parseInt(String(s), 10))
+              .filter((n) => Number.isFinite(n) && n >= 1),
+          ),
+        ];
+        if (inIds.length > 0) {
+          cabinetDepartmentsNestedWhere.department_id = { in: inIds };
+        }
+      }
+      if (status != null && String(status).trim() !== '') {
+        cabinetDepartmentsNestedWhere.status = status;
+      }
+
       // Get all items matching the filter criteria (including keyword search)
       const allItemsQuery = await this.prisma.item.findMany({
         where: {
@@ -202,10 +226,7 @@ export class ItemService {
                   cabinet_code: true,
                   stock_id: true,
                   cabinetDepartments: {
-                    where: {
-                      department_id: department_id,
-                      status: status,
-                    },
+                    where: cabinetDepartmentsNestedWhere,
                     select: {
                       id: true,
                       department_id: true,
@@ -239,6 +260,22 @@ export class ItemService {
             stock.cabinet?.cabinetDepartments &&
             stock.cabinet.cabinetDepartments.length > 0
           );
+        }
+        if (
+          !cabinet_id &&
+          staffListOptions?.restrictedStockIds?.length &&
+          staffListOptions.usageDepartmentIds?.length
+        ) {
+          const idSet = new Set(
+            staffListOptions.usageDepartmentIds
+              .map((s) => parseInt(String(s), 10))
+              .filter((n) => Number.isFinite(n) && n >= 1),
+          );
+          if (idSet.size > 0) {
+            return item.itemStocks.some((stock: any) =>
+              stock.cabinet?.cabinetDepartments?.some((cd: any) => idSet.has(cd.department_id)),
+            );
+          }
         }
 
         return true;
@@ -353,6 +390,21 @@ export class ItemService {
             stock.cabinet?.cabinetDepartments &&
             stock.cabinet.cabinetDepartments.length > 0,
           );
+        } else if (
+          !cabinet_id &&
+          staffListOptions?.restrictedStockIds?.length &&
+          staffListOptions.usageDepartmentIds?.length
+        ) {
+          const idSet = new Set(
+            staffListOptions.usageDepartmentIds
+              .map((s) => parseInt(String(s), 10))
+              .filter((n) => Number.isFinite(n) && n >= 1),
+          );
+          if (idSet.size > 0) {
+            matchingItemStocks = item.itemStocks.filter((stock: any) =>
+              stock.cabinet?.cabinetDepartments?.some((cd: any) => idSet.has(cd.department_id)),
+            );
+          }
         }
 
         // count_itemstock = จำนวนที่ IsStock = true/1 (schema เป็น Boolean, DB อาจเป็น 0/1)

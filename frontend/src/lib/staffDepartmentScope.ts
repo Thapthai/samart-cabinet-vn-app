@@ -84,19 +84,23 @@ export async function getStaffAllowedDepartmentIds(): Promise<number[] | null | 
 }
 
 /**
- * เมื่อ role จำกัดแผนก — คืนรายการแผนกจาก GET /staff/me/departments (ไม่ต้องดึง /departments แล้วกรอง)
- * คืน null เมื่อไม่จำกัดหรือไม่มี cache
+ * รายการแผนกจาก GET /staff/me/departments สำหรับ dropdown/filter:
+ * - role จำกัดแผนก: รายการจาก permission rows
+ * - role ไม่จำกัดแต่ user มี department_id: รายการแผนกหลักนั้น (ยัง unrestricted สำหรับ API อื่น)
+ * คืน null เมื่อไม่มีรายการแผนกจาก me (เช่น unrestricted + ไม่มี department_id)
  */
 export async function getStaffRestrictedDepartmentsFromMe(): Promise<StaffMeDepartmentRow[] | null> {
   const c = await ensureMeScopeLoaded();
-  if (c == null || c.unrestricted) return null;
-  return c.departments;
+  if (c == null) return null;
+  if (c.departments.length > 0) return c.departments;
+  return null;
 }
 
 /**
  * รายการแผนกสำหรับ dropdown/filter ทุกหน้า Staff (ให้ตรงกับ cabinet-departments):
- * - จำกัดแผนก: รายการจาก GET /staff/me/departments แล้วกรอง keyword ฝั่ง client
- * - ไม่จำกัด: GET /departments แล้ว applyDepartmentScopeToList (กันช่องว่างก่อนรู้ scope + สำรองฝั่ง client)
+ * - มีรายการจาก GET /staff/me/departments (จำกัดแผนกหรือ unrestricted + แผนกจาก profile): ใช้รายการนั้นเท่านั้น
+ * - ไม่มีรายการจาก me: ไม่เรียก GET /departments แบบทั้งโรงพยาบาล (กัน Division ที่ไม่เกี่ยวข้อง)
+ * - กรณีขอบเขตเป็น number[] แต่ไม่มีรายการชื่อจาก me (กรณีขอบไม่ตรง): ดึง /departments แล้วกรองด้วย allowed เท่านั้น
  */
 export async function fetchStaffDepartmentsForFilter(opts?: {
   keyword?: string;
@@ -128,6 +132,16 @@ export async function fetchStaffDepartmentsForFilter(opts?: {
       );
     }
     return list.slice(skip, skip + limit);
+  }
+
+  if (allowed === undefined) {
+    return [];
+  }
+  if (allowed === null) {
+    return [];
+  }
+  if (allowed.length === 0) {
+    return [];
   }
 
   const response = await staffDepartmentApi.getAll({

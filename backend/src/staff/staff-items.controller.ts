@@ -13,7 +13,9 @@ import { StaffDepartmentScopeService } from './staff-department-scope.service';
 
 /**
  * รายการสต็อกอุปกรณ์ในตู้ — Staff portal เท่านั้น
- * ไม่ส่ง cabinet_id = รวมทุกตู้ที่เข้าถึงได้ (จำกัดตาม role แผนก)
+ * ไม่ส่ง cabinet_id = รวมทุกตู้ที่เข้าถึงได้
+ * - ส่ง department_id = กรองแผนกเดียว
+ * - ไม่ส่ง department_id แต่ role จำกัดแผนก = รวมทุกแผนกใน role (อารมณ์ WHERE department_id IN (allowed…))
  */
 @Controller('staff/items')
 export class StaffItemsController {

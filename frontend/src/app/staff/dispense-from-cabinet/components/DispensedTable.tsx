@@ -262,7 +262,6 @@ export default function DispensedTable({
                                         <TableHead>Division (ที่ตั้งตู้)</TableHead>
                                         <TableHead className="min-w-[120px]">Division ที่ยืม</TableHead>
                                         <TableHead className="w-[88px] text-center">หมายเหตุ</TableHead>
-                                        <TableHead>RFID Code</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -308,9 +307,6 @@ export default function DispensedTable({
                                             ) : (
                                               '—'
                                             )}
-                                          </TableCell>
-                                          <TableCell className="text-muted-foreground text-sm font-mono">
-                                            {item.RfidCode || '-'}
                                           </TableCell>
                                         </TableRow>
                                       ))}

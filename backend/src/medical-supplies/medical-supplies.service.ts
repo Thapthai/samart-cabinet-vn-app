@@ -1415,7 +1415,18 @@ export class MedicalSuppliesService {
   }
 
   // Get All with Pagination
-  async findAll(query: GetMedicalSupplyUsagesQueryDto): Promise<{
+  async findAll(
+    query: GetMedicalSupplyUsagesQueryDto,
+    staffScope?: {
+      /**
+       * Staff portal: จาก role → app_staff_role_permission_departments
+       * - undefined = ไม่ใช้ขอบเขตนี้ (admin / ไม่ใช่ staff context)
+       * - null = role ไม่จำกัดแผนก
+       * - number[] = จำกัด; ถ้าไม่ส่ง department_code / department_name ให้กรอง department_id IN (...)
+       */
+      staffAllowedDepartmentIds?: number[] | null | undefined;
+    },
+  ): Promise<{
     data: MedicalSupplyUsageResponse[];
     total: number;
     page: number;
@@ -1427,9 +1438,22 @@ export class MedicalSuppliesService {
       const limit = Math.min(500, Math.max(1, Number(query?.limit) || 10));
       const skip = (page - 1) * limit;
 
+      const staffIds = staffScope?.staffAllowedDepartmentIds;
+
+      console.log('staffIds', staffIds);
+      
+      if (staffIds !== undefined && Array.isArray(staffIds) && staffIds.length === 0) {
+        return {
+          data: [],
+          total: 0,
+          page,
+          limit,
+          lastPage: 0,
+        };
+      }
+
       // Build where clause - support both HN and patient_hn
       const baseWhere: any = {};
-
 
       if (query.patient_hn || query.HN) {
         baseWhere.patient_hn = query.patient_hn || query.HN;
@@ -1446,6 +1470,20 @@ export class MedicalSuppliesService {
       if (query.department_code) {
         const dcId = parseInt(query.department_code, 10);
         if (!Number.isNaN(dcId)) {
+          if (
+            staffIds != null &&
+            Array.isArray(staffIds) &&
+            staffIds.length > 0 &&
+            !staffIds.includes(dcId)
+          ) {
+            return {
+              data: [],
+              total: 0,
+              page,
+              limit,
+              lastPage: 0,
+            };
+          }
           baseWhere.department_id = dcId;
         } else {
           baseWhere.department_id = -1;
@@ -1462,12 +1500,17 @@ export class MedicalSuppliesService {
           },
           select: { ID: true },
         });
-        const deptIds = depts.map((d) => d.ID);
+        let deptIds = depts.map((d) => d.ID);
+        if (staffIds != null && Array.isArray(staffIds) && staffIds.length > 0) {
+          deptIds = deptIds.filter((id) => staffIds.includes(id));
+        }
         if (deptIds.length > 0) {
           baseWhere.department_id = { in: deptIds };
         } else {
           baseWhere.department_id = -1;
         }
+      } else if (staffIds != null && Array.isArray(staffIds) && staffIds.length > 0) {
+        baseWhere.department_id = { in: staffIds };
       }
       if (query.print_date && query.print_date.trim()) {
         baseWhere.print_date = { contains: query.print_date.trim() };
@@ -3113,7 +3156,18 @@ export class MedicalSuppliesService {
   }
 
   // ดึงประวัติการคืนอุปกรณ์
-  async getReturnHistory(query: GetReturnHistoryQueryDto): Promise<{
+  async getReturnHistory(
+    query: GetReturnHistoryQueryDto,
+    staffScope?: {
+      /**
+       * Staff portal: จาก role → app_staff_role_permission_departments
+       * - undefined = ไม่ใช้ขอบเขต (รายงาน / เรียกภายใน)
+       * - null = role ไม่จำกัดแผนก
+       * - number[] = จำกัดตู้ให้มี mapping ACTIVE ไปยังแผนกเหล่านั้น
+       */
+      staffAllowedDepartmentIds?: number[] | null | undefined;
+    },
+  ): Promise<{
     data: any[];
     total: number;
     page: number;
@@ -3123,6 +3177,11 @@ export class MedicalSuppliesService {
       const page = Math.max(1, Number(query.page) || 1);
       const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
       const skip = (page - 1) * limit;
+
+      const staffIds = staffScope?.staffAllowedDepartmentIds;
+      if (staffIds !== undefined && Array.isArray(staffIds) && staffIds.length === 0) {
+        return { data: [], total: 0, page, limit };
+      }
 
       // Build where clause
       const where: any = {};
@@ -3135,6 +3194,14 @@ export class MedicalSuppliesService {
       if (query.department_code != null && String(query.department_code).trim() !== '') {
         const deptId = parseInt(String(query.department_code), 10);
         if (!Number.isNaN(deptId)) {
+          if (
+            staffIds != null &&
+            Array.isArray(staffIds) &&
+            staffIds.length > 0 &&
+            !staffIds.includes(deptId)
+          ) {
+            return { data: [], total: 0, page, limit };
+          }
           cabinetConditions.push({
             cabinetDepartments: { some: { department_id: deptId } },
           });
@@ -3145,6 +3212,13 @@ export class MedicalSuppliesService {
         if (!Number.isNaN(cid)) {
           cabinetConditions.push({ id: cid });
         }
+      }
+      if (staffIds != null && Array.isArray(staffIds) && staffIds.length > 0) {
+        cabinetConditions.unshift({
+          cabinetDepartments: {
+            some: { department_id: { in: staffIds }, status: 'ACTIVE' },
+          },
+        });
       }
       if (cabinetConditions.length === 1) {
         where.cabinet = cabinetConditions[0];
@@ -3406,6 +3480,56 @@ export class MedicalSuppliesService {
     }
   }
 
+  /**
+   * JOIN หนึ่งแถวต่อตู้สำหรับชื่อ Division ในผลลัพธ์ — ต้องสอดคล้องกับตัวกรอง WHERE:
+   * เดิมใช้ MIN(id) ของทุก ACTIVE mapping ทำให้ตู้ที่ผูกหลายแผนกแสดงชื่อแผนกที่ไม่อยู่ใน role
+   * หรือไม่ตรงกับ Division ที่ผู้ใช้เลือก แม้แถวผ่าน EXISTS แล้ว
+   */
+  private buildDispensedItemsCabinetOneDeptJoin(filters?: {
+    departmentId?: string;
+    staffAllowedDepartmentIds?: number[] | null;
+  }): Prisma.Sql {
+    const staffIds = filters?.staffAllowedDepartmentIds;
+    const did = filters?.departmentId?.trim();
+    if (did) {
+      const deptId = parseInt(did, 10);
+      if (!Number.isNaN(deptId)) {
+        return Prisma.sql`INNER JOIN (
+          SELECT z.cabinet_id, z.department_id
+          FROM app_cabinet_departments z
+          INNER JOIN (
+            SELECT cabinet_id, MIN(id) AS pick_id
+            FROM app_cabinet_departments
+            WHERE status = 'ACTIVE' AND department_id = ${deptId}
+            GROUP BY cabinet_id
+          ) pick ON pick.pick_id = z.id
+        ) cd_one ON cd_one.cabinet_id = app_cabinets.id`;
+      }
+    }
+    if (staffIds != null && Array.isArray(staffIds) && staffIds.length > 0) {
+      return Prisma.sql`INNER JOIN (
+          SELECT z.cabinet_id, z.department_id
+          FROM app_cabinet_departments z
+          INNER JOIN (
+            SELECT cabinet_id, MIN(id) AS pick_id
+            FROM app_cabinet_departments
+            WHERE status = 'ACTIVE' AND department_id IN (${Prisma.join(staffIds.map((id) => Prisma.sql`${id}`))})
+            GROUP BY cabinet_id
+          ) pick ON pick.pick_id = z.id
+        ) cd_one ON cd_one.cabinet_id = app_cabinets.id`;
+    }
+    return Prisma.sql`INNER JOIN (
+          SELECT acd1.cabinet_id, acd1.department_id
+          FROM app_cabinet_departments acd1
+          INNER JOIN (
+            SELECT cabinet_id, MIN(id) AS pick_id
+            FROM app_cabinet_departments
+            WHERE status = 'ACTIVE'
+            GROUP BY cabinet_id
+          ) pick ON pick.pick_id = acd1.id
+        ) cd_one ON cd_one.cabinet_id = app_cabinets.id`;
+  }
+
   // Get Dispensed Items (RFID Stock)
   async getDispensedItems(filters?: {
     keyword?: string;
@@ -3416,6 +3540,13 @@ export class MedicalSuppliesService {
     departmentId?: string;
     cabinetId?: string;
     subDepartmentId?: string;
+    /**
+     * Staff portal: จาก role → app_staff_role_permission_departments
+     * - undefined = ไม่ใช้ขอบเขตนี้ (admin / เรียกโดยไม่ผ่าน staff guard)
+     * - null = role ไม่จำกัดแผนก
+     * - number[] = จำกัด; ถ้าไม่ส่ง departmentId ให้กรองแบบ department_id IN (...)
+     */
+    staffAllowedDepartmentIds?: number[] | null;
   }) {
     try {
       const page = filters?.page || 1;
@@ -3445,16 +3576,37 @@ export class MedicalSuppliesService {
 
       }
 
-      if (filters?.departmentId) {
+      const staffIds = filters?.staffAllowedDepartmentIds;
+      if (staffIds !== undefined && Array.isArray(staffIds) && staffIds.length === 0) {
+        sqlConditions.push(Prisma.sql`1 = 0`);
+      }
+
+      if (filters?.departmentId?.trim()) {
         const deptId = parseInt(filters.departmentId, 10);
         if (!Number.isNaN(deptId)) {
-          sqlConditions.push(Prisma.sql`EXISTS (
+          if (
+            staffIds != null &&
+            Array.isArray(staffIds) &&
+            staffIds.length > 0 &&
+            !staffIds.includes(deptId)
+          ) {
+            sqlConditions.push(Prisma.sql`1 = 0`);
+          } else {
+            sqlConditions.push(Prisma.sql`EXISTS (
             SELECT 1 FROM app_cabinet_departments acd_f
             WHERE acd_f.cabinet_id = app_cabinets.id
               AND acd_f.department_id = ${deptId}
               AND acd_f.status = 'ACTIVE'
           )`);
+          }
         }
+      } else if (staffIds != null && Array.isArray(staffIds) && staffIds.length > 0) {
+        sqlConditions.push(Prisma.sql`EXISTS (
+            SELECT 1 FROM app_cabinet_departments acd_sc
+            WHERE acd_sc.cabinet_id = app_cabinets.id
+              AND acd_sc.status = 'ACTIVE'
+              AND acd_sc.department_id IN (${Prisma.join(staffIds.map((id) => Prisma.sql`${id}`))})
+          )`);
       }
 
       if (filters?.cabinetId) {
@@ -3466,6 +3618,7 @@ export class MedicalSuppliesService {
 
       // Combine WHERE conditions with AND
       const whereClause = Prisma.join(sqlConditions, ' AND ');
+      const cdOneJoin = this.buildDispensedItemsCabinetOneDeptJoin(filters);
 
       // Get total count first — เชื่อม Division แถวเดียวต่อตู้ (ไม่คูณแถวจากหลาย app_cabinet_departments)
       const countResult: any[] = await this.prisma.$queryRaw`
@@ -3474,16 +3627,7 @@ export class MedicalSuppliesService {
         INNER JOIN item i ON ist.ItemCode = i.itemcode
         LEFT JOIN itemtype it ON i.itemtypeID = it.ID
         INNER JOIN app_cabinets ON app_cabinets.stock_id = ist.StockID
-        INNER JOIN (
-          SELECT acd1.cabinet_id, acd1.department_id
-          FROM app_cabinet_departments acd1
-          INNER JOIN (
-            SELECT cabinet_id, MIN(id) AS pick_id
-            FROM app_cabinet_departments
-            WHERE status = 'ACTIVE'
-            GROUP BY cabinet_id
-          ) pick ON pick.pick_id = acd1.id
-        ) cd_one ON cd_one.cabinet_id = app_cabinets.id
+        ${cdOneJoin}
         INNER JOIN department ON department.ID = cd_one.department_id
         WHERE ${whereClause}
       `;
@@ -3556,16 +3700,7 @@ export class MedicalSuppliesService {
         LEFT JOIN users ON users.ID = ist.CabinetUserID
         LEFT JOIN employee ON employee.EmpCode = users.EmpCode
         INNER JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
-        INNER JOIN (
-          SELECT acd1.cabinet_id, acd1.department_id
-          FROM app_cabinet_departments acd1
-          INNER JOIN (
-            SELECT cabinet_id, MIN(id) AS pick_id
-            FROM app_cabinet_departments
-            WHERE status = 'ACTIVE'
-            GROUP BY cabinet_id
-          ) pick ON pick.pick_id = acd1.id
-        ) cd_one ON cd_one.cabinet_id = app_cabinets.id
+        ${cdOneJoin}
         INNER JOIN department on department.ID = cd_one.department_id
         WHERE ${whereClause}
         ORDER BY ist.LastCabinetModify DESC , i.itemname ASC

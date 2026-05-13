@@ -157,6 +157,7 @@ export class StaffDepartmentScopeService {
       if (allowed.length === 0) {
         return { stockIds: [], usageDepartmentIds: null };
       }
+      /** ตู้ที่มีลิงก์กับแผนกใดแผนกหนึ่งใน allowed — เทียบเท่า WHERE department_id IN (allowed) */
       const links = await this.prisma.cabinetDepartment.findMany({
         where: { department_id: { in: allowed } },
         select: { cabinet_id: true },

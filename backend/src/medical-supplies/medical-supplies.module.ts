@@ -8,6 +8,7 @@ import {
 import { MedicalSuppliesService } from './medical-supplies.service';
 import { FlexibleAuthGuard } from './guards/flexible-auth.guard';
 import { AuthModule } from '../auth/auth.module';
+import { StaffModule } from '../staff/staff.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AuthModule } from '../auth/auth.module';
       signOptions: { expiresIn: '24h' },
     }),
     AuthModule,
+    StaffModule,
   ],
   controllers: [
     MedicalSupplyUsageController,

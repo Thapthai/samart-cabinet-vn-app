@@ -14,12 +14,7 @@ import {
 import type { ComparisonItem, FilterState, SummaryData } from './types';
 import { itemComparisonApi } from '@/lib/staffApi/itemComparisonApi';
 import { staffCabinetApi, staffCabinetDepartmentApi } from '@/lib/staffApi/cabinetApi';
-import { staffMedicalSupplySubDepartmentsApi } from '@/lib/staffApi/medicalSupplySubDepartmentsApi';
-import { fetchStaffDepartmentsForFilter, getStaffAllowedDepartmentIds } from '@/lib/staffDepartmentScope';
-import type {
-  DepartmentOption,
-  SubDepartmentOption,
-} from '@/app/admin/medical-supplies/components/MedicalSuppliesSearchFilters';
+import { getStaffAllowedDepartmentIds } from '@/lib/staffDepartmentScope';
 
 type CabinetFilterOption = { id: number; cabinet_name?: string; cabinet_code?: string };
 function mapCabinetRow(c: unknown): CabinetFilterOption | null {
@@ -47,8 +42,6 @@ export default function ItemComparisonPage() {
   const [selectedItemCode, setSelectedItemCode] = useState<string | null>(null);
   const [comparisonList, setComparisonList] = useState<ComparisonItem[]>([]);
   const [filteredList, setFilteredList] = useState<ComparisonItem[]>([]);
-  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
-  const [subDepartmentsMaster, setSubDepartmentsMaster] = useState<SubDepartmentOption[]>([]);
   const [comparisonCabinets, setComparisonCabinets] = useState<CabinetFilterOption[]>([]);
 
   const [filters, setFilters] = useState<FilterState>({
@@ -71,6 +64,27 @@ export default function ItemComparisonPage() {
       try {
         let next: CabinetFilterOption[] = [];
         if (!departmentIdStr) {
+          const allowed = await getStaffAllowedDepartmentIds();
+          if (allowed != null && Array.isArray(allowed) && allowed.length === 0) {
+            return [];
+          }
+          if (allowed != null && Array.isArray(allowed) && allowed.length > 0) {
+            const unique = new Map<number, CabinetFilterOption>();
+            for (const deptId of allowed) {
+              const res = await staffCabinetDepartmentApi.getAll({ departmentId: deptId });
+              const mappings = (res as { success?: boolean; data?: unknown[] }).data;
+              if (!Array.isArray(mappings)) continue;
+              for (const row of mappings) {
+                if (!row || typeof row !== 'object') continue;
+                const m = row as { status?: string; cabinet?: unknown };
+                if (m.status != null && m.status !== 'ACTIVE') continue;
+                const mapped = mapCabinetRow(m.cabinet);
+                if (mapped && !unique.has(mapped.id)) unique.set(mapped.id, mapped);
+              }
+            }
+            next = Array.from(unique.values()).sort((a, b) => a.id - b.id);
+            return next;
+          }
           const res = await staffCabinetApi.getAll({ page: 1, limit: 500 });
           const raw = (res as { success?: boolean; data?: unknown[] }).data;
           if (Array.isArray(raw)) {
@@ -131,61 +145,6 @@ export default function ItemComparisonPage() {
     void loadComparisonCabinets(filters.departmentCode);
   }, [filters.departmentCode, loadComparisonCabinets]);
 
-  useEffect(() => {
-    (async () => {
-      let mapped: DepartmentOption[] = [];
-      try {
-        const list = await fetchStaffDepartmentsForFilter({ limit: 500 });
-        if (list.length > 0) {
-          mapped = list.map((d) => ({
-            ID: d.ID,
-            DepName: d.DepName ?? null,
-            DepName2: d.DepName2 ?? null,
-          }));
-          setDepartments(mapped);
-        }
-      } catch {
-        // ignore
-      }
-
-      let subRows: SubDepartmentOption[] = [];
-      try {
-        const allowed = await getStaffAllowedDepartmentIds();
-        const res = await staffMedicalSupplySubDepartmentsApi.getAll();
-        let raw = res.data ?? [];
-        if (allowed != null && Array.isArray(allowed) && allowed.length > 0) {
-          const allowSet = new Set(allowed);
-          raw = raw.filter((s) => allowSet.has(s.department_id));
-        } else if (allowed != null && Array.isArray(allowed) && allowed.length === 0) {
-          raw = [];
-        }
-        subRows = raw.map((s) => ({
-          id: s.id,
-          department_id: s.department_id,
-          code: s.code,
-          name: s.name ?? null,
-          status: s.status,
-        }));
-        setSubDepartmentsMaster(subRows);
-      } catch {
-        setSubDepartmentsMaster([]);
-      }
-
-      const initialFilters: FilterState = {
-        searchItemCode: '',
-        startDate: getTodayDate(),
-        endDate: getTodayDate(),
-        itemTypeFilter: 'all',
-        departmentCode: '',
-        subDepartmentId: '',
-        cabinetId: '',
-      };
-      setFilters(initialFilters);
-      fetchComparisonList(1, initialFilters);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
-  }, []);
-
   const fetchComparisonList = async (page: number = 1, customFilters?: FilterState) => {
     try {
       setLoadingList(true);
@@ -210,49 +169,52 @@ export default function ItemComparisonPage() {
 
       const response = await itemComparisonApi.compareDispensedVsUsage(params);
 
-      if (response.success || response.data) {
-        const responseData: any = response.data || response;
+      if (response.success === false) {
+        toast.error(
+          (response as { message?: string }).message || 'ไม่สามารถโหลดข้อมูลได้',
+        );
+        return;
+      }
 
-        const comparisonData = Array.isArray(responseData)
-          ? responseData
-          : (responseData.data || responseData.comparison || []);
+      const responseData: any = response.data || response;
 
-        let paginationData: any = {};
-        if (responseData.pagination) {
-          paginationData = {
-            page: responseData.pagination.page || page,
-            limit: responseData.pagination.limit || itemsPerPage,
-            total: responseData.pagination.total || 0,
-            totalPages:
-              responseData.pagination.totalPages ||
-              Math.ceil(
-                (responseData.pagination.total || 0) / (responseData.pagination.limit || itemsPerPage),
-              ),
-          };
-        } else {
-          const totalFromResponse = responseData.total || comparisonData.length;
-          const limitFromResponse = responseData.limit || itemsPerPage;
-          paginationData = {
-            page: responseData.page || page,
-            limit: limitFromResponse,
-            total: totalFromResponse,
-            totalPages: responseData.totalPages || Math.ceil(totalFromResponse / limitFromResponse),
-          };
-        }
+      const comparisonData = Array.isArray(responseData)
+        ? responseData
+        : (responseData.data || responseData.comparison || []);
 
-        setComparisonList(comparisonData);
-        setFilteredList(comparisonData);
-        setTotalItems(paginationData.total || 0);
-        setTotalPages(paginationData.totalPages || 0);
-        setCurrentPage(paginationData.page || page);
-
-        if (comparisonData.length === 0) {
-          toast.info('ไม่พบข้อมูลเปรียบเทียบ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
-        } else {
-          toast.success(`พบ ${paginationData.total || comparisonData.length} รายการเปรียบเทียบ`);
-        }
+      let paginationData: any = {};
+      if (responseData.pagination) {
+        paginationData = {
+          page: responseData.pagination.page || page,
+          limit: responseData.pagination.limit || itemsPerPage,
+          total: responseData.pagination.total || 0,
+          totalPages:
+            responseData.pagination.totalPages ||
+            Math.ceil(
+              (responseData.pagination.total || 0) / (responseData.pagination.limit || itemsPerPage),
+            ),
+        };
       } else {
-        toast.error(response.message || 'ไม่สามารถโหลดข้อมูลได้');
+        const totalFromResponse = responseData.total || comparisonData.length;
+        const limitFromResponse = responseData.limit || itemsPerPage;
+        paginationData = {
+          page: responseData.page || page,
+          limit: limitFromResponse,
+          total: totalFromResponse,
+          totalPages: responseData.totalPages || Math.ceil(totalFromResponse / limitFromResponse),
+        };
+      }
+
+      setComparisonList(comparisonData);
+      setFilteredList(comparisonData);
+      setTotalItems(paginationData.total || 0);
+      setTotalPages(paginationData.totalPages || 0);
+      setCurrentPage(paginationData.page || page);
+
+      if (comparisonData.length === 0) {
+        toast.info('ไม่พบข้อมูลเปรียบเทียบ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
+      } else {
+        toast.success(`พบ ${paginationData.total || comparisonData.length} รายการเปรียบเทียบ`);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || error.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -260,6 +222,21 @@ export default function ItemComparisonPage() {
       setLoadingList(false);
     }
   };
+
+  useEffect(() => {
+    const initialFilters: FilterState = {
+      searchItemCode: '',
+      startDate: getTodayDate(),
+      endDate: getTodayDate(),
+      itemTypeFilter: 'all',
+      departmentCode: '',
+      subDepartmentId: '',
+      cabinetId: '',
+    };
+    setFilters(initialFilters);
+    void fetchComparisonList(1, initialFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
+  }, []);
 
   const handleSearch = (keywordOverride?: string) => {
     setCurrentPage(1);
@@ -370,8 +347,6 @@ export default function ItemComparisonPage() {
           onClear={handleClearSearch}
           onRefresh={() => fetchComparisonList(currentPage)}
           itemTypes={getItemTypes()}
-          departments={departments}
-          subDepartments={subDepartmentsMaster}
           cabinets={comparisonCabinets}
           loading={loadingList}
           items={comparisonList}

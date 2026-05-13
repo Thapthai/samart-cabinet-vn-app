@@ -16,6 +16,7 @@ import {
 import type { Request } from 'express';
 import { MedicalSuppliesService } from './medical-supplies.service';
 import { FlexibleAuthGuard, MedicalSuppliesAuthRequest } from './guards/flexible-auth.guard';
+import { StaffDepartmentScopeService } from '../staff/staff-department-scope.service';
 import {
   CreateMedicalSupplyUsageDto,
   UpdateMedicalSupplyUsageDto,
@@ -30,7 +31,10 @@ import {
 
 @Controller('medical-supplies')
 export class MedicalSupplyUsageController {
-  constructor(private readonly medicalSuppliesService: MedicalSuppliesService) { }
+  constructor(
+    private readonly medicalSuppliesService: MedicalSuppliesService,
+    private readonly staffDepartmentScope: StaffDepartmentScopeService,
+  ) {}
 
   // AuthGuard
   @Post()
@@ -89,7 +93,9 @@ export class MedicalSupplyUsageController {
   }
 
   @Get()
+  @UseGuards(FlexibleAuthGuard)
   async findAll(
+    @Req() req: Request & MedicalSuppliesAuthRequest,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('startDate') startDate?: string,
@@ -112,6 +118,13 @@ export class MedicalSupplyUsageController {
     @Query('assession_no') assession_no?: string,
   ) {
     try {
+      /** ใช้ user ที่มี role_id (staff) — ไม่พึ่งแค่ payload.staff ใน JWT เพื่อไม่ให้เห็นทุกแผนกเมื่อโทเคนไม่มี staff: true */
+      let staffAllowedDepartmentIds: number[] | null | undefined = undefined;
+      const staffUser = await this.staffDepartmentScope.resolveActiveStaffUser(req);
+      if (staffUser != null) {
+        staffAllowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
+      }
+
       const query: GetMedicalSupplyUsagesQueryDto = {
         page: page != null ? page : undefined,
         limit: limit != null ? limit : undefined,
@@ -139,7 +152,10 @@ export class MedicalSupplyUsageController {
         page: page != null ? Number(page) : undefined,
         limit: limit != null ? Number(limit) : undefined,
       };
-      const result = await this.medicalSuppliesService.findAll(normalized as GetMedicalSupplyUsagesQueryDto);
+      const result = await this.medicalSuppliesService.findAll(
+        normalized as GetMedicalSupplyUsagesQueryDto,
+        { staffAllowedDepartmentIds },
+      );
       return { success: true, ...result };
     } catch (error: any) {
       return { success: false, message: error?.message };
@@ -248,7 +264,10 @@ export class MedicalSupplyUsageController {
 
 @Controller('medical-supply-items')
 export class MedicalSupplyItemController {
-  constructor(private readonly medicalSuppliesService: MedicalSuppliesService) { }
+  constructor(
+    private readonly medicalSuppliesService: MedicalSuppliesService,
+    private readonly staffDepartmentScope: StaffDepartmentScopeService,
+  ) {}
 
   @Post('record-used')
   async recordItemUsedWithPatient(@Body() data: RecordItemUsedWithPatientDto) {
@@ -317,14 +336,26 @@ export class MedicalSupplyItemController {
   }
 
   @Get('return-history')
-  async getReturnHistory(@Query() query: GetReturnHistoryQueryDto) {
+  @UseGuards(FlexibleAuthGuard)
+  async getReturnHistory(
+    @Req() req: Request & MedicalSuppliesAuthRequest,
+    @Query() query: GetReturnHistoryQueryDto,
+  ) {
     try {
       const normalized = {
         ...query,
         page: query.page != null ? Number(query.page) : undefined,
         limit: query.limit != null ? Number(query.limit) : undefined,
       };
-      const result = await this.medicalSuppliesService.getReturnHistory(normalized as GetReturnHistoryQueryDto);
+      let staffAllowedDepartmentIds: number[] | null | undefined = undefined;
+      const staffUser = await this.staffDepartmentScope.resolveActiveStaffUser(req);
+      if (staffUser != null) {
+        staffAllowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
+      }
+      const result = await this.medicalSuppliesService.getReturnHistory(
+        normalized as GetReturnHistoryQueryDto,
+        { staffAllowedDepartmentIds },
+      );
       return { success: true, ...result };
     } catch (error: any) {
       return { success: false, message: error?.message };
@@ -416,7 +447,10 @@ export class MedicalSupplyItemController {
 
 @Controller('medical-supply')
 export class MedicalSupplyController {
-  constructor(private readonly medicalSuppliesService: MedicalSuppliesService) { }
+  constructor(
+    private readonly medicalSuppliesService: MedicalSuppliesService,
+    private readonly staffDepartmentScope: StaffDepartmentScopeService,
+  ) {}
 
   @Get('validate-item-code')
   async validateItemCode(@Query('itemCode') itemCode: string) {
@@ -439,7 +473,9 @@ export class MedicalSupplyController {
   }
 
   @Get('dispensed-items')
+  @UseGuards(FlexibleAuthGuard)
   async getDispensedItems(
+    @Req() req: Request & MedicalSuppliesAuthRequest,
     @Query('keyword') keyword?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
@@ -450,6 +486,11 @@ export class MedicalSupplyController {
     @Query('subDepartmentId') subDepartmentId?: string,
   ) {
     try {
+      let staffAllowedDepartmentIds: number[] | null | undefined = undefined;
+      const staffUser = await this.staffDepartmentScope.resolveActiveStaffUser(req);
+      if (staffUser != null) {
+        staffAllowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
+      }
       const result = await this.medicalSuppliesService.getDispensedItems({
         keyword,
         startDate,
@@ -459,6 +500,7 @@ export class MedicalSupplyController {
         departmentId,
         cabinetId,
         subDepartmentId,
+        staffAllowedDepartmentIds,
       });
       return {
         success: true,

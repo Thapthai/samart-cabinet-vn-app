@@ -547,7 +547,8 @@ export class StaffService {
 
   /**
    * Staff ปัจจุบัน → role → app_staff_role_permission_departments → department
-   * ไม่มีแถวใน permission_departments = unrestricted (เห็นทุกแผนก)
+   * ไม่มีแถวใน permission_departments = unrestricted (ข้อมูล/ตู้ยังไม่บังคับกรองตามแผนก)
+   * แต่ส่งแผนกหลักจาก app_users.department_id ให้ dropdown/filter ใช้เป็นค่าเริ่มต้นของ staff
    */
   async findMyPermissionDepartments(req: { headers: Record<string, string | string[] | undefined> }) {
     const staff = await this.staffDepartmentScope.resolveActiveStaffUser(req);
@@ -566,18 +567,33 @@ export class StaffService {
     });
 
     if (rows.length === 0) {
+      const u = await this.prisma.user.findUnique({
+        where: { id: staff.id },
+        select: { department_id: true },
+      });
+      let primaryDepartments: Array<{
+        ID: number;
+        DepName: string | null;
+        DepName2: string | null;
+        RefDepID: string | null;
+      }> = [];
+      if (u?.department_id != null && u.department_id >= 1) {
+        const d = await this.prisma.department.findFirst({
+          where: {
+            ID: u.department_id,
+            OR: [{ IsCancel: null }, { IsCancel: 0 }],
+          },
+          select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
+        });
+        if (d) primaryDepartments = [d];
+      }
       return {
         success: true,
         data: {
           unrestricted: true,
           staff_user_id: staff.id,
           role_id: staff.role_id,
-          departments: [] as Array<{
-            ID: number;
-            DepName: string | null;
-            DepName2: string | null;
-            RefDepID: string | null;
-          }>,
+          departments: primaryDepartments,
         },
       };
     }

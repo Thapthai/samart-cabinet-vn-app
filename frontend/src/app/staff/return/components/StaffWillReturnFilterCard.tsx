@@ -1,21 +1,29 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Search, RefreshCw, ChevronDown } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Search, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DatePickerBE } from '@/components/ui/date-picker-be';
+import SearchableSelect from '@/app/admin/items/components/SearchableSelect';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import type {
-  DepartmentOption,
-  SubDepartmentOption,
-} from '@/app/admin/medical-supplies/components/MedicalSuppliesSearchFilters';
+  clampDepartmentIdString,
+  fetchStaffDepartmentsForFilter,
+  getStaffAllowedDepartmentIds,
+} from '@/lib/staffDepartmentScope';
+import type { SubDepartmentOption } from '@/app/admin/medical-supplies/components/MedicalSuppliesSearchFilters';
+
+export type DepartmentOption = { ID: number; DepName?: string | null; DepName2?: string | null };
+
+function buildRoleScopeDivisionSummary(depts: DepartmentOption[]): string {
+  const names = depts.map((d) => (d.DepName || '').trim()).filter(Boolean);
+  if (names.length === 0) return '';
+  if (names.length <= 5) return names.join(', ');
+  return `${names.slice(0, 5).join(', ')} … (+${names.length - 5})`;
+}
 
 interface StaffWillReturnFilterCardProps {
   departmentId: string;
@@ -24,9 +32,7 @@ interface StaffWillReturnFilterCardProps {
   itemCode: string;
   startDate: string;
   endDate: string;
-  departments: DepartmentOption[];
   cabinets: Array<{ id: number; cabinet_name?: string; cabinet_code?: string }>;
-  /** Master แผนกย่อย — กรองตามแผนกหลักที่เลือก (เหมือนหน้าเวชภัณฑ์) */
   subDepartments: SubDepartmentOption[];
   onDepartmentChange: (value: string) => void;
   onCabinetChange: (value: string) => void;
@@ -48,7 +54,6 @@ export default function StaffWillReturnFilterCard({
   itemCode,
   startDate,
   endDate,
-  departments,
   cabinets,
   subDepartments,
   onDepartmentChange,
@@ -63,87 +68,138 @@ export default function StaffWillReturnFilterCard({
   loading,
   departmentLocked = false,
 }: StaffWillReturnFilterCardProps) {
-  const [departmentSearch, setDepartmentSearch] = useState('');
-  const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
-  const [subDepartmentSearch, setSubDepartmentSearch] = useState('');
-  const [subDepartmentDropdownOpen, setSubDepartmentDropdownOpen] = useState(false);
-  const [cabinetSearch, setCabinetSearch] = useState('');
-  const [cabinetDropdownOpen, setCabinetDropdownOpen] = useState(false);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
+  const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
+  const [canPickAllRoleDepartments, setCanPickAllRoleDepartments] = useState(false);
 
-  const hasMainDepartment = Boolean(departmentId?.trim()) || departmentLocked;
-  const hasSubDepartmentFilter = Boolean(subDepartmentId?.trim());
+  const roleScopeDivisionSummary = useMemo(
+    () => (canPickAllRoleDepartments ? buildRoleScopeDivisionSummary(departments) : ''),
+    [canPickAllRoleDepartments, departments],
+  );
 
-  const filteredDepartments = useMemo(() => {
-    const q = departmentSearch.trim().toLowerCase();
-    return departments.filter((d) => {
-      if (!q) return true;
-      const n1 = (d.DepName || '').toLowerCase();
-      const n2 = (d.DepName2 || '').toLowerCase();
-      return n1.includes(q) || n2.includes(q);
-    });
-  }, [departments, departmentSearch]);
+  const divisionSelectOptions = useMemo(
+    () => [
+      ...(canPickAllRoleDepartments
+        ? [
+            {
+              value: '',
+              label: 'ทั้งหมด',
+              ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
+            },
+          ]
+        : []),
+      ...departments.map((dept) => ({
+        value: String(dept.ID),
+        label: dept.DepName || '',
+        subLabel: dept.DepName2 || '',
+      })),
+    ],
+    [canPickAllRoleDepartments, departments, roleScopeDivisionSummary],
+  );
 
-  const filteredSubDepartments = useMemo(() => {
+  const subDepartmentOptions = useMemo(() => {
     const deptId = departmentId?.trim();
-    const q = subDepartmentSearch.trim().toLowerCase();
-    return subDepartments.filter((s) => {
-      if (s.status === false) return false;
-      if (deptId && String(s.department_id) !== deptId) return false;
-      if (!q) return true;
-      const code = (s.code || '').toLowerCase();
-      const name = (s.name || '').toLowerCase();
-      return code.includes(q) || name.includes(q);
-    });
-  }, [subDepartments, departmentId, subDepartmentSearch]);
+    if (!deptId) {
+      return [{ value: '', label: 'ทั้งหมด' }];
+    }
+    const rows = subDepartments.filter(
+      (s) => s.status !== false && String(s.department_id) === deptId,
+    );
+    return [
+      { value: '', label: 'ทั้งหมด' },
+      ...rows.map((s) => ({
+        value: String(s.id),
+        label: s.code,
+        subLabel: s.name?.trim() || '',
+      })),
+    ];
+  }, [subDepartments, departmentId]);
 
-  const filteredCabinets = useMemo(() => {
-    const q = cabinetSearch.trim().toLowerCase();
-    return cabinets.filter((c) => {
-      if (!q) return true;
-      const code = (c.cabinet_code || '').toLowerCase();
-      const name = (c.cabinet_name || '').toLowerCase();
-      const idStr = String(c.id);
-      return code.includes(q) || name.includes(q) || idStr.includes(q);
-    });
-  }, [cabinets, cabinetSearch]);
+  const cabinetSelectOptions = useMemo(() => {
+    const opts: { value: string; label: string; subLabel?: string }[] = [];
+    if (cabinets.length > 0) {
+      opts.push({ value: '', label: '-- ทุกตู้ --' });
+    }
+    for (const c of cabinets) {
+      opts.push({
+        value: String(c.id),
+        label: c.cabinet_code || String(c.id),
+        subLabel: c.cabinet_name || '',
+      });
+    }
+    return opts;
+  }, [cabinets]);
+
+  const loadDepartments = useCallback(async (keyword?: string) => {
+    try {
+      setLoadingDepartments(true);
+      let allowed = allowedDepartmentIdsRef.current;
+      if (allowed === undefined) {
+        allowed = await getStaffAllowedDepartmentIds();
+        allowedDepartmentIdsRef.current = allowed;
+      }
+      setCanPickAllRoleDepartments(Array.isArray(allowed) && allowed.length > 0);
+      const list = await fetchStaffDepartmentsForFilter({
+        keyword,
+        page: 1,
+        limit: 200,
+        allowedDepartmentIds: allowed,
+      });
+      setDepartments(list as DepartmentOption[]);
+    } catch (e) {
+      console.error('Failed to load departments:', e);
+    } finally {
+      setLoadingDepartments(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const allowed = await getStaffAllowedDepartmentIds();
+      if (cancelled) return;
+      allowedDepartmentIdsRef.current = allowed;
+      setCanPickAllRoleDepartments(Array.isArray(allowed) && allowed.length > 0);
+      await loadDepartments();
+      if (cancelled || departmentLocked) return;
+      const nextDept = clampDepartmentIdString(departmentId, allowed, '');
+      if (nextDept !== departmentId) {
+        onDepartmentChange(nextDept);
+        onCabinetChange('');
+        onSubDepartmentChange('');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + clamp
+  }, [departmentLocked, loadDepartments]);
 
   const lockedDeptLabel =
     departments.find((d) => String(d.ID) === departmentId)?.DepName ||
     departments.find((d) => String(d.ID) === departmentId)?.DepName2 ||
     (departmentId ? `แผนก ${departmentId}` : 'ไม่ระบุแผนก');
 
-  const divisionTriggerLabel = () => {
-    if (!departmentId) return 'เลือก Division...';
-    const d = departments.find((x) => String(x.ID) === departmentId);
-    return d?.DepName || d?.DepName2 || `Division ${departmentId}`;
+  const handleSearchClick = () => {
+    if (!departmentLocked) {
+      const allowed = allowedDepartmentIdsRef.current;
+      const roleScopeAll =
+        Array.isArray(allowed) && allowed.length > 0 && !departmentId?.trim();
+      if (!departmentId?.trim() && !roleScopeAll) {
+        toast.error('กรุณาเลือก Division ก่อนค้นหา (หรือเลือกทั้งหมดเฉพาะเมื่อ role จำกัดแผนก)');
+        return;
+      }
+    }
+    onSearch();
   };
 
-  const subDepartmentTriggerLabel = () => {
-    const idStr = subDepartmentId?.trim();
-    if (!idStr) return 'เลือกแผนก ...';
-    const id = parseInt(idStr, 10);
-    if (Number.isNaN(id)) return idStr;
-    const sub = subDepartments.find((s) => s.id === id);
-    if (sub) {
-      const n = sub.name?.trim();
-      return n ? `${sub.code} · ${n}` : sub.code;
-    }
-    return idStr;
-  };
-
-  const cabinetTriggerLabel = () => {
-    if (!cabinetId?.trim()) {
-      if (hasSubDepartmentFilter && cabinets.length === 0) return 'แผนกนี้ยังไม่มีตู้ที่ผูก';
-      if (departmentId && cabinets.length === 0) return 'ไม่มีตู้ในแผนกนี้';
-      /* มีตู้ให้เลือกแต่ยังไม่เลือก = กรองแบบทุกตู้ (ค่าว่าง) — แสดงข้อความให้ตรงเมนู */
-      if (cabinets.length > 0) return '-- ทุกตู้ --';
-      return 'เลือกตู้ Cabinet...';
-    }
-    const id = parseInt(cabinetId, 10);
-    const c = cabinets.find((x) => x.id === id);
-    if (c) return c.cabinet_code || c.cabinet_name || `ตู้ ${c.id}`;
-    return `ตู้ ${cabinetId}`;
-  };
+  const hasMainDepartment = Boolean(departmentId?.trim()) || departmentLocked;
+  const cabinetPlaceholder = !hasMainDepartment
+    ? 'เลือก Division (แผนกหลัก) ก่อน'
+    : cabinets.length === 0
+      ? 'ไม่มีตู้ในแผนกนี้'
+      : 'เลือกตู้หรือทุกตู้';
 
   return (
     <Card>
@@ -158,7 +214,7 @@ export default function StaffWillReturnFilterCard({
               placeholder="ค้นหา..."
               value={itemCode}
               onChange={(e) => onItemCodeChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchClick()}
               className="w-full"
             />
           </div>
@@ -184,238 +240,93 @@ export default function StaffWillReturnFilterCard({
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="min-w-0 space-y-2">
-              <Label>Division</Label>
               {departmentLocked ? (
-                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
-                  <span className="truncate">{lockedDeptLabel}</span>
+                <div className="space-y-2">
+                  <Label>Division</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                    <span className="truncate">{lockedDeptLabel}</span>
+                  </div>
                 </div>
               ) : (
-                <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-10 w-full justify-between font-normal" type="button">
-                      <span className="truncate text-left">{divisionTriggerLabel()}</span>
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="start"
-                    className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
-                  >
-                    <div className="px-2 pb-2">
-                      <Input
-                        placeholder="ค้นหา Division..."
-                        value={departmentSearch}
-                        onChange={(e) => setDepartmentSearch(e.target.value)}
-                        className="h-8"
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    <div className="max-h-60 overflow-auto">
-                      <button
-                        type="button"
-                        className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                        onClick={() => {
-                          onDepartmentChange('');
-                          onCabinetChange('');
-                          onSubDepartmentChange('');
-                          setDepartmentDropdownOpen(false);
-                          setDepartmentSearch('');
-                        }}
-                      >
-                        -- ทุก Division --
-                      </button>
-                      {filteredDepartments.map((dept) => (
-                        <button
-                          key={dept.ID}
-                          type="button"
-                          className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                          onClick={() => {
-                            onDepartmentChange(String(dept.ID));
-                            onCabinetChange('');
-                            onSubDepartmentChange('');
-                            setDepartmentDropdownOpen(false);
-                            setDepartmentSearch('');
-                          }}
-                        >
-                          {dept.DepName || dept.DepName2 || `แผนก ${dept.ID}`}
-                        </button>
-                      ))}
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <SearchableSelect
+                  label="Division"
+                  placeholder={
+                    canPickAllRoleDepartments
+                      ? 'เลือก Division หรือทั้งหมด (ตาม role)'
+                      : 'เลือก Division (บังคับ)'
+                  }
+                  required={!canPickAllRoleDepartments}
+                  value={departmentId}
+                  initialDisplay={
+                    canPickAllRoleDepartments && !departmentId?.trim()
+                      ? {
+                          label: 'ทั้งหมด (ทุกแผนกที่ role อนุญาต)',
+                          ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
+                        }
+                      : undefined
+                  }
+                  onValueChange={(value) => {
+                    onDepartmentChange(value);
+                    onCabinetChange('');
+                    onSubDepartmentChange('');
+                  }}
+                  options={divisionSelectOptions}
+                  loading={loadingDepartments}
+                  onSearch={loadDepartments}
+                  searchPlaceholder="ค้นหาชื่อ Division..."
+                />
               )}
             </div>
 
             <div className="min-w-0 space-y-2">
-              <Label>แผนก</Label>
-              <DropdownMenu
-                open={subDepartmentDropdownOpen}
-                onOpenChange={setSubDepartmentDropdownOpen}
-              >
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="h-10 w-full justify-between font-normal"
-                    type="button"
-                    disabled={!hasMainDepartment}
-                  >
-                    <span className="truncate text-left">{subDepartmentTriggerLabel()}</span>
-                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
-                >
-                  <div className="px-2 pb-2">
-                    <Input
-                      placeholder="ค้นหารหัสหรือชื่อแผนก ..."
-                      value={subDepartmentSearch}
-                      onChange={(e) => setSubDepartmentSearch(e.target.value)}
-                      className="h-8"
-                      onKeyDown={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                  <div className="max-h-60 overflow-auto">
-                    <button
-                      type="button"
-                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                      onClick={() => {
-                        onSubDepartmentChange('');
-                        setSubDepartmentDropdownOpen(false);
-                        setSubDepartmentSearch('');
-                      }}
-                    >
-                      -- ทุกแผนก --
-                    </button>
-                    {!hasMainDepartment ? (
-                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">
-                        เลือกแผนก (Division) ก่อน
-                      </div>
-                    ) : filteredSubDepartments.length === 0 ? (
-                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
-                    ) : (
-                      filteredSubDepartments.map((sub) => (
-                        <button
-                          key={sub.id}
-                          type="button"
-                          className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                          onClick={() => {
-                            onSubDepartmentChange(String(sub.id));
-                            setSubDepartmentDropdownOpen(false);
-                            setSubDepartmentSearch('');
-                          }}
-                        >
-                          <span className="font-mono text-xs">{sub.code}</span>
-                          {sub.name ? (
-                            <span className="text-muted-foreground"> · {sub.name}</span>
-                          ) : null}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <SearchableSelect
+                label="แผนก"
+                placeholder={
+                  departmentId?.trim()
+                    ? 'เลือกแผนก ...'
+                    : 'เลือก Division เฉพาะก่อน ถ้าต้องการกรองแผนกย่อย'
+                }
+                value={subDepartmentId}
+                onValueChange={onSubDepartmentChange}
+                options={subDepartmentOptions}
+                disabled={!hasMainDepartment}
+                searchPlaceholder="ค้นหารหัสหรือชื่อแผนก ..."
+              />
             </div>
           </div>
 
           <div className="min-w-0 space-y-2">
-            <Label>ตู้ Cabinet</Label>
             {!hasMainDepartment ? (
-              <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
-                เลือก Division (แผนกหลัก) ก่อน
-              </div>
+              <>
+                <Label>ตู้ Cabinet</Label>
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                  เลือก Division (แผนกหลัก) ก่อน
+                </div>
+              </>
             ) : (
-              <DropdownMenu open={cabinetDropdownOpen} onOpenChange={setCabinetDropdownOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="h-10 w-full justify-between font-normal"
-                    type="button"
-                  >
-                    <span
-                      className={
-                        !cabinetId?.trim() && cabinets.length > 0
-                          ? 'min-w-0 flex-1 truncate text-left text-muted-foreground'
-                          : 'min-w-0 flex-1 truncate text-left'
-                      }
-                    >
-                      {cabinetTriggerLabel()}
-                    </span>
-                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
-                >
-                  <div className="px-2 pb-2">
-                    <Input
-                      placeholder="ค้นหารหัสหรือชื่อตู้ ..."
-                      value={cabinetSearch}
-                      onChange={(e) => setCabinetSearch(e.target.value)}
-                      className="h-8"
-                      onKeyDown={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                  <div className="max-h-60 overflow-auto">
-                    <button
-                      type="button"
-                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                      onClick={() => {
-                        onCabinetChange('');
-                        setCabinetDropdownOpen(false);
-                        setCabinetSearch('');
-                      }}
-                    >
-                      -- ทุกตู้ --
-                    </button>
-                    {cabinets.length === 0 ? (
-                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">
-                        {hasSubDepartmentFilter
-                          ? 'แผนกนี้ยังไม่มีตู้ที่ผูก'
-                          : departmentId
-                            ? 'ไม่มีตู้ในแผนกนี้'
-                            : 'ไม่พบตู้'}
-                      </div>
-                    ) : filteredCabinets.length === 0 ? (
-                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
-                    ) : (
-                      filteredCabinets.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                          onClick={() => {
-                            onCabinetChange(String(c.id));
-                            setCabinetDropdownOpen(false);
-                            setCabinetSearch('');
-                          }}
-                        >
-                          <span className="font-mono text-xs">{c.cabinet_code || String(c.id)}</span>
-                          {c.cabinet_name ? (
-                            <span className="text-muted-foreground"> · {c.cabinet_name}</span>
-                          ) : null}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <SearchableSelect
+                label="ตู้ Cabinet"
+                placeholder={cabinetPlaceholder}
+                value={cabinetId}
+                onValueChange={onCabinetChange}
+                options={cabinetSelectOptions}
+                disabled={cabinets.length === 0}
+                searchPlaceholder="ค้นหารหัสหรือชื่อตู้ ..."
+              />
             )}
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <Button onClick={onSearch} disabled={loading}>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={handleSearchClick} disabled={loading}>
             <Search className="mr-2 h-4 w-4" />
             ค้นหา
           </Button>
-          <Button onClick={onReset} variant="outline">
+          <Button onClick={onReset} variant="outline" type="button">
             ล้าง
           </Button>
           {onRefresh && (
-            <Button onClick={onRefresh} variant="outline">
+            <Button onClick={onRefresh} variant="outline" type="button">
               <RefreshCw className="mr-2 h-4 w-4" />
               รีเฟรช
             </Button>
