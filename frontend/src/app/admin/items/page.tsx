@@ -174,7 +174,7 @@ export default function ItemsPage() {
     const deptId = parseInt(activeFilters.departmentId, 10);
     const cabId = parseInt(activeFilters.cabinetId, 10);
     if (Number.isNaN(deptId) || Number.isNaN(cabId)) {
-      toast.error('กรุณาเลือก Division และตู้ Cabinet ก่อนพิมพ์สติกเกอร์');
+      toast.error('กรุณาเลือก Division และตู้ Cabinet ก่อนพิมพ์สติ๊กเกอร์');
       return;
     }
 
@@ -207,7 +207,7 @@ export default function ItemsPage() {
       }
 
       toast.success(
-        `พิมพ์สติกเกอร์สำเร็จ ${safeCopies} แผ่น (${item.itemcode})`,
+        `พิมพ์สติ๊กเกอร์สำเร็จ ${safeCopies} แผ่น (${item.itemcode})`,
         {
           description: `${printRes.host}:${printRes.port} · ${printRes.template}`,
         },
@@ -217,7 +217,7 @@ export default function ItemsPage() {
       const msg =
         (error as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message ??
         (error as Error)?.message ??
-        'พิมพ์สติกเกอร์ไม่สำเร็จ';
+        'พิมพ์สติ๊กเกอร์ไม่สำเร็จ';
       toast.error(Array.isArray(msg) ? msg.join(', ') : String(msg));
     }
   };

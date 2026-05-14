@@ -9,7 +9,6 @@ export default function AdminCabinetUsersPage() {
   return (
     <ProtectedRoute>
       <AppLayout fullWidth>
- 
         <CabinetUsersWorkspace cabinetUsers={cabinetUsersApi} cabinets={cabinetApi} />
       </AppLayout>
     </ProtectedRoute>

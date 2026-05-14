@@ -5,7 +5,7 @@ import { PrintLabelItemsDto } from './dto/print-label-items.dto';
 import { StickerPrintService } from './sticker-print.service';
 
 /**
- * สติกเกอร์ SATO SBPL — ต้องล็อกอิน
+ * สติ๊กเกอร์ SATO SBPL — ต้องล็อกอิน
  */
 @Controller('sticker-print')
 @UseGuards(AuthGuard)

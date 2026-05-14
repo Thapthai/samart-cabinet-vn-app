@@ -7,7 +7,7 @@ import { UpdateItemDto } from './dto/update-item.dto';
 import { UpdateItemMinMaxDto } from './dto/update-item-minmax.dto';
 import { ItemStockDto } from './dto/item-stock.dto';
 
-/** ค่า DB สำหรับพิมพ์สติกเกอร์ / legacy — ใส่เมื่อสร้าง Item ใหม่ถ้าไม่ส่งมาจาก client */
+/** ค่า DB สำหรับพิมพ์สติ๊กเกอร์์ / legacy — ใส่เมื่อสร้าง Item ใหม่ถ้าไม่ส่งมาจาก client */
 const ITEM_CREATE_STICKER_DEFAULTS: Record<string, string | number> = {
   Alternatename: '',
   Barcode: '',
@@ -1974,7 +1974,7 @@ export class ItemService {
   }
 
   /**
-   * สร้างแถว itemstock ก่อนพิมพ์สติกเกอร์ — แต่ละแผ่น = 1 RFID เฮกซ์ 24 ตัว (สุ่ม)
+   * สร้างแถว itemstock ก่อนพิมพ์สติ๊กเกอร์ — แต่ละแผ่น = 1 RFID เฮกซ์ 24 ตัว (สุ่ม)
    * ฟิลด์สอดคล้อง INSERT legacy: IsStatus=5, PackDate, UsageCode(≈Barcode), ProductSerial(≈itemcode2),
    * lotNo, RemarkExpress, IsDeproom, departmentroomId, InsertRfidDocNo + StockID/DeptID/Qty
    */

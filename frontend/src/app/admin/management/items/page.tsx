@@ -225,6 +225,7 @@ export default function AdminItemManagementPage() {
                     : `แสดง ${items.length} รายการ จากทั้งหมด ${total} รายการ`}
                 </CardDescription>
               </div>
+              {/*
               <Button
                 type="button"
                 size="sm"
@@ -234,6 +235,7 @@ export default function AdminItemManagementPage() {
                 <Plus className="h-4 w-4" />
                 เพิ่ม Item
               </Button>
+              */}
             </CardHeader>
             <CardContent>
               {loading && items.length === 0 ? (
@@ -284,11 +286,10 @@ export default function AdminItemManagementPage() {
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {it.subUnit?.UnitName?.trim()
-                              ? `${it.subUnit.UnitName}${
-                                  it.SubUnitQty != null && Number(it.SubUnitQty) > 0
-                                    ? ` ×${it.SubUnitQty}`
-                                    : ''
-                                }`
+                              ? `${it.subUnit.UnitName}${it.SubUnitQty != null && Number(it.SubUnitQty) > 0
+                                ? ` ×${it.SubUnitQty}`
+                                : ''
+                              }`
                               : '—'}
                           </TableCell>
                           <TableCell className="text-right whitespace-nowrap">

@@ -152,10 +152,10 @@ export const staffMenuItems = [
                 description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division — กรอง Division เริ่มที่ทั้งหมด',
             },
             {
-                name: 'พิมพ์สติกเกอร์',
+                name: 'พิมพ์สติ๊กเกอร์',
                 href: '/staff/management/print-sticker',
                 icon: Printer,
-                description: 'พิมพ์สติกเกอร์ผ่านเครื่อง SATO (SBPL)',
+                description: 'พิมพ์สติ๊กเกอร์ผ่านเครื่อง SATO (SBPL)',
             },
             {
                 name: 'จัดการ Item (Master)',

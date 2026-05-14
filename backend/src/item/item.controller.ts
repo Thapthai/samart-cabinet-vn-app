@@ -124,7 +124,7 @@ export class ItemController {
     );
   }
 
-  /** รายการจาก slot ในตู้ (+ จำนวนในตู้ / max / ต้องเติม) — ใช้เลือกพิมพ์สติกเกอร์ */
+  /** รายการจาก slot ในตู้ (+ จำนวนในตู้ / max / ต้องเติม) — ใช้เลือกพิมพ์สติ๊กเกอร์์ */
   @Get('cabinet-slot-items')
   async findCabinetSlotItems(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -242,7 +242,7 @@ export class ItemController {
 export class ItemStockController {
   constructor(private readonly itemService: ItemService) {}
 
-  /** สร้าง itemstock + RFID เฮกซ์ 24 ตัว (สุ่ม) ตามจำนวนแผ่น — ใช้ก่อนพิมพ์สติกเกอร์ */
+  /** สร้าง itemstock + RFID เฮกซ์ 24 ตัว (สุ่ม) ตามจำนวนแผ่น — ใช้ก่อนพิมพ์สติ๊กเกอร์ */
   @Post('for-print')
   async createForPrint(@Body() body: CreateItemStocksForPrintDto) {
     return this.itemService.createItemStocksForPrint(body.lines);

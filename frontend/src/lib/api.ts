@@ -228,7 +228,7 @@ export const itemsApi = {
     return response.data;
   },
 
-  /** รายการจาก slot ในตู้ (พร้อมจำนวนในตู้ / max / ต้องเติม) — พิมพ์สติกเกอร์ */
+  /** รายการจาก slot ในตู้ (พร้อมจำนวนในตู้ / max / ต้องเติม) — พิมพ์สติ๊กเกอร์ */
   getCabinetSlotItems: async (query: {
     page?: number;
     limit?: number;

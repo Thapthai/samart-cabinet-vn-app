@@ -736,7 +736,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
             <Printer className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">พิมพ์สติกเกอร์</h1>
+            <h1 className="text-2xl font-bold text-slate-900">พิมพ์สติ๊กเกอร์</h1>
           </div>
         </div>
       ) : (
@@ -745,7 +745,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
             <Printer className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">พิมพ์สติกเกอร์</h1>
+            <h1 className="text-2xl font-bold text-slate-900">พิมพ์สติ๊กเกอร์</h1>
           </div>
         </div>
       )}
@@ -770,7 +770,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
                   <Zap className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0 space-y-0.5">
-                  <span className="block font-medium text-slate-900">Auto</span>
+                  <span className="block text-lg font-medium text-slate-900">Auto</span>
                 </span>
               </button>
               <button
@@ -787,7 +787,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
                   <LayoutList className="h-4 w-4" aria-hidden />
                 </span>
                 <span className="min-w-0 space-y-0.5">
-                  <span className="block font-medium text-slate-900">Manual</span>
+                  <span className="block text-lg font-medium text-slate-900">Manual</span>
                 </span>
               </button>
             </div>

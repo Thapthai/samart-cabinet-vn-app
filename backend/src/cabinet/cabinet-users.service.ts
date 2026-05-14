@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCabinetUserDto, UpdateCabinetUserDto } from './dto/cabinet-user.dto';
 
@@ -14,10 +15,6 @@ type CabinetSummary = {
 export class CabinetUsersService {
   constructor(private readonly prisma: PrismaService) { }
 
-  /**
-   * user_cabinet.cabinet_id (ใน Prisma) = app_cabinets.stock_id — ไม่ใช่ app_cabinets.id
-   * @map ชื่อคอลัมน์จริงใน DB ดูใน schema.prisma
-   */
   private async cabinetsByStockIds(stockIds: number[]): Promise<Map<number, CabinetSummary>> {
     const unique = [...new Set(stockIds.filter((n) => Number.isFinite(n)))];
     if (unique.length === 0) return new Map();
@@ -37,16 +34,125 @@ export class CabinetUsersService {
     return map;
   }
 
-  async findAll(params?: { page?: number; limit?: number; keyword?: string }) {
+  /**
+   * ดึง `stock_id` จาก `app_cabinets` ผ่านแถว `app_cabinet_departments` (cabinet_id = PK ตู้)
+   * ใช้เมื่อมี `cabinet_id` หรือเมื่อกรอง Division แล้วต้องการ stock_id ของตู้ใน mapping
+   */
+  private async stockIdFromActiveCabinetDepartment(opts: {
+    cabinetPk: number;
+    departmentId?: number;
+  }): Promise<number | null> {
+    const mapping = await this.prisma.cabinetDepartment.findFirst({
+      where: {
+        cabinet_id: opts.cabinetPk,
+
+        department_id: opts.departmentId,
+      },
+      include: {
+        cabinet: { select: { stock_id: true, cabinet_status: true } },
+      },
+    });
+    const stock = mapping?.cabinet?.stock_id;
+    if (stock == null) return null;
+    return stock;
+  }
+
+  /**
+   * สร้างเงื่อนไข `user_cabinet` — เปรียบเทียบกับ `user_cabinet.cabinet_id` (= `app_cabinets.stock_id`)
+   * ทุกกรณี resolve `stock_id` ผ่าน `app_cabinet_departments` + `app_cabinets` (ไม่ดึงตู้ตรงๆ โดยตัด mapping)
+   */
+  private async resolveUserCabinetSomeFilter(params: {
+    department_id?: number;
+    cabinet_id?: number;
+  }): Promise<'none' | 'empty' | Prisma.UserCabinetWhereInput> {
+    const deptId = params.department_id;
+    const cabinetPk = params.cabinet_id;
+
+    if (deptId == null && cabinetPk == null) return 'none';
+
+    if (cabinetPk != null && deptId != null) {
+      const stockId = await this.stockIdFromActiveCabinetDepartment({
+        cabinetPk,
+        departmentId: deptId,
+      });
+
+      if (stockId == null) return 'empty';
+      return { cabinet_id: stockId };
+    }
+
+    if (deptId != null) {
+      const mappingRows = await this.prisma.cabinetDepartment.findMany({
+        where: {
+          department_id: deptId,
+          status: 'ACTIVE',
+          cabinet_id: { not: null },
+        },
+        select: {
+          cabinet_id: true,
+        },
+      });
+      if (mappingRows.length === 0) return 'empty';
+      const cabinetPkIds = [
+        ...new Set(
+          mappingRows
+            .map((r) => r.cabinet_id)
+            .filter((id): id is number => typeof id === 'number'),
+        ),
+      ];
+      const cabs = await this.prisma.cabinet.findMany({
+        where: {
+          id: { in: cabinetPkIds },
+          stock_id: { not: null },
+        },
+        select: { stock_id: true },
+      });
+
+      const fingerStockIds = cabs
+        .map((c) => c.stock_id!)
+        .filter((n) => typeof n === 'number');
+      if (fingerStockIds.length === 0) return 'empty';
+      return { cabinet_id: { in: fingerStockIds } };
+    }
+
+    return 'none';
+  }
+
+  async findAll(params?: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+    department_id?: number;
+    /** `app_cabinets.id` — แปลงเป็น `stock_id` ก่อนเทียบกับ `user_cabinet.cabinet_id` */
+    cabinet_id?: number;
+  }) {
     const page = Math.max(1, params?.page ?? 1);
     const limit = Math.min(100, Math.max(1, params?.limit ?? 20));
     const skip = (page - 1) * limit;
     const kw = params?.keyword?.trim();
-    const where: {
-      OR?: Array<{ UserName?: { contains: string }; EmpCode?: { contains: string } }>;
-    } = {};
+
+    const ucSome = await this.resolveUserCabinetSomeFilter({
+      department_id: params?.department_id,
+      cabinet_id: params?.cabinet_id,
+    });
+
+
+    if (ucSome === 'empty') {
+      return {
+        success: true,
+        data: [],
+        total: 0,
+        page,
+        limit,
+        lastPage: 1,
+      };
+    }
+
+    const where: Prisma.LegacyUsersWhereInput = {};
     if (kw) {
       where.OR = [{ UserName: { contains: kw } }, { EmpCode: { contains: kw } }];
+    }
+    if (ucSome !== 'none') {
+      where.userCabinet = { some: ucSome };
     }
     const [rows, total] = await Promise.all([
       this.prisma.legacyUsers.findMany({
@@ -56,47 +162,30 @@ export class CabinetUsersService {
         orderBy: { id: 'asc' },
         include: {
           employee: { select: { EmpCode: true, FirstName: true, LastName: true } },
+          userCabinet: {
+            select: { id: true, user_id: true, cabinet_id: true },
+            orderBy: { id: 'asc' },
+          },
         },
       }),
       this.prisma.legacyUsers.count({ where }),
     ]);
 
-    const legacyIds = rows.map((r) => r.id);
-    const allUserCabinetRows =
-      legacyIds.length > 0
-        ? await this.prisma.userCabinet.findMany({
-          where: { user_id: { in: legacyIds } },
-          select: {
-            id: true,
-            user_id: true,
-            cabinet_id: true,
-          },
-        })
-        : [];
-    const userCabinetByLegacyId = new Map<number, typeof allUserCabinetRows>();
-    for (const uc of allUserCabinetRows) {
-      const list = userCabinetByLegacyId.get(uc.user_id) ?? [];
-      list.push(uc);
-      userCabinetByLegacyId.set(uc.user_id, list);
-    }
-
     const allFingerStockIds = [
-      ...new Set(allUserCabinetRows.map((c) => c.cabinet_id)),
+      ...new Set(rows.flatMap((r) => r.userCabinet.map((c) => c.cabinet_id))),
     ];
     const cabinetByStock = await this.cabinetsByStockIds(allFingerStockIds);
 
     const data = rows.map((u) => {
-      const userCabinet = userCabinetByLegacyId.get(u.id) ?? [];
       const fn = u.employee?.FirstName?.trim() ?? '';
       const ln = u.employee?.LastName?.trim() ?? '';
       const employee_display = [fn, ln].filter(Boolean).join(' ') || null;
-      const linked_cabinets = userCabinet.map((uc) => {
+      const linked_cabinets = u.userCabinet.map((uc) => {
         const sid = uc.cabinet_id;
         const cab = cabinetByStock.get(sid) ?? null;
         return {
           user_cabinet_id: uc.id,
           user_id: uc.user_id,
-          /** เท่ากับ app_cabinets.stock_id */
           cabinet_id: sid,
           cabinet: cab,
         };
@@ -114,7 +203,7 @@ export class CabinetUsersService {
           }
           : null,
         linked_cabinets,
-        cabinet_count: userCabinet.length,
+        cabinet_count: u.userCabinet.length,
       };
     });
     return {
@@ -323,7 +412,7 @@ export class CabinetUsersService {
       /**
        * ล้างผูกทั้งหมดเฉพาะเมื่อส่งมาว่างจริงๆ — ถ้าเลือกตู้แต่ไม่มี stock_id เลย อย่าลบของเดิมทั้งหมด
        */
- 
+
       if (desiredStockIds.length === 0) {
         if (ids.length === 0) {
           await tx.userCabinet.deleteMany({ where: { user_id: uid } });
@@ -340,7 +429,7 @@ export class CabinetUsersService {
         },
       });
 
- 
+
       /**
        * cabinet_id = stock_id unique ทั้งระบบ — create ได้เมื่อยังไม่มีแถว;
        * ถ้ามีของผู้ใช้อื่นอยู่แล้วไม่ย้าย user_id (กันผู้ใช้อื่นถูกถอดตู้โดยไม่เกี่ยวข้อง)
@@ -350,16 +439,16 @@ export class CabinetUsersService {
           where: { user_id: uid, cabinet_id: fid },
           select: { id: true },
         });
-      
+
         if (existingMine) {
           continue;
         }
 
         const row = await tx.userCabinet.findUnique({
-          where: { cabinet_id: fid ,user_id: uid},
+          where: { cabinet_id: fid, user_id: uid },
           select: { user_id: true },
         });
- 
+
         if (row == null) {
           await tx.userCabinet.create({
             data: { user_id: uid, cabinet_id: fid },

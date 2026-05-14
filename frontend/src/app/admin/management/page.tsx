@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 const managementMenus = [
   {
-    name: 'พิมพ์สติกเกอร์',
+    name: 'พิมพ์สติ๊กเกอร์',
     href: '/admin/management/print-sticker',
     icon: Printer,
     description: 'ส่ง SBPL ไปเครื่องปริ้น SATO (หลายรายการ)',

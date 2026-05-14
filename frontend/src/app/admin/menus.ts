@@ -152,10 +152,10 @@ export const adminMenuItems: StaffMenuItem[] = [
         description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division',
       },
       {
-        name: 'พิมพ์สติกเกอร์',
+        name: 'พิมพ์สติ๊กเกอร์',
         href: '/admin/management/print-sticker',
         icon: Printer,
-        description: 'พิมพ์สติกเกอร์ผ่านเครื่อง SATO (SBPL)',
+        description: 'พิมพ์สติ๊กเกอร์ผ่านเครื่อง SATO (SBPL)',
       },
       {
         name: 'จัดการ Item (Master)',
@@ -182,10 +182,10 @@ export const adminMenuItems: StaffMenuItem[] = [
         description: 'จัดการตู้ Cabinet',
       },
       {
-        name: 'จัดการ User ในตู้',
+        name: 'ผู้ใช้งานในตู้ Cabinet',
         href: '/admin/management/cabinet-users',
         icon: ContactRound,
-        description: 'จัดการ User ในตู้',
+        description: 'จัดการ User ในตู้ Cabinet',
       },
       {
         name: 'จัดการ ผู้ใช้งาน Staff',

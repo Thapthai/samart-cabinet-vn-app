@@ -7,7 +7,15 @@ import type { ApiResponse, PaginatedResponse } from '@/types/common';
  */
 export function createCabinetUsersApi(http: AxiosInstance) {
   return {
-    getAll: async (params?: { page?: number; limit?: number; keyword?: string }): Promise<PaginatedResponse<any>> => {
+    getAll: async (params?: {
+      page?: number;
+      limit?: number;
+      keyword?: string;
+      /** Division = department.ID */
+      department_id?: number;
+      /** ตู้ = app_cabinets.id (backend แปลงไป stock_id ให้) */
+      cabinet_id?: number;
+    }): Promise<PaginatedResponse<any>> => {
       const response = await http.get('/cabinet/users', { params });
       return response.data;
     },

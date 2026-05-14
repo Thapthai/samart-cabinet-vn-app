@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 /** ลิงก์ทั้งหมดภายใต้ /staff/management เท่านั้น — ไม่ชี้ไป /admin */
 const managementMenus = [
   {
-    name: 'พิมพ์สติกเกอร์',
+    name: 'พิมพ์สติ๊กเกอร์',
     href: '/staff/management/print-sticker',
     icon: Printer,
     description: 'ส่ง SBPL ไปเครื่องปริ้น SATO',

@@ -353,7 +353,7 @@ export default function ItemsTable({
                                 onClick={() => openPrintDialog(item, refillQty)}
                                 title={
                                   refillQty > 0
-                                    ? `พิมพ์สติกเกอร์ (สูงสุด ${refillQty})`
+                                    ? `พิมพ์สติ๊กเกอร์ (สูงสุด ${refillQty})`
                                     : "ไม่สามารถพิมพ์ได้ เพราะจำนวนที่ต้องเติมเป็น 0"
                                 }
                                 className="text-sky-600 hover:text-sky-700 hover:border-sky-600"
@@ -513,7 +513,7 @@ export default function ItemsTable({
       <Dialog open={printDialogOpen} onOpenChange={(open) => (open ? setPrintDialogOpen(true) : closePrintDialog())}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>พิมพ์สติกเกอร์</DialogTitle>
+            <DialogTitle>พิมพ์สติ๊กเกอร์</DialogTitle>
             <DialogDescription>
               {printTarget ? `รหัส: ${printTarget.item.itemcode}` : "กำหนดจำนวนแผ่นที่ต้องการพิมพ์"}
             </DialogDescription>
@@ -553,7 +553,7 @@ export default function ItemsTable({
                 Number.parseInt(printCopiesInput, 10) > (printTarget?.maxCopies ?? 0)
               }
             >
-              พิมพ์สติกเกอร์
+              พิมพ์สติ๊กเกอร์
             </Button>
           </DialogFooter>
         </DialogContent>

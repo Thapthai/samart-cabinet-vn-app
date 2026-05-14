@@ -12,11 +12,20 @@ export class CabinetUsersController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('keyword') keyword?: string,
+    @Query('department_id') department_id?: string,
+    @Query('cabinet_id') cabinet_id?: string,
   ) {
+    const parseOptId = (q?: string): number | undefined => {
+      if (q == null || q === '') return undefined;
+      const n = parseInt(q, 10);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    };
     return this.cabinetUsersService.findAll({
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       keyword: typeof keyword === 'string' && keyword.trim() ? keyword.trim() : undefined,
+      department_id: parseOptId(department_id),
+      cabinet_id: parseOptId(cabinet_id),
     });
   }
 
