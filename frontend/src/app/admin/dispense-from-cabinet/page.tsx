@@ -137,9 +137,9 @@ export default function DispenseFromCabinetPage() {
       startDate: getTodayDate(),
       endDate: getTodayDate(),
       itemTypeFilter: 'all',
-      departmentId: '29',
+      departmentId: '',
       subDepartmentId: '',
-      cabinetId: '1',
+      cabinetId: '',
     };
     setFilters(clearedFilters);
     fetchDispensedList(clearedFilters, { resetPage: true });

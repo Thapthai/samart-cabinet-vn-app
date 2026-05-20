@@ -143,19 +143,13 @@ export default function ItemsPage() {
 
   const handleResetFilters = () => {
     setItemsFilterKey((k) => k + 1);
-    setHasSearched(false);
-    setCurrentPage(1);
-    setActiveFilters({
+    handleSearch({
       searchTerm: "",
       departmentId: "",
       cabinetId: "",
       statusFilter: "all",
       keyword: "",
     });
-    setItems([]);
-    setFilteredItems([]);
-    setTotalItems(0);
-    setTotalPages(1);
   };
 
   const handleEdit = (item: Item) => {

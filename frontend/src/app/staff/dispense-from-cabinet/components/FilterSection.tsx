@@ -129,7 +129,7 @@ export default function FilterSection({
         ? [
             {
               value: "",
-              label: "ทั้งหมด (ทุกแผนกที่ role อนุญาต)",
+              label: "ทั้งหมด",
               ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
             },
           ]

@@ -22,7 +22,7 @@ export default function ItemsPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
-  /** true = โหลดจาก API ได้ — เปิดหน้ามาโหลดรายการค่าเริ่มต้นก่อน; กดรีเซ็ตแล้วเป็น false จนกดค้นหาใหม่ */
+  /** true = โหลดจาก API ได้ (เปิดหน้ามาและหลังกดค้นหา/รีเซ็ต) */
   const [hasSearched, setHasSearched] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -140,19 +140,13 @@ export default function ItemsPage() {
   };
 
   const handleResetFilters = () => {
-    setHasSearched(false);
-    setCurrentPage(1);
-    setActiveFilters({
+    handleSearch({
       searchTerm: '',
       departmentId: '',
       cabinetId: '',
       statusFilter: 'all',
       keyword: '',
     });
-    setItems([]);
-    setFilteredItems([]);
-    setTotalItems(0);
-    setTotalPages(1);
   };
 
   const handleEdit = (item: Item) => {
