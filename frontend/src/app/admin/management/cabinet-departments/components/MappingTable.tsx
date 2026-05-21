@@ -106,7 +106,7 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
               การเชื่อมโยงทั้งหมด {mappings.length} รายการ
             </span>
           </CardTitle>
-          <div className="flex shrink-0 gap-2">
+          {/* <div className="flex shrink-0 gap-2">
             {onExportExcel && (
               <Button onClick={onExportExcel} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
@@ -119,7 +119,7 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
                 PDF
               </Button>
             )}
-          </div>
+          </div> */}
         </CardHeader>
         <CardContent className="px-4 pb-4 pt-3 sm:px-5 sm:pb-5 sm:pt-4">
           <div className="overflow-x-auto rounded-b-xl">

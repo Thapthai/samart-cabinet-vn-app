@@ -222,10 +222,10 @@ export default function StaffUnitsManagementPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-14">#</TableHead>
-                      <TableHead className="w-20">ID</TableHead>
+                      <TableHead className="w-14">ลำดับ</TableHead>
+
                       <TableHead>ชื่อหน่วย</TableHead>
-                      
+
                       <TableHead>สถานะ</TableHead>
                       <TableHead className="w-[120px] text-right">จัดการ</TableHead>
                     </TableRow>
@@ -236,13 +236,11 @@ export default function StaffUnitsManagementPage() {
                         <TableCell className="text-muted-foreground">
                           {(page - 1) * PAGE_SIZE + i + 1}
                         </TableCell>
-                        <TableCell>
-                          <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{u.id}</code>
-                        </TableCell>
+
                         <TableCell className="max-w-[280px] truncate font-medium" title={u.unitName}>
                           {u.unitName || '—'}
                         </TableCell>
-                        
+
                         <TableCell>
                           <UnitStatusBadge isCancel={u.isCancel} />
                         </TableCell>

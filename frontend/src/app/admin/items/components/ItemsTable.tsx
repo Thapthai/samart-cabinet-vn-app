@@ -347,7 +347,7 @@ export default function ItemsTable({
                           <TableCell>{getStatusBadge(item.item_status)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button
+                              {/* <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => openPrintDialog(item, refillQty)}
@@ -360,7 +360,7 @@ export default function ItemsTable({
                                 disabled={refillQty <= 0}
                               >
                                 <Printer className="h-4 w-4" />
-                              </Button>
+                              </Button> */}
                               <Button
                                 size="sm"
                                 variant="outline"
