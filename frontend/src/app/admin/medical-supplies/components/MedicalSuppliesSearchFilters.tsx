@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, RefreshCw, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,15 +38,7 @@ interface MedicalSuppliesSearchFiltersProps {
   formFilters: MedicalSuppliesSearchFilterFields;
   onPatchFormFilters: (patch: Partial<MedicalSuppliesSearchFilterFields>) => void;
   departments: DepartmentOption[];
-  departmentSearch: string;
-  onDepartmentSearchChange: (value: string) => void;
-  departmentDropdownOpen: boolean;
-  onDepartmentDropdownOpenChange: (open: boolean) => void;
   subDepartments: SubDepartmentOption[];
-  subDepartmentSearch: string;
-  onSubDepartmentSearchChange: (value: string) => void;
-  subDepartmentDropdownOpen: boolean;
-  onSubDepartmentDropdownOpenChange: (open: boolean) => void;
   loading: boolean;
   onSearch: () => void;
   onReset: () => void;
@@ -57,21 +49,30 @@ export default function MedicalSuppliesSearchFilters({
   formFilters,
   onPatchFormFilters,
   departments,
-  departmentSearch,
-  onDepartmentSearchChange,
-  departmentDropdownOpen,
-  onDepartmentDropdownOpenChange,
   subDepartments,
-  subDepartmentSearch,
-  onSubDepartmentSearchChange,
-  subDepartmentDropdownOpen,
-  onSubDepartmentDropdownOpenChange,
   loading,
   onSearch,
   onReset,
   onReload,
 }: MedicalSuppliesSearchFiltersProps) {
   const patch = onPatchFormFilters;
+
+  const [departmentSearch, setDepartmentSearch] = useState('');
+  const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
+  const [subDepartmentSearch, setSubDepartmentSearch] = useState('');
+  const [subDepartmentDropdownOpen, setSubDepartmentDropdownOpen] = useState(false);
+
+  const hasMainDepartment = Boolean(formFilters.departmentCode?.trim());
+
+  const filteredDepartments = useMemo(() => {
+    const q = departmentSearch.trim().toLowerCase();
+    return departments.filter((d) => {
+      if (!q) return true;
+      const n1 = (d.DepName || '').toLowerCase();
+      const n2 = (d.DepName2 || '').toLowerCase();
+      return n1.includes(q) || n2.includes(q);
+    });
+  }, [departments, departmentSearch]);
 
   const filteredSubDepartments = useMemo(() => {
     const deptId = formFilters.departmentCode?.trim();
@@ -86,9 +87,15 @@ export default function MedicalSuppliesSearchFilters({
     });
   }, [subDepartments, formFilters.departmentCode, subDepartmentSearch]);
 
+  const divisionTriggerLabel = () => {
+    if (!formFilters.departmentCode) return 'เลือก Division...';
+    const d = departments.find((x) => String(x.ID) === formFilters.departmentCode);
+    return d?.DepName || d?.DepName2 || `Division ${formFilters.departmentCode}`;
+  };
+
   const subDepartmentTriggerLabel = () => {
     const code = formFilters.usageType?.trim();
-    if (!code) return 'เลือก Division ...';
+    if (!code) return 'เลือกแผนก ...';
     const sub = subDepartments.find((s) => s.code === code);
     if (sub) {
       const n = sub.name?.trim();
@@ -134,20 +141,14 @@ export default function MedicalSuppliesSearchFilters({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2 min-w-0">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="min-w-0 space-y-2">
             <Label>Division</Label>
-            <DropdownMenu open={departmentDropdownOpen} onOpenChange={onDepartmentDropdownOpenChange}>
+            <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full justify-between font-normal" type="button">
-                  <span className="truncate">
-                    {formFilters.departmentCode
-                      ? departments.find((d) => String(d.ID) === formFilters.departmentCode)?.DepName ||
-                      departments.find((d) => String(d.ID) === formFilters.departmentCode)?.DepName2 ||
-                      `Division ${formFilters.departmentCode}`
-                      : 'เลือก Division...'}
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                <Button variant="outline" className="h-10 w-full justify-between font-normal" type="button">
+                  <span className="truncate text-left">{divisionTriggerLabel()}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -158,7 +159,7 @@ export default function MedicalSuppliesSearchFilters({
                   <Input
                     placeholder="ค้นหา Division..."
                     value={departmentSearch}
-                    onChange={(e) => onDepartmentSearchChange(e.target.value)}
+                    onChange={(e) => setDepartmentSearch(e.target.value)}
                     className="h-8"
                     onKeyDown={(e) => e.stopPropagation()}
                   />
@@ -169,44 +170,43 @@ export default function MedicalSuppliesSearchFilters({
                     className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                     onClick={() => {
                       patch({ departmentCode: '', usageType: '' });
-                      onDepartmentDropdownOpenChange(false);
-                      onDepartmentSearchChange('');
+                      setDepartmentDropdownOpen(false);
+                      setDepartmentSearch('');
                     }}
                   >
                     -- ทุก Division --
                   </button>
-                  {departments
-                    .filter(
-                      (d) =>
-                        !departmentSearch.trim() ||
-                        d.DepName?.toLowerCase().includes(departmentSearch.toLowerCase()) ||
-                        d.DepName2?.toLowerCase().includes(departmentSearch.toLowerCase()),
-                    )
-                    .map((dept) => (
-                      <button
-                        key={dept.ID}
-                        type="button"
-                        className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                        onClick={() => {
-                          patch({ departmentCode: String(dept.ID), usageType: '' });
-                          onDepartmentDropdownOpenChange(false);
-                          onDepartmentSearchChange('');
-                        }}
-                      >
-                        {dept.DepName || dept.DepName2 || `แผนก ${dept.ID}`}
-                      </button>
-                    ))}
+                  {filteredDepartments.map((dept) => (
+                    <button
+                      key={dept.ID}
+                      type="button"
+                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                      onClick={() => {
+                        patch({ departmentCode: String(dept.ID), usageType: '' });
+                        setDepartmentDropdownOpen(false);
+                        setDepartmentSearch('');
+                      }}
+                    >
+                      {dept.DepName || dept.DepName2 || `แผนก ${dept.ID}`}
+                    </button>
+                  ))}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="space-y-2 min-w-0">
-            <Label>Division</Label>
-            <DropdownMenu open={subDepartmentDropdownOpen} onOpenChange={onSubDepartmentDropdownOpenChange}>
+
+          <div className="min-w-0 space-y-2">
+            <Label>แผนก</Label>
+            <DropdownMenu open={subDepartmentDropdownOpen} onOpenChange={setSubDepartmentDropdownOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full justify-between font-normal" type="button">
+                <Button
+                  variant="outline"
+                  className="h-10 w-full justify-between font-normal"
+                  type="button"
+                  disabled={!hasMainDepartment}
+                >
                   <span className="truncate text-left">{subDepartmentTriggerLabel()}</span>
-                  <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -215,9 +215,9 @@ export default function MedicalSuppliesSearchFilters({
               >
                 <div className="px-2 pb-2">
                   <Input
-                    placeholder="ค้นหารหัสหรือชื่อ Division ..."
+                    placeholder="ค้นหารหัสหรือชื่อแผนก ..."
                     value={subDepartmentSearch}
-                    onChange={(e) => onSubDepartmentSearchChange(e.target.value)}
+                    onChange={(e) => setSubDepartmentSearch(e.target.value)}
                     className="h-8"
                     onKeyDown={(e) => e.stopPropagation()}
                   />
@@ -228,13 +228,17 @@ export default function MedicalSuppliesSearchFilters({
                     className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                     onClick={() => {
                       patch({ usageType: '' });
-                      onSubDepartmentDropdownOpenChange(false);
-                      onSubDepartmentSearchChange('');
+                      setSubDepartmentDropdownOpen(false);
+                      setSubDepartmentSearch('');
                     }}
                   >
-                    -- ทุก Division --
+                    -- ทุกแผนก --
                   </button>
-                  {filteredSubDepartments.length === 0 ? (
+                  {!hasMainDepartment ? (
+                    <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                      เลือกแผนก (Division) ก่อน
+                    </div>
+                  ) : filteredSubDepartments.length === 0 ? (
                     <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
                   ) : (
                     filteredSubDepartments.map((sub) => (
@@ -244,8 +248,8 @@ export default function MedicalSuppliesSearchFilters({
                         className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                         onClick={() => {
                           patch({ usageType: sub.code });
-                          onSubDepartmentDropdownOpenChange(false);
-                          onSubDepartmentSearchChange('');
+                          setSubDepartmentDropdownOpen(false);
+                          setSubDepartmentSearch('');
                         }}
                       >
                         <span className="font-mono text-xs">{sub.code}</span>

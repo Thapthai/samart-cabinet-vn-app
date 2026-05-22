@@ -22,11 +22,7 @@ export default function MedicalSuppliesPage() {
 
   // Departments for search dropdown (admin)
   const [departments, setDepartments] = useState<Array<{ ID: number; DepName: string | null; DepName2: string | null }>>([]);
-  const [departmentSearch, setDepartmentSearch] = useState('');
-  const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
   const [subDepartments, setSubDepartments] = useState<SubDepartmentOption[]>([]);
-  const [subDepartmentSearch, setSubDepartmentSearch] = useState('');
-  const [subDepartmentDropdownOpen, setSubDepartmentDropdownOpen] = useState(false);
 
   /** วันนี้ YYYY-MM-DD ตาม UTC — ให้ตรงกับ filter ฝั่ง API ไม่บวก +7 */
   const getTodayDate = () => todayYyyyMmDdUtc();
@@ -215,8 +211,6 @@ export default function MedicalSuppliesPage() {
     setCurrentPage(1);
     setSelectedSupply(null);
     setSelectedSupplyId(null);
-    setDepartmentSearch('');
-    setSubDepartmentSearch('');
     // useEffect will trigger fetchSupplies when activeFilters and currentPage change
   };
 
@@ -288,15 +282,7 @@ export default function MedicalSuppliesPage() {
             formFilters={formFilters}
             onPatchFormFilters={(patch) => setFormFilters((prev) => ({ ...prev, ...patch }))}
             departments={departments}
-            departmentSearch={departmentSearch}
-            onDepartmentSearchChange={setDepartmentSearch}
-            departmentDropdownOpen={departmentDropdownOpen}
-            onDepartmentDropdownOpenChange={setDepartmentDropdownOpen}
             subDepartments={subDepartments}
-            subDepartmentSearch={subDepartmentSearch}
-            onSubDepartmentSearchChange={setSubDepartmentSearch}
-            subDepartmentDropdownOpen={subDepartmentDropdownOpen}
-            onSubDepartmentDropdownOpenChange={setSubDepartmentDropdownOpen}
             loading={loading}
             onSearch={handleSearch}
             onReset={handleReset}
