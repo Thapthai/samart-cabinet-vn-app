@@ -449,6 +449,20 @@ export default function ReturnMedicalSuppliesPage() {
     return labels[reason] || reason;
   };
 
+  const handleReturnHistoryPageChange = (page: number) => {
+    setReturnHistoryPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleReturnHistorySearch = () => {
+    setReturnHistoryPage(1);
+    void fetchReturnHistory({ page: 1 });
+  };
+
+  const handleReturnHistoryRefresh = () => {
+    void fetchReturnHistory({ page: returnHistoryPage });
+  };
+
   const handleReturnHistoryReset = () => {
     const start = getTodayDate();
     setReturnHistoryDateFrom(start);
@@ -553,10 +567,10 @@ export default function ReturnMedicalSuppliesPage() {
                 onSubDepartmentChange={setReturnHistorySubDepartmentId}
                 onCabinetChange={setReturnHistoryCabinetId}
                 onItemKeywordChange={setReturnHistoryItemKeyword}
-                onPageChange={setReturnHistoryPage}
-                onSearch={fetchReturnHistory}
+                onPageChange={handleReturnHistoryPageChange}
+                onSearch={handleReturnHistorySearch}
                 onReset={handleReturnHistoryReset}
-                onRefresh={fetchReturnHistory}
+                onRefresh={handleReturnHistoryRefresh}
                 formatDate={formatDate}
                 getReturnReasonLabel={getReturnReasonLabel}
               />

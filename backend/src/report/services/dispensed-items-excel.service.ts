@@ -1,42 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
-import { ReportConfig } from '../config/report.config';
+import { formatReportDateSlashBE, formatReportDateTimeUtc } from '../utils/date-timeformat';
 import { formatQtyWithMainUnitForReport } from '../utils/format-item-qty';
-
-/** ให้ตรงกับหน้าเว็บ: เวลาใน DB เป็น Bangkok แต่ส่งมาเป็น UTC → ลบ 7 ชม. แล้วแสดงใน Asia/Bangkok (รับได้ทั้ง string และ Date จาก Prisma) */
-const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
-function toBangkokTime(base: Date, value: string | Date | null | undefined): Date {
-  if (value == null) return base;
-  const isDateTime =
-    typeof value === 'string' ? value.includes('T') : value instanceof Date;
-  return isDateTime ? new Date(base.getTime() - BANGKOK_UTC_OFFSET_MS) : base;
-}
-
-function formatReportDate(value?: string | Date) {
-  if (value == null) return '-';
-  const base = new Date(value);
-  const corrected = toBangkokTime(base, value);
-  return corrected.toLocaleDateString(ReportConfig.locale, {
-    timeZone: ReportConfig.timezone,
-    ...ReportConfig.dateFormat.date,
-  });
-}
-
-/** วันที่ + เวลา (ชั่วโมง:นาที ไม่มีวินาที) สำหรับคอลัมน์วันที่เบิก — รับ string หรือ Date ให้ตรงกับหน้าเว็บ */
-function formatReportDateTime(value?: string | Date) {
-  if (value == null) return '-';
-  const base = new Date(value);
-  const corrected = toBangkokTime(base, value);
-  return corrected.toLocaleString(ReportConfig.locale, {
-    timeZone: ReportConfig.timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export interface DispensedItemRow {
   RowID: number;
@@ -68,6 +34,12 @@ function borrowRemarkCell(item: DispensedItemRow): string {
     return r || 'ยืม';
   }
   return '-';
+}
+
+/** filter วันที่เริ่ม/สิ้นสุด: ว่าง = ทั้งหมด, มีค่า = d/m/Y (พ.ศ.) */
+function formatFilterDateSlashBE(v?: string | null): string {
+  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
+  return formatReportDateSlashBE(v);
 }
 
 export interface DispensedItemsReportGroup {
@@ -140,8 +112,8 @@ export class DispensedItemsExcelService {
     const filterValues = [
       filters.departmentName ?? (filters.departmentId ? filters.departmentId : 'ทั้งหมด'),
       filters.cabinetName ?? (filters.cabinetId ? filters.cabinetId : 'ทั้งหมด'),
-      filters.startDate ?? 'ทั้งหมด',
-      filters.endDate ?? 'ทั้งหมด',
+      formatFilterDateSlashBE(filters.startDate),
+      formatFilterDateSlashBE(filters.endDate),
     ];
     // แถว 4: 4 กลุ่มครอบคลุม A–I
     const filterColMap: [string, string][] = [['A', 'C'], ['D', 'F'], ['G', 'H'], ['I', 'I']];
@@ -207,7 +179,7 @@ export class DispensedItemsExcelService {
           group.itemcode,
           group.itemname || '-',
           qtyDisplay,
-          formatReportDateTime(group.dispenseTime),
+          formatReportDateTimeUtc(group.dispenseTime),
           first?.departmentName ?? '-',
           first?.borrowDepartmentName?.trim() ? first.borrowDepartmentName : '-',
           borrowRemarkCell(first ?? {}),
@@ -232,7 +204,7 @@ export class DispensedItemsExcelService {
             item.itemcode,
             item.itemname ?? '-',
             formatQtyWithMainUnitForReport(item.qty ?? 1, item),
-            formatReportDateTime(item.modifyDate),
+            formatReportDateTimeUtc(item.modifyDate),
             item.departmentName ?? '-',
             item.borrowDepartmentName?.trim() ? item.borrowDepartmentName : '-',
             borrowRemarkCell(item),
@@ -259,7 +231,7 @@ export class DispensedItemsExcelService {
           item.itemcode,
           item.itemname ?? '-',
           formatQtyWithMainUnitForReport(item.qty ?? 1, item),
-          formatReportDateTime(item.modifyDate),
+          formatReportDateTimeUtc(item.modifyDate),
           item.departmentName ?? '-',
           item.borrowDepartmentName?.trim() ? item.borrowDepartmentName : '-',
           borrowRemarkCell(item),

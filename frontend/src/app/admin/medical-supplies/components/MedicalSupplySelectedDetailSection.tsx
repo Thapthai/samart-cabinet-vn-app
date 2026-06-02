@@ -3,30 +3,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { formatUtcDateTime, toUtcYyyyMmDd } from '@/lib/formatThaiDateTime';
+import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 import MedicalSupplyDetailSummaryCard from './MedicalSupplyDetailSummaryCard';
-
-/** วันที่ปฏิทิน UTC (YYYY-MM-DD) ให้ตรงกับช่วง filter / API ไม่ใช้ +7 Bangkok */
-function toFilterDateStr(d: string | Date | null | undefined): string {
-  if (!d) return '';
-  const s = typeof d === 'string' ? d : d.toISOString();
-  return toUtcYyyyMmDd(s) ?? '';
-}
-
-function inDateRange(dateStr: string, startDate: string, endDate: string): boolean {
-  if (!dateStr) return false;
-  if (!startDate && !endDate) return true;
-  if (startDate && dateStr < startDate) return false;
-  if (endDate && dateStr > endDate) return false;
-  return true;
-}
-
-function toMillis(v: unknown): number {
-  if (!v) return 0;
-  const d = new Date(String(v));
-  const t = d.getTime();
-  return Number.isNaN(t) ? 0 : t;
-}
+import {
+  getSupplyItemsFromSupply,
+  groupSupplyItemsLatest,
+} from './medicalSupplyDetailDerived';
 
 function OrderItemStatusCell({ statusRaw }: { statusRaw: string }) {
   const status = statusRaw || '-';
@@ -68,45 +50,14 @@ export default function MedicalSupplySelectedDetailSection({
   selectedSupply,
   activeFilters,
 }: MedicalSupplySelectedDetailSectionProps) {
-  const supplyItems = (
-    (selectedSupply.data?.supply_items ?? selectedSupply.supply_items ?? []) as Record<string, unknown>[]
-  );
-  const startDate = activeFilters.startDate || '';
-  const endDate = activeFilters.endDate || '';
-
-  const filteredByDate = supplyItems.filter((item: Record<string, unknown>) => {
-    const createdStr = toFilterDateStr(item.updated_at as string | Date | undefined);
-    return inDateRange(createdStr, startDate, endDate);
-  });
-
-  // Group by assession_no + item_code และเลือกแถวเวลาล่าสุด
-  const groupedLatest = (() => {
-    const byKey = new Map<string, Record<string, unknown>>();
-    for (const item of filteredByDate) {
-      const assessionNo = String(item.assession_no ?? '').trim();
-      const itemCode = String(item.order_item_code ?? item.supply_code ?? '').trim();
-      const key = `${assessionNo}|${itemCode}`;
-      const prev = byKey.get(key);
-      if (!prev) {
-        byKey.set(key, item);
-        continue;
-      }
-      const prevTs = Math.max(toMillis(prev.updated_at), toMillis(prev.created_at));
-      const currTs = Math.max(toMillis(item.updated_at), toMillis(item.created_at));
-      if (currTs >= prevTs) byKey.set(key, item);
-    }
-    return [...byKey.values()].sort((a, b) => {
-      const ta = Math.max(toMillis(a.updated_at), toMillis(a.created_at));
-      const tb = Math.max(toMillis(b.updated_at), toMillis(b.created_at));
-      return tb - ta;
-    });
-  })();
+  const supplyItems = getSupplyItemsFromSupply(selectedSupply);
+  const groupedLatest = groupSupplyItemsLatest(supplyItems, activeFilters);
 
   const formatDate = (v: string | null | undefined) => formatUtcDateTime(v);
 
   return (
     <div id="supply-details" className="space-y-4 sm:space-y-6">
-      <MedicalSupplyDetailSummaryCard supply={selectedSupply} />
+      <MedicalSupplyDetailSummaryCard supply={selectedSupply} activeFilters={activeFilters} />
 
       <Card>
         <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">

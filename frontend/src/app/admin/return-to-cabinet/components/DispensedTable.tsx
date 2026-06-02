@@ -91,7 +91,7 @@ export default function DispensedTable({
                     <TableHead>ผู้เบิก</TableHead>
                     <TableHead className="text-right">
                       <span className="block">จำนวนเบิก</span>
-                      <span className="block text-xs font-normal text-muted-foreground">หน่วยหลัก</span>
+                      <span className="block text-xs font-normal text-muted-foreground">หน่วย</span>
                     </TableHead>
                     <TableHead>วันที่เบิก</TableHead>
                   </TableRow>

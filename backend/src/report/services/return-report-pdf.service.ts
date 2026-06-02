@@ -1,10 +1,37 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
-import { ReturnReportData } from './return-report-excel.service';
+import { ReturnReportData, getReturnReasonLabel } from './return-report-excel.service';
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import { formatReportDateSlashBE, formatReportDateTimeUtc } from '../utils/date-timeformat';
 
 export type { ReturnReportData };
+
+function formatFilterDateSlashBE(v?: string | null): string {
+  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
+  return formatReportDateSlashBE(v);
+}
+
+function formatReturnByUserName(name?: string | null): string {
+  const n = name?.trim();
+  return n && n !== 'ไม่ระบุ' ? n : '-';
+}
+
+function formatReturnDateTime(value?: Date | string | null): string {
+  if (value == null || value === '') return '-';
+  if (value instanceof Date) {
+    return formatReportDateTimeUtc(value.toISOString());
+  }
+  return formatReportDateTimeUtc(value);
+}
+
+function formatCabinetDisplay(record: {
+  cabinet_name?: string;
+  cabinet_code?: string;
+  department_name?: string;
+}): string {
+  return [record.cabinet_name || record.cabinet_code, record.department_name].filter(Boolean).join(' / ') || '-';
+}
 
 @Injectable()
 export class ReturnReportPdfService {
@@ -37,7 +64,7 @@ export class ReturnReportPdfService {
 
     const doc = new PDFDocument({
       size: 'A4',
-      layout: 'portrait',
+      layout: 'landscape',
       margin: 10,
       bufferPages: true,
     });
@@ -77,11 +104,9 @@ export class ReturnReportPdfService {
         const pageHeight = doc.page.height;
         const contentWidth = pageWidth - margin * 2;
 
-        // ---- Header block with logo ----
         const headerTop = 35;
         const headerHeight = 48;
-        doc.rect(margin, headerTop, contentWidth, headerHeight)
-          .fillAndStroke('#F8F9FA', '#DEE2E6');
+        doc.rect(margin, headerTop, contentWidth, headerHeight).fillAndStroke('#F8F9FA', '#DEE2E6');
 
         if (logoBuffer && logoBuffer.length > 0) {
           try {
@@ -108,7 +133,6 @@ export class ReturnReportPdfService {
         doc.fillColor('#000000');
         doc.y = headerTop + headerHeight + 14;
 
-        // วันที่รายงาน
         doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
         doc.text(`วันที่รายงาน: ${reportDate}`, margin, doc.y, {
           width: contentWidth,
@@ -117,22 +141,24 @@ export class ReturnReportPdfService {
         doc.fillColor('#000000');
         doc.y += 6;
 
-        // ---- ตาราง Filter Summary (1 แถว 4 ช่อง) ----
         const filters = data.filters ?? {};
         const filterRowHeight = 34;
         const filterY = doc.y;
         const filterCells = [
-          { label: 'วันที่เริ่ม', value: filters.date_from ?? 'ทั้งหมด' },
-          { label: 'วันที่สิ้นสุด', value: filters.date_to ?? 'ทั้งหมด' },
-          { label: 'สาเหตุ', value: filters.return_reason ? this.getReturnReasonLabel(filters.return_reason) : 'ทั้งหมด' },
-          { label: 'จำนวนรายการ', value: `${data.summary?.total_records ?? 0} รายการ` },
+          { label: 'วันที่เริ่ม', value: formatFilterDateSlashBE(filters.date_from) },
+          { label: 'วันที่สิ้นสุด', value: formatFilterDateSlashBE(filters.date_to) },
+          {
+            label: 'สาเหตุ',
+            value: filters.return_reason ? getReturnReasonLabel(filters.return_reason) : 'ทั้งหมด',
+          },
         ];
         const filterColWidth = Math.floor(contentWidth / filterCells.length);
         let fx = margin;
         filterCells.forEach((fc, i) => {
-          const cw = i === filterCells.length - 1
-            ? contentWidth - filterColWidth * (filterCells.length - 1)
-            : filterColWidth;
+          const cw =
+            i === filterCells.length - 1
+              ? contentWidth - filterColWidth * (filterCells.length - 1)
+              : filterColWidth;
           doc.rect(fx, filterY, cw, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
           doc.fontSize(11).font(finalFontBoldName).fillColor('#444444');
           doc.text(fc.label, fx + 3, filterY + 4, { width: cw - 6, align: 'center' });
@@ -143,18 +169,23 @@ export class ReturnReportPdfService {
         doc.fillColor('#000000');
         doc.y = filterY + filterRowHeight + 8;
 
-        // ---- ตารางข้อมูล ----
-        // ลำดับ, ชื่ออุปกรณ์, ตู้, ชื่อผู้เติม, จำนวน, สาเหตุ, วันที่, หมายเหตุ
         const itemHeight = 28;
         const cellPadding = 4;
         const totalTableWidth = contentWidth;
-        const colPct = [0.06, 0.23, 0.14, 0.13, 0.06, 0.18, 0.09, 0.11];
+        const colPct = [0.05, 0.10, 0.18, 0.14, 0.12, 0.06, 0.15, 0.12, 0.08];
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
-        if (sumW < totalTableWidth) colWidths[1] += totalTableWidth - sumW;
+        if (sumW < totalTableWidth) colWidths[2] += totalTableWidth - sumW;
         const headers = [
-          'ลำดับ', 'ชื่ออุปกรณ์', 'ตู้',
-          'ชื่อผู้เติม', 'จำนวน', 'สาเหตุ', 'วันที่', 'หมายเหตุ',
+          'ลำดับ',
+          'รหัสอุปกรณ์',
+          'ชื่ออุปกรณ์',
+          'ตู้',
+          'ชื่อผู้เติม',
+          'จำนวน',
+          'สาเหตุ',
+          'วันที่',
+          'หมายเหตุ',
         ];
 
         const drawTableHeader = (y: number) => {
@@ -194,21 +225,18 @@ export class ReturnReportPdfService {
         } else {
           for (let idx = 0; idx < data.data.length; idx++) {
             const record = data.data[idx];
+            const itemCode = record.supply_item?.order_item_code || record.supply_item?.supply_code || '-';
             const itemName = record.supply_item?.order_item_description || record.supply_item?.supply_name || '-';
-            const cabinetDisplay = [record.cabinet_name || record.cabinet_code, record.department_name].filter(Boolean).join(' / ') || '-';
-            const returnByName = record.return_by_user_name ?? 'ไม่ระบุ';
-            const returnDate = record.return_datetime instanceof Date
-              ? record.return_datetime.toLocaleDateString('th-TH')
-              : new Date(record.return_datetime).toLocaleDateString('th-TH');
 
             const cellTexts = [
               String(idx + 1),
+              String(itemCode),
               String(itemName),
-              String(cabinetDisplay),
-              String(returnByName),
+              formatCabinetDisplay(record),
+              formatReturnByUserName(record.return_by_user_name),
               String(record.qty_returned),
-              this.getReturnReasonLabel(record.return_reason),
-              returnDate,
+              getReturnReasonLabel(record.return_reason),
+              formatReturnDateTime(record.return_datetime),
               record.return_note || '-',
             ];
 
@@ -220,7 +248,7 @@ export class ReturnReportPdfService {
             const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
 
             if (doc.y + rowHeight > pageHeight - 35) {
-              doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+              doc.addPage({ size: 'A4', layout: 'landscape', margin: 10 });
               doc.y = margin;
               const newHeaderY = doc.y;
               drawTableHeader(newHeaderY);
@@ -231,14 +259,14 @@ export class ReturnReportPdfService {
             const rowY = doc.y;
             const bg = idx % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
             let xPos = margin;
-            for (let i = 0; i < 8; i++) {
+            for (let i = 0; i < headers.length; i++) {
               const cw = colWidths[i];
               const w = Math.max(4, cw - cellPadding * 2);
               doc.rect(xPos, rowY, cw, rowHeight).fillAndStroke(bg, '#DEE2E6');
               doc.fontSize(13).font(finalFontName).fillColor('#000000');
               doc.text(cellTexts[i] ?? '-', xPos + cellPadding, rowY + cellPadding, {
                 width: w,
-                align: i === 1 || i === 2 || i === 3 || i === 7 ? 'left' : 'center',
+                align: i === 2 || i === 3 || i === 4 || i === 6 || i === 8 ? 'left' : 'center',
               });
               xPos += cw;
             }
@@ -246,11 +274,12 @@ export class ReturnReportPdfService {
           }
         }
 
-        // footer note
         doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
         doc.text(
           `จำนวนรายการทั้งหมด: ${data.summary?.total_records ?? 0} รายการ | จำนวนชิ้น: ${data.summary?.total_qty_returned ?? 0} ชิ้น`,
-          margin, doc.y + 6, { width: contentWidth, align: 'center' },
+          margin,
+          doc.y + 6,
+          { width: contentWidth, align: 'center' },
         );
         doc.fillColor('#000000');
 
@@ -259,16 +288,5 @@ export class ReturnReportPdfService {
         reject(err);
       }
     });
-  }
-
-  private getReturnReasonLabel(reason: string): string {
-    const labels: { [key: string]: string } = {
-      OTHER: 'อื่นๆ',
-      UNWRAPPED_UNUSED: 'อื่นๆ (ข้อมูลเก่า)',
-      EXPIRED: 'อุปกรณ์หมดอายุ',
-      CONTAMINATED: 'อุปกรณ์มีการปนเปื้อน',
-      DAMAGED: 'อุปกรณ์ชำรุด',
-    };
-    return labels[reason] || reason;
   }
 }

@@ -2,41 +2,18 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { ReturnToCabinetReportData } from './return-to-cabinet-report-excel.service';
-import { ReportConfig, resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import { formatReportDateSlashBE, formatReportDateTimeUtc } from '../utils/date-timeformat';
 import { formatQtyWithMainUnitForReport } from '../utils/format-item-qty';
 
-/** ให้ตรงกับหน้าเว็บ: เวลาใน DB เป็น Bangkok แต่ส่งมาเป็น UTC → ลบ 7 ชม. แล้วแสดงใน Asia/Bangkok (รับได้ทั้ง string และ Date จาก Prisma) */
-const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
-function toBangkokTime(base: Date, value: string | Date | null | undefined): Date {
-  if (value == null) return base;
-  const isDateTime =
-    typeof value === 'string' ? value.includes('T') : value instanceof Date;
-  return isDateTime ? new Date(base.getTime() - BANGKOK_UTC_OFFSET_MS) : base;
+function formatFilterDateSlashBE(v?: string | null): string {
+  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
+  return formatReportDateSlashBE(v);
 }
 
-function formatReportDate(value?: string | Date) {
-  if (value == null) return '-';
-  const base = new Date(value);
-  const corrected = toBangkokTime(base, value);
-  return corrected.toLocaleDateString(ReportConfig.locale, {
-    timeZone: ReportConfig.timezone,
-    ...ReportConfig.dateFormat.date,
-  });
-}
-
-/** วันที่ + เวลา (ชั่วโมง:นาที ไม่มีวินาที) สำหรับคอลัมน์วันที่เติม — รับ string หรือ Date ให้ตรงกับหน้าเว็บ */
-function formatReportDateTime(value?: string | Date) {
-  if (value == null) return '-';
-  const base = new Date(value);
-  const corrected = toBangkokTime(base, value);
-  return corrected.toLocaleString(ReportConfig.locale, {
-    timeZone: ReportConfig.timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function formatCabinetUserName(name?: string | null): string {
+  const n = name?.trim();
+  return n && n !== 'ไม่ระบุ' ? n : '-';
 }
 
 @Injectable()
@@ -70,7 +47,7 @@ export class ReturnToCabinetReportPdfService {
 
     const doc = new PDFDocument({
       size: 'A4',
-      layout: 'portrait',
+      layout: 'landscape',
       margin: 10,
       bufferPages: true,
     });
@@ -132,7 +109,7 @@ export class ReturnToCabinetReportPdfService {
         }
 
         doc.fontSize(16).font(finalFontBoldName).fillColor('#1A365D');
-        doc.text('รายงานคืนอุปกรณ์เข้าตู้', margin, headerTop + 6, {
+        doc.text('รายงานเติมอุปกรณ์เข้าตู้', margin, headerTop + 6, {
           width: contentWidth,
           align: 'center',
         });
@@ -154,39 +131,55 @@ export class ReturnToCabinetReportPdfService {
         doc.y += 6;
 
         // ---- ตาราง Filter Summary (1 แถว 4 ช่อง) ----
-        // const filterRowHeight = 34;
-        // const filterY = doc.y;
-        // const filterCells = [
-        //   { label: 'แผนก', value: (filters as any).departmentName ?? ((filters as any).departmentId ? (filters as any).departmentId : 'ทั้งหมด') },
-        //   { label: 'ตู้ Cabinet', value: (filters as any).cabinetName ?? ((filters as any).cabinetId ? (filters as any).cabinetId : 'ทั้งหมด') },
-        //   { label: 'วันที่เริ่ม', value: filters.startDate ?? 'ทั้งหมด' },
-        //   { label: 'วันที่สิ้นสุด', value: filters.endDate ?? 'ทั้งหมด' },
-        // ];
-        // const filterColWidth = Math.floor(contentWidth / filterCells.length);
-        // let fx = margin;
-        // filterCells.forEach((fc, i) => {
-        //   const cw = i === filterCells.length - 1
-        //     ? contentWidth - filterColWidth * (filterCells.length - 1)
-        //     : filterColWidth;
-        //   doc.rect(fx, filterY, cw, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
-        //   doc.fontSize(11).font(finalFontBoldName).fillColor('#444444');
-        //   doc.text(fc.label, fx + 3, filterY + 4, { width: cw - 6, align: 'center' });
-        //   doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
-        //   doc.text(fc.value, fx + 3, filterY + 16, { width: cw - 6, align: 'center' });
-        //   fx += cw;
-        // });
-        // doc.fillColor('#000000');
-        // doc.y = filterY + filterRowHeight + 8;
+        const filters = data.filters ?? {};
+        const filterRowHeight = 34;
+        const filterY = doc.y;
+        const filterCells = [
+          {
+            label: 'Division',
+            value: filters.departmentName ?? (filters.departmentId ? filters.departmentId : 'ทั้งหมด'),
+          },
+          {
+            label: 'ตู้ Cabinet',
+            value: filters.cabinetName ?? (filters.cabinetId ? filters.cabinetId : 'ทั้งหมด'),
+          },
+          { label: 'วันที่เริ่ม', value: formatFilterDateSlashBE(filters.startDate) },
+          { label: 'วันที่สิ้นสุด', value: formatFilterDateSlashBE(filters.endDate) },
+        ];
+        const filterColWidth = Math.floor(contentWidth / filterCells.length);
+        let fx = margin;
+        filterCells.forEach((fc, i) => {
+          const cw =
+            i === filterCells.length - 1
+              ? contentWidth - filterColWidth * (filterCells.length - 1)
+              : filterColWidth;
+          doc.rect(fx, filterY, cw, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
+          doc.fontSize(11).font(finalFontBoldName).fillColor('#444444');
+          doc.text(fc.label, fx + 3, filterY + 4, { width: cw - 6, align: 'center' });
+          doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
+          doc.text(fc.value, fx + 3, filterY + 16, { width: cw - 6, align: 'center' });
+          fx += cw;
+        });
+        doc.fillColor('#000000');
+        doc.y = filterY + filterRowHeight + 8;
 
-        // ---- ตารางข้อมูล (รูปแบบเดียวกับ dispensed: ลำดับ, รหัส, ชื่อ, จำนวนชิ้น, วันที่เติม, แผนก, ชื่อผู้เติม) ----
         const itemHeight = 28;
         const cellPadding = 4;
         const totalTableWidth = contentWidth;
-        const colPct = [0.07, 0.13, 0.26, 0.10, 0.16, 0.12, 0.16];
+        const colPct = [0.06, 0.11, 0.20, 0.10, 0.14, 0.12, 0.12, 0.12];
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
         if (sumW < totalTableWidth) colWidths[2] += totalTableWidth - sumW;
-        const headers = ['ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'จำนวน (หน่วยหลัก)', 'วันที่เติม', 'แผนก', 'ชื่อผู้เติม'];
+        const headers = [
+          'ลำดับ',
+          'รหัสอุปกรณ์',
+          'ชื่ออุปกรณ์',
+          'จำนวน (หน่วย)',
+          'วันที่เติม',
+          'ตู้',
+          'Division',
+          'ชื่อผู้เติม',
+        ];
 
         const drawTableHeader = (y: number) => {
           let x = margin;
@@ -226,18 +219,16 @@ export class ReturnToCabinetReportPdfService {
           const groups = data.groups;
           let rowNum = 1;
           for (const group of groups) {
-            const qtyDisplay = formatQtyWithMainUnitForReport(group.totalQty, group.items[0] ?? {});
+            const g0 = group.items[0];
             const groupCellTexts = [
               String(rowNum),
               group.itemcode ?? '-',
               group.itemname ?? '-',
-              qtyDisplay,
-              formatReportDateTime(group.returnTime),
-              group.items[0]?.departmentName ?? '-',
-              (() => {
-                const n = group.items[0]?.cabinetUserName?.trim();
-                return n && n !== 'ไม่ระบุ' ? n : '-';
-              })(),
+              formatQtyWithMainUnitForReport(group.totalQty, g0 ?? {}),
+              formatReportDateTimeUtc(group.returnTime),
+              g0?.cabinetName ?? '-',
+              g0?.departmentName ?? '-',
+              formatCabinetUserName(g0?.cabinetUserName),
             ];
             doc.fontSize(12).font(finalFontBoldName);
             const groupCellHeights = groupCellTexts.map((text, i) => {
@@ -246,7 +237,7 @@ export class ReturnToCabinetReportPdfService {
             });
             const groupRowHeight = Math.max(itemHeight, Math.max(...groupCellHeights) + cellPadding * 2);
             if (doc.y + groupRowHeight > pageHeight - 35) {
-              doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+              doc.addPage({ size: 'A4', layout: 'landscape', margin: 10 });
               doc.y = margin;
               const newHeaderY = doc.y;
               drawTableHeader(newHeaderY);
@@ -255,30 +246,29 @@ export class ReturnToCabinetReportPdfService {
             }
             const groupRowY = doc.y;
             let xPos = margin;
-            for (let i = 0; i < 7; i++) {
+            for (let i = 0; i < headers.length; i++) {
               const cw = colWidths[i];
               const w = Math.max(4, cw - cellPadding * 2);
               doc.rect(xPos, groupRowY, cw, groupRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
               doc.fontSize(12).font(finalFontBoldName).fillColor('#1A365D');
               doc.text(groupCellTexts[i] ?? '-', xPos + cellPadding, groupRowY + cellPadding, {
                 width: w,
-                align: i === 1 || i === 2 || i === 4 || i === 6 ? 'left' : 'center',
+                align: i === 1 || i === 2 || i === 5 || i === 7 ? 'left' : 'center',
               });
               xPos += cw;
             }
             doc.y = groupRowY + groupRowHeight;
             doc.fontSize(13).font(finalFontName).fillColor('#000000');
 
-            group.items.forEach((item, subIdx) => {
+            group.items.forEach((item) => {
               const cellTexts = [
-                // `${rowNum}.${subIdx + 1}`,
                 '',
                 item?.itemcode ?? '-',
                 item?.itemname ?? '-',
                 formatQtyWithMainUnitForReport(item?.qty ?? 1, item ?? {}),
-                formatReportDateTime(item?.modifyDate as string),
+                formatReportDateTimeUtc(item?.modifyDate as string),
+                '',
                 item?.departmentName ?? '-',
-                // item?.RfidCode ?? '-',
                 '',
               ];
               const cellHeights = cellTexts.map((text, i) => {
@@ -287,7 +277,7 @@ export class ReturnToCabinetReportPdfService {
               });
               const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
               if (doc.y + rowHeight > pageHeight - 35) {
-                doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+                doc.addPage({ size: 'A4', layout: 'landscape', margin: 10 });
                 doc.y = margin;
                 const newHeaderY = doc.y;
                 drawTableHeader(newHeaderY);
@@ -296,14 +286,14 @@ export class ReturnToCabinetReportPdfService {
               }
               const rowY = doc.y;
               let x = margin;
-              for (let i = 0; i < 7; i++) {
+              for (let i = 0; i < headers.length; i++) {
                 const cw = colWidths[i];
                 const w = Math.max(4, cw - cellPadding * 2);
                 doc.rect(x, rowY, cw, rowHeight).fillAndStroke('#FFFFFF', '#DEE2E6');
                 doc.fontSize(12).font(finalFontName).fillColor('#000000');
                 doc.text(cellTexts[i] ?? '-', x + cellPadding, rowY + cellPadding, {
                   width: w,
-                  align: i === 1 || i === 2 || i === 4 || i === 6 ? 'left' : 'center',
+                  align: i === 1 || i === 2 || i === 6 ? 'left' : 'center',
                 });
                 x += cw;
               }
@@ -319,9 +309,10 @@ export class ReturnToCabinetReportPdfService {
               item?.itemcode ?? '-',
               item?.itemname ?? '-',
               formatQtyWithMainUnitForReport(item?.qty ?? 1, item ?? {}),
-              formatReportDateTime(item?.modifyDate as string),
+              formatReportDateTimeUtc(item?.modifyDate as string),
+              (item as any)?.cabinetName ?? '-',
               (item as any)?.departmentName ?? '-',
-              (item as any)?.cabinetUserName ?? 'ไม่ระบุ',
+              formatCabinetUserName((item as any)?.cabinetUserName),
             ];
             doc.fontSize(13).font(finalFontName);
             const cellHeights = cellTexts.map((text, i) => {
@@ -330,7 +321,7 @@ export class ReturnToCabinetReportPdfService {
             });
             const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
             if (doc.y + rowHeight > pageHeight - 35) {
-              doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+              doc.addPage({ size: 'A4', layout: 'landscape', margin: 10 });
               doc.y = margin;
               const newHeaderY = doc.y;
               drawTableHeader(newHeaderY);
@@ -340,14 +331,14 @@ export class ReturnToCabinetReportPdfService {
             const rowY = doc.y;
             const bg = idx % 2 === 0 ? '#FFFFFF' : '#F8F9FA';
             let xPos = margin;
-            for (let i = 0; i < 7; i++) {
+            for (let i = 0; i < headers.length; i++) {
               const cw = colWidths[i];
               const w = Math.max(4, cw - cellPadding * 2);
               doc.rect(xPos, rowY, cw, rowHeight).fillAndStroke(bg, '#DEE2E6');
               doc.fontSize(13).font(finalFontName).fillColor('#000000');
               doc.text(cellTexts[i] ?? '-', xPos + cellPadding, rowY + cellPadding, {
                 width: w,
-                align: i === 1 || i === 2 || i === 4 || i === 6 ? 'left' : 'center',
+                align: i === 1 || i === 2 || i === 5 || i === 7 ? 'left' : 'center',
               });
               xPos += cw;
             }

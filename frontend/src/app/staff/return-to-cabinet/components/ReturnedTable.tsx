@@ -123,7 +123,7 @@ export default function ReturnedTable({
                     <TableHead>ชื่ออุปกรณ์</TableHead>
                     <TableHead className="text-center">
                       <span className="block">จำนวน</span>
-                      <span className="block text-xs font-normal text-muted-foreground">หน่วยหลัก</span>
+                      <span className="block text-xs font-normal text-muted-foreground">หน่วย</span>
                     </TableHead>
                     <TableHead>วันที่เติม</TableHead>
                     <TableHead>ตู้</TableHead>
@@ -203,7 +203,7 @@ export default function ReturnedTable({
                                         <TableHead className="text-center">
                                           <span className="block">จำนวน</span>
                                           <span className="block text-xs font-normal text-muted-foreground">
-                                            หน่วยหลัก
+                                            หน่วย
                                           </span>
                                         </TableHead>
                                         <TableHead>วันที่เติม</TableHead>

@@ -2,42 +2,9 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { DispensedItemsReportData, DispensedItemsReportGroup } from './dispensed-items-excel.service';
-import { ReportConfig, resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
+import { formatReportDateSlashBE, formatReportDateTimeUtc } from '../utils/date-timeformat';
 import { formatQtyWithMainUnitForReport } from '../utils/format-item-qty';
-
-/** ให้ตรงกับหน้าเว็บ: เวลาใน DB เป็น Bangkok แต่ส่งมาเป็น UTC → ลบ 7 ชม. แล้วแสดงใน Asia/Bangkok (รับได้ทั้ง string และ Date จาก Prisma) */
-const BANGKOK_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
-function toBangkokTime(base: Date, value: string | Date | null | undefined): Date {
-  if (value == null) return base;
-  const isDateTime =
-    typeof value === 'string' ? value.includes('T') : value instanceof Date;
-  return isDateTime ? new Date(base.getTime() - BANGKOK_UTC_OFFSET_MS) : base;
-}
-
-function formatReportDate(value?: string | Date) {
-  if (value == null) return '-';
-  const base = new Date(value);
-  const corrected = toBangkokTime(base, value);
-  return corrected.toLocaleDateString(ReportConfig.locale, {
-    timeZone: ReportConfig.timezone,
-    ...ReportConfig.dateFormat.date,
-  });
-}
-
-/** วันที่ + เวลา (ชั่วโมง:นาที ไม่มีวินาที) สำหรับคอลัมน์วันที่เบิก — รับ string หรือ Date ให้ตรงกับหน้าเว็บ */
-function formatReportDateTime(value?: string | Date) {
-  if (value == null) return '-';
-  const base = new Date(value);
-  const corrected = toBangkokTime(base, value);
-  return corrected.toLocaleString(ReportConfig.locale, {
-    timeZone: ReportConfig.timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function borrowRemarkCell(item: {
   isBorrow?: boolean;
@@ -48,6 +15,12 @@ function borrowRemarkCell(item: {
     return r || 'ยืม';
   }
   return '-';
+}
+
+/** filter วันที่เริ่ม/สิ้นสุด: ว่าง = ทั้งหมด, มีค่า = d/m/Y (พ.ศ.) */
+function formatFilterDateSlashBE(v?: string | null): string {
+  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
+  return formatReportDateSlashBE(v);
 }
 
 const COL_LEFT_PDF = new Set([1, 2, 5, 6, 8]);
@@ -83,7 +56,7 @@ export class DispensedItemsPdfService {
 
     const doc = new PDFDocument({
       size: 'A4',
-      layout: 'portrait',
+      layout: 'landscape',
       margin: 10,
       bufferPages: true,
     });
@@ -167,30 +140,30 @@ export class DispensedItemsPdfService {
         doc.y += 6;
 
         // ---- ตาราง Filter Summary (1 แถว 4 ช่อง) ----
-        // const filters = data.filters ?? {};
-        // const filterRowHeight = 34;
-        // const filterY = doc.y;
-        // const filterCells = [
-        //   { label: 'แผนก', value: filters.departmentName ?? (filters.departmentId ? filters.departmentId : 'ทั้งหมด') },
-        //   { label: 'ตู้ Cabinet', value: filters.cabinetName ?? (filters.cabinetId ? filters.cabinetId : 'ทั้งหมด') },
-        //   { label: 'วันที่เริ่ม', value: filters.startDate ?? 'ทั้งหมด' },
-        //   { label: 'วันที่สิ้นสุด', value: filters.endDate ?? 'ทั้งหมด' },
-        // ];
-        // const filterColWidth = Math.floor(contentWidth / filterCells.length);
-        // let fx = margin;
-        // filterCells.forEach((fc, i) => {
-        //   const cw = i === filterCells.length - 1
-        //     ? contentWidth - filterColWidth * (filterCells.length - 1)
-        //     : filterColWidth;
-        //   doc.rect(fx, filterY, cw, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
-        //   doc.fontSize(11).font(finalFontBoldName).fillColor('#444444');
-        //   doc.text(fc.label, fx + 3, filterY + 4, { width: cw - 6, align: 'center' });
-        //   doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
-        //   doc.text(fc.value, fx + 3, filterY + 16, { width: cw - 6, align: 'center' });
-        //   fx += cw;
-        // });
-        // doc.fillColor('#000000');
-        // doc.y = filterY + filterRowHeight + 8;
+        const filters = data.filters ?? {};
+        const filterRowHeight = 34;
+        const filterY = doc.y;
+        const filterCells = [
+          { label: 'แผนก', value: filters.departmentName ?? (filters.departmentId ? filters.departmentId : 'ทั้งหมด') },
+          { label: 'ตู้ Cabinet', value: filters.cabinetName ?? (filters.cabinetId ? filters.cabinetId : 'ทั้งหมด') },
+          { label: 'วันที่เริ่ม', value: formatFilterDateSlashBE(filters.startDate) },
+          { label: 'วันที่สิ้นสุด', value: formatFilterDateSlashBE(filters.endDate) },
+        ];
+        const filterColWidth = Math.floor(contentWidth / filterCells.length);
+        let fx = margin;
+        filterCells.forEach((fc, i) => {
+          const cw = i === filterCells.length - 1
+            ? contentWidth - filterColWidth * (filterCells.length - 1)
+            : filterColWidth;
+          doc.rect(fx, filterY, cw, filterRowHeight).fillAndStroke('#E8EDF2', '#DEE2E6');
+          doc.fontSize(11).font(finalFontBoldName).fillColor('#444444');
+          doc.text(fc.label, fx + 3, filterY + 4, { width: cw - 6, align: 'center' });
+          doc.fontSize(13).font(finalFontName).fillColor('#1A365D');
+          doc.text(fc.value, fx + 3, filterY + 16, { width: cw - 6, align: 'center' });
+          fx += cw;
+        });
+        doc.fillColor('#000000');
+        doc.y = filterY + filterRowHeight + 8;
 
         // ---- ตารางข้อมูล (เพิ่ม จำนวนชิ้น) ----
         const itemHeight = 28;
@@ -257,7 +230,7 @@ export class DispensedItemsPdfService {
               group.itemcode ?? '-',
               group.itemname ?? '-',
               qtyDisplay,
-              formatReportDateTime(group.dispenseTime),
+              formatReportDateTimeUtc(group.dispenseTime),
               g0?.departmentName ?? '-',
               g0?.borrowDepartmentName?.trim() ? g0.borrowDepartmentName : '-',
               borrowRemarkCell(g0 ?? {}),
@@ -273,7 +246,7 @@ export class DispensedItemsPdfService {
             });
             const groupRowHeight = Math.max(itemHeight, Math.max(...groupCellHeights) + cellPadding * 2);
             if (doc.y + groupRowHeight > pageHeight - 35) {
-              doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+              doc.addPage({ size: 'A4', layout: 'landscape', margin: 10 });
               doc.y = margin;
               const newHeaderY = doc.y;
               drawTableHeader(newHeaderY);
@@ -302,7 +275,7 @@ export class DispensedItemsPdfService {
                 item?.itemcode ?? '-',
                 item?.itemname ?? '-',
                 formatQtyWithMainUnitForReport(item?.qty ?? 1, item ?? {}),
-                formatReportDateTime(item?.modifyDate as string),
+                formatReportDateTimeUtc(item?.modifyDate as string),
                 item?.departmentName ?? '-',
                 item?.borrowDepartmentName?.trim() ? item.borrowDepartmentName : '-',
                 borrowRemarkCell(item ?? {}),
@@ -314,7 +287,7 @@ export class DispensedItemsPdfService {
               });
               const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
               if (doc.y + rowHeight > pageHeight - 35) {
-                doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+                doc.addPage({ size: 'A4', layout: 'landscape', margin: 10 });
                 doc.y = margin;
                 const newHeaderY = doc.y;
                 drawTableHeader(newHeaderY);
@@ -346,7 +319,7 @@ export class DispensedItemsPdfService {
               item?.itemcode ?? '-',
               item?.itemname ?? '-',
               formatQtyWithMainUnitForReport(item?.qty ?? 1, item ?? {}),
-              formatReportDateTime(item?.modifyDate as string),
+              formatReportDateTimeUtc(item?.modifyDate as string),
               item?.departmentName ?? '-',
               item?.borrowDepartmentName?.trim() ? item.borrowDepartmentName : '-',
               borrowRemarkCell(item ?? {}),
@@ -359,7 +332,7 @@ export class DispensedItemsPdfService {
             });
             const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
             if (doc.y + rowHeight > pageHeight - 35) {
-              doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+              doc.addPage({ size: 'A4', layout: 'landscape', margin: 10 });
               doc.y = margin;
               const newHeaderY = doc.y;
               drawTableHeader(newHeaderY);

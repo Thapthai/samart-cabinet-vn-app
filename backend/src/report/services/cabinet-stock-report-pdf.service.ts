@@ -5,6 +5,9 @@ import { CabinetStockReportData, CabinetStockRow } from './cabinet-stock-report-
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
 import {
   formatQtyWithMainUnitForReport,
+  formatQtyPlainForReport,
+  formatMinMaxPlainForReport,
+  formatCabinetStockRemark,
   type ReportItemUnitFields,
 } from '../utils/format-item-qty';
 
@@ -35,7 +38,7 @@ export class CabinetStockReportPdfService {
   async generateReport(data: CabinetStockReportData): Promise<Buffer> {
     const doc = new PDFDocument({
       size: 'A4',
-      layout: 'portrait',
+      layout: 'landscape',
       margin: 10,
       bufferPages: true,
     });
@@ -152,10 +155,10 @@ export class CabinetStockReportPdfService {
         // ลำดับ:0.04 แผนก:0.09 รหัส:0.11 อุปกรณ์:0.21 | 5x0.11
         // ลำดับ, แผนก, รหัสอุปกรณ์(เหลือ), อุปกรณ์, จำนวนในตู้, ถูกใช้งาน, ไม่ถูกใช้งาน, Min/Max, จำนวนที่ต้องเติม
  
-        const colPct = [0.06, 0.09, 0.17, 0.18, 0.10, 0.09, 0.09, 0.09, 0.12];
+        const colPct = [0.05, 0.08, 0.13, 0.14, 0.09, 0.08, 0.08, 0.08, 0.10, 0.13];
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
-        if (sumW < totalTableWidth) colWidths[3] += totalTableWidth - sumW;
+        if (sumW < totalTableWidth) colWidths[colWidths.length - 1] += totalTableWidth - sumW;
         const headers = [
           'ลำดับ',
           'แผนก',
@@ -166,6 +169,7 @@ export class CabinetStockReportPdfService {
           'ไม่ถูกใช้งาน',
           'Min/Max',
           'จำนวนที่ต้องเติม',
+          'หมายเหตุ',
         ];
 
         const drawTableHeader = (y: number) => {
@@ -222,24 +226,18 @@ export class CabinetStockReportPdfService {
               subUnit: row.subUnit,
               SubUnitQty: row.SubUnitQty,
             };
-            const minMaxStr =
-              smin != null && smax != null
-                ? `${formatQtyWithMainUnitForReport(smin, u)} / ${formatQtyWithMainUnitForReport(smax, u)}`
-                : smin != null
-                  ? `${formatQtyWithMainUnitForReport(smin, u)} / -`
-                  : smax != null
-                    ? `- / ${formatQtyWithMainUnitForReport(smax, u)}`
-                    : '-';
+            const minMaxStr = formatMinMaxPlainForReport(smin, smax);
             const cellTexts = [
               String(seq),
               String(dept),
               String(code),
               String(name),
               formatQtyWithMainUnitForReport(bal, u),
-              formatQtyWithMainUnitForReport(qtyInUse, u),
-              formatQtyWithMainUnitForReport(damagedQty, u),
+              formatQtyPlainForReport(qtyInUse),
+              formatQtyPlainForReport(damagedQty),
               minMaxStr,
-              formatQtyWithMainUnitForReport(refill, u),
+              formatQtyPlainForReport(refill),
+              formatCabinetStockRemark(row),
             ];
 
             // คำนวณความสูงแถวตามข้อความที่อาจขึ้นบรรทัดใหม่
@@ -251,7 +249,7 @@ export class CabinetStockReportPdfService {
             const rowHeight = Math.max(itemHeight, Math.max(...cellHeights) + cellPadding * 2);
 
             if (doc.y + rowHeight > pageHeight - 35) {
-              doc.addPage({ size: 'A4', layout: 'portrait', margin: 10 });
+              doc.addPage({ size: 'A4', layout: 'landscape', margin: 10 });
               doc.y = margin;
               const newHeaderY = doc.y;
               drawTableHeader(newHeaderY);
@@ -262,9 +260,15 @@ export class CabinetStockReportPdfService {
 
             const rowY = doc.y;
             const hasRefill = (row.refill_qty ?? 0) > 0;
-            const bg = hasRefill ? '#F8D7D7' : (idx % 2 === 0 ? '#FFFFFF' : '#F8F9FA');
+            const bg = row.has_expired
+              ? '#FFEDD5'
+              : hasRefill
+                ? '#F8D7D7'
+                : idx % 2 === 0
+                  ? '#FFFFFF'
+                  : '#F8F9FA';
             let xPos = margin;
-            for (let i = 0; i < 9; i++) {
+            for (let i = 0; i < headers.length; i++) {
               const cw = colWidths[i];
               const w = Math.max(4, cw - cellPadding * 2);
               doc.rect(xPos, rowY, cw, rowHeight).fillAndStroke(bg, '#DEE2E6');

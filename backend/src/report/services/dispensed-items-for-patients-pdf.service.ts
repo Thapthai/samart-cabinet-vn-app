@@ -166,7 +166,7 @@ export class DispensedItemsForPatientsPdfService {
         if (sumW < totalTableWidth) colWidths[5] += totalTableWidth - sumW;
         const headers = [
           'ลำดับ', 'HN / EN', 'ชื่อคนไข้', 'แผนก / แผนกย่อย',
-          'วันที่เบิก', 'ชื่ออุปกรณ์', 'จำนวน (หน่วยหลัก)', 'Assession No', 'สถานะ',
+          'วันที่เบิก', 'ชื่ออุปกรณ์', 'จำนวน (หน่วย)', 'Assession No', 'สถานะ',
         ];
 
         const drawTableHeader = (y: number) => {

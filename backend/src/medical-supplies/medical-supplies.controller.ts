@@ -519,6 +519,7 @@ export class MedicalSupplyController {
   @Get('returned-items')
   async getReturnedItems(
     @Query('keyword') keyword?: string,
+    @Query('itemTypeId') itemTypeId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('page') page?: string,
@@ -530,6 +531,7 @@ export class MedicalSupplyController {
     try {
       const result = await this.medicalSuppliesService.getReturnedItems({
         keyword,
+        itemTypeId: itemTypeId ? parseInt(itemTypeId, 10) : undefined,
         startDate,
         endDate,
         page: page ? parseInt(page, 10) : undefined,

@@ -3,6 +3,9 @@ import * as ExcelJS from 'exceljs';
 import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
 import {
   formatQtyWithMainUnitForReport,
+  formatQtyPlainForReport,
+  formatMinMaxPlainForReport,
+  formatCabinetStockRemark,
   type ReportItemUnitFields,
 } from '../utils/format-item-qty';
 
@@ -18,6 +21,8 @@ export interface CabinetStockRow {
   stock_max: number | null;
   stock_min: number | null;
   refill_qty: number;
+  /** มีชิ้น IsStock=1 ที่หมดอายุแล้ว — ใช้ highlight สีส้ม */
+  has_expired?: boolean;
   unit?: { UnitName?: string | null };
   subUnit?: { UnitName?: string | null };
   SubUnitQty?: number | null;
@@ -60,14 +65,14 @@ export class CabinetStockReportExcelService {
       });
 
     applyExcelStandardTitleHeader(worksheet, workbook, {
-      mergeRange: 'A1:I2',
+      mergeRange: 'A1:J2',
       title: 'รายงานสต๊อกอุปกรณ์ในตู้\nCabinet Stock Report',
       row1Height: 20,
       row2Height: 20,
     });
 
     // แถว 3: วันที่รายงาน
-    worksheet.mergeCells('A3:I3');
+    worksheet.mergeCells('A3:J3');
     const dateCell = worksheet.getCell('A3');
     dateCell.value = `วันที่รายงาน: ${reportDate}`;
     dateCell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF6C757D' } };
@@ -83,11 +88,11 @@ export class CabinetStockReportExcelService {
       `${data.summary?.total_rows ?? 0} รายการ`,
     ];
 
-    // 9 columns → แบ่ง 3 กลุ่ม กลุ่มละ 3 คอลัมน์
-    const filterColMap = [['A', 'B', 'C'], ['D', 'E', 'F'], ['G', 'H', 'I']];
+    // 10 columns → แบ่ง 3 กลุ่ม 3+3+4
+    const filterColMap = [['A', 'B', 'C'], ['D', 'E', 'F'], ['G', 'H', 'I', 'J']];
     filterLabels.forEach((lbl, gi) => {
       const cols = filterColMap[gi];
-      const rangeLabel = `${cols[0]}4:${cols[2]}4`;
+      const rangeLabel = `${cols[0]}4:${cols[cols.length - 1]}4`;
       worksheet.mergeCells(rangeLabel);
       const cell = worksheet.getCell(`${cols[0]}4`);
       cell.value = `${lbl}: ${filterValues[gi]}`;
@@ -108,11 +113,12 @@ export class CabinetStockReportExcelService {
       'แผนก',
       'รหัสอุปกรณ์',
       'อุปกรณ์',
-      'จำนวนในตู้ (หน่วยหลัก)',
-      'ถูกใช้งาน (หน่วยหลัก)',
-      'ไม่ถูกใช้งาน (หน่วยหลัก)',
-      'Min / Max (หน่วยหลัก)',
-      'จำนวนที่ต้องเติม (หน่วยหลัก)',
+      'จำนวนในตู้ (หน่วย)',
+      'ถูกใช้งาน',
+      'ไม่ถูกใช้งาน',
+      'Min / Max',
+      'จำนวนที่ต้องเติม',
+      'หมายเหตุ',
     ];
     const headerRow = worksheet.getRow(tableStartRow);
     headers.forEach((h, i) => {
@@ -123,37 +129,39 @@ export class CabinetStockReportExcelService {
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
     });
-    headerRow.height = 26;
+    headerRow.height = 28;
 
     const LIGHT_RED = 'FFF8D7D7';
+    /** ตรงกับหน้าเว็บ bg-orange-100 */
+    const LIGHT_ORANGE = 'FFFFEDD5';
     let dataRowIndex = tableStartRow + 1;
     data.data.forEach((row, idx) => {
       const excelRow = worksheet.getRow(dataRowIndex);
       const hasRefill = (row.refill_qty ?? 0) > 0;
-      const bg = hasRefill ? LIGHT_RED : (idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8F9FA');
+      const bg = row.has_expired
+        ? LIGHT_ORANGE
+        : hasRefill
+          ? LIGHT_RED
+          : idx % 2 === 0
+            ? 'FFFFFFFF'
+            : 'FFF8F9FA';
       const u: ReportItemUnitFields = {
         unit: row.unit,
         subUnit: row.subUnit,
         SubUnitQty: row.SubUnitQty,
       };
-      const minMaxStr =
-        row.stock_min != null && row.stock_max != null
-          ? `${formatQtyWithMainUnitForReport(row.stock_min, u)} / ${formatQtyWithMainUnitForReport(row.stock_max, u)}`
-          : row.stock_min != null
-            ? `${formatQtyWithMainUnitForReport(row.stock_min, u)} / -`
-            : row.stock_max != null
-              ? `- / ${formatQtyWithMainUnitForReport(row.stock_max, u)}`
-              : '-';
+      const minMaxStr = formatMinMaxPlainForReport(row.stock_min, row.stock_max);
       [
         row.seq,
         row.department_name ?? '-',
         row.item_code,
         row.item_name ?? '-',
         formatQtyWithMainUnitForReport(row.balance_qty, u),
-        formatQtyWithMainUnitForReport(row.qty_in_use ?? 0, u),
-        formatQtyWithMainUnitForReport(row.damaged_qty ?? 0, u),
+        formatQtyPlainForReport(row.qty_in_use ?? 0),
+        formatQtyPlainForReport(row.damaged_qty ?? 0),
         minMaxStr,
-        formatQtyWithMainUnitForReport(row.refill_qty, u),
+        formatQtyPlainForReport(row.refill_qty),
+        formatCabinetStockRemark(row),
       ].forEach((val, colIndex) => {
         const cell = excelRow.getCell(colIndex + 1);
         cell.value = val;
@@ -172,14 +180,14 @@ export class CabinetStockReportExcelService {
     worksheet.addRow([]);
     // Footer + หมายเหตุ
     const footerRow = dataRowIndex + 1;
-    worksheet.mergeCells(`A${footerRow}:I${footerRow}`);
+    worksheet.mergeCells(`A${footerRow}:J${footerRow}`);
     const footerCell = worksheet.getCell(`A${footerRow}`);
     footerCell.value = 'เอกสารนี้สร้างจากระบบรายงานอัตโนมัติ';
     footerCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FFADB5BD' } };
     footerCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(footerRow).height = 18;
     const noteRow = footerRow + 1;
-    worksheet.mergeCells(`A${noteRow}:I${noteRow}`);
+    worksheet.mergeCells(`A${noteRow}:J${noteRow}`);
     const noteCell = worksheet.getCell(`A${noteRow}`);
     noteCell.value =
       'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้';
@@ -190,12 +198,13 @@ export class CabinetStockReportExcelService {
     worksheet.getColumn(1).width = 13;
     worksheet.getColumn(2).width = 18;
     worksheet.getColumn(3).width = 25;
-    worksheet.getColumn(4).width = 58;
-    worksheet.getColumn(5).width = 22;
-    worksheet.getColumn(6).width = 22;
-    worksheet.getColumn(7).width = 22;
-    worksheet.getColumn(8).width = 28;
-    worksheet.getColumn(9).width = 28;
+    worksheet.getColumn(4).width = 52;
+    worksheet.getColumn(5).width = 20;
+    worksheet.getColumn(6).width = 20;
+    worksheet.getColumn(7).width = 20;
+    worksheet.getColumn(8).width = 24;
+    worksheet.getColumn(9).width = 26;
+    worksheet.getColumn(10).width = 32;
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);

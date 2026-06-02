@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import DispensedPagination from '../../dispense-from-cabinet/components/DispensedPagination';
 import type { DispensedItem } from '../types';
 import type { Item } from '@/types/item';
 import ItemNameWithUnit from '@/components/ItemNameWithUnit';
@@ -25,11 +24,8 @@ interface ReturnedTableProps {
   items: DispensedItem[];
   currentPage: number;
   totalPages: number;
-  /** จำนวนรายการดิบจาก API (การ์ดสรุป / คำอธิบาย) */
   totalRawItems: number;
-  /** จำนวนกลุ่มหลังจัดกลุ่ม — ใช้กับ pagination */
   totalGroups: number;
-  /** จำนวนแถวหลัก (กลุ่ม) ต่อหน้า */
   groupsPerPage: number;
   searchItemCode: string;
   itemTypeFilter: string;
@@ -62,6 +58,29 @@ export default function ReturnedTable({
   }, [groups, currentPage, groupsPerPage]);
 
   const groupRowOffset = (currentPage - 1) * groupsPerPage;
+
+  const generatePageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else if (currentPage <= 3) {
+      for (let i = 1; i <= 4; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 2) {
+      pages.push(1);
+      pages.push('...');
+      for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push('...');
+      for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   const toggleExpand = (key: string) => {
     setExpandedKeys((prev) => {
@@ -126,7 +145,7 @@ export default function ReturnedTable({
                     <TableHead>ชื่ออุปกรณ์</TableHead>
                     <TableHead className="text-center">
                       <span className="block">จำนวน</span>
-                      <span className="block text-xs font-normal text-muted-foreground">หน่วยหลัก</span>
+                      <span className="block text-xs font-normal text-muted-foreground">หน่วย</span>
                     </TableHead>
                     <TableHead>วันที่เติม</TableHead>
                     <TableHead>ตู้</TableHead>
@@ -207,7 +226,7 @@ export default function ReturnedTable({
                                         <TableHead className="text-center">
                                           <span className="block">จำนวน</span>
                                           <span className="block text-xs font-normal text-muted-foreground">
-                                            หน่วยหลัก
+                                            หน่วย
                                           </span>
                                         </TableHead>
                                         <TableHead>วันที่เติม</TableHead>
@@ -264,14 +283,63 @@ export default function ReturnedTable({
               </Table>
             </div>
 
-            <DispensedPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={totalGroups}
-              itemsPerPage={groupsPerPage}
-              countLabel="กลุ่ม"
-              onPageChange={onPageChange}
-            />
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between border-t pt-4">
+                <div className="text-sm text-gray-500">
+                  หน้า {currentPage} จาก {totalPages} ({totalGroups} กลุ่ม · {totalRawItems} รายการ)
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(1)}
+                    disabled={currentPage === 1}
+                  >
+                    แรกสุด
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    ก่อนหน้า
+                  </Button>
+                  {generatePageNumbers().map((page, idx) =>
+                    page === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">
+                        ...
+                      </span>
+                    ) : (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => onPageChange(page as number)}
+                      >
+                        {page}
+                      </Button>
+                    ),
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    ถัดไป
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    สุดท้าย
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </CardContent>

@@ -201,7 +201,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
         <DialogHeader>
           <DialogTitle>แก้ไขสินค้า (Master)</DialogTitle>
           <DialogDescription>
-            แก้ไขชื่อ หน่วยหลัก และหน่วยการเบิก (แสดงผล): {item?.itemcode || ''}
+            แก้ไขชื่อ หน่วย และหน่วยการเบิก (แสดงผล): {item?.itemcode || ''}
           </DialogDescription>
         </DialogHeader>
 
@@ -246,8 +246,8 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
 
             <SearchableSelect
               positionMode="floating"
-              label="หน่วยหลัก (stock / ธุรกรรม)"
-              placeholder="เลือกหน่วยหลัก"
+              label="หน่วย (stock / ธุรกรรม)"
+              placeholder="เลือกหน่วย"
               value={unitIdStr}
               onValueChange={(value) => {
                 setUnitIdStr(value);
@@ -307,7 +307,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
             />
 
             <div>
-              <Label htmlFor="edit-item-subunit-qty">จำนวนหน่วยการเบิกต่อ 1 หน่วยหลัก</Label>
+              <Label htmlFor="edit-item-subunit-qty">จำนวนหน่วยการเบิกต่อ 1 หน่วย</Label>
               <Input
                 id="edit-item-subunit-qty"
                 type="number"

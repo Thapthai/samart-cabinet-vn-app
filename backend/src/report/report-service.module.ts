@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ItemModule } from '../item/item.module';
 import { MedicalSuppliesModule } from '../medical-supplies/medical-supplies.module';
 import { WeighingModule } from '../weighing/weighing.module';
 import { ReportServiceController } from './report.controller';
@@ -38,7 +39,7 @@ import { WeighingStockReportPdfService } from './services/weighing-stock-report-
 import { DispensedItemsForPatientsExcelService } from './services/dispensed-items-for-patients-excel.service';
 import { DispensedItemsForPatientsPdfService } from './services/dispensed-items-for-patients-pdf.service';
 @Module({
-  imports: [PrismaModule, MedicalSuppliesModule, WeighingModule],
+  imports: [PrismaModule, ItemModule, MedicalSuppliesModule, WeighingModule],
   controllers: [ReportServiceController],
   providers: [
     ReportServiceService,

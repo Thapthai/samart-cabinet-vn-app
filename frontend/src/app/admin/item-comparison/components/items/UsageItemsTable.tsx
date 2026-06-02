@@ -93,7 +93,8 @@ export function UsageItemsTable({
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchUsageData(page);
+    void fetchUsageData(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const totalUsed = items.reduce((sum, item) => sum + (item.qty_used || 0), 0);

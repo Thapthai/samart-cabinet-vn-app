@@ -6,7 +6,7 @@ import { formatItemUnitBracket } from '@/lib/itemUnitDisplay';
 
 type Props = {
   item: Item;
-  /** จำนวนในหน่วยหลัก (เช่น จำนวนในเคส stock / จำนวนแผ่นพิมพ์) — ใช้คำนวณ N = qty × SubUnitQty */
+  /** จำนวนในหน่วย (เช่น จำนวนในเคส stock / จำนวนแผ่นพิมพ์) — ใช้คำนวณ N = qty × SubUnitQty */
   qtyMain?: number | null;
   /** false = แสดงเฉพาะชื่อ (ใช้เมื่อมีคอลัมน์จำนวนแยกแล้ว เช่น QtyWithMainUnit) */
   showUnitBracket?: boolean;

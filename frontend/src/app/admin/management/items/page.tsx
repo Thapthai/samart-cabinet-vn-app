@@ -260,7 +260,7 @@ export default function AdminItemManagementPage() {
                         <TableHead className="min-w-[200px]">ชื่อ / หน่วย</TableHead>
                         <TableHead>บาร์โค้ด</TableHead>
                         <TableHead>สถานะ</TableHead>
-                        <TableHead>หน่วยหลัก</TableHead>
+                        <TableHead>หน่วย</TableHead>
                         <TableHead>หน่วยการเบิก</TableHead>
                         <TableHead className="w-[120px] text-right">จัดการ</TableHead>
                       </TableRow>

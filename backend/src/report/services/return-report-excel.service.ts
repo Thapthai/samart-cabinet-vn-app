@@ -1,6 +1,44 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
+import { formatReportDateSlashBE, formatReportDateTimeUtc } from '../utils/date-timeformat';
+
+function formatFilterDateSlashBE(v?: string | null): string {
+  if (v == null || String(v).trim() === '') return 'ทั้งหมด';
+  return formatReportDateSlashBE(v);
+}
+
+function formatReturnByUserName(name?: string | null): string {
+  const n = name?.trim();
+  return n && n !== 'ไม่ระบุ' ? n : '-';
+}
+
+export function getReturnReasonLabel(reason: string): string {
+  const labels: Record<string, string> = {
+    OTHER: 'อื่นๆ',
+    UNWRAPPED_UNUSED: 'อื่นๆ (ข้อมูลเก่า)',
+    EXPIRED: 'อุปกรณ์หมดอายุ',
+    CONTAMINATED: 'อุปกรณ์มีการปนเปื้อน',
+    DAMAGED: 'อุปกรณ์ชำรุด',
+  };
+  return labels[reason] || reason;
+}
+
+function formatReturnDateTime(value?: Date | string | null): string {
+  if (value == null || value === '') return '-';
+  if (value instanceof Date) {
+    return formatReportDateTimeUtc(value.toISOString());
+  }
+  return formatReportDateTimeUtc(value);
+}
+
+function formatCabinetDisplay(record: {
+  cabinet_name?: string;
+  cabinet_code?: string;
+  department_name?: string;
+}): string {
+  return [record.cabinet_name || record.cabinet_code, record.department_name].filter(Boolean).join(' / ') || '-';
+}
 
 export interface ReturnReportData {
   filters?: {
@@ -18,7 +56,7 @@ export interface ReturnReportData {
     id: number;
     qty_returned: number;
     return_reason: string;
-    return_datetime: Date;
+    return_datetime: Date | string;
     return_by_user_id?: string;
     return_by_user_name?: string;
     return_note?: string;
@@ -70,7 +108,6 @@ export class ReturnReportExcelService {
       row2Height: 20,
     });
 
-    // ---- แถว 3: วันที่รายงาน ----
     worksheet.mergeCells('A3:I3');
     const dateCell = worksheet.getCell('A3');
     dateCell.value = `วันที่รายงาน: ${reportDate}`;
@@ -78,37 +115,48 @@ export class ReturnReportExcelService {
     dateCell.alignment = { horizontal: 'right', vertical: 'middle' };
     worksheet.getRow(3).height = 20;
 
-    // ---- แถว 4: Filter summary ----
     const filters = data.filters ?? {};
-    const filterLabels = ['วันที่เริ่ม', 'วันที่สิ้นสุด', 'สาเหตุ', 'จำนวนรายการ'];
+    const filterLabels = ['วันที่เริ่ม', 'วันที่สิ้นสุด', 'สาเหตุ'];
     const filterValues = [
-      filters.date_from ?? 'ทั้งหมด',
-      filters.date_to ?? 'ทั้งหมด',
-      filters.return_reason ? this.getReturnReasonLabel(filters.return_reason) : 'ทั้งหมด',
-      `${data.summary?.total_records ?? 0} รายการ`,
+      formatFilterDateSlashBE(filters.date_from),
+      formatFilterDateSlashBE(filters.date_to),
+      filters.return_reason ? getReturnReasonLabel(filters.return_reason) : 'ทั้งหมด',
     ];
-    // 9 columns (A-I) → 4 กลุ่ม: [A,B], [C,D], [E,F], [G,I]
-    const filterColMap = [['A', 'B'], ['C', 'D'], ['E', 'F'], ['G', 'I']];
+    const filterColMap: [string, string][] = [
+      ['A', 'C'],
+      ['D', 'F'],
+      ['G', 'I'],
+    ];
     filterLabels.forEach((lbl, gi) => {
-      const cols = filterColMap[gi];
-      worksheet.mergeCells(`${cols[0]}4:${cols[1]}4`);
-      const cell = worksheet.getCell(`${cols[0]}4`);
+      const [colStart, colEnd] = filterColMap[gi];
+      if (colStart !== colEnd) {
+        worksheet.mergeCells(`${colStart}4:${colEnd}4`);
+      }
+      const cell = worksheet.getCell(`${colStart}4`);
       cell.value = `${lbl}: ${filterValues[gi]}`;
       cell.font = { name: 'Tahoma', size: 11, bold: true, color: { argb: 'FF1A365D' } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EDF2' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
       cell.border = {
-        top: { style: 'thin' }, left: { style: 'thin' },
-        bottom: { style: 'thin' }, right: { style: 'thin' },
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' },
       };
     });
     worksheet.getRow(4).height = 20;
 
-    // ---- แถว 5: Table header ----
     const tableStartRow = 5;
     const tableHeaders = [
-      'ลำดับ', 'รหัสอุปกรณ์', 'ชื่ออุปกรณ์', 'ตู้',
-      'ชื่อผู้เติม', 'จำนวน', 'สาเหตุ', 'วันที่', 'หมายเหตุ',
+      'ลำดับ',
+      'รหัสอุปกรณ์',
+      'ชื่ออุปกรณ์',
+      'ตู้',
+      'ชื่อผู้เติม',
+      'จำนวน',
+      'สาเหตุ',
+      'วันที่',
+      'หมายเหตุ',
     ];
     const headerRow = worksheet.getRow(tableStartRow);
     tableHeaders.forEach((h, i) => {
@@ -117,43 +165,50 @@ export class ReturnReportExcelService {
       cell.font = { name: 'Tahoma', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A365D' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' },
+      };
     });
     headerRow.height = 26;
 
-    // ---- แถวข้อมูล ----
     let dataRowIndex = tableStartRow + 1;
     data.data.forEach((record, idx) => {
       const excelRow = worksheet.getRow(dataRowIndex);
       const bg = idx % 2 === 0 ? 'FFFFFFFF' : 'FFF8F9FA';
       const itemCode = record.supply_item?.order_item_code || record.supply_item?.supply_code || '-';
       const itemName = record.supply_item?.order_item_description || record.supply_item?.supply_name || '-';
-      const cabinetDisplay = [record.cabinet_name || record.cabinet_code, record.department_name].filter(Boolean).join(' / ') || '-';
-      const returnByName = record.return_by_user_name ?? 'ไม่ระบุ';
-      const returnDate = record.return_datetime instanceof Date
-        ? record.return_datetime.toLocaleDateString('th-TH')
-        : new Date(record.return_datetime).toLocaleDateString('th-TH');
 
       [
         idx + 1,
         itemCode,
         itemName,
-        cabinetDisplay,
-        returnByName,
+        formatCabinetDisplay(record),
+        formatReturnByUserName(record.return_by_user_name),
         record.qty_returned,
-        this.getReturnReasonLabel(record.return_reason),
-        returnDate,
+        getReturnReasonLabel(record.return_reason),
+        formatReturnDateTime(record.return_datetime),
         record.return_note || '-',
       ].forEach((val, colIndex) => {
         const cell = excelRow.getCell(colIndex + 1);
-        cell.value = val as any;
+        cell.value = val as ExcelJS.CellValue;
         cell.font = { name: 'Tahoma', size: 12, color: { argb: 'FF212529' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
         cell.alignment = {
-          horizontal: colIndex === 2 || colIndex === 3 || colIndex === 4 || colIndex === 6 || colIndex === 8 ? 'left' : 'center',
+          horizontal:
+            colIndex === 2 || colIndex === 3 || colIndex === 4 || colIndex === 6 || colIndex === 8
+              ? 'left'
+              : 'center',
           vertical: 'middle',
         };
-        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
       });
       excelRow.height = 22;
       dataRowIndex++;
@@ -161,7 +216,6 @@ export class ReturnReportExcelService {
 
     worksheet.addRow([]);
 
-    // ---- Footer + หมายเหตุ ----
     const footerRow = dataRowIndex + 1;
     worksheet.mergeCells(`A${footerRow}:I${footerRow}`);
     const footerCell = worksheet.getCell(`A${footerRow}`);
@@ -178,7 +232,6 @@ export class ReturnReportExcelService {
     noteCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(noteRow).height = 16;
 
-    // ---- ความกว้างคอลัมน์ ----
     worksheet.getColumn(1).width = 13;
     worksheet.getColumn(2).width = 18;
     worksheet.getColumn(3).width = 40;
@@ -186,21 +239,10 @@ export class ReturnReportExcelService {
     worksheet.getColumn(5).width = 18;
     worksheet.getColumn(6).width = 10;
     worksheet.getColumn(7).width = 30;
-    worksheet.getColumn(8).width = 16;
+    worksheet.getColumn(8).width = 28;
     worksheet.getColumn(9).width = 22;
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
-  }
-
-  private getReturnReasonLabel(reason: string): string {
-    const labels: { [key: string]: string } = {
-      OTHER: 'อื่นๆ',
-      UNWRAPPED_UNUSED: 'อื่นๆ (ข้อมูลเก่า)',
-      EXPIRED: 'อุปกรณ์หมดอายุ',
-      CONTAMINATED: 'อุปกรณ์มีการปนเปื้อน',
-      DAMAGED: 'อุปกรณ์ชำรุด',
-    };
-    return labels[reason] || reason;
   }
 }

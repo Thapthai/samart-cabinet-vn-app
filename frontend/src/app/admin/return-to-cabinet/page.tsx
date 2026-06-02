@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { medicalSuppliesApi, vendingReportsApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -9,8 +9,8 @@ import { toast } from 'sonner';
 import { RotateCcw } from 'lucide-react';
 import FilterSection from './components/FilterSection';
 import ReturnedTable from './components/ReturnedTable';
-import type { DispensedItem, FilterState, SummaryData } from './types';
 import { buildReturnedGroups } from '@/lib/returnToCabinet/buildReturnedGroups';
+import type { DispensedItem, FilterState } from './types';
 
 const getTodayDate = () => {
   const today = new Date();
@@ -20,9 +20,7 @@ const getTodayDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-/** แบ่งหน้าตามแถวหลักในตาราง = จำนวนกลุ่มต่อหน้า */
 const GROUPS_PER_PAGE = 10;
-/** ดึงรายการดิบต่อ request — วนจนได้ครบตาม total จาก API */
 const FETCH_BATCH_LIMIT = 5000;
 
 export default function ReturnToCabinetPage() {
@@ -50,91 +48,115 @@ export default function ReturnToCabinetPage() {
     [totalGroups],
   );
 
-  const fetchReturnedList = async (
-    overrideFilters?: FilterState,
-    options?: { resetPage?: boolean },
-  ) => {
-    try {
-      setLoadingList(true);
+  const fetchReturnedList = useCallback(
+    async (
+      overrideFilters?: FilterState,
+      opts?: { resetPage?: boolean; silent?: boolean },
+    ) => {
       const activeFilters = overrideFilters ?? filters;
-      const params: Record<string, unknown> = {
-        page: 1,
-        limit: FETCH_BATCH_LIMIT,
-      };
-      if (activeFilters.startDate) params.startDate = activeFilters.startDate;
-      if (activeFilters.endDate) params.endDate = activeFilters.endDate;
-      if (activeFilters.searchItemCode) params.keyword = activeFilters.searchItemCode;
-      if (activeFilters.itemTypeFilter && activeFilters.itemTypeFilter !== 'all') {
-        params.itemTypeId = parseInt(activeFilters.itemTypeFilter, 10);
-      }
-      if (activeFilters.departmentId) params.departmentId = activeFilters.departmentId;
-      if (activeFilters.subDepartmentId) params.subDepartmentId = activeFilters.subDepartmentId;
-      if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
-
-      const aggregated: DispensedItem[] = [];
-      let reportedTotal = 0;
-      let page = 1;
-
-      while (true) {
-        const response = (await medicalSuppliesApi.getReturnedItems({
-          ...params,
-          page,
+      try {
+        setLoadingList(true);
+        const params: Record<string, string | number> = {
+          page: 1,
           limit: FETCH_BATCH_LIMIT,
-        })) as any;
+        };
+        if (activeFilters.startDate) params.startDate = activeFilters.startDate;
+        if (activeFilters.endDate) params.endDate = activeFilters.endDate;
+        if (activeFilters.searchItemCode) params.keyword = activeFilters.searchItemCode;
+        if (activeFilters.itemTypeFilter && activeFilters.itemTypeFilter !== 'all') {
+          params.itemTypeId = parseInt(activeFilters.itemTypeFilter, 10);
+        }
+        if (activeFilters.departmentId) params.departmentId = activeFilters.departmentId;
+        if (activeFilters.subDepartmentId) params.subDepartmentId = activeFilters.subDepartmentId;
+        if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
 
-        if (!(response.success || response.data)) {
-          toast.error((response as any)?.error || (response as any)?.message || 'ไม่สามารถโหลดข้อมูลได้');
-          break;
+        const aggregated: DispensedItem[] = [];
+        let reportedTotal = 0;
+        let page = 1;
+
+        while (true) {
+          const response = (await medicalSuppliesApi.getReturnedItems({
+            ...params,
+            page,
+            limit: FETCH_BATCH_LIMIT,
+          })) as {
+            success?: boolean;
+            data?: DispensedItem[] | { data?: DispensedItem[] };
+            total?: number;
+            message?: string;
+            error?: string;
+          };
+
+          const ok = response?.success === true || Array.isArray(response?.data);
+          if (!ok) {
+            toast.error(response?.error || response?.message || 'ไม่สามารถโหลดข้อมูลได้');
+            setReturnedList([]);
+            setTotalRawItems(0);
+            break;
+          }
+
+          const raw = response.data;
+          const returnedData = Array.isArray(raw)
+            ? raw
+            : raw != null && typeof raw === 'object' && Array.isArray(raw.data)
+              ? raw.data
+              : [];
+
+          reportedTotal =
+            typeof response.total === 'number' ? response.total : aggregated.length + returnedData.length;
+          aggregated.push(...returnedData);
+
+          if (returnedData.length < FETCH_BATCH_LIMIT || aggregated.length >= reportedTotal) {
+            break;
+          }
+          page += 1;
+          if (page > 500) {
+            console.warn('admin return-to-cabinet: stopped batch fetch after 500 pages');
+            break;
+          }
         }
 
-        const returnedData = Array.isArray(response.data)
-          ? response.data
-          : (response.data?.data || response.data || []);
+        if (aggregated.length > 0 || reportedTotal === 0) {
+          setReturnedList(aggregated);
+          setTotalRawItems(reportedTotal);
+          if (opts?.resetPage !== false) {
+            setCurrentPage(1);
+          }
 
-        reportedTotal = Number(response.total ?? reportedTotal ?? 0);
-        aggregated.push(...returnedData);
-
-        const batchLen = returnedData.length;
-        if (batchLen < FETCH_BATCH_LIMIT || aggregated.length >= reportedTotal) {
-          break;
+          if (!opts?.silent) {
+            if (aggregated.length === 0) {
+              toast.info('ไม่พบข้อมูลการคืนอุปกรณ์เข้าตู้ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
+            } else {
+              toast.success(`พบ ${reportedTotal} รายการคืนอุปกรณ์เข้าตู้`);
+            }
+          }
         }
-        page += 1;
-        if (page > 500) {
-          console.warn('return-to-cabinet: stopped batch fetch after 500 pages');
-          break;
-        }
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } }; message?: string };
+        toast.error(
+          err.response?.data?.message || err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล',
+        );
+      } finally {
+        setLoadingList(false);
       }
-
-      setReturnedList(aggregated);
-      setTotalRawItems(reportedTotal);
-      if (options?.resetPage !== false) {
-        setCurrentPage(1);
-      }
-
-      if (aggregated.length === 0) {
-        toast.info('ไม่พบข้อมูลการคืนอุปกรณ์เข้าตู้ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
-      } else {
-        toast.success(`พบ ${reportedTotal} รายการคืนอุปกรณ์เข้าตู้`);
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || error.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
-    } finally {
-      setLoadingList(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!user?.id) return;
-    fetchReturnedList(undefined, { resetPage: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount + user id only
-  }, [user?.id]);
+    },
+    [filters],
+  );
 
   useEffect(() => {
     setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
   }, [totalPages]);
 
+  const initialFetchDone = useRef(false);
+  useEffect(() => {
+    if (!user?.id || initialFetchDone.current) return;
+    initialFetchDone.current = true;
+    void fetchReturnedList(undefined, { resetPage: true, silent: true });
+  }, [user?.id, fetchReturnedList]);
+
   const handleSearch = () => {
-    fetchReturnedList(undefined, { resetPage: true });
+    setCurrentPage(1);
+    void fetchReturnedList(undefined, { resetPage: true });
   };
 
   const handleClearSearch = () => {
@@ -148,7 +170,8 @@ export default function ReturnToCabinetPage() {
       cabinetId: '',
     };
     setFilters(resetFilters);
-    fetchReturnedList(resetFilters, { resetPage: true });
+    setCurrentPage(1);
+    void fetchReturnedList(resetFilters, { resetPage: true, silent: true });
   };
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
@@ -157,7 +180,7 @@ export default function ReturnToCabinetPage() {
 
   const handleExportReport = async (format: 'excel' | 'pdf') => {
     try {
-      const params: any = {};
+      const params: Record<string, string | number | undefined> = {};
       if (filters.searchItemCode) params.keyword = filters.searchItemCode;
       if (filters.itemTypeFilter && filters.itemTypeFilter !== 'all') {
         params.itemTypeId = parseInt(filters.itemTypeFilter, 10);
@@ -177,17 +200,10 @@ export default function ReturnToCabinetPage() {
       }
 
       toast.success(`กำลังดาวน์โหลดรายงาน ${format.toUpperCase()}`);
-    } catch (error: any) {
-      toast.error(`ไม่สามารถสร้างรายงาน ${format.toUpperCase()} ได้: ${error.message}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'เกิดข้อผิดพลาด';
+      toast.error(`ไม่สามารถสร้างรายงาน ${format.toUpperCase()} ได้: ${msg}`);
     }
-  };
-
-  const calculateSummary = (): SummaryData => {
-    const totalQty = returnedList.reduce((sum, item) => sum + (item.qty || 0), 0);
-    return {
-      total: totalRawItems,
-      totalQty,
-    };
   };
 
   const handlePageChange = useCallback((newPage: number) => {
@@ -196,16 +212,14 @@ export default function ReturnToCabinetPage() {
   }, []);
 
   const getItemTypes = () => {
-    const types = new Map();
+    const types = new Map<string, string>();
     returnedList.forEach((item) => {
       if (item.itemtypeID && item.itemType) {
-        types.set(item.itemtypeID, item.itemType);
+        types.set(String(item.itemtypeID), item.itemType);
       }
     });
-    return Array.from(types.entries()).map(([id, name]) => ({ id: id.toString(), name }));
+    return Array.from(types.entries()).map(([id, name]) => ({ id, name }));
   };
-
-  const summary = calculateSummary();
 
   return (
     <ProtectedRoute>
@@ -222,14 +236,13 @@ export default function ReturnToCabinetPage() {
               </p>
             </div>
           </div>
- 
 
           <FilterSection
             filters={filters}
             onFilterChange={handleFilterChange}
             onSearch={handleSearch}
             onClear={handleClearSearch}
-            onRefresh={() => fetchReturnedList(undefined, { resetPage: false })}
+            onRefresh={() => fetchReturnedList(undefined, { resetPage: false, silent: true })}
             itemTypes={getItemTypes()}
             loading={loadingList}
           />

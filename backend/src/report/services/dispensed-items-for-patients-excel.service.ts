@@ -152,7 +152,7 @@ export class DispensedItemsForPatientsExcelService {
       'แผนกย่อย',     // 5
       'วันที่เบิก',   // 6
       'ชื่ออุปกรณ์',  // 7
-      'จำนวน (หน่วยหลัก)', // 8
+      'จำนวน (หน่วย)', // 8
       'Assession No', // 9
       'สถานะ',        // 10
     ];

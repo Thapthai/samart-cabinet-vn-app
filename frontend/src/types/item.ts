@@ -51,11 +51,11 @@ export interface Item {
   
   // IDs
   itemtypeID?: number;
-  /** หน่วยหลัก — stock / ธุรกรรม */
+  /** หน่วย — stock / ธุรกรรม */
   UnitID?: number;
   /** หน่วยการเบิก — แสดงผลเท่านั้น */
   SubUnitID?: number;
-  /** เช่น 18 = เม็ดต่อ 1 หน่วยหลัก — ไม่ใช้คูณ stock */
+  /** เช่น 18 = เม็ดต่อ 1 หน่วย — ไม่ใช้คูณ stock */
   SubUnitQty?: number;
   DepartmentID?: number;
   SupllierID?: number;
@@ -95,7 +95,7 @@ export interface Item {
     DepName2?: string;
   };
 
-  /** จาก Prisma include `unit` (หน่วยหลัก) */
+  /** จาก Prisma include `unit` (หน่วย) */
   unit?: { ID?: number; UnitName?: string | null };
   /** จาก Prisma include `subUnit` (หน่วยการเบิก) */
   subUnit?: { ID?: number; UnitName?: string | null };

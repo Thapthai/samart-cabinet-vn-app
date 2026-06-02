@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import DispensedPagination from './DispensedPagination';
 import type { DispensedItem } from '../types';
 import type { Item } from '@/types/item';
 import ItemNameWithUnit from '@/components/ItemNameWithUnit';
@@ -24,9 +23,8 @@ interface DispensedTableProps {
   items: DispensedItem[];
   currentPage: number;
   totalPages: number;
-  totalRawItems: number;
-  totalGroups: number;
-  groupsPerPage: number;
+  totalItems: number;
+  itemsPerPage: number;
   searchItemCode: string;
   itemTypeFilter: string;
   onPageChange: (page: number) => void;
@@ -39,9 +37,8 @@ export default function DispensedTable({
   items,
   currentPage,
   totalPages,
-  totalRawItems,
-  totalGroups,
-  groupsPerPage,
+  totalItems,
+  itemsPerPage,
   searchItemCode,
   itemTypeFilter,
   onPageChange,
@@ -52,12 +49,30 @@ export default function DispensedTable({
 
   const groups = useMemo(() => buildDispensedGroups(items), [items]);
 
-  const paginatedGroups = useMemo(() => {
-    const start = (currentPage - 1) * groupsPerPage;
-    return groups.slice(start, start + groupsPerPage);
-  }, [groups, currentPage, groupsPerPage]);
+  const baseRowIndex = (currentPage - 1) * itemsPerPage;
 
-  const groupRowOffset = (currentPage - 1) * groupsPerPage;
+  const generatePageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else if (currentPage <= 3) {
+      for (let i = 1; i <= 4; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 2) {
+      pages.push(1);
+      pages.push('...');
+      for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push('...');
+      for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   const toggleExpand = (key: string) => {
     setExpandedKeys((prev) => {
@@ -80,7 +95,7 @@ export default function DispensedTable({
           <CardTitle>รายการเบิกอุปกรณ์จากตู้</CardTitle>
           <CardDescription>
             {items.length > 0
-              ? `แสดง ${paginatedGroups.length} กลุ่มในหน้านี้ (สูงสุด ${groupsPerPage} กลุ่มต่อหน้า) · รวม ${totalGroups} กลุ่ม จาก ${totalRawItems} รายการดิบ (รวม ${totalDispensedQty.toLocaleString()} ชิ้น) · จัดกลุ่มตามรหัสอุปกรณ์และเวลาที่เบิก ±${DISPENSED_GROUP_TIME_TOLERANCE_SEC} วินาที`
+              ? `แสดง ${groups.length} กลุ่มในหน้านี้ · จากทั้งหมด ${totalItems} รายการ (รวม ${totalDispensedQty.toLocaleString()} ชิ้นในหน้านี้) · จัดกลุ่มตามรหัสอุปกรณ์และเวลาที่เบิก ±${DISPENSED_GROUP_TIME_TOLERANCE_SEC} วินาที`
               : 'รายการอุปกรณ์ที่เบิกจากตู้ SmartCabinet'}
             {(searchItemCode || itemTypeFilter !== 'all') && items.length > 0 && ' (กรองแล้ว)'}
           </CardDescription>
@@ -130,9 +145,9 @@ export default function DispensedTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedGroups.map((group, groupIndex) => {
+                  {groups.map((group, groupIndex) => {
                     const isExpanded = expandedKeys.has(group.key);
-                    const rowNum = groupRowOffset + groupIndex + 1;
+                    const rowNum = baseRowIndex + groupIndex + 1;
                     return (
                       <Fragment key={group.key}>
                         <TableRow
@@ -270,14 +285,63 @@ export default function DispensedTable({
               </Table>
             </div>
 
-            <DispensedPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={totalGroups}
-              itemsPerPage={groupsPerPage}
-              countLabel="กลุ่ม"
-              onPageChange={onPageChange}
-            />
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between border-t pt-4">
+                <div className="text-sm text-gray-500">
+                  หน้า {currentPage} จาก {totalPages} ({totalItems} รายการ)
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(1)}
+                    disabled={currentPage === 1}
+                  >
+                    แรกสุด
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    ก่อนหน้า
+                  </Button>
+                  {generatePageNumbers().map((page, idx) =>
+                    page === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">
+                        ...
+                      </span>
+                    ) : (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => onPageChange(page as number)}
+                      >
+                        {page}
+                      </Button>
+                    ),
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    ถัดไป
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    สุดท้าย
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </CardContent>

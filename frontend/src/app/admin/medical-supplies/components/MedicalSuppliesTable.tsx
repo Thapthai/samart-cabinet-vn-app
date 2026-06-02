@@ -394,47 +394,60 @@ export default function MedicalSuppliesTable({
                 </TableBody>
               </Table>
             </div>
-          </>
-        )}
 
-        {/* Pagination */}
-        {!loading && supplies.length > 0 && totalPages > 1 && (
-          <div className="mt-4 sm:mt-6 flex flex-col gap-3 border-t pt-4">
-            <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
-              หน้า {currentPage} จาก {totalPages} ({totalItems} รายการ)
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
-              <Button variant="outline" size="sm" onClick={() => onPageChange(1)} disabled={currentPage === 1} className="text-xs h-8 px-2 sm:px-3">
-                แรก
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="text-xs h-8 px-2 sm:px-3">
-                ก่อนหน้า
-              </Button>
-              <span className="hidden sm:flex items-center gap-1">
-                {generatePageNumbers().map((page, idx) =>
-                  page === '...' ? (
-                    <span key={`ellipsis-${idx}`} className="px-1 text-gray-400 text-xs">...</span>
-                  ) : (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      className="min-w-[2rem] h-8 text-xs"
-                      onClick={() => onPageChange(page as number)}
-                    >
-                      {page}
-                    </Button>
-                  )
-                )}
-              </span>
-              <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="text-xs h-8 px-2 sm:px-3">
-                ถัดไป
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} className="text-xs h-8 px-2 sm:px-3">
-                สุดท้าย
-              </Button>
-            </div>
-          </div>
+            {totalPages > 1 && (
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t pt-4">
+                <div className="text-sm text-gray-500 text-center sm:text-left">
+                  หน้า {currentPage} จาก {totalPages} ({totalItems} รายการ)
+                </div>
+                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => onPageChange(1)} disabled={currentPage === 1}>
+                    แรกสุด
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    ก่อนหน้า
+                  </Button>
+                  {generatePageNumbers().map((page, idx) =>
+                    page === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">
+                        ...
+                      </span>
+                    ) : (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => onPageChange(page as number)}
+                      >
+                        {page}
+                      </Button>
+                    ),
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    ถัดไป
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    สุดท้าย
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

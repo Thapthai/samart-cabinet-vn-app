@@ -305,7 +305,7 @@ export class ItemComparisonPdfService {
           'วัน-เวลา',
           'Item Code',
           'รายละเอียด',
-          'จำนวน (หน่วยหลัก)',
+          'จำนวน (หน่วย)',
           'Assession No',
           'สถานะ',
           'HN/EN',

@@ -1,6 +1,6 @@
 /**
  * ให้ตรงกับ frontend `formatItemUnitBracket` + `QtyWithMainUnit` (single string สำหรับ Excel/PDF)
- * — หน่วยหลักเท่านั้นในการคิดจำนวน; หน่วยการเบิกเป็นป้ายในวงเล็บ
+ * — หน่วยเท่านั้นในการคิดจำนวน; หน่วยการเบิกเป็นป้ายในวงเล็บ
  */
 
 export type ReportItemUnitFields = {
@@ -63,7 +63,26 @@ export function formatQtyWithMainUnitForReport(qty: number, item: ReportItemUnit
   return `${Number(qty).toLocaleString()} ${tail}`;
 }
 
-/** ส่วนต่างที่อาจติดลบ — คงหน่วยหลักเดียวกับรายการ */
+/** ตัวเลขอย่างเดียว — ใช้คอลัมน์ที่ไม่ต้องแสดงหน่วยในรายงานสต๊อกตู้ */
+export function formatQtyPlainForReport(qty: number): string {
+  return Number(qty).toLocaleString();
+}
+
+export function formatMinMaxPlainForReport(
+  min: number | null | undefined,
+  max: number | null | undefined,
+): string {
+  const fmt = (n: number | null | undefined) =>
+    n != null && Number.isFinite(Number(n)) ? formatQtyPlainForReport(Number(n)) : null;
+  const a = fmt(min);
+  const b = fmt(max);
+  if (a != null && b != null) return `${a} / ${b}`;
+  if (a != null) return `${a} / -`;
+  if (b != null) return `- / ${b}`;
+  return '-';
+}
+
+/** ส่วนต่างที่อาจติดลบ — คงหน่วยเดียวกับรายการ */
 export function formatSignedQtyWithMainUnitForReport(
   qty: number,
   item: ReportItemUnitFields,
@@ -71,4 +90,15 @@ export function formatSignedQtyWithMainUnitForReport(
   if (qty === 0) return formatQtyWithMainUnitForReport(0, item);
   const sign = qty < 0 ? '-' : '';
   return sign + formatQtyWithMainUnitForReport(Math.abs(qty), item);
+}
+
+/** คอลัมน์หมายเหตุรายงานสต๊อกตู้ — หมดอายุ / ต้องเติม */
+export function formatCabinetStockRemark(row: {
+  has_expired?: boolean;
+  refill_qty?: number;
+}): string {
+  const parts: string[] = [];
+  if (row.has_expired) parts.push('หมดอายุ');
+  if ((row.refill_qty ?? 0) > 0) parts.push('ต้องเติม');
+  return parts.length > 0 ? parts.join(' / ') : '-';
 }

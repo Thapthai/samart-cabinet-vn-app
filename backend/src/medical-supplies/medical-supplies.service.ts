@@ -3708,7 +3708,7 @@ export class MedicalSuppliesService {
         OFFSET ${offset}
       `;
 
-      // Convert BigInt to Number for JSON serialization + หน่วยหลัก/ย่อยสำหรับ UI
+      // Convert BigInt to Number for JSON serialization + หน่วย/ย่อยสำหรับ UI
       const result = dispensedItems.map((raw: any) => {
         const uid = raw.ItemUnitID ?? raw.itemunitid;
         const suid = raw.ItemSubUnitID ?? raw.itemsubunitid;
@@ -3799,6 +3799,7 @@ export class MedicalSuppliesService {
    */
   async getReturnedItems(filters?: {
     keyword?: string;
+    itemTypeId?: number;
     startDate?: string;
     endDate?: string;
     page?: number;
@@ -3813,9 +3814,9 @@ export class MedicalSuppliesService {
       const limit = filters?.limit || 10;
       const offset = (page - 1) * limit;
 
-      // Build WHERE conditions for raw SQL - Same as getDispensedItems but StockID = 1
+      // Build WHERE conditions — สอดคล้อง getDispensedItems แต่ IsStock = 1 (ชิ้นในตู้หลังเติม)
       const sqlConditions: Prisma.Sql[] = [
-        Prisma.sql`ist.IsStock != 0`,
+        Prisma.sql`ist.IsStock = 1`,
         Prisma.sql`ist.RfidCode <> ''`,
       ];
 
@@ -3828,15 +3829,19 @@ export class MedicalSuppliesService {
         );
       }
 
+      if (filters?.itemTypeId) {
+        sqlConditions.push(Prisma.sql`i.itemtypeID = ${filters.itemTypeId}`);
+      }
+
       if (filters?.startDate && filters?.endDate) {
 
         sqlConditions.push(
-          Prisma.raw(`DATE(ist.LastCabinetModify) BETWEEN '${filters.startDate}' AND '${filters.endDate}'`)
+          Prisma.raw(`(DATE(ist.LastCabinetModify) BETWEEN '${filters.startDate}' AND '${filters.endDate}')`)
         );
 
       }
 
-      if (filters?.departmentId) {
+      if (filters?.departmentId?.trim()) {
         const deptId = parseInt(filters.departmentId, 10);
         if (!Number.isNaN(deptId)) {
           sqlConditions.push(Prisma.sql`EXISTS (
@@ -3857,24 +3862,17 @@ export class MedicalSuppliesService {
 
       // Combine WHERE conditions with AND
       const whereClause = Prisma.join(sqlConditions, ' AND ');
+      const cdOneJoin = this.buildDispensedItemsCabinetOneDeptJoin(filters);
 
       // Get total count — โครงสร้างเดียวกับ main query; เชื่อม Division แถวเดียวต่อตู้ (ไม่คูณแถว)
       const countResult: any[] = await this.prisma.$queryRaw`
         SELECT COUNT(*) as total
         FROM itemstock ist
         INNER JOIN item i ON ist.ItemCode = i.itemcode
-        INNER JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
-        INNER JOIN (
-          SELECT acd1.cabinet_id, acd1.department_id
-          FROM app_cabinet_departments acd1
-          INNER JOIN (
-            SELECT cabinet_id, MIN(id) AS pick_id
-            FROM app_cabinet_departments
-            WHERE status = 'ACTIVE'
-            GROUP BY cabinet_id
-          ) pick ON pick.pick_id = acd1.id
-        ) cd_one ON cd_one.cabinet_id = app_cabinets.id
-        INNER JOIN department on department.ID = cd_one.department_id
+        LEFT JOIN itemtype it ON i.itemtypeID = it.ID
+        INNER JOIN app_cabinets ON app_cabinets.stock_id = ist.StockID
+        ${cdOneJoin}
+        INNER JOIN department ON department.ID = cd_one.department_id
         WHERE ${whereClause}
       `;
       const totalCount = Number(countResult[0]?.total || 0);
@@ -3916,18 +3914,9 @@ export class MedicalSuppliesService {
         --   ) user_cabinet ON ist.CabinetUserID = user_cabinet.cabinet_id
         LEFT JOIN users ON users.ID = ist.CabinetUserID
         LEFT JOIN employee ON employee.EmpCode = users.EmpCode
-        INNER JOIN app_cabinets on app_cabinets.stock_id = ist.StockID
-        INNER JOIN (
-          SELECT acd1.cabinet_id, acd1.department_id
-          FROM app_cabinet_departments acd1
-          INNER JOIN (
-            SELECT cabinet_id, MIN(id) AS pick_id
-            FROM app_cabinet_departments
-            WHERE status = 'ACTIVE'
-            GROUP BY cabinet_id
-          ) pick ON pick.pick_id = acd1.id
-        ) cd_one ON cd_one.cabinet_id = app_cabinets.id
-        INNER JOIN department on department.ID = cd_one.department_id
+        INNER JOIN app_cabinets ON app_cabinets.stock_id = ist.StockID
+        ${cdOneJoin}
+        INNER JOIN department ON department.ID = cd_one.department_id
         WHERE ${whereClause}
         ORDER BY ist.LastCabinetModify DESC , i.itemname ASC
         LIMIT ${limit}
@@ -3935,7 +3924,7 @@ export class MedicalSuppliesService {
       `;
 
 
-      // Convert BigInt to Number for JSON serialization + หน่วยหลัก/ย่อยสำหรับ UI
+      // Convert BigInt to Number for JSON serialization + หน่วย/ย่อยสำหรับ UI
       const result = returnedItems.map((raw: any) => {
         const uid = raw.ItemUnitID ?? raw.itemunitid;
         const suid = raw.ItemSubUnitID ?? raw.itemsubunitid;

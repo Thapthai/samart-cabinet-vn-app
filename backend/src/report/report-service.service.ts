@@ -20,6 +20,7 @@ import { CancelBillReportExcelService, CancelBillReportData } from './services/c
 import { CancelBillReportPdfService } from './services/cancel-bill-report-pdf.service';
 import { ReturnToCabinetReportExcelService, ReturnToCabinetReportData } from './services/return-to-cabinet-report-excel.service';
 import { ReturnToCabinetReportPdfService } from './services/return-to-cabinet-report-pdf.service';
+import { buildReturnedGroups } from './utils/build-returned-groups';
 import { DispensedItemsExcelService, DispensedItemsReportData } from './services/dispensed-items-excel.service';
 import { DispensedItemsPdfService } from './services/dispensed-items-pdf.service';
 import {
@@ -55,6 +56,7 @@ import { EquipmentUsageReportData } from './types/equipment-usage-report.types';
 import { EquipmentDisbursementReportData } from './types/equipment-disbursement-report.types';
 import { ItemComparisonReportData } from './types/item-comparison-report.types';
 import { WeighingService } from '../weighing/weighing.service';
+import { ItemService } from '../item/item.service';
 
 @Injectable()
 export class ReportServiceService {
@@ -94,9 +96,45 @@ export class ReportServiceService {
     private readonly weighingService: WeighingService,
     private readonly dispensedItemsForPatientsExcelService: DispensedItemsForPatientsExcelService,
     private readonly dispensedItemsForPatientsPdfService: DispensedItemsForPatientsPdfService,
+    private readonly itemService: ItemService,
   ) {}
 
-  /** วันที่แสดงบนรายงานสต๊อกตู้ (ปฏิทินไทย) — isoDate = YYYY-MM-DD อ้างอิง Asia/Bangkok */
+  /** ชื่อแผนกบนรายงาน — logic เดียวกับ frontend ItemsTable.getItemDepartmentDisplay */
+  private resolveItemDepartmentNameForReport(item: {
+    department?: { DepName?: string | null; DepName2?: string | null };
+    itemStocks?: Array<{
+      cabinet?: {
+        cabinetDepartments?: Array<{
+          department?: { DepName?: string | null; DepName2?: string | null };
+        }>;
+      };
+    }>;
+  }): string {
+    if (item.department?.DepName || item.department?.DepName2) {
+      return item.department.DepName || item.department.DepName2 || '-';
+    }
+    const names = new Set<string>();
+    (item.itemStocks ?? []).forEach((stock) => {
+      stock.cabinet?.cabinetDepartments?.forEach((cd) => {
+        const name = cd.department?.DepName || cd.department?.DepName2;
+        if (name) names.add(name);
+      });
+    });
+    return names.size > 0 ? [...names].join(', ') : '-';
+  }
+
+  /** มีอุปกรณ์หมดอายุในตู้ — logic เดียวกับ item.service / ItemsTable (IsStock=1 และ ExpireDate < วันนี้) */
+  private itemHasExpiredStock(item: {
+    itemStocks?: Array<{ ExpireDate?: Date | string | null; IsStock?: boolean | number | null }>;
+  }): boolean {
+    const now = new Date();
+    return (item.itemStocks ?? []).some((stock) => {
+      if (!(stock.IsStock === true || stock.IsStock === 1)) return false;
+      if (!stock.ExpireDate) return false;
+      const exp = new Date(stock.ExpireDate);
+      return !Number.isNaN(exp.getTime()) && exp < now;
+    });
+  }
   private formatCabinetReportDateDisplay(isoDate?: string): string {
     const d =
       isoDate && /^\d{4}-\d{2}-\d{2}$/.test(isoDate)
@@ -1926,21 +1964,89 @@ export class ReportServiceService {
     departmentId?: string;
     cabinetId?: string;
     subDepartmentId?: string;
-  }): Promise<any> {
+  }): Promise<{ data: any[]; total: number; page: number; limit: number }> {
     try {
-      const result: any = await this.medicalSuppliesService.getReturnedItems(params);
+      const batchLimit = 5000;
+      const aggregated: any[] = [];
+      let reportedTotal = 0;
+      let page = 1;
 
-      const data = (result && result.data) ? result.data : (result && Array.isArray(result) ? result : []);
+      while (true) {
+        const result: any = await this.medicalSuppliesService.getReturnedItems({
+          keyword: params.keyword,
+          itemTypeId: params.itemTypeId,
+          startDate: params.startDate,
+          endDate: params.endDate,
+          departmentId: params.departmentId,
+          cabinetId: params.cabinetId,
+          subDepartmentId: params.subDepartmentId,
+          page,
+          limit: batchLimit,
+        });
+
+        const batch = (result && result.data) ? result.data : (Array.isArray(result) ? result : []);
+        if (!Array.isArray(batch)) {
+          break;
+        }
+
+        reportedTotal =
+          result?.total != null ? Number(result.total) : aggregated.length + batch.length;
+        aggregated.push(...batch);
+
+        if (batch.length < batchLimit || aggregated.length >= reportedTotal) {
+          break;
+        }
+        page += 1;
+        if (page > 500) {
+          console.warn('[Report Service] return-to-cabinet: stopped batch fetch after 500 pages');
+          break;
+        }
+      }
+
       return {
-        data: Array.isArray(data) ? data : [],
-        total: (result && result.total != null) ? result.total : data.length,
-        page: (result && result.page != null) ? result.page : 1,
-        limit: (result && result.limit != null) ? result.limit : 10,
+        data: aggregated,
+        total: reportedTotal,
+        page: 1,
+        limit: aggregated.length,
       };
     } catch (error) {
       const errorMessage = error?.message || error?.toString() || 'Unknown error';
       throw new Error(`Failed to get Return To Cabinet Report data: ${errorMessage}`);
     }
+  }
+
+  private buildReturnToCabinetReportData(
+    returnedData: { data: any[]; total: number },
+    params: {
+      keyword?: string;
+      itemTypeId?: number;
+      startDate?: string;
+      endDate?: string;
+      departmentId?: string;
+      cabinetId?: string;
+    },
+    labels: { cabinetName?: string; departmentName?: string },
+  ): ReturnToCabinetReportData {
+    const rawData = returnedData.data || [];
+    const groups = buildReturnedGroups(rawData);
+    return {
+      filters: {
+        keyword: params.keyword,
+        itemTypeId: params.itemTypeId,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        departmentId: params.departmentId,
+        cabinetId: params.cabinetId,
+        departmentName: labels.departmentName,
+        cabinetName: labels.cabinetName,
+      },
+      summary: {
+        total_records: returnedData.total || rawData.length,
+        total_qty: rawData.reduce((sum: number, record: any) => sum + (record.qty || 0), 0) || 0,
+      },
+      data: rawData,
+      groups: groups.length > 0 ? groups : undefined,
+    };
   }
 
   /**
@@ -1956,38 +2062,10 @@ export class ReportServiceService {
     subDepartmentId?: string;
   }): Promise<Buffer> {
     try {
-      const returnedData = await this.getReturnToCabinetReportData({
-        ...params,
-        page: 1,
-        limit: 10000,
-      });
+      const returnedData = await this.getReturnToCabinetReportData(params);
 
       const labels = await this.getCabinetDepartmentLabels(params.cabinetId, params.departmentId);
-      const rawData = returnedData.data || [];
-      const builtGroups = this.buildReportGroups(rawData);
-      const groups =
-        builtGroups.length > 0
-          ? (builtGroups.map((g) => ({ ...g, returnTime: g.dispenseTime })) as unknown as ReturnToCabinetReportData['groups'])
-          : undefined;
-
-      const reportData: ReturnToCabinetReportData = {
-        filters: {
-          keyword: params.keyword,
-          itemTypeId: params.itemTypeId,
-          startDate: params.startDate,
-          endDate: params.endDate,
-          departmentId: params.departmentId,
-          cabinetId: params.cabinetId,
-          departmentName: labels.departmentName,
-          cabinetName: labels.cabinetName,
-        },
-        summary: {
-          total_records: returnedData.total || rawData.length,
-          total_qty: rawData.reduce((sum: number, record: any) => sum + (record.qty || 0), 0) || 0,
-        },
-        data: rawData,
-        groups,
-      };
+      const reportData = this.buildReturnToCabinetReportData(returnedData, params, labels);
 
       const buffer = await this.returnToCabinetReportExcelService.generateReport(reportData);
       return buffer;
@@ -2010,38 +2088,10 @@ export class ReportServiceService {
     subDepartmentId?: string;
   }): Promise<Buffer> {
     try {
-      const returnedData = await this.getReturnToCabinetReportData({
-        ...params,
-        page: 1,
-        limit: 10000,
-      });
+      const returnedData = await this.getReturnToCabinetReportData(params);
 
       const labels = await this.getCabinetDepartmentLabels(params.cabinetId, params.departmentId);
-      const rawData = returnedData.data || [];
-      const builtGroups = this.buildReportGroups(rawData);
-      const groups =
-        builtGroups.length > 0
-          ? (builtGroups.map((g) => ({ ...g, returnTime: g.dispenseTime })) as unknown as ReturnToCabinetReportData['groups'])
-          : undefined;
-
-      const reportData: ReturnToCabinetReportData = {
-        filters: {
-          keyword: params.keyword,
-          itemTypeId: params.itemTypeId,
-          startDate: params.startDate,
-          endDate: params.endDate,
-          departmentId: params.departmentId,
-          cabinetId: params.cabinetId,
-          departmentName: labels.departmentName,
-          cabinetName: labels.cabinetName,
-        },
-        summary: {
-          total_records: returnedData.total || rawData.length,
-          total_qty: rawData.reduce((sum: number, record: any) => sum + (record.qty || 0), 0) || 0,
-        },
-        data: rawData,
-        groups,
-      };
+      const reportData = this.buildReturnToCabinetReportData(returnedData, params, labels);
 
       const buffer = await this.returnToCabinetReportPdfService.generateReport(reportData);
       return buffer;
@@ -2327,380 +2377,95 @@ export class ReportServiceService {
    * คอลัมน์: ลำดับ, แผนก, รหัสอุปกรณ์, อุปกรณ์, คงเหลือ, Stock Max, Stock Min, จำนวนที่ต้องเติม
    * คงเหลือ = จำนวนชิ้นในตู้ (นับเฉพาะ itemstock ที่ IsStock = 1 เท่านั้น)
    * จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้ (ไม่ติดลบ; Max จาก CabinetItemSetting หรือ Item)
-   * รายงาน Excel/PDF: แสดงเฉพาะรายการที่จำนวนที่ต้องเติม ≠ 0 (สต๊อกเต็มแล้วไม่นำมาแสดง)
+   * รายงาน Excel/PDF: แสดงทุกรายการตาม filter (เหมือนหน้าเว็บ) — เรียงหมดอายุ/ใกล้หมดอายุ/ต่ำกว่า Min ก่อน
    */
   async getCabinetStockData(params: {
     cabinetId?: number;
     cabinetCode?: string;
     departmentId?: number;
-    /** YYYY-MM-DD = วันที่อ้างอิงสำหรับหมดอายุ/ใกล้หมดอายุ/ถูกใช้งาน/ชำรุด (ปฏิทินไทย) */
+    /** YYYY-MM-DD = วันที่อ้างอิง (รายงานจากหน้าเว็บใช้วันนี้; archive อาจส่งวันอื่น) */
     asOfDate?: string;
   }): Promise<CabinetStockReportData> {
     try {
       const rawAsOf = params?.asOfDate?.trim();
       const asOfIso = rawAsOf && /^\d{4}-\d{2}-\d{2}$/.test(rawAsOf) ? rawAsOf : undefined;
-      const cabStockDaySql = this.cabinetStockSqlDay(asOfIso);
-      // เปลี่ยนเป็นเริ่มจาก item table เพื่อแสดงทุก item เหมือนหน้าเว็บ (แม้ balance_qty = 0)
-      // GROUP BY department + item_code เพื่อรวม balance_qty จากทุก cabinet ในแผนกเดียวกัน
-      // แสดงทุก item ที่มี itemstock ในตู้ (แม้ balance_qty = 0 ถ้าถูกเบิกหมด) เหมือนหน้าเว็บ
-      let query;
-      if (params?.departmentId != null) {
-        // Filter by department_id: แสดงทุก item ที่มี itemstock ใน cabinet ที่มี department นี้ (รวม balance_qty จากทุก cabinet ในแผนก)
-        query = this.prisma.$queryRaw<any[]>`
-          SELECT
-            dept.DepName AS department_name,
-            i.itemcode AS item_code,
-            i.itemname AS item_name,
-            COALESCE(SUM(CASE WHEN ist.IsStock = 1 OR ist.IsStock = true THEN 1 ELSE 0 END), 0) AS balance_qty,
-            i.stock_max,
-            i.stock_min,
-            MIN(ist.ExpireDate) AS earliest_expire_date,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < ${cabStockDaySql} THEN 1 ELSE 0 END) AS has_expired,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire,
-            MAX(u_main.UnitName) AS ItemMainUnitName,
-            MAX(u_sub.UnitName) AS ItemSubUnitName,
-            MAX(i.sub_unit_qty) AS ItemSubUnitQty
-          FROM item i
-          LEFT JOIN units u_main ON u_main.ID = i.UnitID
-          LEFT JOIN units u_sub ON u_sub.ID = i.sub_unit_id
-          INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
-          INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
-          INNER JOIN app_cabinet_departments cd_filter ON cd_filter.cabinet_id = c.id AND cd_filter.department_id = ${params.departmentId} AND cd_filter.status = 'ACTIVE'
-          LEFT JOIN (
-            SELECT cd.cabinet_id, MIN(d.DepName) AS DepName
-            FROM app_cabinet_departments cd
-            INNER JOIN department d ON d.ID = cd.department_id
-            WHERE cd.department_id = ${params.departmentId} AND cd.status = 'ACTIVE'
-            GROUP BY cd.cabinet_id
-          ) dept ON dept.cabinet_id = c.id
-          WHERE 1=1
-            ${params?.cabinetId != null ? Prisma.sql`AND c.id = ${params.cabinetId}` : Prisma.empty}
-            ${params?.cabinetCode ? Prisma.sql`AND c.cabinet_code = ${params.cabinetCode}` : Prisma.empty}
-          GROUP BY dept.DepName, i.itemcode, i.itemname, i.stock_max, i.stock_min
-          ORDER BY dept.DepName, i.itemcode
-        `;
-      } else if (params?.cabinetId != null || params?.cabinetCode) {
-        // Filter by cabinet: แสดงทุก item ที่มี itemstock ใน cabinet นี้ (รวม balance_qty จากทุก cabinet ในแผนกเดียวกัน)
-        query = this.prisma.$queryRaw<any[]>`
-          SELECT
-            dept.DepName AS department_name,
-            i.itemcode AS item_code,
-            i.itemname AS item_name,
-            COALESCE(SUM(CASE WHEN ist.IsStock = 1 OR ist.IsStock = true THEN 1 ELSE 0 END), 0) AS balance_qty,
-            i.stock_max,
-            i.stock_min,
-            MIN(ist.ExpireDate) AS earliest_expire_date,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < ${cabStockDaySql} THEN 1 ELSE 0 END) AS has_expired,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire,
-            MAX(u_main.UnitName) AS ItemMainUnitName,
-            MAX(u_sub.UnitName) AS ItemSubUnitName,
-            MAX(i.sub_unit_qty) AS ItemSubUnitQty
-          FROM item i
-          LEFT JOIN units u_main ON u_main.ID = i.UnitID
-          LEFT JOIN units u_sub ON u_sub.ID = i.sub_unit_id
-          INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
-          INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
-          LEFT JOIN (
-            SELECT cd.cabinet_id, MIN(d.DepName) AS DepName
-            FROM app_cabinet_departments cd
-            INNER JOIN department d ON d.ID = cd.department_id
-            GROUP BY cd.cabinet_id
-          ) dept ON dept.cabinet_id = c.id
-          WHERE 1=1
-            ${params?.cabinetId != null ? Prisma.sql`AND c.id = ${params.cabinetId}` : Prisma.empty}
-            ${params?.cabinetCode ? Prisma.sql`AND c.cabinet_code = ${params.cabinetCode}` : Prisma.empty}
-          GROUP BY dept.DepName, i.itemcode, i.itemname, i.stock_max, i.stock_min
-          ORDER BY dept.DepName, i.itemcode
-        `;
-      } else {
-        // No filter: แสดงทุก item ที่มี itemstock ในตู้ใดตู้หนึ่ง (รวม balance_qty จากทุก cabinet ในแผนกเดียวกัน) เหมือนหน้าเว็บ
-        query = this.prisma.$queryRaw<any[]>`
-          SELECT
-            dept.DepName AS department_name,
-            i.itemcode AS item_code,
-            i.itemname AS item_name,
-            COALESCE(SUM(CASE WHEN ist.IsStock = 1 OR ist.IsStock = true THEN 1 ELSE 0 END), 0) AS balance_qty,
-            i.stock_max,
-            i.stock_min,
-            MIN(ist.ExpireDate) AS earliest_expire_date,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate < ${cabStockDaySql} THEN 1 ELSE 0 END) AS has_expired,
-            MAX(CASE WHEN ist.ExpireDate IS NOT NULL AND ist.ExpireDate >= ${cabStockDaySql} AND ist.ExpireDate <= DATE_ADD(${cabStockDaySql}, INTERVAL 7 DAY) THEN 1 ELSE 0 END) AS has_near_expire,
-            MAX(u_main.UnitName) AS ItemMainUnitName,
-            MAX(u_sub.UnitName) AS ItemSubUnitName,
-            MAX(i.sub_unit_qty) AS ItemSubUnitQty
-          FROM item i
-          LEFT JOIN units u_main ON u_main.ID = i.UnitID
-          LEFT JOIN units u_sub ON u_sub.ID = i.sub_unit_id
-          INNER JOIN itemstock ist ON ist.ItemCode = i.itemcode
-          INNER JOIN app_cabinets c ON ist.StockID = c.stock_id AND ist.StockID > 0
-          LEFT JOIN (
-            SELECT cd.cabinet_id, MIN(d.DepName) AS DepName
-            FROM app_cabinet_departments cd
-            INNER JOIN department d ON d.ID = cd.department_id
-            GROUP BY cd.cabinet_id
-          ) dept ON dept.cabinet_id = c.id
-          GROUP BY dept.DepName, i.itemcode, i.itemname, i.stock_max, i.stock_min
-          ORDER BY dept.DepName, i.itemcode
-        `;
+      const todayIso = this.cabinetReportDateISO();
+      if (asOfIso && asOfIso !== todayIso) {
+        console.warn(
+          `[Report Service] Cabinet stock asOfDate=${asOfIso} — ใช้ logic หน้าเว็บ (วันนี้) สำหรับ qty ถูกใช้งาน/ชำรุด`,
+        );
       }
 
-      const rows = await query;
-
-      const itemCodes = [...new Set((rows as any[]).map((r) => r.item_code).filter(Boolean))];
-
-      // Min/Max จาก CabinetItemSetting เท่านั้น (ให้ตรงกับหน้าเว็บ) — โหลดเมื่อมี cabinet
-      let cabinetIdForMinMax: number | null = null;
-      if (params?.cabinetId != null) {
-        cabinetIdForMinMax = params.cabinetId;
-      } else if (params?.cabinetCode) {
+      let cabinetId = params?.cabinetId;
+      if (cabinetId == null && params?.cabinetCode) {
         const cab = await this.prisma.cabinet.findFirst({
           where: { cabinet_code: params.cabinetCode },
           select: { id: true },
         });
-        if (cab?.id != null) cabinetIdForMinMax = cab.id;
-      }
-      const overrideMap = new Map<string, { stock_min: number | null; stock_max: number | null }>();
-      if (cabinetIdForMinMax != null && itemCodes.length > 0) {
-        const overrides = await this.prisma.cabinetItemSetting.findMany({
-          where: { cabinet_id: cabinetIdForMinMax, item_code: { in: itemCodes } },
-          select: { item_code: true, stock_min: true, stock_max: true },
-        });
-        overrides.forEach((o) => {
-          overrideMap.set(o.item_code, {
-            stock_min: o.stock_min ?? null,
-            stock_max: o.stock_max ?? null,
-          });
-        });
+        cabinetId = cab?.id ?? undefined;
       }
 
-      // รวบรวม department_codes สำหรับกรอง qty_in_use ให้ตรงกับหน้าเว็บ
-      let deptCodesForUsage: string[] | null = null;
-      if (cabinetIdForMinMax != null) {
-        const cabinetDepts = await this.prisma.cabinetDepartment.findMany({
-          where: { cabinet_id: cabinetIdForMinMax, status: 'ACTIVE' },
-          select: { department_id: true },
-        });
-        if (cabinetDepts.length > 0) {
-          deptCodesForUsage = cabinetDepts
-            .map((cd) => String(cd.department_id))
-            .filter(Boolean);
-        }
-      } else if (params?.departmentId != null) {
-        deptCodesForUsage = [String(params.departmentId)];
-      }
+      // ใช้ ItemService.findAllItems — logic เดียวกับหน้า /admin/items และ /staff/items
+      const listResult = await this.itemService.findAllItems(
+        1,
+        500_000,
+        undefined,
+        'itemcode',
+        'asc',
+        cabinetId,
+        params?.departmentId,
+      );
 
-      // จำนวนอุปกรณ์ที่ถูกใช้งานวันนี้ (จาก supply_usage_items JOIN MedicalSupplyUsage) — กรองตาม department_id
-      const qtyInUseMap = new Map<string, number>();
-      if (itemCodes.length > 0) {
-        const deptInts =
-          deptCodesForUsage?.map((c) => parseInt(c, 10)).filter((n) => !Number.isNaN(n)) ?? [];
-        const deptCondition =
-          deptInts.length > 0
-            ? Prisma.sql`AND msu.department_id IN (${Prisma.join(deptInts.map((id) => Prisma.sql`${id}`))})`
-            : Prisma.empty;
+      const items = (listResult.data ?? []) as Array<{
+        itemcode: string;
+        itemname?: string | null;
+        count_itemstock?: number;
+        qty_in_use?: number;
+        damaged_qty?: number;
+        stock_min?: number | null;
+        stock_max?: number | null;
+        refill_qty?: number;
+        SubUnitQty?: number | null;
+        unit?: { UnitName?: string | null };
+        subUnit?: { UnitName?: string | null };
+        itemStocks?: Array<{
+          ExpireDate?: Date | string | null;
+          IsStock?: boolean | number | null;
+          cabinet?: {
+            cabinetDepartments?: Array<{
+              department?: { DepName?: string | null; DepName2?: string | null };
+            }>;
+          };
+        }>;
+        department?: { DepName?: string | null; DepName2?: string | null };
+      }>;
 
-        const qtyInUseRows = await this.prisma.$queryRaw<{ order_item_code: string; qty_in_use: bigint }[]>`
-          SELECT
-            sui.order_item_code,
-            SUM(COALESCE(sui.qty, 0) - COALESCE(sui.qty_used_with_patient, 0) - COALESCE(sui.qty_returned_to_cabinet, 0)) AS qty_in_use
-          FROM app_supply_usage_items sui
-          INNER JOIN app_medical_supply_usages msu
-            ON sui.medical_supply_usage_id = msu.id
-          WHERE sui.order_item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
-            AND sui.order_item_code IS NOT NULL
-            AND sui.order_item_code != ''
-            AND DATE(sui.created_at) = ${cabStockDaySql}
-            AND (sui.order_item_status IS NULL OR sui.order_item_status != 'Discontinue')
-            ${deptCondition}
-          GROUP BY sui.order_item_code
-        `;
-        qtyInUseRows.forEach((r) => {
-          const val = Number(r.qty_in_use ?? 0);
-          if (val > 0) qtyInUseMap.set(r.order_item_code, val);
-        });
-      }
+      const data: CabinetStockReportData['data'] = items.map((item, idx) => ({
+        seq: idx + 1,
+        department_name: this.resolveItemDepartmentNameForReport(item),
+        item_code: item.itemcode,
+        item_name: item.itemname ?? '-',
+        balance_qty: Number(item.count_itemstock ?? 0),
+        qty_in_use: Number(item.qty_in_use ?? 0),
+        damaged_qty: Number(item.damaged_qty ?? 0),
+        stock_max: item.stock_max ?? null,
+        stock_min: item.stock_min ?? null,
+        refill_qty: Number(item.refill_qty ?? 0),
+        has_expired: this.itemHasExpiredStock(item),
+        unit:
+          item.unit?.UnitName != null && String(item.unit.UnitName).trim() !== ''
+            ? { UnitName: String(item.unit.UnitName).trim() }
+            : undefined,
+        subUnit:
+          item.subUnit?.UnitName != null && String(item.subUnit.UnitName).trim() !== ''
+            ? { UnitName: String(item.subUnit.UnitName).trim() }
+            : undefined,
+        SubUnitQty: item.SubUnitQty != null ? Number(item.SubUnitQty) : undefined,
+      }));
 
-      // จำนวนชำรุด อ้างอิงตู้ (stock_id) — เฉพาะ return_reason = DAMAGED เฉพาะวันนี้ (ไม่รวมปนเปื้อน, ไม่นับซ้ำเมื่อตู้อยู่หลายแผนก)
-      const damagedReturnMap = new Map<string, number>();
-      if (itemCodes.length > 0) {
-        const hasCabinetFilter = params?.cabinetId != null || !!params?.cabinetCode;
-        const hasDeptFilter = params?.departmentId != null;
+      const totalQtyReport = data.reduce((s, r) => s + Number(r.balance_qty ?? 0), 0);
+      const totalRefillReport = data.reduce((s, r) => s + Number(r.refill_qty ?? 0), 0);
 
-        if (hasCabinetFilter) {
-          const cabinetRow = await this.prisma.$queryRaw<{ stock_id: number }[]>(
-            params?.cabinetId != null
-              ? Prisma.sql`SELECT stock_id FROM app_cabinets WHERE id = ${params.cabinetId} AND stock_id IS NOT NULL LIMIT 1`
-              : Prisma.sql`SELECT stock_id FROM app_cabinets WHERE cabinet_code = ${params!.cabinetCode!} AND stock_id IS NOT NULL LIMIT 1`,
-          );
-          const stockId = cabinetRow?.[0]?.stock_id;
-          if (stockId != null) {
-            const damagedRows = await this.prisma.$queryRaw<
-              { item_code: string; total_returned: bigint }[]
-            >`
-              SELECT srr.item_code, SUM(COALESCE(srr.qty_returned, 0)) AS total_returned
-              FROM app_supply_item_return_records srr
-              WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
-                AND srr.item_code IS NOT NULL AND srr.item_code != ''
-                AND DATE(srr.return_datetime) = ${cabStockDaySql}
-                AND srr.stock_id = ${stockId}
-              
-              GROUP BY srr.item_code
-            `;
-            damagedRows.forEach((row) => {
-              const val = Number(row.total_returned ?? 0);
-              if (val > 0) damagedReturnMap.set(row.item_code, val);
-            });
-          }
-        } else if (hasDeptFilter) {
-          // ให้ตรง item-service: ไม่ sum หลายตู้ — ใช้แค่ตู้แรกต่อ item_code (กรองแผนกแล้วก็ใช้ตู้แรกเท่านั้น)
-          const stockIdRows = await this.prisma.$queryRaw<{ stock_id: number }[]>`
-            SELECT c.stock_id FROM app_cabinets c
-            INNER JOIN app_cabinet_departments cd ON cd.cabinet_id = c.id AND cd.status = 'ACTIVE' AND cd.department_id = ${params!.departmentId!}
-            WHERE c.stock_id IS NOT NULL
-          `;
-          const stockIds = stockIdRows.map((r) => r.stock_id).filter((id): id is number => id != null);
-          if (stockIds.length > 0) {
-            const damagedRows = await this.prisma.$queryRaw<
-              { item_code: string; stock_id: number; total_returned: bigint }[]
-            >`
-              SELECT srr.item_code, srr.stock_id, SUM(COALESCE(srr.qty_returned, 0)) AS total_returned
-              FROM app_supply_item_return_records srr
-              WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
-                AND srr.item_code IS NOT NULL AND srr.item_code != ''
-                AND DATE(srr.return_datetime) = ${cabStockDaySql}
-                AND srr.stock_id IN (${Prisma.join(stockIds.map((id) => Prisma.sql`${id}`))})
-                AND srr.stock_id IS NOT NULL
-              GROUP BY srr.item_code, srr.stock_id
-            `;
-            damagedRows.forEach((row) => {
-              const val = Number(row.total_returned ?? 0);
-              if (val > 0 && !damagedReturnMap.has(row.item_code)) damagedReturnMap.set(row.item_code, val);
-            });
-          }
-        } else {
-          // ไม่กรอง: นับชำรุดต่อ (item_code, cabinet) ก่อน แล้วใส่แผนกเดียวต่อตู้ (MIN) เพื่อไม่นับซ้ำเมื่อตู้อยู่หลายแผนก
-          const perCabinet = await this.prisma.$queryRaw<
-            { item_code: string; stock_id: number; total_returned: bigint }[]
-          >`
-            SELECT srr.item_code, srr.stock_id, SUM(COALESCE(srr.qty_returned, 0)) AS total_returned
-            FROM app_supply_item_return_records srr
-            WHERE srr.item_code IN (${Prisma.join(itemCodes.map((c) => Prisma.sql`${c}`))})
-              AND srr.item_code IS NOT NULL AND srr.item_code != ''
-              AND DATE(srr.return_datetime) = ${cabStockDaySql}
-              AND srr.stock_id IS NOT NULL
-            GROUP BY srr.item_code, srr.stock_id
-          `;
-          const cabinetToDept = await this.prisma.$queryRaw<{ stock_id: number; DepName: string }[]>`
-            SELECT c.stock_id, MIN(d.DepName) AS DepName
-            FROM app_cabinets c
-            INNER JOIN app_cabinet_departments cd ON cd.cabinet_id = c.id AND cd.status = 'ACTIVE'
-            INNER JOIN department d ON d.ID = cd.department_id
-            WHERE c.stock_id IS NOT NULL
-            GROUP BY c.stock_id
-          `;
-          const stockToDept = new Map<number, string>();
-          cabinetToDept.forEach((r) => {
-            if (r.stock_id != null && r.DepName != null) stockToDept.set(r.stock_id, r.DepName);
-          });
-          // ใส่เฉพาะตู้แรกต่อ (item_code, แผนก) — ไม่ sum หลายตู้ (ให้ตรงกับหน้า /items ที่ไม่ sum)
-          perCabinet.forEach((row) => {
-            const val = Number(row.total_returned ?? 0);
-            if (val > 0) {
-              const deptName = stockToDept.get(row.stock_id) ?? '-';
-              const key = `${row.item_code}:${deptName}`;
-              if (!damagedReturnMap.has(key)) damagedReturnMap.set(key, val);
-            }
-          });
-        }
-      }
-
-      const data: CabinetStockReportData['data'] = [];
-      let seq = 1;
-      for (const row of rows) {
-        const balanceQty = Number(row.balance_qty ?? 0);
-        // Min/Max: ใช้ CabinetItemSetting เมื่อมี cabinet; ไม่มีแล้วใช้ค่าจาก Item (row) ให้ตรงกับหน้าเว็บ
-        const override = overrideMap.get(row.item_code);
-        const stockMin = override?.stock_min ?? row.stock_min ?? null;
-        const stockMax = override?.stock_max ?? row.stock_max ?? 0;
-        const qtyInUse = qtyInUseMap.get(row.item_code) ?? 0;
-        const damagedQty =
-          params?.cabinetId != null || params?.cabinetCode || params?.departmentId != null
-            ? damagedReturnMap.get(row.item_code) ?? 0
-            : damagedReturnMap.get(`${row.item_code}:${row.department_name ?? '-'}`) ?? 0;
-
-        // รายงาน Excel/PDF: จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้ (สต๊อกเกิน Max ให้เป็น 0)
-        const M = stockMax ?? 0;
-        const refillQty = Math.max(0, M - balanceQty);
-
-        const ru = row as Record<string, unknown>;
-        const mainUnitName = ru.ItemMainUnitName ?? ru.itemmainunitname;
-        const subUnitName = ru.ItemSubUnitName ?? ru.itemsubunitname;
-        const subQtyRaw = ru.ItemSubUnitQty ?? ru.itemsubunitqty;
-        data.push({
-          seq,
-          department_name: row.department_name ?? '-',
-          item_code: row.item_code,
-          item_name: row.item_name,
-          balance_qty: balanceQty,
-          qty_in_use: qtyInUse,
-          damaged_qty: damagedQty,
-          stock_max: stockMax,
-          stock_min: stockMin,
-          refill_qty: refillQty,
-          unit:
-            mainUnitName != null && String(mainUnitName).trim() !== ''
-              ? { UnitName: String(mainUnitName).trim() }
-              : undefined,
-          subUnit:
-            subUnitName != null && String(subUnitName).trim() !== ''
-              ? { UnitName: String(subUnitName).trim() }
-              : undefined,
-          SubUnitQty: subQtyRaw != null ? Number(subQtyRaw) : undefined,
-        });
-        seq++;
-      }
-
-      // เรียงลำดับให้ตรงกับหน้าเว็บ (item-service): 1) หมดอายุ 2) ใกล้หมดอายุ 3) ต่ำกว่า MIN 4) วันที่หมดอายุเร็วไปช้า 5) itemcode
-      const sortedData = data
-        .map((dataRow, i) => ({ dataRow, rawRow: (rows as any[])[i] }))
-        .sort((a, b) => {
-          const hasExpiredA = Number(a.rawRow?.has_expired ?? 0) === 1;
-          const hasExpiredB = Number(b.rawRow?.has_expired ?? 0) === 1;
-          if (hasExpiredA !== hasExpiredB) return hasExpiredA ? -1 : 1;
-
-          const hasNearExpireA = Number(a.rawRow?.has_near_expire ?? 0) === 1;
-          const hasNearExpireB = Number(b.rawRow?.has_near_expire ?? 0) === 1;
-          if (hasNearExpireA !== hasNearExpireB) return hasNearExpireA ? -1 : 1;
-
-          const stockMinA = a.dataRow.stock_min ?? 0;
-          const stockMinB = b.dataRow.stock_min ?? 0;
-          const isLowStockA = stockMinA > 0 && a.dataRow.balance_qty < stockMinA;
-          const isLowStockB = stockMinB > 0 && b.dataRow.balance_qty < stockMinB;
-          if (isLowStockA !== isLowStockB) return isLowStockA ? -1 : 1;
-
-          const expA = a.rawRow?.earliest_expire_date ? new Date(a.rawRow.earliest_expire_date).getTime() : 0;
-          const expB = b.rawRow?.earliest_expire_date ? new Date(b.rawRow.earliest_expire_date).getTime() : 0;
-          if (expA && expB) return expA - expB;
-
-          return (a.dataRow.item_code || '').localeCompare(b.dataRow.item_code || '');
-        })
-        .map((x) => x.dataRow);
-      sortedData.forEach((row, i) => {
-        row.seq = i + 1;
-      });
-
-      // เฉพาะรายการที่ต้องเติมเข้าตู้ (refill_qty ≠ 0) — ไม่แสดงรายการที่เต็มสต๊อกแล้ว
-      const reportRows = sortedData.filter((row) => Number(row.refill_qty ?? 0) !== 0);
-      reportRows.forEach((row, i) => {
-        row.seq = i + 1;
-      });
-      const totalQtyReport = reportRows.reduce((s, r) => s + Number(r.balance_qty ?? 0), 0);
-      const totalRefillReport = reportRows.reduce((s, r) => s + Number(r.refill_qty ?? 0), 0);
-
-      data.length = 0;
-      data.push(...reportRows);
-
-      // Lookup ชื่อแผนกและชื่อตู้สำหรับ filter summary
       let filterDeptName: string | undefined;
       let filterCabinetName: string | undefined;
       if (params?.departmentId != null) {
@@ -2710,25 +2475,21 @@ export class ReportServiceService {
         });
         filterDeptName = dept?.DepName ?? undefined;
       }
-      if (params?.cabinetId != null) {
+      if (cabinetId != null) {
         const cab = await this.prisma.cabinet.findUnique({
-          where: { id: params.cabinetId },
+          where: { id: cabinetId },
           select: { cabinet_name: true, cabinet_code: true },
         });
         filterCabinetName = cab?.cabinet_name ?? cab?.cabinet_code ?? undefined;
       } else if (params?.cabinetCode) {
-        const cab = await this.prisma.cabinet.findFirst({
-          where: { cabinet_code: params.cabinetCode },
-          select: { cabinet_name: true },
-        });
-        filterCabinetName = cab?.cabinet_name ?? params.cabinetCode;
+        filterCabinetName = params.cabinetCode;
       }
 
       return {
         reportDateDisplay: this.formatCabinetReportDateDisplay(asOfIso),
         reportDateISO: this.cabinetReportDateISO(asOfIso),
         filters: {
-          cabinetId: params?.cabinetId,
+          cabinetId: cabinetId ?? params?.cabinetId,
           cabinetCode: params?.cabinetCode,
           cabinetName: filterCabinetName,
           departmentId: params?.departmentId,

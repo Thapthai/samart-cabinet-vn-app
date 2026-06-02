@@ -10,10 +10,14 @@ export type { MedicalSupplyDetailSummarySupply } from './medicalSupplyDetailDeri
 
 interface MedicalSupplyDetailSummaryCardProps {
   supply: MedicalSupplyDetailSummarySupply;
+  activeFilters?: { startDate: string; endDate: string };
 }
 
-export default function MedicalSupplyDetailSummaryCard({ supply }: MedicalSupplyDetailSummaryCardProps) {
-  const v = deriveMedicalSupplyDetail(supply);
+export default function MedicalSupplyDetailSummaryCard({
+  supply,
+  activeFilters,
+}: MedicalSupplyDetailSummaryCardProps) {
+  const v = deriveMedicalSupplyDetail(supply, activeFilters);
 
   return (
     <Card>

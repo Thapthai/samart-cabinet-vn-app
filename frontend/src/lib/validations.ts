@@ -30,11 +30,11 @@ export const itemSchema = z
     stock_max: z.number().int().min(0).optional(),
     item_status: z.number().int().optional(),
     warehouseID: z.number().int().optional(),
-    /** หน่วยหลัก — stock / ธุรกรรม */
+    /** หน่วย — stock / ธุรกรรม */
     UnitID: z.number().int().positive().optional(),
     /** หน่วยการเบิก — แสดงผล */
     SubUnitID: z.number().int().positive().optional(),
-    /** เช่น 18 เม็ดต่อ 1 หน่วยหลัก */
+    /** เช่น 18 เม็ดต่อ 1 หน่วย */
     SubUnitQty: z.number().int().min(1).optional(),
   })
   .refine((d) => !d.SubUnitQty || (d.SubUnitID != null && d.SubUnitID > 0), {

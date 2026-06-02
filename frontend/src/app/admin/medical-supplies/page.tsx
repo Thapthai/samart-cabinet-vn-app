@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { medicalSuppliesApi, vendingReportsApi, departmentApi, medicalSupplySubDepartmentsApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -72,33 +72,37 @@ export default function MedicalSuppliesPage() {
   const itemsPerPage = 10;
 
 
-  const fetchSupplies = async (customFilters?: typeof activeFilters, customPage?: number) => {
+  const fetchSupplies = useCallback(async () => {
     try {
       setLoading(true);
-      const filtersToUse = customFilters || activeFilters;
-      const activePage = customPage !== undefined ? customPage : currentPage;
 
-      const params: any = {
-        page: activePage,
+      const params: Record<string, string | number> = {
+        page: currentPage,
         limit: itemsPerPage,
       };
 
-      if (filtersToUse.startDate) params.startDate = filtersToUse.startDate;
-      if (filtersToUse.endDate) params.endDate = filtersToUse.endDate;
-      if (filtersToUse.userName) params.user_name = filtersToUse.userName;
-      if (filtersToUse.itemName?.trim()) params.item_keyword = filtersToUse.itemName.trim();
-      if (filtersToUse.patientName?.trim()) params.patient_keyword = filtersToUse.patientName.trim();
-      if (filtersToUse.patientHN?.trim()) params.patient_hn = filtersToUse.patientHN.trim();
-      if (filtersToUse.patientEN?.trim()) params.EN = filtersToUse.patientEN.trim();
-      if (filtersToUse.firstName?.trim()) params.first_name = filtersToUse.firstName.trim();
-      if (filtersToUse.lastName?.trim()) params.lastname = filtersToUse.lastName.trim();
-      if (filtersToUse.assessionNo?.trim()) params.assession_no = filtersToUse.assessionNo.trim();
-      if (filtersToUse.departmentCode?.trim()) params.department_code = filtersToUse.departmentCode.trim();
-      if (filtersToUse.usageType?.trim()) params.usage_type = filtersToUse.usageType.trim();
-      if (filtersToUse.printDate?.trim()) params.print_date = filtersToUse.printDate.trim();
-      if (filtersToUse.timePrintDate?.trim()) params.time_print_date = filtersToUse.timePrintDate.trim();
+      if (activeFilters.startDate) params.startDate = activeFilters.startDate;
+      if (activeFilters.endDate) params.endDate = activeFilters.endDate;
+      if (activeFilters.userName) params.user_name = activeFilters.userName;
+      if (activeFilters.itemName?.trim()) params.item_keyword = activeFilters.itemName.trim();
+      if (activeFilters.patientName?.trim()) params.patient_keyword = activeFilters.patientName.trim();
+      if (activeFilters.patientHN?.trim()) params.patient_hn = activeFilters.patientHN.trim();
+      if (activeFilters.patientEN?.trim()) params.EN = activeFilters.patientEN.trim();
+      if (activeFilters.firstName?.trim()) params.first_name = activeFilters.firstName.trim();
+      if (activeFilters.lastName?.trim()) params.lastname = activeFilters.lastName.trim();
+      if (activeFilters.assessionNo?.trim()) params.assession_no = activeFilters.assessionNo.trim();
+      if (activeFilters.departmentCode?.trim()) params.department_code = activeFilters.departmentCode.trim();
+      if (activeFilters.usageType?.trim()) params.usage_type = activeFilters.usageType.trim();
+      if (activeFilters.printDate?.trim()) params.print_date = activeFilters.printDate.trim();
+      if (activeFilters.timePrintDate?.trim()) params.time_print_date = activeFilters.timePrintDate.trim();
 
-      const response: any = await medicalSuppliesApi.getAll(params);
+      const response = (await medicalSuppliesApi.getAll(params)) as {
+        success?: boolean;
+        data?: unknown[];
+        total?: number;
+        lastPage?: number;
+        message?: string;
+      };
 
       if (response?.success === false) {
         toast.error(response.message || 'โหลดข้อมูลไม่สำเร็จ');
@@ -107,36 +111,21 @@ export default function MedicalSuppliesPage() {
         setTotalItems(0);
         return;
       }
-      if (response && response.data) {
-        let dataArray: any[] = [];
 
-        if (Array.isArray(response.data)) {
-          dataArray = response.data;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          dataArray = response.data.data;
-        } else if (response.data && typeof response.data === 'object') {
-          dataArray = [response.data];
-        }
-
-        setSupplies(dataArray);
-
-        const totalItems = response.total || dataArray.length;
-        const calculatedPages = Math.ceil(totalItems / itemsPerPage);
-
-        setTotalPages(calculatedPages || 1);
-        setTotalItems(totalItems);
-      } else {
-        setSupplies([]);
-        setTotalPages(1);
-        setTotalItems(0);
-      }
+      const dataArray = Array.isArray(response?.data) ? response.data : [];
+      setSupplies(dataArray);
+      setTotalItems(response?.total ?? dataArray.length);
+      setTotalPages(
+        response?.lastPage ??
+          (Math.ceil((response?.total ?? dataArray.length) / itemsPerPage) || 1),
+      );
     } catch (error) {
       console.error('Failed to fetch medical supplies:', error);
       toast.error('ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeFilters, currentPage, itemsPerPage]);
 
   // Load departments + แผนกย่อย master สำหรับ filter
   useEffect(() => {
@@ -165,13 +154,11 @@ export default function MedicalSuppliesPage() {
     load();
   }, []);
 
-  // Update fetchSupplies when activeFilters or currentPage change
   useEffect(() => {
     if (user?.id) {
-      fetchSupplies(activeFilters, currentPage);
+      void fetchSupplies();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, activeFilters, currentPage]);
+  }, [user?.id, fetchSupplies]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -286,7 +273,7 @@ export default function MedicalSuppliesPage() {
             loading={loading}
             onSearch={handleSearch}
             onReset={handleReset}
-            onReload={() => fetchSupplies()}
+            onReload={() => void fetchSupplies()}
           />
 
           {/* Table */}
