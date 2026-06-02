@@ -286,7 +286,7 @@ export class DispensedItemsForPatientsExcelService {
 
     worksheet.getColumn(1).width = 8;
     worksheet.getColumn(2).width = 34;
-    worksheet.getColumn(3).width = 34;
+    worksheet.getColumn(3).width = 40;
     worksheet.getColumn(4).width = 10;
     worksheet.getColumn(5).width = 12;
     worksheet.getColumn(6).width = 16;
