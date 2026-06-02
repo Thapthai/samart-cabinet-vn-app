@@ -20,6 +20,12 @@ import { CancelBillReportExcelService, CancelBillReportData } from './services/c
 import { CancelBillReportPdfService } from './services/cancel-bill-report-pdf.service';
 import { ReturnToCabinetReportExcelService, ReturnToCabinetReportData } from './services/return-to-cabinet-report-excel.service';
 import { ReturnToCabinetReportPdfService } from './services/return-to-cabinet-report-pdf.service';
+import {
+  ItemBorrowReportExcelService,
+  ItemBorrowReportData,
+  ItemBorrowReportRow,
+} from './services/item-borrow-report-excel.service';
+import { ItemBorrowReportPdfService } from './services/item-borrow-report-pdf.service';
 import { buildReturnedGroups } from './utils/build-returned-groups';
 import { DispensedItemsExcelService, DispensedItemsReportData } from './services/dispensed-items-excel.service';
 import { DispensedItemsPdfService } from './services/dispensed-items-pdf.service';
@@ -81,6 +87,8 @@ export class ReportServiceService {
     private readonly cancelBillReportPdfService: CancelBillReportPdfService,
     private readonly returnToCabinetReportExcelService: ReturnToCabinetReportExcelService,
     private readonly returnToCabinetReportPdfService: ReturnToCabinetReportPdfService,
+    private readonly itemBorrowReportExcelService: ItemBorrowReportExcelService,
+    private readonly itemBorrowReportPdfService: ItemBorrowReportPdfService,
     private readonly dispensedItemsExcelService: DispensedItemsExcelService,
     private readonly dispensedItemsPdfService: DispensedItemsPdfService,
     private readonly cabinetStockReportExcelService: CabinetStockReportExcelService,
@@ -3293,6 +3301,180 @@ export class ReportServiceService {
       console.error('[Report Service] Error generating Dispensed Items for Patients PDF:', error);
       const errorMessage = error?.message || error?.toString() || 'Unknown error';
       throw new Error(`Failed to generate Dispensed Items for Patients PDF report: ${errorMessage}`);
+    }
+  }
+
+  private formatBorrowDepartmentLabel(
+    bd: { DepName?: string | null; DepName2?: string | null; RefDepID?: string | null; ID?: number } | null,
+    depId: number | null,
+  ): string {
+    if (!bd) return depId != null ? String(depId) : '-';
+    const name = (bd.DepName ?? bd.DepName2 ?? '').trim();
+    if (!name) return bd.ID != null ? String(bd.ID) : '-';
+    const ref = bd.RefDepID?.trim();
+    return ref ? `${name} (${ref})` : name;
+  }
+
+  private mapItemBorrowReportRows(rawRows: any[]): ItemBorrowReportRow[] {
+    return rawRows.map((row) => ({
+      rowId: row.rowId,
+      itemCode: row.itemCode ?? null,
+      itemName: row.itemName ?? null,
+      qty: row.qty ?? null,
+      borrowDepartmentLabel: this.formatBorrowDepartmentLabel(row.borrowDepartment ?? null, row.depId ?? null),
+      cabinetName:
+        row.cabinet?.cabinet_name?.trim() ||
+        row.cabinet?.cabinet_code?.trim() ||
+        '-',
+      modifyDate: row.modifyDate ?? null,
+    }));
+  }
+
+  private async getDepartmentNameById(id?: string): Promise<string | undefined> {
+    if (id == null || String(id).trim() === '') return undefined;
+    const deptId = parseInt(String(id).trim(), 10);
+    if (Number.isNaN(deptId)) return undefined;
+    const dept = await this.prisma.department.findUnique({
+      where: { ID: deptId },
+      select: { DepName: true, DepName2: true },
+    });
+    return dept?.DepName ?? dept?.DepName2 ?? undefined;
+  }
+
+  async getItemBorrowReportData(params: {
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    cabinetId?: string;
+    borrowDepartmentId?: string;
+  }): Promise<{ data: ItemBorrowReportRow[]; total: number }> {
+    try {
+      const batchLimit = 100;
+      const aggregated: any[] = [];
+      let reportedTotal = 0;
+      let page = 1;
+
+      while (true) {
+        const result = await this.itemService.findBorrowItemStocks({
+          page,
+          limit: batchLimit,
+          keyword: params.keyword,
+          startDate: params.startDate,
+          endDate: params.endDate,
+          departmentId:
+            params.departmentId != null && params.departmentId !== ''
+              ? parseInt(params.departmentId, 10)
+              : undefined,
+          cabinetId:
+            params.cabinetId != null && params.cabinetId !== ''
+              ? parseInt(params.cabinetId, 10)
+              : undefined,
+          borrowDepartmentId:
+            params.borrowDepartmentId != null && params.borrowDepartmentId !== ''
+              ? parseInt(params.borrowDepartmentId, 10)
+              : undefined,
+        });
+
+        if (!result?.success) {
+          throw new Error(result?.message || 'Failed to fetch item borrow data');
+        }
+
+        const batch = Array.isArray(result.data) ? result.data : [];
+        reportedTotal = result.total != null ? Number(result.total) : aggregated.length + batch.length;
+        aggregated.push(...batch);
+
+        if (batch.length < batchLimit || aggregated.length >= reportedTotal) {
+          break;
+        }
+        page += 1;
+        if (page > 500) {
+          console.warn('[Report Service] item-borrow: stopped batch fetch after 500 pages');
+          break;
+        }
+      }
+
+      return {
+        data: this.mapItemBorrowReportRows(aggregated),
+        total: reportedTotal,
+      };
+    } catch (error) {
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      throw new Error(`Failed to get Item Borrow Report data: ${errorMessage}`);
+    }
+  }
+
+  private async buildItemBorrowReportData(
+    borrowData: { data: ItemBorrowReportRow[]; total: number },
+    params: {
+      keyword?: string;
+      startDate?: string;
+      endDate?: string;
+      departmentId?: string;
+      cabinetId?: string;
+      borrowDepartmentId?: string;
+    },
+  ): Promise<ItemBorrowReportData> {
+    const [cabinetLabels, departmentName, borrowDepartmentName] = await Promise.all([
+      this.getCabinetDepartmentLabels(params.cabinetId, params.departmentId),
+      this.getDepartmentNameById(params.departmentId),
+      this.getDepartmentNameById(params.borrowDepartmentId),
+    ]);
+
+    const rows = borrowData.data ?? [];
+    return {
+      filters: {
+        keyword: params.keyword,
+        startDate: params.startDate,
+        endDate: params.endDate,
+        departmentId: params.departmentId,
+        cabinetId: params.cabinetId,
+        borrowDepartmentId: params.borrowDepartmentId,
+        departmentName: cabinetLabels.departmentName ?? departmentName,
+        cabinetName: cabinetLabels.cabinetName,
+        borrowDepartmentName,
+      },
+      summary: {
+        total_records: borrowData.total || rows.length,
+        total_qty: rows.reduce((sum, row) => sum + (row.qty ?? 0), 0),
+      },
+      data: rows,
+    };
+  }
+
+  async generateItemBorrowReportExcel(params: {
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    cabinetId?: string;
+    borrowDepartmentId?: string;
+  }): Promise<Buffer> {
+    try {
+      const borrowData = await this.getItemBorrowReportData(params);
+      const reportData = await this.buildItemBorrowReportData(borrowData, params);
+      return await this.itemBorrowReportExcelService.generateReport(reportData);
+    } catch (error) {
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      throw new Error(`Failed to generate Item Borrow Report Excel: ${errorMessage}`);
+    }
+  }
+
+  async generateItemBorrowReportPdf(params: {
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    cabinetId?: string;
+    borrowDepartmentId?: string;
+  }): Promise<Buffer> {
+    try {
+      const borrowData = await this.getItemBorrowReportData(params);
+      const reportData = await this.buildItemBorrowReportData(borrowData, params);
+      return await this.itemBorrowReportPdfService.generateReport(reportData);
+    } catch (error) {
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      throw new Error(`Failed to generate Item Borrow Report PDF: ${errorMessage}`);
     }
   }
 }

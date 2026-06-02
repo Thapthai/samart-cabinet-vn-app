@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
-import { itemStockApi } from '@/lib/api';
+import { itemStockApi, vendingReportsApi } from '@/lib/api';
 import FilterSection, { type BorrowFilterState } from './components/FilterSection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Loader2, BookMarked, Package } from 'lucide-react';
+import { Loader2, BookMarked, Package, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 type DivisionRow = {
@@ -202,6 +202,31 @@ export default function ItemBorrowPage() {
         void fetchData();
     };
 
+    const handleExportReport = async (format: 'excel' | 'pdf') => {
+        try {
+            const params: Record<string, string | undefined> = {};
+            if (appliedFilters.searchItemCode.trim()) params.keyword = appliedFilters.searchItemCode.trim();
+            if (appliedFilters.startDate) params.startDate = appliedFilters.startDate;
+            if (appliedFilters.endDate) params.endDate = appliedFilters.endDate;
+            if (appliedFilters.departmentId) params.departmentId = appliedFilters.departmentId;
+            if (appliedFilters.cabinetId) params.cabinetId = appliedFilters.cabinetId;
+            if (appliedFilters.borrowDepartmentId) params.borrowDepartmentId = appliedFilters.borrowDepartmentId;
+
+            toast.info(`กำลังสร้างรายงาน ${format.toUpperCase()}...`);
+
+            if (format === 'excel') {
+                await vendingReportsApi.downloadItemBorrowReportExcel(params);
+            } else {
+                await vendingReportsApi.downloadItemBorrowReportPdf(params);
+            }
+
+            toast.success(`กำลังดาวน์โหลดรายงาน ${format.toUpperCase()}`);
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : 'เกิดข้อผิดพลาด';
+            toast.error(`ไม่สามารถสร้างรายงาน ${format.toUpperCase()} ได้: ${msg}`);
+        }
+    };
+
     return (
         <ProtectedRoute>
             <AppLayout fullWidth>
@@ -227,13 +252,25 @@ export default function ItemBorrowPage() {
                     />
 
                     <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle>รายการยืมอุปกรณ์</CardTitle>
-                            <CardDescription>
-                                {rows.length > 0
-                                    ? `แสดงผล ${rows.length.toLocaleString()} รายการในหน้านี้ · ทั้งหมด ${total.toLocaleString()} รายการ`
-                                    : 'รายการยืมจากระบบ SmartCabinet'}
-                            </CardDescription>
+                        <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4 pb-2">
+                            <div className="space-y-1.5">
+                                <CardTitle>รายการยืมอุปกรณ์</CardTitle>
+                                <CardDescription>
+                                    {rows.length > 0
+                                        ? `แสดงผล ${rows.length.toLocaleString()} รายการในหน้านี้ · ทั้งหมด ${total.toLocaleString()} รายการ`
+                                        : 'รายการยืมจากระบบ SmartCabinet'}
+                                </CardDescription>
+                            </div>
+                            <div className="flex shrink-0 gap-2">
+                                <Button onClick={() => handleExportReport('excel')} variant="outline" size="sm" disabled={loading}>
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Excel
+                                </Button>
+                                <Button onClick={() => handleExportReport('pdf')} variant="outline" size="sm" disabled={loading}>
+                                    <Download className="h-4 w-4 mr-2" />
+                                    PDF
+                                </Button>
+                            </div>
                         </CardHeader>
                         <CardContent className="px-4 py-4">
                             {loading && rows.length === 0 ? (

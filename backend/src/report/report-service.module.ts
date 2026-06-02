@@ -38,6 +38,8 @@ import { WeighingStockReportExcelService } from './services/weighing-stock-repor
 import { WeighingStockReportPdfService } from './services/weighing-stock-report-pdf.service';
 import { DispensedItemsForPatientsExcelService } from './services/dispensed-items-for-patients-excel.service';
 import { DispensedItemsForPatientsPdfService } from './services/dispensed-items-for-patients-pdf.service';
+import { ItemBorrowReportExcelService } from './services/item-borrow-report-excel.service';
+import { ItemBorrowReportPdfService } from './services/item-borrow-report-pdf.service';
 @Module({
   imports: [PrismaModule, ItemModule, MedicalSuppliesModule, WeighingModule],
   controllers: [ReportServiceController],
@@ -76,6 +78,8 @@ import { DispensedItemsForPatientsPdfService } from './services/dispensed-items-
     WeighingStockReportPdfService,
     DispensedItemsForPatientsExcelService,
     DispensedItemsForPatientsPdfService,
+    ItemBorrowReportExcelService,
+    ItemBorrowReportPdfService,
   ],
   exports: [ReportServiceService],
 })

@@ -1131,6 +1131,70 @@ export const vendingReportsApi = {
     link.remove();
     window.URL.revokeObjectURL(url);
   },
+  downloadItemBorrowReportExcel: async (params?: {
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    cabinetId?: string;
+    borrowDepartmentId?: string;
+  }): Promise<void> => {
+    const body = {
+      keyword: params?.keyword,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      departmentId: params?.departmentId,
+      cabinetId: params?.cabinetId,
+      borrowDepartmentId: params?.borrowDepartmentId,
+    };
+    const response = await api.post('/reports/item-borrow/excel', body);
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string };
+    if (!res?.success || !res?.buffer) throw new Error((res as any)?.error || 'ไม่สามารถสร้างไฟล์ได้');
+    const binary = atob(res.buffer);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: res.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', res.filename || `item_borrow_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+  downloadItemBorrowReportPdf: async (params?: {
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    cabinetId?: string;
+    borrowDepartmentId?: string;
+  }): Promise<void> => {
+    const body = {
+      keyword: params?.keyword,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      departmentId: params?.departmentId,
+      cabinetId: params?.cabinetId,
+      borrowDepartmentId: params?.borrowDepartmentId,
+    };
+    const response = await api.post('/reports/item-borrow/pdf', body);
+    const res = response.data as { success?: boolean; buffer?: string; contentType?: string; filename?: string };
+    if (!res?.success || !res?.buffer) throw new Error((res as any)?.error || 'ไม่สามารถสร้างไฟล์ได้');
+    const binary = atob(res.buffer);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: res.contentType || 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', res.filename || `item_borrow_report_${new Date().toISOString().split('T')[0]}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 export type DailyCabinetStockArchiveRow = {

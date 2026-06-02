@@ -399,6 +399,50 @@ export class ReportServiceController {
     }
   }
 
+  @Post('item-borrow/excel')
+  async generateItemBorrowReportExcel(@Body() data: {
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    cabinetId?: string;
+    borrowDepartmentId?: string;
+  }) {
+    try {
+      const buffer = await this.reportServiceService.generateItemBorrowReportExcel(data);
+      return {
+        success: true,
+        buffer: buffer.toString('base64'),
+        contentType: EXCEL_CONTENT,
+        filename: `item_borrow_report_${new Date().toISOString().split('T')[0]}.xlsx`,
+      };
+    } catch (error: any) {
+      return { success: false, error: error?.message };
+    }
+  }
+
+  @Post('item-borrow/pdf')
+  async generateItemBorrowReportPdf(@Body() data: {
+    keyword?: string;
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    cabinetId?: string;
+    borrowDepartmentId?: string;
+  }) {
+    try {
+      const buffer = await this.reportServiceService.generateItemBorrowReportPdf(data);
+      return {
+        success: true,
+        buffer: buffer.toString('base64'),
+        contentType: PDF_CONTENT,
+        filename: `item_borrow_report_${new Date().toISOString().split('T')[0]}.pdf`,
+      };
+    } catch (error: any) {
+      return { success: false, error: error?.message };
+    }
+  }
+
   @Post('cabinet-stock/excel')
   async generateCabinetStockExcel(@Body() data: {
     cabinetId?: number;
