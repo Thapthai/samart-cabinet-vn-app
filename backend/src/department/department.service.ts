@@ -197,10 +197,31 @@ export class DepartmentService {
           },
         },
       });
-      return { success: true, message: 'Cabinet created successfully', data: cabinetWithDepts ?? cabinet };
+      return { success: true, message: 'สร้างตู้แล้ว', data: cabinetWithDepts ?? cabinet };
     } catch (err: any) {
       this.logger.error(`Error creating cabinet: ${err.message}`);
-      return { success: false, message: 'Failed to create cabinet', error: err.message };
+      const code = err?.code;
+      if (code === 'P2002') {
+        const targets: string[] = Array.isArray(err?.meta?.target)
+          ? err.meta.target.map((t: unknown) => String(t))
+          : [];
+        const lowerTargets = targets.map((t) => t.toLowerCase());
+        if (lowerTargets.includes('stock_id')) {
+          return { success: false, message: 'ไม่สามารถสร้างตู้ได้: stock_id ซ้ำในระบบ', error: err.message };
+        }
+        if (lowerTargets.includes('cabinet_code')) {
+          return { success: false, message: 'ไม่สามารถสร้างตู้ได้: cabinet_code ซ้ำในระบบ', error: err.message };
+        }
+        return {
+          success: false,
+          message: `ไม่สามารถสร้างตู้ได้: ข้อมูลซ้ำ (${targets.join(', ') || 'unique constraint'})`,
+          error: err.message,
+        };
+      }
+      if (code === 'P2003') {
+        return { success: false, message: 'ไม่สามารถสร้างตู้ได้: ไม่พบแผนกที่เลือกหรือข้อมูลอ้างอิงไม่ถูกต้อง', error: err.message };
+      }
+      return { success: false, message: 'ไม่สามารถสร้างตู้ได้', error: err.message };
     }
   }
 
@@ -266,20 +287,48 @@ export class DepartmentService {
         where: { id },
         data,
       });
-      return { success: true, message: 'Cabinet updated successfully', data: cabinet };
+      return { success: true, message: 'อัปเดตตู้แล้ว', data: cabinet };
     } catch (err: any) {
       this.logger.error(`Error updating cabinet: ${err.message}`);
-      return { success: false, message: 'Failed to update cabinet', error: err.message };
+      const code = err?.code;
+      if (code === 'P2025') {
+        return { success: false, message: 'ไม่สามารถอัปเดตตู้ได้: ไม่พบตู้ที่ระบุ', error: err.message };
+      }
+      if (code === 'P2002') {
+        const targets: string[] = Array.isArray(err?.meta?.target)
+          ? err.meta.target.map((t: unknown) => String(t))
+          : [];
+        const lowerTargets = targets.map((t) => t.toLowerCase());
+        if (lowerTargets.includes('stock_id')) {
+          return { success: false, message: 'ไม่สามารถอัปเดตตู้ได้: stock_id ซ้ำในระบบ', error: err.message };
+        }
+        if (lowerTargets.includes('cabinet_code')) {
+          return { success: false, message: 'ไม่สามารถอัปเดตตู้ได้: cabinet_code ซ้ำในระบบ', error: err.message };
+        }
+        return {
+          success: false,
+          message: `ไม่สามารถอัปเดตตู้ได้: ข้อมูลซ้ำ (${targets.join(', ') || 'unique constraint'})`,
+          error: err.message,
+        };
+      }
+      if (code === 'P2003') {
+        return {
+          success: false,
+          message: 'ไม่สามารถอัปเดตตู้ได้: ไม่พบแผนกที่เลือกหรือข้อมูลอ้างอิงไม่ถูกต้อง',
+          error: err.message,
+        };
+      }
+      return { success: false, message: 'ไม่สามารถอัปเดตตู้ได้', error: err.message };
     }
   }
 
   async deleteCabinet(id: number) {
     try {
       await this.prisma.cabinet.delete({ where: { id } });
-      return { success: true, message: 'Cabinet deleted successfully' };
+      return { success: true, message: 'ลบตู้แล้ว' };
     } catch (err: any) {
       this.logger.error(`Error deleting cabinet: ${err.message}`);
-      return { success: false, message: 'Failed to delete cabinet', error: err.message };
+      return { success: false, message: 'ไม่สามารถลบตู้ได้', error: err.message };
     }
   }
 
@@ -294,7 +343,7 @@ export class DepartmentService {
       ]);
 
       if (!cabinet || !department) {
-        return { success: false, message: 'Validation failed - data not found' };
+        return { success: false, message: 'ข้อมูลไม่ถูกต้อง' };
       }
 
       const dupPair = await this.prisma.cabinetDepartment.findFirst({
@@ -330,10 +379,10 @@ export class DepartmentService {
         where: { id: data.cabinet_id },
         data: { cabinet_status: 'USED' },
       });
-      return { success: true, message: 'Cabinet-Department mapping created successfully', data: { mapping, cabinet, department } };
+      return { success: true, message: 'สร้างการเชื่อมโยงตู้และแผนกแล้ว', data: { mapping, cabinet, department } };
     } catch (err: any) {
       this.logger.error(`Error creating Cabinet-Department: ${err.message}`);
-      return { success: false, message: 'Database error occurred', error: err.message };
+      return { success: false, message: 'เกิดข้อผิดพลาดของฐานข้อมูล', error: err.message };
     }
   }
 
@@ -434,7 +483,7 @@ export class DepartmentService {
       };
     } catch (err: any) {
       this.logger.error(`Error fetching mappings: ${err.message}`);
-      return { success: false, message: 'Failed to fetch mappings', error: err.message };
+      return { success: false, message: 'ไม่สามารถดึงการเชื่อมโยงตู้และแผนกได้', error: err.message };
     }
   }
 
@@ -449,8 +498,8 @@ export class DepartmentService {
         }),
         this.prisma.cabinetDepartment.findUnique({ where: { id } }),
       ]);
-      if (!cabinet || !department) return { success: false, message: 'Cabinet or Department not found' };
-      if (!currentMapping) return { success: false, message: 'CabinetDepartment mapping not found' };
+      if (!cabinet || !department) return { success: false, message: 'ตู้หรือแผนกไม่พบ' };
+      if (!currentMapping) return { success: false, message: 'การเชื่อมโยงตู้และแผนกไม่พบ' };
 
       const newStatus = data.status || 'ACTIVE';
       const willBeActive = newStatus === 'ACTIVE';
@@ -487,7 +536,7 @@ export class DepartmentService {
           data: { department_id: data.department_id, status: data.status, description: data.description },
           include: { cabinet: true, department: { select: { ID: true, DepName: true, DepName2: true } } },
         });
-        return { success: true, message: 'Cabinet-Department mapping updated successfully', data: mapping };
+        return { success: true, message: 'อัปเดตการเชื่อมโยงตู้และแผนกแล้ว', data: mapping };
       }
 
       if (willBeActive) {
@@ -525,16 +574,16 @@ export class DepartmentService {
           await this.prisma.cabinet.update({ where: { id: oldCabinetId }, data: { cabinet_status: 'AVAILIABLE' } });
         }
       }
-      return { success: true, message: 'Cabinet-Department mapping updated successfully', data: mapping };
+      return { success: true, message: 'อัปเดตการเชื่อมโยงตู้และแผนกแล้ว', data: mapping };
     } catch (err: any) {
       this.logger.error(`Error updating mapping: ${err.message}`);
-      return { success: false, message: 'Failed to update mapping', error: err.message };
+      return { success: false, message: 'ไม่สามารถอัปเดตการเชื่อมโยงตู้และแผนกได้', error: err.message };
     }
   }
 
   async deleteCabinetDepartment(id: number) {
     const mapping = await this.prisma.cabinetDepartment.findUnique({ where: { id } });
-    if (!mapping) return { success: false, message: 'Cabinet-Department mapping not found' };
+    if (!mapping) return { success: false, message: 'การเชื่อมโยงตู้และแผนกไม่พบ' };
     const cabinetId = mapping.cabinet_id;
     await this.prisma.cabinetDepartment.delete({ where: { id } });
     if (cabinetId) {
@@ -543,6 +592,6 @@ export class DepartmentService {
         await this.prisma.cabinet.update({ where: { id: cabinetId }, data: { cabinet_status: 'AVAILIABLE' } });
       }
     }
-    return { success: true, message: 'Cabinet-Department mapping deleted successfully' };
+    return { success: true, message: 'ลบการเชื่อมโยงตู้และแผนกแล้ว' };
   }
 }

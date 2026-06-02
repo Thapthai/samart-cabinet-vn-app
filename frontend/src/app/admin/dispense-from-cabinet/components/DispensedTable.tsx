@@ -23,8 +23,9 @@ interface DispensedTableProps {
   items: DispensedItem[];
   currentPage: number;
   totalPages: number;
-  totalItems: number;
-  itemsPerPage: number;
+  totalRawItems: number;
+  totalGroups: number;
+  groupsPerPage: number;
   searchItemCode: string;
   itemTypeFilter: string;
   onPageChange: (page: number) => void;
@@ -37,8 +38,9 @@ export default function DispensedTable({
   items,
   currentPage,
   totalPages,
-  totalItems,
-  itemsPerPage,
+  totalRawItems,
+  totalGroups,
+  groupsPerPage,
   searchItemCode,
   itemTypeFilter,
   onPageChange,
@@ -49,7 +51,12 @@ export default function DispensedTable({
 
   const groups = useMemo(() => buildDispensedGroups(items), [items]);
 
-  const baseRowIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedGroups = useMemo(() => {
+    const start = (currentPage - 1) * groupsPerPage;
+    return groups.slice(start, start + groupsPerPage);
+  }, [groups, currentPage, groupsPerPage]);
+
+  const groupRowOffset = (currentPage - 1) * groupsPerPage;
 
   const generatePageNumbers = () => {
     const pages: (number | string)[] = [];
@@ -95,7 +102,7 @@ export default function DispensedTable({
           <CardTitle>รายการเบิกอุปกรณ์จากตู้</CardTitle>
           <CardDescription>
             {items.length > 0
-              ? `แสดง ${groups.length} กลุ่มในหน้านี้ · จากทั้งหมด ${totalItems} รายการ (รวม ${totalDispensedQty.toLocaleString()} ชิ้นในหน้านี้) · จัดกลุ่มตามรหัสอุปกรณ์และเวลาที่เบิก ±${DISPENSED_GROUP_TIME_TOLERANCE_SEC} วินาที`
+              ? `แสดง ${paginatedGroups.length} กลุ่มในหน้านี้ (สูงสุด ${groupsPerPage} กลุ่มต่อหน้า) · รวม ${totalGroups} กลุ่ม จาก ${totalRawItems} รายการดิบ (รวม ${totalDispensedQty.toLocaleString()} ชิ้น) · จัดกลุ่มตามรหัสอุปกรณ์และเวลาที่เบิก ±${DISPENSED_GROUP_TIME_TOLERANCE_SEC} วินาที`
               : 'รายการอุปกรณ์ที่เบิกจากตู้ SmartCabinet'}
             {(searchItemCode || itemTypeFilter !== 'all') && items.length > 0 && ' (กรองแล้ว)'}
           </CardDescription>
@@ -137,7 +144,7 @@ export default function DispensedTable({
                     <TableHead>ชื่ออุปกรณ์</TableHead>
                     <TableHead className="text-center">
                       <span className="block">จำนวน</span>
-                      <span className="block text-xs font-normal text-muted-foreground">หน่วยการเบิก</span>
+                      {/* <span className="block text-xs font-normal text-muted-foreground">หน่วยการเบิก</span> */}
                     </TableHead>
                     <TableHead>วันที่เบิก</TableHead>
                     <TableHead>Division</TableHead>
@@ -145,9 +152,9 @@ export default function DispensedTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {groups.map((group, groupIndex) => {
+                  {paginatedGroups.map((group, groupIndex) => {
                     const isExpanded = expandedKeys.has(group.key);
-                    const rowNum = baseRowIndex + groupIndex + 1;
+                    const rowNum = groupRowOffset + groupIndex + 1;
                     return (
                       <Fragment key={group.key}>
                         <TableRow
@@ -288,7 +295,7 @@ export default function DispensedTable({
             {totalPages > 1 && (
               <div className="mt-6 flex items-center justify-between border-t pt-4">
                 <div className="text-sm text-gray-500">
-                  หน้า {currentPage} จาก {totalPages} ({totalItems} รายการ)
+                  หน้า {currentPage} จาก {totalPages} (รวม {totalGroups} กลุ่ม · {totalRawItems} รายการดิบ)
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button

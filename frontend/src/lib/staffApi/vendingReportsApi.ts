@@ -80,17 +80,23 @@ export const staffVendingReportsApi = {
 
   downloadDispensedItemsForPatientsExcel: async (params?: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }): Promise<void> => {
     const response = await staffApi.post('/reports/dispensed-items-for-patients/excel', {
       keyword: params?.keyword,
+      item_keyword: params?.item_keyword ?? params?.keyword,
+      patient_keyword: params?.patient_keyword,
       startDate: params?.startDate,
       endDate: params?.endDate,
       patientHn: params?.patientHn,
+      EN: params?.EN,
       departmentCode: params?.departmentCode,
       usageType: params?.usageType,
     });
@@ -102,17 +108,23 @@ export const staffVendingReportsApi = {
 
   downloadDispensedItemsForPatientsPdf: async (params?: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }): Promise<void> => {
     const response = await staffApi.post('/reports/dispensed-items-for-patients/pdf', {
       keyword: params?.keyword,
+      item_keyword: params?.item_keyword ?? params?.keyword,
+      patient_keyword: params?.patient_keyword,
       startDate: params?.startDate,
       endDate: params?.endDate,
       patientHn: params?.patientHn,
+      EN: params?.EN,
       departmentCode: params?.departmentCode,
       usageType: params?.usageType,
     });

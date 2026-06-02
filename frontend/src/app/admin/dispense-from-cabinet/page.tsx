@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { medicalSuppliesApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Package } from 'lucide-react';
 import FilterSection from './components/FilterSection';
 import DispensedTable from './components/DispensedTable';
+import { buildDispensedGroups } from '@/lib/dispenseFromCabinet/buildDispensedGroups';
 import type { DispensedItem, FilterState } from './types';
 
 const getTodayDate = () => {
@@ -19,7 +20,8 @@ const getTodayDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-const ITEMS_PER_PAGE = 10;
+const GROUPS_PER_PAGE = 2;
+const FETCH_BATCH_LIMIT = 5000;
 
 export default function DispenseFromCabinetPage() {
   const { user } = useAuth();
@@ -37,21 +39,26 @@ export default function DispenseFromCabinetPage() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalRawItems, setTotalRawItems] = useState(0);
+
+  const allGroups = useMemo(() => buildDispensedGroups(dispensedList), [dispensedList]);
+  const totalGroups = allGroups.length;
+  const totalPages = useMemo(
+    () => (totalGroups > 0 ? Math.ceil(totalGroups / GROUPS_PER_PAGE) : 1),
+    [totalGroups],
+  );
 
   const fetchDispensedList = useCallback(
     async (
-      page: number = 1,
-      customFilters?: FilterState,
-      opts?: { silent?: boolean },
+      overrideFilters?: FilterState,
+      opts?: { resetPage?: boolean; silent?: boolean },
     ) => {
-      const activeFilters = customFilters ?? filters;
+      const activeFilters = overrideFilters ?? filters;
       try {
         setLoadingList(true);
         const params: Record<string, string | number> = {
-          page,
-          limit: ITEMS_PER_PAGE,
+          page: 1,
+          limit: FETCH_BATCH_LIMIT,
         };
         if (activeFilters.startDate) params.startDate = activeFilters.startDate;
         if (activeFilters.endDate) params.endDate = activeFilters.endDate;
@@ -60,45 +67,66 @@ export default function DispenseFromCabinetPage() {
         if (activeFilters.subDepartmentId) params.subDepartmentId = activeFilters.subDepartmentId;
         if (activeFilters.cabinetId) params.cabinetId = activeFilters.cabinetId;
 
-        const response = (await medicalSuppliesApi.getDispensedItems(params)) as {
-          success?: boolean;
-          data?: DispensedItem[];
-          total?: number;
-          page?: number;
-          limit?: number;
-          totalPages?: number;
-          message?: string;
-          error?: string;
-        };
+        const aggregated: DispensedItem[] = [];
+        let reportedTotal = 0;
+        let page = 1;
 
-        if (response?.success && Array.isArray(response.data)) {
-          const dispensedData = response.data;
-          const total =
-            typeof response.total === 'number' ? response.total : dispensedData.length;
-          const limit =
-            typeof response.limit === 'number' ? response.limit : ITEMS_PER_PAGE;
-          const totalPagesNum =
-            typeof response.totalPages === 'number'
-              ? response.totalPages
-              : Math.max(1, Math.ceil(total / limit));
+        while (true) {
+          const response = (await medicalSuppliesApi.getDispensedItems({
+            ...params,
+            page,
+            limit: FETCH_BATCH_LIMIT,
+          })) as {
+            success?: boolean;
+            data?: DispensedItem[] | { data?: DispensedItem[] };
+            total?: number;
+            message?: string;
+            error?: string;
+          };
 
-          setDispensedList(dispensedData);
-          setTotalItems(total);
-          setTotalPages(totalPagesNum);
-          setCurrentPage(response.page ?? page);
+          const ok = response?.success === true || Array.isArray(response?.data);
+          if (!ok) {
+            toast.error(response?.error || response?.message || 'ไม่สามารถโหลดข้อมูลได้');
+            setDispensedList([]);
+            setTotalRawItems(0);
+            break;
+          }
+
+          const raw = response.data;
+          const batch = Array.isArray(raw)
+            ? raw
+            : raw != null && typeof raw === 'object' && Array.isArray(raw.data)
+              ? raw.data
+              : [];
+
+          reportedTotal =
+            typeof response.total === 'number' ? response.total : aggregated.length + batch.length;
+          aggregated.push(...batch);
+
+          if (batch.length < FETCH_BATCH_LIMIT || aggregated.length >= reportedTotal) {
+            break;
+          }
+          page += 1;
+          if (page > 500) {
+            console.warn('admin dispense-from-cabinet: stopped batch fetch after 500 pages');
+            break;
+          }
+        }
+
+        if (aggregated.length > 0 || reportedTotal === 0) {
+          setDispensedList(aggregated);
+          setTotalRawItems(reportedTotal);
+          if (opts?.resetPage !== false) {
+            setCurrentPage(1);
+          }
 
           if (!opts?.silent) {
-            if (dispensedData.length === 0) {
+            if (aggregated.length === 0) {
               toast.info('ไม่พบข้อมูลการเบิกอุปกรณ์ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
             } else {
-              toast.success(`พบ ${total} รายการเบิกอุปกรณ์`);
+              toast.success(`พบ ${reportedTotal} รายการเบิกอุปกรณ์`);
             }
           }
-        } else {
-          toast.error(response?.error || response?.message || 'ไม่สามารถโหลดข้อมูลได้');
-          setDispensedList([]);
-          setTotalItems(0);
-          setTotalPages(1);
         }
       } catch (error: unknown) {
         const err = error as { response?: { data?: { message?: string } }; message?: string };
@@ -112,16 +140,20 @@ export default function DispenseFromCabinetPage() {
     [filters],
   );
 
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
+  }, [totalPages]);
+
   const initialFetchDone = useRef(false);
   useEffect(() => {
     if (!user?.id || initialFetchDone.current) return;
     initialFetchDone.current = true;
-    void fetchDispensedList(1, undefined, { silent: true });
+    void fetchDispensedList(undefined, { resetPage: true, silent: true });
   }, [user?.id, fetchDispensedList]);
 
   const handleSearch = () => {
     setCurrentPage(1);
-    void fetchDispensedList(1);
+    void fetchDispensedList(undefined, { resetPage: true });
   };
 
   const handleClearSearch = () => {
@@ -136,7 +168,7 @@ export default function DispenseFromCabinetPage() {
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
-    void fetchDispensedList(1, clearedFilters, { silent: true });
+    void fetchDispensedList(clearedFilters, { resetPage: true, silent: true });
   };
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
@@ -169,11 +201,10 @@ export default function DispenseFromCabinetPage() {
     }
   };
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
-    void fetchDispensedList(newPage, undefined, { silent: true });
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
   return (
     <ProtectedRoute>
@@ -196,7 +227,7 @@ export default function DispenseFromCabinetPage() {
             onFilterChange={handleFilterChange}
             onSearch={handleSearch}
             onClear={handleClearSearch}
-            onRefresh={() => fetchDispensedList(currentPage, undefined, { silent: true })}
+            onRefresh={() => fetchDispensedList(undefined, { resetPage: false, silent: true })}
             loading={loadingList}
           />
 
@@ -205,8 +236,9 @@ export default function DispenseFromCabinetPage() {
             items={dispensedList}
             currentPage={currentPage}
             totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={ITEMS_PER_PAGE}
+            totalRawItems={totalRawItems}
+            totalGroups={totalGroups}
+            groupsPerPage={GROUPS_PER_PAGE}
             searchItemCode={filters.searchItemCode}
             itemTypeFilter={filters.itemTypeFilter}
             onPageChange={handlePageChange}

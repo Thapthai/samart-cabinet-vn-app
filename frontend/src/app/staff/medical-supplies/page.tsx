@@ -228,10 +228,12 @@ export default function MedicalSuppliesPage() {
       toast.info(`กำลังสร้างรายงาน ${format.toUpperCase()}...`);
 
       const params = {
-        keyword: activeFilters.itemName || undefined,
+        item_keyword: activeFilters.itemName?.trim() || undefined,
+        patient_keyword: activeFilters.patientName?.trim() || undefined,
         startDate: activeFilters.startDate || undefined,
         endDate: activeFilters.endDate || undefined,
         patientHn: activeFilters.patientHN?.trim() || undefined,
+        EN: activeFilters.patientEN?.trim() || undefined,
         departmentCode: activeFilters.departmentCode?.trim() || undefined,
         usageType: activeFilters.usageType?.trim() || undefined,
       };

@@ -27,6 +27,7 @@ import {
 } from './services/item-borrow-report-excel.service';
 import { ItemBorrowReportPdfService } from './services/item-borrow-report-pdf.service';
 import { buildReturnedGroups } from './utils/build-returned-groups';
+import { buildDispensedGroups, sortDispensedItemsForReport } from './utils/build-dispensed-groups';
 import { DispensedItemsExcelService, DispensedItemsReportData } from './services/dispensed-items-excel.service';
 import { DispensedItemsPdfService } from './services/dispensed-items-pdf.service';
 import {
@@ -57,6 +58,13 @@ import {
   DispensedItemsForPatientsReportData,
 } from './services/dispensed-items-for-patients-excel.service';
 import { DispensedItemsForPatientsPdfService } from './services/dispensed-items-for-patients-pdf.service';
+import { GetMedicalSupplyUsagesQueryDto } from '../medical-supplies/dto/medical-supply.dto';
+import {
+  getOrderItemStatusLabel,
+  groupSupplyItemsLatest,
+  type SupplyUsageItemRow,
+} from './utils/medical-supply-for-patients-report';
+import { formatReportDateTime } from './utils/date-timeformat';
 import { ComparisonReportData } from './types/comparison-report.types';
 import { EquipmentUsageReportData } from './types/equipment-usage-report.types';
 import { EquipmentDisbursementReportData } from './types/equipment-disbursement-report.types';
@@ -2109,66 +2117,6 @@ export class ReportServiceService {
     }
   }
 
-  /** ความคาดเคลื่อนกลุ่มตามเวลา (วินาที) - ตรงกับ frontend */
-  private static readonly REPORT_GROUP_TIME_TOLERANCE_MS = 3 * 1000;
-
-  /**
-   * จัดกลุ่มรายการตามรหัสอุปกรณ์และเวลาที่เบิก/คืน (±3 วินาที)
-   */
-  private buildReportGroups<T extends { itemcode?: string; itemname?: string; modifyDate?: string; qty?: number }>(
-    items: T[],
-  ): Array<{ itemcode: string; itemname: string; dispenseTime: string; totalQty: number; items: T[] }> {
-    if (!items || items.length === 0) return [];
-    const sorted = [...items].sort((a, b) => {
-      const ca = (a.itemcode ?? '').toString();
-      const cb = (b.itemcode ?? '').toString();
-      if (ca !== cb) return ca.localeCompare(cb);
-      return new Date(a.modifyDate || 0).getTime() - new Date(b.modifyDate || 0).getTime();
-    });
-    const groups: Array<{ itemcode: string; itemname: string; dispenseTime: string; totalQty: number; items: T[] }> = [];
-    let current: T[] = [];
-    let groupStartTime = 0;
-    for (const item of sorted) {
-      const t = new Date(item.modifyDate || 0).getTime();
-      if (current.length === 0) {
-        current = [item];
-        groupStartTime = t;
-      } else {
-        const sameItem = (item.itemcode ?? '') === (current[0].itemcode ?? '');
-        const within = t - groupStartTime <= ReportServiceService.REPORT_GROUP_TIME_TOLERANCE_MS;
-        if (sameItem && within) {
-          current.push(item);
-        } else {
-          if (current.length > 0) {
-            const totalQty = current.reduce((s, i) => s + (i.qty ?? 1), 0);
-            const first = current[0];
-            groups.push({
-              itemcode: (first as any).itemcode ?? '',
-              itemname: (first as any).itemname ?? (first as any).itemcode ?? '',
-              dispenseTime: (first as any).modifyDate ?? '',
-              totalQty,
-              items: current,
-            });
-          }
-          current = [item];
-          groupStartTime = t;
-        }
-      }
-    }
-    if (current.length > 0) {
-      const totalQty = current.reduce((s, i) => s + (i.qty ?? 1), 0);
-      const first = current[0];
-      groups.push({
-        itemcode: (first as any).itemcode ?? '',
-        itemname: (first as any).itemname ?? (first as any).itemcode ?? '',
-        dispenseTime: (first as any).modifyDate ?? '',
-        totalQty,
-        items: current,
-      });
-    }
-    return groups;
-  }
-
   /**
    * ดึงชื่อแผนกและชื่อตู้ — cabinetId ว่าง = ตู้ทั้งหมด, departmentId ว่าง = แผนกทั้งหมด
    */
@@ -2280,8 +2228,9 @@ export class ReportServiceService {
 
       const labels = await this.getCabinetDepartmentLabels(params.cabinetId, params.departmentId);
 
-      const summaryQty = dispensedItems.reduce((sum: number, item: any) => sum + (item.qty || 0), 0);
-      const groups = this.buildReportGroups(dispensedItems);
+      const sortedItems = sortDispensedItemsForReport(dispensedItems);
+      const summaryQty = sortedItems.reduce((sum: number, item: any) => sum + (item.qty || 0), 0);
+      const groups = buildDispensedGroups(sortedItems);
 
       const reportData: DispensedItemsReportData = {
         filters: {
@@ -2294,10 +2243,10 @@ export class ReportServiceService {
           cabinetName: labels.cabinetName,
         } as DispensedItemsReportData['filters'],
         summary: {
-          total_records: result?.total ?? dispensedItems.length,
+          total_records: result?.total ?? sortedItems.length,
           total_qty: summaryQty,
         },
-        data: dispensedItems,
+        data: sortedItems,
         groups: groups.length > 0 ? groups : undefined,
       };
 
@@ -2346,8 +2295,9 @@ export class ReportServiceService {
 
       const labels = await this.getCabinetDepartmentLabels(params.cabinetId, params.departmentId);
 
-      const summaryQty = dispensedItems.reduce((sum: number, item: any) => sum + (item.qty || 0), 0);
-      const groups = this.buildReportGroups(dispensedItems);
+      const sortedItems = sortDispensedItemsForReport(dispensedItems);
+      const summaryQty = sortedItems.reduce((sum: number, item: any) => sum + (item.qty || 0), 0);
+      const groups = buildDispensedGroups(sortedItems);
 
       const reportData: DispensedItemsReportData = {
         filters: {
@@ -2360,10 +2310,10 @@ export class ReportServiceService {
           cabinetName: labels.cabinetName,
         } as DispensedItemsReportData['filters'],
         summary: {
-          total_records: result?.total ?? dispensedItems.length,
+          total_records: result?.total ?? sortedItems.length,
           total_qty: summaryQty,
         },
-        data: dispensedItems,
+        data: sortedItems,
         groups: groups.length > 0 ? groups : undefined,
       };
 
@@ -3080,161 +3030,90 @@ export class ReportServiceService {
    */
   async getDispensedItemsForPatientsData(params: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }): Promise<DispensedItemsForPatientsReportData> {
     try {
-      const baseWhere: any = {};
-      if (params.startDate || params.endDate) {
-        baseWhere.created_at = {};
-        if (params.startDate) {
-          baseWhere.created_at.gte = new Date(params.startDate + 'T00:00:00.000Z');
-        }
-        if (params.endDate) {
-          baseWhere.created_at.lte = new Date(params.endDate + 'T23:59:59.999Z');
-        }
-      }
-      if (params?.patientHn) {
-        baseWhere.patient_hn = params.patientHn;
-      }
-      if (params?.departmentCode) {
-        const di = parseInt(params.departmentCode, 10);
-        if (!Number.isNaN(di)) {
-          baseWhere.department_id = di;
-        }
-      }
-      if (params?.usageType?.trim()) {
-        baseWhere.subDepartment = { code: { contains: params.usageType.trim() } };
-      }
-      if (params?.keyword?.trim()) {
-        const keyword = params.keyword.trim();
-        baseWhere.OR = [
-          { first_name: { contains: keyword } },
-          { lastname: { contains: keyword } },
-          { patient_name_th: { contains: keyword } },
-          { patient_name_en: { contains: keyword } },
-          { en: { contains: keyword } },
-          {
-            supply_items: {
-              some: {
-                OR: [
-                  { order_item_description: { contains: keyword } },
-                  { supply_name: { contains: keyword } },
-                  { order_item_code: { contains: keyword } },
-                ],
-              },
-            },
-          },
-        ];
-      }
-      const [data, total] = await Promise.all([
-        this.prisma.medicalSupplyUsage.findMany({
-          where: baseWhere,
-          include: {
-            supply_items: true,
-            subDepartment: { select: { code: true, name: true } },
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-        }),
-        this.prisma.medicalSupplyUsage.count({ where: baseWhere }),
-      ]);
-
-      // Lookup ชื่อแผนกจาก Department table
-      const deptIds = [...new Set(
-        data.map((u) => u.department_id).filter((id): id is number => id != null),
-      )];
-      const departments = deptIds.length > 0
-        ? await this.prisma.department.findMany({
-          where: { ID: { in: deptIds } },
-          select: { ID: true, DepName: true },
-        })
-        : [];
-      const deptMap = new Map<number, string>(
-        departments.map((d) => [d.ID, d.DepName ?? ''])
-      );
-
-      const itemCodesForUnits = new Set<string>();
-      for (const usage of data) {
-        const supplyItems = (usage as { supply_items?: Array<{ order_item_code?: string; supply_code?: string }> }).supply_items ?? [];
-        for (const si of supplyItems) {
-          const c = si?.order_item_code ?? si?.supply_code;
-          if (c && c !== '-') itemCodesForUnits.add(String(c));
-        }
-      }
-      const unitRows =
-        itemCodesForUnits.size > 0
-          ? await this.prisma.item.findMany({
-              where: { itemcode: { in: [...itemCodesForUnits] } },
-              select: {
-                itemcode: true,
-                SubUnitQty: true,
-                unit: { select: { UnitName: true } },
-                subUnit: { select: { UnitName: true } },
-              },
-            })
-          : [];
-      const unitByItemCode = new Map(unitRows.map((r) => [r.itemcode, r]));
-
-      const reportData: DispensedItemsForPatientsReportData['data'] = data.map((usage, index) => {
-        const supplyItems = (usage as { supply_items?: Array<{ order_item_code?: string; supply_code?: string; order_item_description?: string; supply_name?: string; qty?: number; quantity?: number; uom?: string; unit?: string; assession_no?: string; order_item_status?: string }> }).supply_items ?? [];
-        const supply_items: DispensedItemsForPatientsReportData['data'][0]['supply_items'] = supplyItems.map((item) => {
-          const ic = item?.order_item_code ?? item?.supply_code ?? '-';
-          const uinfo = unitByItemCode.get(ic);
-          return {
-            itemcode: ic,
-            itemname: item?.order_item_description ?? item?.supply_name ?? '-',
-            qty: Number(item?.qty ?? item?.quantity ?? 0),
-            uom: item?.uom ?? item?.unit ?? undefined,
-            assession_no: item?.assession_no ?? undefined,
-            order_item_status: item?.order_item_status ?? undefined,
-            unit: uinfo?.unit ?? undefined,
-            subUnit: uinfo?.subUnit ?? undefined,
-            SubUnitQty: uinfo?.SubUnitQty ?? undefined,
-          };
-        });
-        const patientName = [usage.first_name, usage.lastname].filter(Boolean).join(' ').trim()
-          || (usage.patient_name_th ?? usage.patient_name_en ?? '-');
-        const deptCodeInt = usage.department_id ?? NaN;
-        const resolvedDeptName = !isNaN(deptCodeInt) ? (deptMap.get(deptCodeInt) || String(deptCodeInt)) : undefined;
-        return {
-          usage_id: usage.id,
-          seq: index + 1,
-          patient_hn: usage.patient_hn ?? '-',
-          patient_name: patientName,
-          en: usage.en ?? undefined,
-          department_code: usage.department_id != null ? String(usage.department_id) : undefined,
-          department_name: resolvedDeptName ?? undefined,
-          usage_type: usage.subDepartment?.code ?? undefined,
-          sub_department_name: usage.subDepartment?.name ?? undefined,
-          dispensed_date: usage.usage_datetime ?? usage.created_at?.toISOString() ?? '',
-          supply_items,
-        };
-      });
-
-      // นับเฉพาะอุปกรณ์ที่มีสถานะยืนยัน (Verified) — รายการยกเลิกไม่นำมาคิด
-      const isVerified = (status?: string) => {
-        const s = (status ?? '').toLowerCase();
-        return s === 'verified';
+      const query: GetMedicalSupplyUsagesQueryDto = {
+        startDate: params.startDate,
+        endDate: params.endDate,
+        patient_hn: params.patientHn,
+        HN: params.patientHn,
+        EN: params.EN,
+        department_code: params.departmentCode,
+        usage_type: params.usageType,
+        item_keyword: (params.item_keyword ?? params.keyword)?.trim() || undefined,
+        patient_keyword: params.patient_keyword?.trim() || undefined,
+        page: 1,
+        limit: 5000,
       };
-      const totalQty = reportData.reduce(
-        (sum, u) =>
-          sum +
-          u.supply_items.filter((i) => isVerified(i.order_item_status)).reduce((s, i) => s + i.qty, 0),
-        0,
-      );
 
-      // หาชื่อแผนกจาก filter param
+      const result = await this.medicalSuppliesService.findAll(query);
+      const usages = result.data ?? [];
+
       const filterDeptId = params.departmentCode ? parseInt(params.departmentCode, 10) : NaN;
-      const filterDeptName = !isNaN(filterDeptId) ? (deptMap.get(filterDeptId) || params.departmentCode) : params.departmentCode;
+      let filterDeptName: string | undefined = params.departmentCode;
+      if (!Number.isNaN(filterDeptId)) {
+        const dept = await this.prisma.department.findUnique({
+          where: { ID: filterDeptId },
+          select: { DepName: true, DepName2: true },
+        });
+        filterDeptName = dept?.DepName ?? dept?.DepName2 ?? params.departmentCode;
+      }
+
+      const usage_groups: DispensedItemsForPatientsReportData['usage_groups'] = [];
+      let total_detail_lines = 0;
+
+      usages.forEach((usage, index) => {
+        const supplyItems = (usage.supply_items ?? []) as SupplyUsageItemRow[];
+        const seq = index + 1;
+
+        const grouped = groupSupplyItemsLatest(supplyItems, {
+          startDate: params.startDate,
+          endDate: params.endDate,
+        });
+
+        const items: DispensedItemsForPatientsReportData['usage_groups'][0]['items'] = grouped.map(
+          (item, itemIdx) => ({
+            seq: itemIdx + 1,
+            itemcode: String(item.order_item_code ?? item.supply_code ?? '-'),
+            itemname: String(item.order_item_description ?? item.supply_name ?? '-'),
+            qty: Number(item.qty ?? item.quantity ?? 0),
+            uom: String(item.uom ?? item.unit ?? '-'),
+            assession_no: String(item.assession_no ?? '-'),
+            created_at: item.created_at ? formatReportDateTime(item.created_at) : '-',
+            updated_at: item.updated_at ? formatReportDateTime(item.updated_at) : '-',
+            order_item_status_label: getOrderItemStatusLabel(item.order_item_status),
+          }),
+        );
+
+        total_detail_lines += items.length;
+
+        usage_groups.push({
+          usage_seq: seq,
+          patient_hn: usage.patient_hn ?? '-',
+          en: usage.en ?? '-',
+          items,
+          empty_message:
+            items.length === 0
+              ? supplyItems.length === 0
+                ? 'ไม่มีรายการอุปกรณ์'
+                : 'ไม่มีรายการอุปกรณ์ที่สร้างหรือแก้ไขในช่วงวันที่ที่กรอง'
+              : undefined,
+        });
+      });
 
       return {
         filters: {
           keyword: params.keyword,
+          item_keyword: params.item_keyword ?? params.keyword,
+          patient_keyword: params.patient_keyword,
           startDate: params.startDate,
           endDate: params.endDate,
           patientHn: params.patientHn,
@@ -3243,11 +3122,10 @@ export class ReportServiceService {
           usageType: params.usageType,
         },
         summary: {
-          total_records: total,
-          total_qty: totalQty,
-          total_patients: data.length,
+          total_usages: result.total,
+          total_detail_lines,
         },
-        data: reportData,
+        usage_groups,
       };
     } catch (error) {
       console.error('[Report Service] Error getting Dispensed Items for Patients data:', error);
@@ -3261,9 +3139,12 @@ export class ReportServiceService {
    */
   async generateDispensedItemsForPatientsExcel(params: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }): Promise<{ buffer: Buffer; filename: string }> {
@@ -3285,9 +3166,12 @@ export class ReportServiceService {
    */
   async generateDispensedItemsForPatientsPdf(params: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }): Promise<{ buffer: Buffer; filename: string }> {

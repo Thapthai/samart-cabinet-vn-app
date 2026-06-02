@@ -68,18 +68,16 @@ export function formatQtyPlainForReport(qty: number): string {
   return Number(qty).toLocaleString();
 }
 
+/** Min/Max ตัวเลขอย่างเดียว — null/undefined แสดงเป็น 0 (เช่น `0 / 0` ไม่ใช่ `- / 0`) */
 export function formatMinMaxPlainForReport(
   min: number | null | undefined,
   max: number | null | undefined,
 ): string {
-  const fmt = (n: number | null | undefined) =>
-    n != null && Number.isFinite(Number(n)) ? formatQtyPlainForReport(Number(n)) : null;
-  const a = fmt(min);
-  const b = fmt(max);
-  if (a != null && b != null) return `${a} / ${b}`;
-  if (a != null) return `${a} / -`;
-  if (b != null) return `- / ${b}`;
-  return '-';
+  const fmt = (n: number | null | undefined) => {
+    const num = n != null && Number.isFinite(Number(n)) ? Number(n) : 0;
+    return formatQtyPlainForReport(num);
+  };
+  return `${fmt(min)} / ${fmt(max)}`;
 }
 
 /** ส่วนต่างที่อาจติดลบ — คงหน่วยเดียวกับรายการ */

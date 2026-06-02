@@ -146,6 +146,12 @@ export const adminMenuItems: StaffMenuItem[] = [
     noHref: true,
     submenu: [
       {
+        name: 'จัดการตู้ Cabinet',
+        href: '/admin/management/cabinets',
+        icon: Package,
+        description: 'จัดการตู้ Cabinet',
+      },
+      {
         name: 'Cabinet - Division',
         href: '/admin/management/cabinet-departments',
         icon: Network,
@@ -174,12 +180,6 @@ export const adminMenuItems: StaffMenuItem[] = [
         href: '/admin/management/departments',
         icon: Building2,
         description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
-      },
-      {
-        name: 'จัดการตู้ Cabinet',
-        href: '/admin/management/cabinets',
-        icon: Package,
-        description: 'จัดการตู้ Cabinet',
       },
       {
         name: 'ผู้ใช้งานในตู้ Cabinet',

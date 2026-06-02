@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import type { Item } from "@/types/item";
 import ItemNameWithUnit from "@/components/ItemNameWithUnit";
 import { formatUtcDateTime } from "@/lib/formatThaiDateTime";
+import { toStockLimitNumber } from "@/lib/itemUnitDisplay";
 
 /** itemcode -> max_available_qty (แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน / รอแจ้ง) จาก will-return */
 interface ItemsTableProps {
@@ -254,7 +255,8 @@ export default function ItemsTable({
                       0,
                       Number((item as Item & { refill_qty?: number }).refill_qty ?? 0),
                     );
-                    const stockMin = item.stock_min ?? 0;
+                    const stockMin = toStockLimitNumber(item.stock_min);
+                    const stockMax = toStockLimitNumber(item.stock_max);
                     const isLowStock = stockMin > 0 && countItemStock < stockMin;
                     const itemStocks = sortItemStocksByCabinet(
                       (item.itemStocks ?? []).filter(
@@ -327,9 +329,9 @@ export default function ItemsTable({
                             <span className="font-medium text-slate-700">{item.qty_in_use ?? 0}</span>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="text-gray-600">{item.stock_min ?? 0}</span>
+                            <span className="text-gray-600">{stockMin}</span>
                             <span className="text-gray-400 mx-1">/</span>
-                            <span className="text-gray-600">{item.stock_max ?? 0}</span>
+                            <span className="text-gray-600">{stockMax}</span>
                           </TableCell>
                           <TableCell className="text-center">
                             <span className={cn(

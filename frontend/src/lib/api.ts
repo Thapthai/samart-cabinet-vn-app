@@ -863,17 +863,23 @@ export const vendingReportsApi = {
   /** ดาวน์โหลดรายงานเบิกใช้กับคนไข้ (Excel/PDF) — Backend POST /reports/dispensed-items-for-patients/excel|pdf returns JSON { success, data: { buffer (base64), filename, contentType } } */
   downloadDispensedItemsForPatientsExcel: async (params?: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }): Promise<void> => {
     const body = {
       keyword: params?.keyword || undefined,
+      item_keyword: params?.item_keyword || params?.keyword || undefined,
+      patient_keyword: params?.patient_keyword || undefined,
       startDate: params?.startDate || undefined,
       endDate: params?.endDate || undefined,
       patientHn: params?.patientHn || undefined,
+      EN: params?.EN || undefined,
       departmentCode: params?.departmentCode || undefined,
       usageType: params?.usageType || undefined,
     };
@@ -895,17 +901,23 @@ export const vendingReportsApi = {
   },
   downloadDispensedItemsForPatientsPdf: async (params?: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }): Promise<void> => {
     const body = {
       keyword: params?.keyword || undefined,
+      item_keyword: params?.item_keyword || params?.keyword || undefined,
+      patient_keyword: params?.patient_keyword || undefined,
       startDate: params?.startDate || undefined,
       endDate: params?.endDate || undefined,
       patientHn: params?.patientHn || undefined,
+      EN: params?.EN || undefined,
       departmentCode: params?.departmentCode || undefined,
       usageType: params?.usageType || undefined,
     };

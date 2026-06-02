@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DispensedItemsApi } from '@/lib/staffApi/dispensedItemsApi';
 import { toast } from 'sonner';
 import { Package } from 'lucide-react';
 import FilterSection from './components/FilterSection';
 import DispensedTable from './components/DispensedTable';
-import type { DispensedItem, FilterState, SummaryData } from './types';
-// Helper function to get today's date in YYYY-MM-DD format
+import { buildDispensedGroups } from '@/lib/dispenseFromCabinet/buildDispensedGroups';
+import type { DispensedItem, FilterState } from './types';
+
 const getTodayDate = () => {
   const today = new Date();
   const year = today.getFullYear();
@@ -16,8 +17,10 @@ const getTodayDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-export default function DispenseFromCabinetPage() {
+const GROUPS_PER_PAGE = 10;
+const FETCH_BATCH_LIMIT = 5000;
 
+export default function DispenseFromCabinetPage() {
   const [loadingList, setLoadingList] = useState(false);
   const [dispensedList, setDispensedList] = useState<DispensedItem[]>([]);
   const [filters, setFilters] = useState<FilterState>({
@@ -30,80 +33,111 @@ export default function DispenseFromCabinetPage() {
     cabinetId: '',
   });
 
-
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+  const [totalRawItems, setTotalRawItems] = useState(0);
 
-  const fetchDispensedList = async (
-    page: number = 1,
-    customFilters?: FilterState,
-    opts?: { silent?: boolean },
-  ) => {
-    const activeFilters = customFilters || filters;
-    try {
-      setLoadingList(true);
-      const params: Record<string, string | number> = {
-        page,
-        limit: itemsPerPage,
-      };
-      if (activeFilters.startDate) params.startDate = activeFilters.startDate;
-      if (activeFilters.endDate) params.endDate = activeFilters.endDate;
-      if (activeFilters.searchItemCode) params.keyword = activeFilters.searchItemCode;
-      if (activeFilters.departmentId?.trim()) params.departmentId = activeFilters.departmentId;
-      if (activeFilters.subDepartmentId?.trim()) {
-        params.subDepartmentId = activeFilters.subDepartmentId;
-      }
-      if (activeFilters.cabinetId?.trim()) params.cabinetId = activeFilters.cabinetId;
+  const allGroups = useMemo(() => buildDispensedGroups(dispensedList), [dispensedList]);
+  const totalGroups = allGroups.length;
+  const totalPages = useMemo(
+    () => (totalGroups > 0 ? Math.ceil(totalGroups / GROUPS_PER_PAGE) : 1),
+    [totalGroups],
+  );
 
-      const response = await DispensedItemsApi.getDispensedItems(params);
+  const fetchDispensedList = useCallback(
+    async (
+      overrideFilters?: FilterState,
+      opts?: { resetPage?: boolean; silent?: boolean },
+    ) => {
+      const activeFilters = overrideFilters ?? filters;
+      try {
+        setLoadingList(true);
+        const params: Record<string, string | number> = {
+          page: 1,
+          limit: FETCH_BATCH_LIMIT,
+        };
+        if (activeFilters.startDate) params.startDate = activeFilters.startDate;
+        if (activeFilters.endDate) params.endDate = activeFilters.endDate;
+        if (activeFilters.searchItemCode) params.keyword = activeFilters.searchItemCode;
+        if (activeFilters.departmentId?.trim()) params.departmentId = activeFilters.departmentId;
+        if (activeFilters.subDepartmentId?.trim()) {
+          params.subDepartmentId = activeFilters.subDepartmentId;
+        }
+        if (activeFilters.cabinetId?.trim()) params.cabinetId = activeFilters.cabinetId;
 
-      // ให้โครงสร้างเหมือนกับฝั่ง admin:
-      // { success: boolean, data: [...], total, page, limit, totalPages, ... }
-      if (response?.success && Array.isArray(response.data)) {
-        const dispensedData = response.data;
+        const aggregated: DispensedItem[] = [];
+        let reportedTotal = 0;
+        let page = 1;
 
-        const total = typeof response.total === 'number' ? response.total : dispensedData.length;
-        const limit = typeof response.limit === 'number' ? response.limit : itemsPerPage;
-        const totalPagesNum =
-          typeof response.totalPages === 'number' ? response.totalPages : Math.ceil(total / limit);
+        while (true) {
+          const response = await DispensedItemsApi.getDispensedItems({
+            ...params,
+            page,
+            limit: FETCH_BATCH_LIMIT,
+          });
 
-        setDispensedList(dispensedData);
-        setTotalItems(total);
-        setTotalPages(totalPagesNum);
-        setCurrentPage(response.page || page);
+          if (!response?.success || !Array.isArray(response.data)) {
+            toast.error(response?.message || 'ไม่สามารถโหลดข้อมูลได้');
+            setDispensedList([]);
+            setTotalRawItems(0);
+            break;
+          }
 
-        if (!opts?.silent) {
-          if (dispensedData.length === 0) {
-            toast.info('ไม่พบข้อมูลการเบิกอุปกรณ์ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
-          } else {
-            toast.success(`พบ ${total} รายการเบิกอุปกรณ์`);
+          const batch = response.data;
+          reportedTotal =
+            typeof response.total === 'number' ? response.total : aggregated.length + batch.length;
+          aggregated.push(...batch);
+
+          if (batch.length < FETCH_BATCH_LIMIT || aggregated.length >= reportedTotal) {
+            break;
+          }
+          page += 1;
+          if (page > 500) {
+            console.warn('staff dispense-from-cabinet: stopped batch fetch after 500 pages');
+            break;
           }
         }
-      } else {
-        toast.error(response?.message || 'ไม่สามารถโหลดข้อมูลได้');
+
+        if (aggregated.length > 0 || reportedTotal === 0) {
+          setDispensedList(aggregated);
+          setTotalRawItems(reportedTotal);
+          if (opts?.resetPage !== false) {
+            setCurrentPage(1);
+          }
+
+          if (!opts?.silent) {
+            if (aggregated.length === 0) {
+              toast.info('ไม่พบข้อมูลการเบิกอุปกรณ์ กรุณาตรวจสอบว่ามีข้อมูลในระบบ');
+            } else {
+              toast.success(`พบ ${reportedTotal} รายการเบิกอุปกรณ์`);
+            }
+          }
+        }
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } }; message?: string };
+        toast.error(
+          err.response?.data?.message || err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล',
+        );
+      } finally {
+        setLoadingList(false);
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || error.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
-    } finally {
-      setLoadingList(false);
-    }
-  };
+    },
+    [filters],
+  );
+
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
+  }, [totalPages]);
 
   const initialFetchDone = useRef(false);
   useEffect(() => {
     if (initialFetchDone.current) return;
     initialFetchDone.current = true;
-    void fetchDispensedList(1, undefined, { silent: true });
-    // โหลดครั้งแรกด้วยตัวกรองว่าง = ทั้งหมดตามช่วงวันที่
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void fetchDispensedList(undefined, { resetPage: true, silent: true });
+  }, [fetchDispensedList]);
 
   const handleSearch = () => {
     setCurrentPage(1);
-    fetchDispensedList(1);
+    void fetchDispensedList(undefined, { resetPage: true });
   };
 
   const handleClearSearch = () => {
@@ -118,11 +152,11 @@ export default function DispenseFromCabinetPage() {
     };
     setFilters(clearedFilters);
     setCurrentPage(1);
-    void fetchDispensedList(1, clearedFilters, { silent: true });
+    void fetchDispensedList(clearedFilters, { resetPage: true, silent: true });
   };
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleExportReport = async (format: 'excel' | 'pdf') => {
@@ -150,74 +184,50 @@ export default function DispenseFromCabinetPage() {
         await DispensedItemsApi.downloadDispensedItemsPdf(params);
       }
       toast.success(`ดาวน์โหลดรายงาน ${format.toUpperCase()} สำเร็จ`);
-    } catch (error: any) {
-      toast.error(`ไม่สามารถสร้างรายงาน ${format.toUpperCase()} ได้: ${error.message}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'เกิดข้อผิดพลาด';
+      toast.error(`ไม่สามารถสร้างรายงาน ${format.toUpperCase()} ได้: ${msg}`);
     }
   };
 
-  const calculateSummary = (): SummaryData => {
-    const totalQty = dispensedList.reduce((sum, item) => sum + (item.qty || 0), 0);
-    return {
-      total: totalItems,
-      totalQty,
-    };
-  };
-
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
-    fetchDispensedList(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const getItemTypes = () => {
-    const types = new Map();
-    dispensedList.forEach(item => {
-      if (item.itemtypeID && item.itemType) {
-        types.set(item.itemtypeID, item.itemType);
-      }
-    });
-    return Array.from(types.entries()).map(([id, name]) => ({ id: id.toString(), name }));
-  };
-
-  const summary = calculateSummary();
+  }, []);
 
   return (
     <>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center gap-3">
           <div className="p-2 bg-purple-100 rounded-lg">
             <Package className="h-6 w-6 text-purple-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              รายงานเบิกอุปกรณ์จากตู้
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-900">รายงานเบิกอุปกรณ์จากตู้</h1>
             <p className="text-sm text-gray-500 mt-1">
               รายการอุปกรณ์ทั้งหมดที่เบิกจากตู้ SmartCabinet
             </p>
           </div>
         </div>
- 
-        {/* Filter Section */}
+
         <FilterSection
           filters={filters}
           onFilterChange={handleFilterChange}
           onSearch={handleSearch}
           onClear={handleClearSearch}
-          onRefresh={() => fetchDispensedList(currentPage)}
+          onRefresh={() => fetchDispensedList(undefined, { resetPage: false, silent: true })}
           loading={loadingList}
           departmentDisabled={false}
         />
 
-        {/* Dispensed Items Table */}
         <DispensedTable
           loading={loadingList}
           items={dispensedList}
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={totalItems}
-          itemsPerPage={itemsPerPage}
+          totalRawItems={totalRawItems}
+          totalGroups={totalGroups}
+          groupsPerPage={GROUPS_PER_PAGE}
           searchItemCode={filters.searchItemCode}
           itemTypeFilter={filters.itemTypeFilter}
           onPageChange={handlePageChange}

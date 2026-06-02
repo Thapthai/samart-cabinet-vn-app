@@ -609,9 +609,12 @@ export class ReportServiceController {
   @Post('dispensed-items-for-patients/excel')
   async generateDispensedItemsForPatientsExcel(@Body() data: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }) {
@@ -627,9 +630,12 @@ export class ReportServiceController {
   @Post('dispensed-items-for-patients/pdf')
   async generateDispensedItemsForPatientsPdf(@Body() data: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }) {
@@ -644,9 +650,12 @@ export class ReportServiceController {
   @Post('dispensed-items-for-patients/data')
   async getDispensedItemsForPatientsData(@Body() data: {
     keyword?: string;
+    item_keyword?: string;
+    patient_keyword?: string;
     startDate?: string;
     endDate?: string;
     patientHn?: string;
+    EN?: string;
     departmentCode?: string;
     usageType?: string;
   }) {

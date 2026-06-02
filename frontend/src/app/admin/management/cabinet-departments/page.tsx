@@ -362,6 +362,7 @@ export default function ItemStockDepartmentsPage() {
             onOpenChange={setShowDeleteDialog}
             onConfirm={submitDelete}
             saving={saving}
+            selectedMapping={selectedMapping}
           />
         </div>
       </AppLayout>

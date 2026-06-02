@@ -43,6 +43,13 @@ export function formatItemUnitBracket(
   return `${main} (${n} ${sub})`;
 }
 
+/** Min/Max ในตาราง — null/undefined แสดงเป็น 0 */
+export function toStockLimitNumber(n: number | null | undefined): number {
+  if (n == null) return 0;
+  const num = Number(n);
+  return Number.isFinite(num) ? num : 0;
+}
+
 /** ชื่ออุปกรณ์ · หน่วย — ใช้เมื่อต้องการบรรทัดเดียว */
 export function formatItemNameWithUnit(
   item: Item & ItemUnitFields,
