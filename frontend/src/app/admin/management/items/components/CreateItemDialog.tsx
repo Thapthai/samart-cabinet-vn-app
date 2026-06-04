@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { itemsApi, unitsApi, type UnitRow } from '@/lib/api';
+import { itemsApi, unitsApi, departmentApi, type UnitRow } from '@/lib/api';
 import { itemSchema, type ItemFormData } from '@/lib/validations';
 import {
   Dialog,
@@ -16,8 +16,21 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import SearchableSelect from '@/app/admin/cabinet-departments/components/SearchableSelect';
+import {
+  buildDepartmentSelectOptions,
+  departmentInitialDisplay,
+  selectValueToDepartmentId,
+  type DeptRow,
+} from './itemHelpers';
 
 interface CreateItemDialogProps {
   open: boolean;
@@ -41,6 +54,11 @@ export default function CreateItemDialog({
   const [subUnitInitialDisplay, setSubUnitInitialDisplay] = useState<
     { label: string; subLabel?: string } | undefined
   >(undefined);
+  const [departments, setDepartments] = useState<DeptRow[]>([]);
+  const [loadingDepts, setLoadingDepts] = useState(false);
+  const [deptInitialDisplay, setDeptInitialDisplay] = useState<
+    { label: string; subLabel?: string } | undefined
+  >({ label: 'ทุกแผนก', subLabel: 'DepartmentID = 0' });
   const unitRequestSeq = useRef(0);
 
   const loadUnits = useCallback(async (keyword?: string) => {
@@ -72,15 +90,34 @@ export default function CreateItemDialog({
       CostPrice: 0,
       stock_balance: 0,
       item_status: 0,
+      IsCancel: 0,
+      DepartmentID: 0,
       UnitID: undefined,
       SubUnitID: undefined,
       SubUnitQty: undefined,
     },
   });
 
+  const loadDepartments = useCallback(async (keyword?: string) => {
+    setLoadingDepts(true);
+    try {
+      const res = await departmentApi.getAll({ limit: 100, keyword: keyword?.trim() || undefined });
+      if (res.success && Array.isArray(res.data)) {
+        setDepartments(res.data as DeptRow[]);
+      }
+    } catch {
+      setDepartments([]);
+    } finally {
+      setLoadingDepts(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (open) void loadUnits();
-  }, [open, loadUnits]);
+    if (open) {
+      void loadUnits();
+      void loadDepartments();
+    }
+  }, [open, loadUnits, loadDepartments]);
 
   // Reset form when dialog is closed
   useEffect(() => {
@@ -88,13 +125,14 @@ export default function CreateItemDialog({
       form.reset();
       setUnitInitialDisplay(undefined);
       setSubUnitInitialDisplay(undefined);
+      setDeptInitialDisplay({ label: 'ทุกแผนก', subLabel: 'DepartmentID = 0' });
     }
   }, [open, form]);
 
   const onSubmit = async (data: ItemFormData) => {
     try {
       setLoading(true);
-      const { UnitID, SubUnitID, SubUnitQty, ...rest } = data;
+      const { UnitID, SubUnitID, SubUnitQty, IsCancel, DepartmentID, ...rest } = data;
       const response = await itemsApi.create({
         ...rest,
         ...(UnitID != null && UnitID > 0 ? { UnitID } : {}),
@@ -102,7 +140,9 @@ export default function CreateItemDialog({
         ...(SubUnitQty != null && SubUnitQty >= 1 ? { SubUnitQty } : {}),
         IsNormal: '1',
         IsStock: true,
-        item_status: data.item_status || 0,
+        IsCancel: IsCancel ?? 0,
+        DepartmentID: DepartmentID ?? 0,
+        item_status: (IsCancel ?? 0) === 1 ? 1 : 0,
       });
 
       if (response.success) {
@@ -167,6 +207,62 @@ export default function CreateItemDialog({
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="IsCancel"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>สถานะ</FormLabel>
+                  <Select
+                    value={String(field.value ?? 0)}
+                    onValueChange={(v) => field.onChange(parseInt(v, 10))}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="0">ใช้งาน (IsCancel = 0)</SelectItem>
+                      <SelectItem value="1">ปิดการใช้งาน (IsCancel = 1)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="DepartmentID"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <SearchableSelect
+                      positionMode="floating"
+                      label="แผนกที่ใช้ Item นี้"
+                      placeholder="เลือกแผนก"
+                      value={field.value != null && field.value > 0 ? String(field.value) : '0'}
+                      onValueChange={(value) => {
+                        const id = selectValueToDepartmentId(value);
+                        field.onChange(id);
+                        setDeptInitialDisplay(departmentInitialDisplay(id, departments));
+                      }}
+                      options={buildDepartmentSelectOptions(departments)}
+                      loading={loadingDepts}
+                      onSearch={loadDepartments}
+                      searchPlaceholder="ค้นหาชื่อแผนก..."
+                      initialDisplay={deptInitialDisplay}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    &quot;ทุกแผนก&quot; (DepartmentID = 0) = ใช้ได้ทุกแผนก
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

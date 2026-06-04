@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Users, Shield, UserCog, Boxes, Building2, Layers, Printer, Ruler } from 'lucide-react';
+import { Package, Users, Shield, UserCog, Boxes, Building2, Layers, Printer, Ruler, IdCard } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,6 +72,17 @@ const managementMenus = [
     borderColor: 'border-emerald-200',
     iconBg: 'bg-emerald-100',
     iconColor: 'text-emerald-600',
+  },
+  {
+    name: 'จัดการ Employee',
+    href: '/admin/management/employee',
+    icon: IdCard,
+    description: 'รายชื่อพนักงาน EmpCode สำหรับผูก Staff User และผู้ใช้ตู้',
+    color: 'from-teal-500 to-cyan-600',
+    bgLight: 'bg-teal-50',
+    borderColor: 'border-teal-200',
+    iconBg: 'bg-teal-100',
+    iconColor: 'text-teal-700',
   },
   {
     name: 'จัดการ Staff Role',

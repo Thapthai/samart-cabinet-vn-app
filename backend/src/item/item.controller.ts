@@ -188,8 +188,12 @@ export class ItemController {
       CostPrice: cleanBody.CostPrice ? parseFloat(cleanBody.CostPrice) : undefined,
       SalePrice: cleanBody.SalePrice ? parseFloat(cleanBody.SalePrice) : undefined,
       stock_balance: cleanBody.stock_balance ? parseInt(cleanBody.stock_balance, 10) : undefined,
-      DepartmentID: cleanBody.DepartmentID ? parseInt(cleanBody.DepartmentID, 10) : undefined,
+      DepartmentID:
+        cleanBody.DepartmentID !== undefined && cleanBody.DepartmentID !== null && String(cleanBody.DepartmentID).trim() !== ''
+          ? parseInt(String(cleanBody.DepartmentID), 10)
+          : undefined,
       item_status: cleanBody.item_status !== undefined ? parseInt(cleanBody.item_status, 10) : undefined,
+      IsCancel: cleanBody.IsCancel !== undefined ? parseInt(String(cleanBody.IsCancel), 10) : undefined,
     };
     if (cleanBody.UnitID !== undefined && cleanBody.UnitID !== null && String(cleanBody.UnitID).trim() !== '') {
       const uid = parseInt(String(cleanBody.UnitID), 10);

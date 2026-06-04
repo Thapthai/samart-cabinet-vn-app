@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { StaffRoleOption } from './types';
+import { selectableStaffRoles } from './types';
 import { ClientCredentialsPanel } from './ClientCredentialsPanel';
 import { StaffEmployeePicker } from './StaffEmployeePicker';
 
@@ -40,6 +41,7 @@ export function CreateStaffUserDialog({
   onShowSecretChange,
   onCopy,
 }: CreateStaffUserDialogProps) {
+  const roleOptions = selectableStaffRoles(staffRoles);
   const [formData, setFormData] = useState(emptyForm);
   const [empCode, setEmpCode] = useState<string | null>(null);
   const [issued, setIssued] = useState<{ client_id: string; client_secret: string } | null>(null);
@@ -131,12 +133,12 @@ export function CreateStaffUserDialog({
             <StaffEmployeePicker value={empCode} onChange={setEmpCode} />
             <div>
               <Label>บทบาท (Role) *</Label>
-              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })} required disabled={staffRoles.length === 0}>
+              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })} required disabled={roleOptions.length === 0}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={staffRoles.length === 0 ? 'กำลังโหลด...' : 'เลือกบทบาท'} />
+                  <SelectValue placeholder={roleOptions.length === 0 ? 'กำลังโหลด...' : 'เลือกบทบาท'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {staffRoles.map((role) => (
+                  {roleOptions.map((role) => (
                     <SelectItem key={role.id} value={role.code}>
                       {role.name}
                     </SelectItem>

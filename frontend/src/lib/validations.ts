@@ -29,6 +29,8 @@ export const itemSchema = z
     stock_min: z.number().int().min(0).optional(),
     stock_max: z.number().int().min(0).optional(),
     item_status: z.number().int().optional(),
+    IsCancel: z.number().int().min(0).max(1).optional(),
+    DepartmentID: z.number().int().min(0).optional(),
     warehouseID: z.number().int().optional(),
     /** หน่วย — stock / ธุรกรรม */
     UnitID: z.number().int().positive().optional(),

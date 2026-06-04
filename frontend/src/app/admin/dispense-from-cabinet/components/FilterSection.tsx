@@ -71,6 +71,7 @@ interface FilterSectionProps {
   onSearch: () => void;
   onClear: () => void;
   onRefresh: () => void;
+  itemTypes: Array<{ id: string; name: string }>;
   loading: boolean;
 }
 
@@ -80,6 +81,7 @@ export default function FilterSection({
   onSearch,
   onClear,
   onRefresh,
+  itemTypes: _itemTypes,
   loading,
 }: FilterSectionProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -199,13 +201,17 @@ export default function FilterSection({
     }
   }, [cabinets, filters.cabinetId, onFilterChange]);
 
+  const handleSearchClick = () => {
+    onSearch();
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>กรองข้อมูล</CardTitle>
         <CardDescription>ค้นหาและกรองรายการเบิกอุปกรณ์จากตู้</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
         <div className="space-y-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">รหัส/ชื่อเวชภัณฑ์</label>
@@ -213,7 +219,7 @@ export default function FilterSection({
               placeholder="ค้นหา..."
               value={filters.searchItemCode}
               onChange={(e) => onFilterChange('searchItemCode', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchClick()}
               className="w-full"
             />
           </div>
@@ -295,8 +301,8 @@ export default function FilterSection({
           </div>
         </div>
 
-        <div className="flex gap-2 mt-4">
-          <Button onClick={onSearch} disabled={loading}>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button onClick={handleSearchClick} disabled={loading}>
             <Search className="h-4 w-4 mr-2" />
             ค้นหา
           </Button>

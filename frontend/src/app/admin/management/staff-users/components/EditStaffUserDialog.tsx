@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { StaffUser, StaffRoleOption } from './types';
+import { selectableStaffRoles } from './types';
 import { StaffEmployeePicker } from './StaffEmployeePicker';
 
 interface EditStaffUserDialogProps {
@@ -20,6 +21,8 @@ interface EditStaffUserDialogProps {
 }
 
 export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onSuccess }: EditStaffUserDialogProps) {
+  const roleOptions = selectableStaffRoles(staffRoles);
+  const [inactiveRoleNotice, setInactiveRoleNotice] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     fname: '',
@@ -32,20 +35,37 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
 
   useEffect(() => {
     if (!open || !staff) return;
+    const code = staff.role?.trim() || '';
+    const selectable = selectableStaffRoles(staffRoles);
+    const roleInList = !!(code && selectable.some((r) => r.code === code));
+
+    setInactiveRoleNotice(
+      code && !roleInList
+        ? `บทบาทปัจจุบัน (${staff.role_name?.trim() || code}) ปิดใช้งานแล้ว — กรุณาเลือกบทบาทใหม่`
+        : null,
+    );
     setFormData({
       email: staff.email,
       fname: staff.fname,
       lname: staff.lname,
-      role: staff.role || '',
+      role: roleInList ? code : '',
       password: '',
       expires_at: staff.expires_at || '',
     });
     setEmpCode(staff.emp_code ?? null);
-  }, [open, staff]);
+  }, [open, staff, staffRoles]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!staff) return;
+    if (!formData.role?.trim()) {
+      toast.error('กรุณาเลือกบทบาท (Role) ที่เปิดใช้งาน');
+      return;
+    }
+    if (!roleOptions.some((r) => r.code === formData.role)) {
+      toast.error('บทบาทที่เลือกปิดใช้งานแล้ว ไม่สามารถใช้ได้');
+      return;
+    }
     try {
       const updateData: Record<string, unknown> = {
         email: formData.email,
@@ -106,12 +126,20 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
           ) : null}
           <div>
             <Label>บทบาท (Role) *</Label>
-            <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })} required>
+            {inactiveRoleNotice ? (
+              <p className="mb-2 text-xs text-amber-700">{inactiveRoleNotice}</p>
+            ) : null}
+            <Select
+              value={formData.role || undefined}
+              onValueChange={(value) => setFormData({ ...formData, role: value })}
+              required
+              disabled={roleOptions.length === 0}
+            >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="เลือกบทบาท" />
+                <SelectValue placeholder={roleOptions.length === 0 ? 'ไม่มีบทบาทที่เปิดใช้งาน' : 'เลือกบทบาท'} />
               </SelectTrigger>
               <SelectContent>
-                {staffRoles.map((role) => (
+                {roleOptions.map((role) => (
                   <SelectItem key={role.id} value={role.code}>
                     {role.name}
                   </SelectItem>

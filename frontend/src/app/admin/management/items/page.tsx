@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { itemsApi } from '@/lib/api';
+import { itemsApi, departmentApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import type { Item } from '@/types/item';
@@ -24,6 +24,7 @@ import CreateItemDialog from './components/CreateItemDialog';
 import EditItemDialog from '@/app/admin/items/components/EditItemDialog';
 import DeleteItemDialog from '@/app/admin/items/components/DeleteItemDialog';
 import ItemNameWithUnit from '@/components/ItemNameWithUnit';
+import { formatItemDepartmentLabel, itemIsActive, type DeptRow } from './components/itemHelpers';
 
 /** ตรงกับ admin/items (itemsPerPage = 10) */
 const PAGE_SIZE = 10;
@@ -51,8 +52,8 @@ function generatePageNumbers(currentPage: number, totalPages: number): (number |
   return pages;
 }
 
-function StatusBadge({ status }: { status: number | null | undefined }) {
-  if (status === 0) {
+function StatusBadge({ item }: { item: Item }) {
+  if (itemIsActive(item)) {
     return (
       <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-800">
         ใช้งาน
@@ -61,7 +62,7 @@ function StatusBadge({ status }: { status: number | null | undefined }) {
   }
   return (
     <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700">
-      ไม่ใช้งาน
+      ปิดการใช้งาน
     </span>
   );
 }
@@ -81,6 +82,26 @@ export default function AdminItemManagementPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<Item | null>(null);
+  const [departments, setDepartments] = useState<DeptRow[]>([]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await departmentApi.getAll({ limit: 500 });
+        if (res.success && Array.isArray(res.data)) {
+          setDepartments(res.data as DeptRow[]);
+        }
+      } catch {
+        setDepartments([]);
+      }
+    })();
+  }, []);
+
+  const deptMap = useMemo(() => {
+    const m = new Map<number, DeptRow>();
+    departments.forEach((d) => m.set(d.ID, d));
+    return m;
+  }, [departments]);
 
   const fetchList = useCallback(async () => {
     try {
@@ -259,6 +280,7 @@ export default function AdminItemManagementPage() {
                         <TableHead>รหัส Item</TableHead>
                         <TableHead className="min-w-[200px]">ชื่อ / หน่วย</TableHead>
                         <TableHead>บาร์โค้ด</TableHead>
+                        <TableHead>แผนก</TableHead>
                         <TableHead>สถานะ</TableHead>
                         <TableHead>หน่วย</TableHead>
                         <TableHead>หน่วยการเบิก</TableHead>
@@ -278,8 +300,11 @@ export default function AdminItemManagementPage() {
                             <ItemNameWithUnit item={it} />
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">{it.Barcode || '—'}</TableCell>
+                          <TableCell className="text-sm">
+                            {formatItemDepartmentLabel(it.DepartmentID, deptMap)}
+                          </TableCell>
                           <TableCell>
-                            <StatusBadge status={it.item_status} />
+                            <StatusBadge item={it} />
                           </TableCell>
                           <TableCell className="text-sm">
                             {it.unit?.UnitName?.trim() ? it.unit.UnitName : '—'}

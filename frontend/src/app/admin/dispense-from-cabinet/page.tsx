@@ -20,7 +20,7 @@ const getTodayDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-const GROUPS_PER_PAGE = 2;
+const GROUPS_PER_PAGE = 10;
 const FETCH_BATCH_LIMIT = 5000;
 
 export default function DispenseFromCabinetPage() {
@@ -177,16 +177,15 @@ export default function DispenseFromCabinetPage() {
 
   const handleExportReport = async (format: 'excel' | 'pdf') => {
     try {
-      toast.info(`กำลังสร้างรายงาน ${format.toUpperCase()}...`);
+      const params: Record<string, string | number | undefined> = {};
+      if (filters.searchItemCode) params.keyword = filters.searchItemCode;
+      if (filters.startDate) params.startDate = filters.startDate;
+      if (filters.endDate) params.endDate = filters.endDate;
+      if (filters.departmentId) params.departmentId = filters.departmentId;
+      if (filters.subDepartmentId) params.subDepartmentId = filters.subDepartmentId;
+      if (filters.cabinetId) params.cabinetId = filters.cabinetId;
 
-      const params = {
-        keyword: filters.searchItemCode || undefined,
-        startDate: filters.startDate || undefined,
-        endDate: filters.endDate || undefined,
-        departmentId: filters.departmentId || undefined,
-        subDepartmentId: filters.subDepartmentId || undefined,
-        cabinetId: filters.cabinetId || undefined,
-      };
+      toast.info(`กำลังสร้างรายงาน ${format.toUpperCase()}...`);
 
       if (format === 'excel') {
         await medicalSuppliesApi.downloadDispensedItemsExcel(params);
@@ -194,7 +193,7 @@ export default function DispenseFromCabinetPage() {
         await medicalSuppliesApi.downloadDispensedItemsPdf(params);
       }
 
-      toast.success(`ดาวน์โหลดรายงาน ${format.toUpperCase()} สำเร็จ`);
+      toast.success(`กำลังดาวน์โหลดรายงาน ${format.toUpperCase()}`);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'เกิดข้อผิดพลาด';
       toast.error(`ไม่สามารถสร้างรายงาน ${format.toUpperCase()} ได้: ${msg}`);
@@ -205,6 +204,16 @@ export default function DispenseFromCabinetPage() {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  const getItemTypes = () => {
+    const types = new Map<string, string>();
+    dispensedList.forEach((item) => {
+      if (item.itemtypeID && item.itemType) {
+        types.set(String(item.itemtypeID), item.itemType);
+      }
+    });
+    return Array.from(types.entries()).map(([id, name]) => ({ id, name }));
+  };
 
   return (
     <ProtectedRoute>
@@ -228,6 +237,7 @@ export default function DispenseFromCabinetPage() {
             onSearch={handleSearch}
             onClear={handleClearSearch}
             onRefresh={() => fetchDispensedList(undefined, { resetPage: false, silent: true })}
+            itemTypes={getItemTypes()}
             loading={loadingList}
           />
 

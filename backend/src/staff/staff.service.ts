@@ -133,6 +133,21 @@ export class StaffService {
     return role?.id ?? null;
   }
 
+  /** บทบาทต้องมีอยู่และ is_active = true */
+  private async resolveActiveRoleId(role_code?: string, role_id?: number): Promise<number | null> {
+    const id = await this.resolveRoleId(role_code, role_id);
+    if (id == null) return null;
+    const role = await this.prisma.staffRole.findUnique({
+      where: { id },
+      select: { id: true, is_active: true, code: true },
+    });
+    if (!role) return null;
+    if (!role.is_active) {
+      throw new BadRequestException(`บทบาท "${role.code}" ปิดใช้งานแล้ว ไม่สามารถเลือกได้`);
+    }
+    return role.id;
+  }
+
   async findAllStaffUsers(params?: { page?: number; limit?: number; keyword?: string }) {
     const page = Math.max(1, params?.page ?? 1);
     const limit = Math.min(100, Math.max(1, params?.limit ?? 50));
@@ -193,8 +208,8 @@ export class StaffService {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email.trim() } });
     if (existing) throw new BadRequestException('Email already exists');
 
-    const roleId = await this.resolveRoleId(dto.role_code, dto.role_id);
-    if (roleId == null) throw new BadRequestException('role_code or role_id is required and must match an existing role');
+    const roleId = await this.resolveActiveRoleId(dto.role_code, dto.role_id);
+    if (roleId == null) throw new BadRequestException('role_code or role_id is required and must match an active role');
 
     const departmentId = dto.department_id ?? null;
     if (departmentId != null) {
@@ -292,8 +307,13 @@ export class StaffService {
     if (dto.is_active !== undefined) data.is_active = dto.is_active;
     if (dto.expires_at !== undefined) data.expires_at = dto.expires_at?.trim() ? new Date(dto.expires_at) : null;
 
-    const roleId = await this.resolveRoleId(dto.role_code, dto.role_id);
-    if (roleId != null) data.role_id = roleId;
+    if (dto.role_code !== undefined || dto.role_id !== undefined) {
+      const roleId = await this.resolveActiveRoleId(dto.role_code, dto.role_id);
+      if (roleId == null) {
+        throw new BadRequestException('role_code or role_id is required and must match an active role');
+      }
+      data.role_id = roleId;
+    }
 
     if (dto.password?.trim() && dto.password.length >= 8) {
       data.password = await bcrypt.hash(dto.password, 10);
@@ -334,8 +354,9 @@ export class StaffService {
     };
   }
 
-  async findAllStaffRoles() {
+  async findAllStaffRoles(activeOnly = false) {
     const list = await this.prisma.staffRole.findMany({
+      where: activeOnly ? { is_active: true } : undefined,
       orderBy: { code: 'asc' },
     });
     return { success: true, data: list };

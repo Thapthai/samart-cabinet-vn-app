@@ -120,8 +120,9 @@ export class StaffRolesController {
   constructor(private readonly staffService: StaffService) {}
 
   @Get()
-  async findAll() {
-    return this.staffService.findAllStaffRoles();
+  async findAll(@Query('active_only') active_only?: string) {
+    const activeOnly = active_only === '1' || active_only === 'true';
+    return this.staffService.findAllStaffRoles(activeOnly);
   }
 
   @Get(':id')

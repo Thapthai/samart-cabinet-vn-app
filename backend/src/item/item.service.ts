@@ -49,6 +49,16 @@ export class ItemService {
         }
       }
 
+      if (cleanData.DepartmentID === undefined || cleanData.DepartmentID === null) {
+        cleanData.DepartmentID = 0;
+      }
+      if (cleanData.IsCancel !== undefined && cleanData.IsCancel !== null) {
+        cleanData.item_status = cleanData.IsCancel === 1 ? 1 : 0;
+      } else if (cleanData.item_status === undefined) {
+        cleanData.IsCancel = 0;
+        cleanData.item_status = 0;
+      }
+
       const item = await this.prisma.item.create({
         data: cleanData,
       });
@@ -911,9 +921,9 @@ export class ItemService {
 
       const f = (item_status_filter ?? '').trim().toLowerCase();
       if (f === 'active' || f === '0') {
-        where.item_status = 0;
+        where.OR = [{ IsCancel: 0 }, { IsCancel: null }];
       } else if (f === 'inactive' || f === '1') {
-        where.NOT = { item_status: 0 };
+        where.IsCancel = 1;
       }
 
       const validSortFields = ['itemcode', 'itemname', 'CreateDate', 'CostPrice'];
@@ -935,6 +945,8 @@ export class ItemService {
             SubUnitID: true,
             SubUnitQty: true,
             item_status: true,
+            IsCancel: true,
+            DepartmentID: true,
             CreateDate: true,
             CostPrice: true,
             SalePrice: true,
@@ -1208,6 +1220,13 @@ export class ItemService {
         existingItem.itemcode2 != null && String(existingItem.itemcode2).trim() !== '';
       if (cleanData.itemcode2 === undefined && !hasExistingCode2) {
         cleanData.itemcode2 = String(itemcode).trim().slice(0, 20);
+      }
+
+      if (cleanData.DepartmentID === undefined || cleanData.DepartmentID === null) {
+        cleanData.DepartmentID = 0;
+      }
+      if (cleanData.IsCancel !== undefined && cleanData.IsCancel !== null) {
+        cleanData.item_status = cleanData.IsCancel === 1 ? 1 : 0;
       }
 
       const item = await this.prisma.item.update({

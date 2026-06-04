@@ -1785,8 +1785,10 @@ export const staffRolePermissionDepartmentApi = {
 
 // =========================== Staff Roles API ===========================
 export const staffRoleApi = {
-  getAll: async (): Promise<ApiResponse<any[]>> => {
-    const response = await api.get('/staff-roles');
+  getAll: async (params?: { active_only?: boolean }): Promise<ApiResponse<any[]>> => {
+    const apiParams: Record<string, string> = {};
+    if (params?.active_only) apiParams.active_only = '1';
+    const response = await api.get('/staff-roles', { params: apiParams });
     return response.data;
   },
 
@@ -2119,6 +2121,68 @@ export const unitsApi = {
 
   softDelete: async (id: number): Promise<ApiResponse<UnitRow>> => {
     const response = await api.delete(`/units/${id}`);
+    return response.data;
+  },
+};
+
+// =========================== Employees API ===========================
+export type EmployeeLinkedStaffUser = {
+  id: number;
+  email: string;
+  fullName: string | null;
+  empCode: string | null;
+  isActive: boolean;
+};
+
+export type EmployeeRow = {
+  empCode: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string | null;
+  /** null = ไม่ผูก (app_users.emp_code = EmpCode) */
+  linkedStaffUser: EmployeeLinkedStaffUser | null;
+  linkedUserCount: number;
+  linkedLegacyUserCount: number;
+};
+
+export const employeeApi = {
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    keyword?: string;
+  }): Promise<PaginatedResponse<EmployeeRow>> => {
+    const apiParams: Record<string, string | number> = {};
+    if (params?.page !== undefined) apiParams.page = params.page;
+    if (params?.limit !== undefined) apiParams.limit = params.limit;
+    if (params?.keyword) apiParams.keyword = params.keyword;
+    const response = await api.get('/employees', { params: apiParams });
+    return response.data;
+  },
+
+  getByCode: async (empCode: string): Promise<ApiResponse<EmployeeRow>> => {
+    const response = await api.get(`/employees/${encodeURIComponent(empCode)}`);
+    return response.data;
+  },
+
+  create: async (data: {
+    EmpCode: string;
+    FirstName?: string;
+    LastName?: string;
+  }): Promise<ApiResponse<EmployeeRow>> => {
+    const response = await api.post('/employees', data);
+    return response.data;
+  },
+
+  update: async (
+    empCode: string,
+    data: { FirstName?: string; LastName?: string },
+  ): Promise<ApiResponse<EmployeeRow>> => {
+    const response = await api.put(`/employees/${encodeURIComponent(empCode)}`, data);
+    return response.data;
+  },
+
+  delete: async (empCode: string): Promise<ApiResponse<void>> => {
+    const response = await api.delete(`/employees/${encodeURIComponent(empCode)}`);
     return response.data;
   },
 };

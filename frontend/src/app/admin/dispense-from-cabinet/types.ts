@@ -12,6 +12,7 @@ export interface DispensedItem {
   Istatus_rfid?: number;
   CabinetUserID?: number;
   cabinetUserName?: string;
+  cabinetName?: string;
   departmentName?: string;
   UnitID?: number;
   SubUnitID?: number;

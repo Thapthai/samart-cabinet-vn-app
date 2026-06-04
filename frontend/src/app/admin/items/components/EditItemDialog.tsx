@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { itemsApi, unitsApi, type UnitRow } from '@/lib/api';
+import { itemsApi, unitsApi, departmentApi, type UnitRow } from '@/lib/api';
 import type { UpdateItemDto } from '@/types/item';
 import {
   Dialog,
@@ -16,6 +16,20 @@ import { toast } from 'sonner';
 import type { Item } from '@/types/item';
 import { Loader2, AlertCircle } from 'lucide-react';
 import SearchableSelect from '@/app/admin/cabinet-departments/components/SearchableSelect';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  buildDepartmentSelectOptions,
+  departmentInitialDisplay,
+  departmentIdToSelectValue,
+  selectValueToDepartmentId,
+  type DeptRow,
+} from '@/app/admin/management/items/components/itemHelpers';
 
 interface EditItemDialogProps {
   open: boolean;
@@ -37,8 +51,15 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
     undefined,
   );
   const [error, setError] = useState('');
+  const [isCancel, setIsCancel] = useState('0');
+  const [departmentIdStr, setDepartmentIdStr] = useState('0');
+  const [departments, setDepartments] = useState<DeptRow[]>([]);
+  const [deptInitialDisplay, setDeptInitialDisplay] = useState<
+    { label: string; subLabel?: string } | undefined
+  >(undefined);
   const [unitRows, setUnitRows] = useState<UnitRow[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
+  const [loadingDepts, setLoadingDepts] = useState(false);
   const unitRequestSeq = useRef(0);
 
   const loadUnits = useCallback(async (keyword?: string) => {
@@ -60,15 +81,36 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
     }
   }, []);
 
+  const loadDepartments = useCallback(async (keyword?: string) => {
+    setLoadingDepts(true);
+    try {
+      const res = await departmentApi.getAll({ limit: 100, keyword: keyword?.trim() || undefined });
+      if (res.success && Array.isArray(res.data)) {
+        setDepartments(res.data as DeptRow[]);
+      }
+    } catch {
+      setDepartments([]);
+    } finally {
+      setLoadingDepts(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (open) void loadUnits();
-  }, [open, loadUnits]);
+    if (open) {
+      void loadUnits();
+      void loadDepartments();
+    }
+  }, [open, loadUnits, loadDepartments]);
 
   useEffect(() => {
     if (!open || !item) return;
 
     setItemname(item.itemname || '');
     setError('');
+    setIsCancel(item.IsCancel === 1 ? '1' : '0');
+    const deptId = item.DepartmentID ?? 0;
+    setDepartmentIdStr(departmentIdToSelectValue(deptId));
+    setDeptInitialDisplay(departmentInitialDisplay(deptId, departments));
     setUnitIdStr(item.UnitID != null && item.UnitID > 0 ? String(item.UnitID) : '');
     setSubUnitIdStr(item.SubUnitID != null && item.SubUnitID > 0 ? String(item.SubUnitID) : '');
     setSubUnitQtyStr(item.SubUnitQty != null && item.SubUnitQty > 0 ? String(item.SubUnitQty) : '');
@@ -119,7 +161,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
     return () => {
       cancelled = true;
     };
-  }, [open, item]);
+  }, [open, item, departments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,6 +191,8 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
       setError('');
       const payload: UpdateItemDto = {
         itemname: itemname.trim(),
+        IsCancel: isCancel === '1' ? 1 : 0,
+        DepartmentID: selectValueToDepartmentId(departmentIdStr),
       };
       if (unitIdStr.trim()) {
         const n = parseInt(unitIdStr, 10);
@@ -201,7 +245,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
         <DialogHeader>
           <DialogTitle>แก้ไขสินค้า (Master)</DialogTitle>
           <DialogDescription>
-            แก้ไขชื่อ หน่วย และหน่วยการเบิก (แสดงผล): {item?.itemcode || ''}
+            แก้ไขชื่อ สถานะ แผนก หน่วย และหน่วยการเบิก: {item?.itemcode || ''}
           </DialogDescription>
         </DialogHeader>
 
@@ -222,6 +266,39 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
                 </div>
               </div>
             )}
+
+            <div>
+              <Label>สถานะ</Label>
+              <Select value={isCancel} onValueChange={setIsCancel} disabled={loading}>
+                <SelectTrigger className="mt-1 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">ใช้งาน (IsCancel = 0)</SelectItem>
+                  <SelectItem value="1">ปิดการใช้งาน (IsCancel = 1)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <SearchableSelect
+              positionMode="floating"
+              label="แผนกที่ใช้ Item นี้"
+              placeholder="เลือกแผนก"
+              value={departmentIdStr}
+              onValueChange={(value) => {
+                setDepartmentIdStr(value);
+                const id = selectValueToDepartmentId(value);
+                setDeptInitialDisplay(departmentInitialDisplay(id, departments));
+              }}
+              options={buildDepartmentSelectOptions(departments)}
+              loading={loadingDepts}
+              onSearch={loadDepartments}
+              searchPlaceholder="ค้นหาชื่อแผนก..."
+              initialDisplay={deptInitialDisplay}
+            />
+            <p className="-mt-2 text-xs text-muted-foreground">
+              เลือก &quot;ทุกแผนก&quot; (DepartmentID = 0) = ใช้ได้ทุกแผนก
+            </p>
 
             <div>
               <Label htmlFor="edit-item-itemname">

@@ -160,6 +160,8 @@ export interface CreateItemDto {
   
   // Status
   item_status?: number;
+  /** 1 = ปิดการใช้งาน, 0/null = ใช้งาน */
+  IsCancel?: number;
   IsSet?: string;
   IsReuse?: string;
   IsNormal?: string;
@@ -208,6 +210,8 @@ export interface UpdateItemDto {
   
   // Status
   item_status?: number;
+  /** 1 = ปิดการใช้งาน, 0/null = ใช้งาน */
+  IsCancel?: number;
   IsSet?: string;
   IsReuse?: string;
   IsNormal?: string;

@@ -30,7 +30,11 @@ export default function StaffUsersPage() {
 
   const fetchStaffRoles = async () => {
     try {
-      const response = (await staffRoleApi.getAll()) as { success?: boolean; data?: StaffRoleOption[]; message?: string };
+      const response = (await staffRoleApi.getAll({ active_only: true })) as {
+        success?: boolean;
+        data?: StaffRoleOption[];
+        message?: string;
+      };
       if (response?.success === false) {
         toast.error((response as { message?: string }).message || 'โหลดบทบาทไม่สำเร็จ');
         setStaffRoles([]);

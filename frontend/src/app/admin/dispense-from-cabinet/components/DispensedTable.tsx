@@ -103,7 +103,7 @@ export default function DispensedTable({
           <CardDescription>
             {items.length > 0
               ? `แสดง ${paginatedGroups.length} กลุ่มในหน้านี้ (สูงสุด ${groupsPerPage} กลุ่มต่อหน้า) · รวม ${totalGroups} กลุ่ม จาก ${totalRawItems} รายการดิบ (รวม ${totalDispensedQty.toLocaleString()} ชิ้น) · จัดกลุ่มตามรหัสอุปกรณ์และเวลาที่เบิก ±${DISPENSED_GROUP_TIME_TOLERANCE_SEC} วินาที`
-              : 'รายการอุปกรณ์ที่เบิกจากตู้ SmartCabinet'}
+              : 'รายการอุปกรณ์ทั้งหมดที่เบิกจากตู้ SmartCabinet'}
             {(searchItemCode || itemTypeFilter !== 'all') && items.length > 0 && ' (กรองแล้ว)'}
           </CardDescription>
         </div>
@@ -144,9 +144,10 @@ export default function DispensedTable({
                     <TableHead>ชื่ออุปกรณ์</TableHead>
                     <TableHead className="text-center">
                       <span className="block">จำนวน</span>
-                      {/* <span className="block text-xs font-normal text-muted-foreground">หน่วยการเบิก</span> */}
+                      <span className="block text-xs font-normal text-muted-foreground">หน่วย</span>
                     </TableHead>
                     <TableHead>วันที่เบิก</TableHead>
+                    <TableHead>ตู้</TableHead>
                     <TableHead>Division</TableHead>
                     <TableHead>ชื่อผู้เบิก</TableHead>
                   </TableRow>
@@ -198,6 +199,9 @@ export default function DispensedTable({
                             {formatUtcDateTime(group.dispenseTime)}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
+                            {group.items[0]?.cabinetName ?? '-'}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
                             {group.items[0]?.departmentName ?? '-'}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
@@ -211,7 +215,8 @@ export default function DispensedTable({
                               <div>
                                 <h4 className="font-semibold mb-3 text-gray-700 flex items-center gap-2">
                                   <Package className="h-4 w-4" />
-                                  รายการเบิกในกลุ่ม ({group.items.length} รายการ · รวม {group.totalQty.toLocaleString()} ชิ้น)
+                                  รายการเบิกในกลุ่ม ({group.items.length} รายการ · รวม{' '}
+                                  {group.totalQty.toLocaleString()} ชิ้น)
                                 </h4>
                                 <div className="overflow-x-auto">
                                   <Table>
@@ -223,13 +228,11 @@ export default function DispensedTable({
                                         <TableHead className="text-center">
                                           <span className="block">จำนวน</span>
                                           <span className="block text-xs font-normal text-muted-foreground">
-                                            หน่วยการเบิก
+                                            หน่วย
                                           </span>
                                         </TableHead>
                                         <TableHead>วันที่เบิก</TableHead>
-                                        <TableHead>Division (ที่ตั้งตู้)</TableHead>
-                                        <TableHead className="min-w-[120px]">Division ที่ยืม</TableHead>
-                                        <TableHead className="w-[88px] text-center">หมายเหตุ</TableHead>
+                                        <TableHead>Division</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -262,20 +265,6 @@ export default function DispensedTable({
                                           <TableCell className="text-muted-foreground text-sm">
                                             {item.departmentName || '-'}
                                           </TableCell>
-                                          <TableCell className="text-muted-foreground text-sm">
-                                            {item.borrowDepartmentName?.trim()
-                                              ? item.borrowDepartmentName
-                                              : '-'}
-                                          </TableCell>
-                                          <TableCell className="text-center text-sm">
-                                            {item.isBorrow || item.borrowRemark ? (
-                                              <span className="inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-amber-900 border border-amber-200/80">
-                                                {item.borrowRemark?.trim() || 'ยืม'}
-                                              </span>
-                                            ) : (
-                                              '—'
-                                            )}
-                                          </TableCell>
                                         </TableRow>
                                       ))}
                                     </TableBody>
@@ -295,7 +284,7 @@ export default function DispensedTable({
             {totalPages > 1 && (
               <div className="mt-6 flex items-center justify-between border-t pt-4">
                 <div className="text-sm text-gray-500">
-                  หน้า {currentPage} จาก {totalPages} (รวม {totalGroups} กลุ่ม · {totalRawItems} รายการดิบ)
+                  หน้า {currentPage} จาก {totalPages} ({totalGroups} กลุ่ม · {totalRawItems} รายการ)
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button
