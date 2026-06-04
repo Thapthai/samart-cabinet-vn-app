@@ -555,7 +555,9 @@ model ItemStock {
   UsageName             String?   @map("UsageName") @db.VarChar(255)
   ProductSerial         String?   @map("ProductSerial") @db.VarChar(25)
   StockID               Int?      @map("StockID")
-  /** Legacy DB เก็บเป็นตัวเลข (มักเป็น 0 เมื่อไม่ผูก HN ผู้ป่วย) — ไม่ใช่ VarChar */
+  /**
+   * Legacy DB เก็บเป็นตัวเลข (มักเป็น 0 เมื่อไม่ผูก HN ผู้ป่วย) — ไม่ใช่ VarChar
+   */
   HNCode                Int?      @default(0) @map("HNCode")
   CabinetUserID         Int?      @map("CabinetUserID")
   LastCabinetModify     DateTime? @map("LastCabinetModify")
@@ -634,7 +636,7 @@ model Department {
   medicalSupplyUsages            MedicalSupplyUsage[]            @relation("MedicalSupplyUsageMainDepartment")
   staffRolePermissionDepartments StaffRolePermissionDepartment[]
   users                          User[]
-  itemSlotBorrowDetails          ItemSlotInCabinetDetail[]      @relation("ItemSlotDetailBorrowDepartment")
+  itemSlotBorrowDetails          ItemSlotInCabinetDetail[]       @relation("ItemSlotDetailBorrowDepartment")
 
   @@map("department")
 }
@@ -722,7 +724,9 @@ model ItemSlotInCabinetDetail {
   IsDeproom  String   @map("IsDeproom") @db.VarChar(25)
   Sign       String   @map("Sign")
   IsBorrow   Boolean? @default(false) @map("IsBorrow")
-  /** แผนกที่ยืม — เชื่อม department.ID */
+  /**
+   * แผนกที่ยืม — เชื่อม department.ID
+   */
   DepID      Int?     @map("DepID")
 
   // Relations
@@ -748,29 +752,29 @@ model UserCabinet {
 
 // users (legacy) — ตารางเดิมของตู้ SmartCabinet / user_cabinet
 model LegacyUsers {
-  id                   Int       @id @default(autoincrement()) @map("ID")
-  EmpCode              String?   @unique @map("EmpCode") @db.VarChar(20)
-  UserName             String?   @map("UserName") @db.VarChar(20)
-  Password             String?   @map("Password") @db.VarChar(20)
-  IsCancel             Int?      @default(0) @map("IsCancel")
-  Lang                 String?   @map("Lang") @db.VarChar(2)
-  images               String?   @map("images") @db.VarChar(100)
-  DeptID               Int?      @default(20) @map("DeptID")
-  B_ID                 Int?      @map("B_ID")
-  GroupType            Int?      @default(1) @map("GroupType")
-  IsChange             Int?      @default(0) @map("IsChange")
-  LastUpdatePassword   DateTime? @map("LastUpdatePassword")
-  PasswordExpireDate   DateTime? @map("PasswordExpireDate")
-  isCssdCheckStock     Boolean?  @map("isCssdCheckStock") @db.Bit(1)
-  RFID_Card            String?   @map("RFID_Card") @db.VarChar(50)
-  permission           Int?      @map("permission")
-  FingerID             Int?      @map("FingerID")
-  display              String?   @map("display") @db.VarChar(2)
-  font                 String?   @map("font") @db.VarChar(2)
-  time_out             Int?      @map("time_out")
-  IsAdmin              Int?      @default(0) @map("IsAdmin")
-  IsFingerPrint1       Int?      @default(0) @map("IsFingerPrint1")
-  IsFingerPrint2       Int?      @default(0) @map("IsFingerPrint2")
+  id                 Int       @id @default(autoincrement()) @map("ID")
+  EmpCode            String?   @unique @map("EmpCode") @db.VarChar(20)
+  UserName           String?   @map("UserName") @db.VarChar(20)
+  Password           String?   @map("Password") @db.VarChar(20)
+  IsCancel           Int?      @default(0) @map("IsCancel")
+  Lang               String?   @map("Lang") @db.VarChar(2)
+  images             String?   @map("images") @db.VarChar(100)
+  DeptID             Int?      @default(20) @map("DeptID")
+  B_ID               Int?      @map("B_ID")
+  GroupType          Int?      @default(1) @map("GroupType")
+  IsChange           Int?      @default(0) @map("IsChange")
+  LastUpdatePassword DateTime? @map("LastUpdatePassword")
+  PasswordExpireDate DateTime? @map("PasswordExpireDate")
+  isCssdCheckStock   Boolean?  @map("isCssdCheckStock") @db.Bit(1)
+  RFID_Card          String?   @map("RFID_Card") @db.VarChar(50)
+  permission         Int?      @map("permission")
+  FingerID           Int?      @map("FingerID")
+  display            String?   @map("display") @db.VarChar(2)
+  font               String?   @map("font") @db.VarChar(2)
+  time_out           Int?      @map("time_out")
+  IsAdmin            Int?      @default(0) @map("IsAdmin")
+  IsFingerPrint1     Int?      @default(0) @map("IsFingerPrint1")
+  IsFingerPrint2     Int?      @default(0) @map("IsFingerPrint2")
 
   userCabinet UserCabinet[]
   employee    Employee?     @relation(fields: [EmpCode], references: [EmpCode])
@@ -782,6 +786,7 @@ model Employee {
   EmpCode   String  @id @map("EmpCode") @db.VarChar(20)
   FirstName String? @map("FirstName") @db.VarChar(100)
   LastName  String? @map("LastName") @db.VarChar(100)
+  IsUser    Int?    @default(1) @map("IsUser")
 
   legacyUsers LegacyUsers[]
   users       User[]

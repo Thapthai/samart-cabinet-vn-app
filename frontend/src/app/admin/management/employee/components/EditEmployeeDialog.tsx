@@ -12,8 +12,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Pencil } from 'lucide-react';
+import { isUserToSelectValue } from './employeeUserStatus';
 
 interface EditEmployeeDialogProps {
   open: boolean;
@@ -31,11 +39,15 @@ export default function EditEmployeeDialog({
   const [loading, setLoading] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [isUser, setIsUser] = useState('1');
+
+  const hasLinkedStaff = employee?.linkedStaffUser != null;
 
   useEffect(() => {
     if (open && employee) {
       setFirstName(employee.firstName ?? '');
       setLastName(employee.lastName ?? '');
+      setIsUser(isUserToSelectValue(employee.isUser));
     }
   }, [open, employee]);
 
@@ -44,10 +56,12 @@ export default function EditEmployeeDialog({
     if (!employee) return;
     try {
       setLoading(true);
-      const res = await employeeApi.update(employee.empCode, {
+      const payload: { FirstName: string; LastName: string; IsUser: 0 | 1 } = {
         FirstName: firstName.trim(),
         LastName: lastName.trim(),
-      });
+        IsUser: isUser === '1' ? 1 : 0,
+      };
+      const res = await employeeApi.update(employee.empCode, payload);
       if (res.success) {
         toast.success(res.message || 'บันทึกแล้ว');
         onOpenChange(false);
@@ -96,6 +110,22 @@ export default function EditEmployeeDialog({
               onChange={(e) => setLastName(e.target.value)}
               maxLength={100}
             />
+          </div>
+          <div className="space-y-2">
+            <Label>สถานะ</Label>
+            <Select value={isUser} onValueChange={setIsUser} disabled={loading}>
+              <SelectTrigger id="edit-is-user" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">ใช้งาน</SelectItem>
+                <SelectItem value="0">ปิดการใช้งาน</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              บันทึกลงตาราง employee
+              {hasLinkedStaff ? ' และ sync สถานะ Staff User ที่ผูก EmpCode นี้' : ''}
+            </p>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

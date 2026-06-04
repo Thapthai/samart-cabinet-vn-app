@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClientCredentialStrategy } from '../auth/strategies/client-credential.strategy';
 import {
@@ -32,9 +33,12 @@ export class StaffService {
   private async assertEmpCodeAssignable(empCode: string, exceptUserId?: number) {
     const emp = await this.prisma.employee.findUnique({
       where: { EmpCode: empCode },
-      select: { EmpCode: true },
+      select: { EmpCode: true, IsUser: true },
     });
     if (!emp) throw new BadRequestException(`Employee with code "${empCode}" not found`);
+    if (emp.IsUser === 0) {
+      throw new BadRequestException(`พนักงาน EmpCode "${empCode}" ปิดการใช้งาน (IsUser = 0) — ไม่สามารถผูกได้`);
+    }
 
     const taken = await this.prisma.user.findFirst({
       where: {
@@ -51,6 +55,7 @@ export class StaffService {
   /**
    * ค้นหาพนักงานสำหรับ dropdown จัดการ Staff User
    * exclude_linked: ไม่แสดงรหัสที่ถูกผูกกับ app_users แล้ว (ยกเว้น except_user_id)
+   * active_only: เฉพาะ IsUser = 1 (หรือ null ถือเป็นใช้งาน)
    */
   async findEmployeesForPicker(params?: {
     keyword?: string;
@@ -58,6 +63,7 @@ export class StaffService {
     limit?: number;
     exclude_linked?: boolean;
     except_user_id?: number;
+    active_only?: boolean;
   }) {
     const page = Math.max(1, params?.page ?? 1);
     const limit = Math.min(100, Math.max(1, params?.limit ?? 30));
@@ -76,12 +82,16 @@ export class StaffService {
     }
 
     const kw = params?.keyword?.trim();
-    const where: Record<string, unknown> = {};
+    const activeOnly = params?.active_only !== false;
+    const andParts: Prisma.EmployeeWhereInput[] = [];
     if (notInCodes?.length) {
-      Object.assign(where, { EmpCode: { notIn: notInCodes } });
+      andParts.push({ EmpCode: { notIn: notInCodes } });
+    }
+    if (activeOnly) {
+      andParts.push({ OR: [{ IsUser: 1 }, { IsUser: null }] });
     }
     if (kw) {
-      Object.assign(where, {
+      andParts.push({
         OR: [
           { EmpCode: { contains: kw } },
           { FirstName: { contains: kw } },
@@ -89,6 +99,7 @@ export class StaffService {
         ],
       });
     }
+    const where: Prisma.EmployeeWhereInput = andParts.length ? { AND: andParts } : {};
 
     const [rows, total] = await Promise.all([
       this.prisma.employee.findMany({
@@ -197,6 +208,7 @@ export class StaffService {
         client_id: u.client_id,
         expires_at: u.expires_at?.toISOString?.() ?? null,
         is_active: u.is_active,
+        isUser: u.is_active ? 1 : 0,
         created_at: u.created_at?.toISOString?.() ?? null,
         updated_at: u.updated_at?.toISOString?.() ?? null,
       };
@@ -289,6 +301,7 @@ export class StaffService {
         client_id: user.client_id,
         expires_at: user.expires_at?.toISOString?.() ?? null,
         is_active: user.is_active,
+        isUser: user.is_active ? 1 : 0,
         created_at: user.created_at?.toISOString?.() ?? null,
         updated_at: user.updated_at?.toISOString?.() ?? null,
       },
@@ -326,6 +339,14 @@ export class StaffService {
     }
 
     await this.prisma.user.update({ where: { id }, data });
+
+    if (dto.is_active !== undefined && user.emp_code?.trim()) {
+      await this.prisma.employee.updateMany({
+        where: { EmpCode: user.emp_code.trim() },
+        data: { IsUser: dto.is_active ? 1 : 0 },
+      });
+    }
+
     return { success: true, message: 'Staff user updated' };
   }
 
@@ -333,6 +354,12 @@ export class StaffService {
     const user = await this.prisma.user.findFirst({ where: { id, is_admin: false } });
     if (!user) throw new NotFoundException('Staff user not found');
     await this.prisma.user.update({ where: { id }, data: { is_active: false } });
+    if (user.emp_code?.trim()) {
+      await this.prisma.employee.updateMany({
+        where: { EmpCode: user.emp_code.trim() },
+        data: { IsUser: 0 },
+      });
+    }
     return { success: true, message: 'Staff user deactivated' };
   }
 

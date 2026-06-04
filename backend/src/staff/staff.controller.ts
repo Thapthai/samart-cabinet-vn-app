@@ -60,6 +60,7 @@ export class StaffUsersController {
     @Query('limit') limit?: string,
     @Query('exclude_linked') exclude_linked?: string,
     @Query('except_user_id') except_user_id?: string,
+    @Query('active_only') active_only?: string,
   ) {
     const exceptId =
       except_user_id != null && except_user_id !== '' && !Number.isNaN(parseInt(except_user_id, 10))
@@ -67,12 +68,15 @@ export class StaffUsersController {
         : undefined;
     const exclude =
       exclude_linked === '0' || exclude_linked === 'false' ? false : true;
+    const activeOnly =
+      active_only === '0' || active_only === 'false' ? false : true;
     return this.staffService.findEmployeesForPicker({
       keyword: keyword?.trim() || undefined,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       exclude_linked: exclude,
       except_user_id: exceptId,
+      active_only: activeOnly,
     });
   }
 

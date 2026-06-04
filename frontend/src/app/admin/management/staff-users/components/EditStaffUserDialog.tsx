@@ -30,6 +30,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
     role: '',
     password: '',
     expires_at: '',
+    is_active: '1',
   });
   const [empCode, setEmpCode] = useState<string | null>(null);
 
@@ -51,6 +52,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
       role: roleInList ? code : '',
       password: '',
       expires_at: staff.expires_at || '',
+      is_active: staff.is_active === false || staff.isUser === 0 ? '0' : '1',
     });
     setEmpCode(staff.emp_code ?? null);
   }, [open, staff, staffRoles]);
@@ -75,6 +77,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
       if (formData.role) updateData.role_code = formData.role;
       if (formData.password && formData.password !== 'password123') updateData.password = formData.password;
       if (formData.expires_at) updateData.expires_at = formData.expires_at;
+      updateData.is_active = formData.is_active === '1';
       updateData.emp_code = empCode;
 
       const response = (await staffUserApi.updateStaffUser(staff.id, updateData)) as { success?: boolean; message?: string };
@@ -95,7 +98,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>แก้ไข Staff User</DialogTitle>
+          <DialogTitle>แก้ไข บัญชีผู้ใช้งาน</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleUpdate} className="space-y-4">
           <div>
@@ -124,6 +127,21 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
               currentEmployeeLabel={staff.employee_display}
             />
           ) : null}
+          <div>
+            <Label>สถานะ </Label>
+            <Select
+              value={formData.is_active}
+              onValueChange={(value) => setFormData({ ...formData, is_active: value })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">ใช้งาน</SelectItem>
+                <SelectItem value="0">ปิดการใช้งาน</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label>บทบาท (Role) *</Label>
             {inactiveRoleNotice ? (

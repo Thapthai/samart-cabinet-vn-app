@@ -34,6 +34,7 @@ export function StaffEmployeePicker({
           limit: 80,
           exclude_linked: true,
           except_user_id: exceptUserId,
+          active_only: true,
         })) as {
           success?: boolean;
           data?: StaffEmployeeOption[];
@@ -81,7 +82,7 @@ export function StaffEmployeePicker({
       options={options}
       loading={loading}
       onSearch={loadEmployees}
-      searchPlaceholder="ค้นหารหัส / ชื่อ / นามสกุล..."
+      searchPlaceholder="ค้นหารหัส / ชื่อ / นามสกุล ..."
       initialDisplay={initialDisplay}
       disabled={disabled}
     />

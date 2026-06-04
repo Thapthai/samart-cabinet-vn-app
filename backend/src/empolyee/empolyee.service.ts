@@ -18,6 +18,7 @@ type EmployeeWithLinks = {
   EmpCode: string;
   FirstName: string | null;
   LastName: string | null;
+  IsUser: number | null;
   users?: Array<{
     id: number;
     email: string;
@@ -28,6 +29,11 @@ type EmployeeWithLinks = {
   }>;
   _count?: { users: number; legacyUsers: number };
 };
+
+/** IsUser บนตาราง employee: 1 = ใช้งาน, 0 = ปิด (ค่า null ถือเป็น 1) */
+function normalizeEmployeeIsUser(value: number | null | undefined): number {
+  return value === 0 ? 0 : 1;
+}
 
 function mapEmployee(row: EmployeeWithLinks) {
   const fn = row.FirstName?.trim() ?? '';
@@ -50,6 +56,8 @@ function mapEmployee(row: EmployeeWithLinks) {
       }
     : null;
 
+  const isUser = normalizeEmployeeIsUser(row.IsUser);
+
   return {
     empCode: row.EmpCode,
     firstName: row.FirstName,
@@ -57,6 +65,8 @@ function mapEmployee(row: EmployeeWithLinks) {
     displayName,
     /** null = ไม่ผูก Staff User (app_users.emp_code) */
     linkedStaffUser,
+    /** IsUser จากตาราง employee: 1 = ใช้งาน, 0 = ปิด */
+    isUser,
     linkedUserCount: row._count?.users ?? (linkedStaffUser ? 1 : 0),
     linkedLegacyUserCount: row._count?.legacyUsers ?? 0,
   };
@@ -133,11 +143,14 @@ export class EmpolyeeService {
     });
     if (existing) throw new BadRequestException(`EmpCode "${empCode}" มีอยู่แล้ว`);
 
+    const isUser = dto.IsUser !== undefined ? normalizeEmployeeIsUser(dto.IsUser) : 1;
+
     const row = await this.prisma.employee.create({
       data: {
         EmpCode: empCode,
         FirstName: dto.FirstName?.trim() || null,
         LastName: dto.LastName?.trim() || null,
+        IsUser: isUser,
       },
       include: employeeIncludeLinks,
     });
@@ -157,11 +170,26 @@ export class EmpolyeeService {
     });
     if (!existing) throw new NotFoundException(`ไม่พบพนักงาน EmpCode ${code}`);
 
+    if (dto.IsUser !== undefined) {
+      const isActive = dto.IsUser === 1;
+      const staff = await this.prisma.user.findFirst({
+        where: { emp_code: code, is_admin: false },
+        select: { id: true },
+      });
+      if (staff) {
+        await this.prisma.user.update({
+          where: { id: staff.id },
+          data: { is_active: isActive },
+        });
+      }
+    }
+
     const row = await this.prisma.employee.update({
       where: { EmpCode: code },
       data: {
         ...(dto.FirstName !== undefined ? { FirstName: dto.FirstName.trim() || null } : {}),
         ...(dto.LastName !== undefined ? { LastName: dto.LastName.trim() || null } : {}),
+        ...(dto.IsUser !== undefined ? { IsUser: dto.IsUser } : {}),
       },
       include: employeeIncludeLinks,
     });

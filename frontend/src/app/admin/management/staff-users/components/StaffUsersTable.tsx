@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pencil, Trash2, Key, Loader2, Plus } from 'lucide-react';
 import type { StaffUser, StaffRoleOption } from './types';
+import { StaffUserStatusBadge } from '@/app/admin/management/employee/components/employeeUserStatus';
 import { CreateStaffUserDialog } from './CreateStaffUserDialog';
 
 function staffRoleDisplayCell(staff: { role_name?: string | null; role: string }): string {
@@ -114,8 +115,8 @@ export function StaffUsersTable({
                       </span>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{staff.client_id?.substring(0, 20)}...</TableCell>
-                    <TableCell className="text-sm text-foreground">
-                      {staff.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
+                    <TableCell>
+                      <StaffUserStatusBadge isUser={staff.isUser ?? (staff.is_active ? 1 : 0)} />
                     </TableCell>
                     <TableCell>{staff.created_at ? formatUtcDateTime(String(staff.created_at)) : '-'}</TableCell>
                     <TableCell className="text-right">

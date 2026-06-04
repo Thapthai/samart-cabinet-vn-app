@@ -22,6 +22,8 @@ export interface StaffUser {
   client_id: string;
   expires_at: string | null;
   is_active: boolean;
+  /** IsUser: 1 = ใช้งาน, 0 = ปิด (สอดคล้อง is_active) */
+  isUser?: number;
   created_at: string;
   updated_at: string;
 }

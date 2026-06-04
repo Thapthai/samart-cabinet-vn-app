@@ -7,11 +7,23 @@ import CabinetUserDialog, {
   type CreateCabinetUserFormPayload,
   type EditCabinetUserFormPayload,
 } from './CabinetUserDialog';
-import { CabinetUsersPageHeader } from './CabinetUsersPageHeader';
 import { CabinetUsersSearchCard } from './CabinetUsersSearchCard';
 import { CabinetUsersTableCard } from './CabinetUsersTableCard';
 import { CABINET_USERS_PAGE_SIZE } from './pagination';
 import type { CabinetListApiClient, CabinetUserRow, CabinetUsersApiClient } from './types';
+
+function cabinetIdsFromRow(row: CabinetUserRow): number[] {
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  for (const link of row.linked_cabinets ?? []) {
+    const id = link.cabinet?.id;
+    if (id != null && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
 
 export type { CabinetListApiClient, CabinetUsersApiClient } from './types';
 
@@ -101,7 +113,13 @@ export default function CabinetUsersWorkspace({
   const openEdit = async (row: CabinetUserRow) => {
     setDialogMode('edit');
     setEditTarget(row);
-    setEditInitial(null);
+    setEditInitial({
+      id: row.id,
+      userName: row.userName,
+      empCode: row.empCode,
+      cabinet_ids: cabinetIdsFromRow(row),
+    });
+    setDialogOpen(true);
     try {
       const res = await cabinetUsers.getById(row.id);
       const d = res.data as {
@@ -109,19 +127,18 @@ export default function CabinetUsersWorkspace({
         empCode?: string | null;
         cabinet_ids?: number[];
       };
-      if (res.success && d) {
+      if (res.success !== false && d) {
         setEditInitial({
           id: row.id,
-          userName: d.userName,
-          empCode: d.empCode,
-          cabinet_ids: Array.isArray(d.cabinet_ids) ? d.cabinet_ids : [],
+          userName: d.userName ?? row.userName,
+          empCode: d.empCode ?? row.empCode,
+          cabinet_ids: Array.isArray(d.cabinet_ids) ? d.cabinet_ids : cabinetIdsFromRow(row),
         });
-        setDialogOpen(true);
       } else {
-        toast.error('โหลดรายละเอียดไม่สำเร็จ');
+        toast.error('โหลดรายละเอียดตู้ไม่ครบ — ใช้ข้อมูลจากตารางชั่วคราว');
       }
     } catch {
-      toast.error('โหลดรายละเอียดไม่สำเร็จ');
+      toast.error('โหลดรายละเอียดตู้ไม่สำเร็จ — แสดงข้อมูลจากตาราง');
     }
   };
 
@@ -186,8 +203,6 @@ export default function CabinetUsersWorkspace({
   return (
     <>
       <div className="space-y-6">
-        {/* <CabinetUsersPageHeader onAddClick={openCreate} /> */}
-
         <CabinetUsersSearchCard
           keywordInput={keywordInput}
           onKeywordChange={setKeywordInput}

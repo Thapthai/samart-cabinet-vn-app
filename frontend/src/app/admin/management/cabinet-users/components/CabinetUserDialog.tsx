@@ -63,17 +63,18 @@ export default function CabinetUserDialog({
 
   useEffect(() => {
     if (!open) return;
-    if (mode === 'edit' && initial) {
+    if (mode === 'edit') {
+      if (!initial) return;
       setUserName(initial.userName ?? '');
       setEmpCode(initial.empCode ?? '');
       setPassword('');
       setSelectedCabinetIds(new Set(initial.cabinet_ids));
-    } else {
-      setUserName('');
-      setEmpCode('');
-      setPassword('');
-      setSelectedCabinetIds(new Set());
+      return;
     }
+    setUserName('');
+    setEmpCode('');
+    setPassword('');
+    setSelectedCabinetIds(new Set());
   }, [open, mode, initial]);
 
   const toggleCabinet = (id: number, checked: boolean) => {
@@ -120,19 +121,29 @@ export default function CabinetUserDialog({
       <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isCreate ? 'เพิ่ม User ในตู้' : 'จัดการตู้ของผู้ใช้'}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription asChild>
             {isCreate ? (
-              <>
+              <p className="text-sm text-muted-foreground">
                 ชื่อใช้กับตารางผู้ใช้ตู้เดิม (UserName) เลือกตู้ที่ผู้ใช้สามารถขึ้นระบบได้
-              </>
+              </p>
             ) : (
-              <>
-                เลือกหรือถอนตู้ที่ผู้ใช้ขึ้นได้ — ชื่อผู้ใช้ รหัสพนักงาน
-              </>
+              <p className="text-sm text-muted-foreground">
+                เลือกหรือถอนตู้ที่ผู้ใช้ขึ้นได้
+                {initial?.userName ? (
+                  <>
+                    {' '}
+                    — <span className="font-medium text-foreground">{initial.userName}</span>
+                    {initial.empCode ? (
+                      <span className="text-muted-foreground"> · EmpCode {initial.empCode}</span>
+                    ) : null}
+                  </>
+                ) : null}
+              </p>
             )}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-1 flex-1 min-h-0">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 gap-4">
+          <div className="space-y-4 overflow-y-auto pr-1 flex-1 min-h-0">
           {isCreate ? (
             <>
               <div className="space-y-2">
@@ -218,7 +229,8 @@ export default function CabinetUserDialog({
               )}
             </div>
           </div>
-          <DialogFooter>
+          </div>
+          <DialogFooter className="shrink-0 border-t pt-4 sm:justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               ยกเลิก
             </Button>

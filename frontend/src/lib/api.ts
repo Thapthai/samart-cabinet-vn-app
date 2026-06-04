@@ -1601,6 +1601,8 @@ export const staffUserApi = {
     limit?: number;
     exclude_linked?: boolean;
     except_user_id?: number;
+    /** เฉพาะ employee.IsUser = 1 (ค่าเริ่มต้น true) */
+    active_only?: boolean;
   }): Promise<ApiResponse<any[]>> => {
     const response = await api.get('/staff-users/employees', { params: params ?? {} });
     return response.data;
@@ -2141,6 +2143,8 @@ export type EmployeeRow = {
   displayName: string | null;
   /** null = ไม่ผูก (app_users.emp_code = EmpCode) */
   linkedStaffUser: EmployeeLinkedStaffUser | null;
+  /** IsUser จากตาราง employee: 1 = ใช้งาน, 0 = ปิด */
+  isUser: number;
   linkedUserCount: number;
   linkedLegacyUserCount: number;
 };
@@ -2168,6 +2172,7 @@ export const employeeApi = {
     EmpCode: string;
     FirstName?: string;
     LastName?: string;
+    IsUser?: 0 | 1;
   }): Promise<ApiResponse<EmployeeRow>> => {
     const response = await api.post('/employees', data);
     return response.data;
@@ -2175,7 +2180,7 @@ export const employeeApi = {
 
   update: async (
     empCode: string,
-    data: { FirstName?: string; LastName?: string },
+    data: { FirstName?: string; LastName?: string; IsUser?: 0 | 1 },
   ): Promise<ApiResponse<EmployeeRow>> => {
     const response = await api.put(`/employees/${encodeURIComponent(empCode)}`, data);
     return response.data;

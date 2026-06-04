@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmployeeLinkedBadge } from './EmployeeLinkedBadge';
+import { EmployeeUserStatusBadge } from './employeeUserStatus';
 import { generatePageNumbers } from './employeePagination';
 
 export interface EmployeeTableProps {
@@ -63,6 +64,7 @@ export default function EmployeeTable({
                   <TableHead>ชื่อ</TableHead>
                   <TableHead>นามสกุล</TableHead>
                   <TableHead className="w-36">สถานะการผูก</TableHead>
+                  <TableHead className="w-32">สถานะ</TableHead>
                   <TableHead className="w-[120px] text-right">จัดการ</TableHead>
                 </TableRow>
               </TableHeader>
@@ -77,6 +79,9 @@ export default function EmployeeTable({
                     <TableCell>{row.lastName?.trim() || '—'}</TableCell>
                     <TableCell>
                       <EmployeeLinkedBadge row={row} />
+                    </TableCell>
+                    <TableCell>
+                      <EmployeeUserStatusBadge row={row} />
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

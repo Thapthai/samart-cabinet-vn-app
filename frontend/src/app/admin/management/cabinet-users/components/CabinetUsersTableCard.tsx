@@ -44,6 +44,10 @@ export function CabinetUsersTableCard({
               : `แสดง ${rows.length} รายการ จากทั้งหมด ${total} รายการ `}
           </CardDescription>
         </div>
+        <Button type="button" className="shrink-0 gap-2" onClick={onCreateClick}>
+          <Plus className="h-4 w-4" />
+          เพิ่ม User ในตู้
+        </Button>
       </CardHeader>
       <CardContent>
         {loading && rows.length === 0 ? (
@@ -94,12 +98,11 @@ export function CabinetUsersTableCard({
                     <TableCell className="text-center">
                       <Badge variant="secondary">{r.cabinet_count ?? 0}</Badge>
                     </TableCell>
-                    {/* <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => onEditRow(r)}>
+                    <TableCell className="text-right">
+                      <Button type="button" variant="outline" size="sm" onClick={() => onEditRow(r)}>
                         <Edit className="mr-1 h-4 w-4" />
-                        แก้ไข
                       </Button>
-                    </TableCell> */}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
