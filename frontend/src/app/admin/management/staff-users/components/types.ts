@@ -36,9 +36,10 @@ export interface StaffRoleOption {
 
 /** บทบาทที่เปิดใช้งาน (is_active = true / 1) */
 export function isStaffRoleActive(role: { is_active?: boolean | number }): boolean {
-  if (role.is_active === true || role.is_active === 1) return true;
-  if (role.is_active === false || role.is_active === 0) return false;
-  return role.is_active !== false;
+  const active = role.is_active;
+  if (active === true || active === 1) return true;
+  if (active === false || active === 0) return false;
+  return true;
 }
 
 /** รายการบทบาทสำหรับ Select — เฉพาะที่เปิดใช้งาน (ปิดใช้งานเลือกไม่ได้) */
