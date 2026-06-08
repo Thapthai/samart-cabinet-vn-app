@@ -22,6 +22,9 @@ import {
 import { toast } from 'sonner';
 import { Pencil } from 'lucide-react';
 import { isUserToSelectValue } from './employeeUserStatus';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 interface EditEmployeeDialogProps {
   open: boolean;
@@ -100,6 +103,7 @@ export default function EditEmployeeDialog({
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               maxLength={100}
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-2">
@@ -109,12 +113,13 @@ export default function EditEmployeeDialog({
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               maxLength={100}
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-2">
             <Label>สถานะ</Label>
             <Select value={isUser} onValueChange={setIsUser} disabled={loading}>
-              <SelectTrigger id="edit-is-user" className="w-full">
+              <SelectTrigger id="edit-is-user" className={cn('w-full', fieldInputClass)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -24,13 +24,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import SearchableSelect from '@/app/admin/cabinet-departments/components/SearchableSelect';
+import { cn } from '@/lib/utils';
+import SearchableSelect from '@/app/admin/management/cabinet-departments/components/SearchableSelect';
 import {
   buildDepartmentSelectOptions,
   departmentInitialDisplay,
   selectValueToDepartmentId,
   type DeptRow,
 } from './itemHelpers';
+
+/** พื้นหลังขาวชัด — ไม่ใช้ bg-transparent ของ Input เริ่มต้น */
+const fieldInputClass = 'bg-white';
 
 interface CreateItemDialogProps {
   open: boolean;
@@ -185,6 +189,7 @@ export default function CreateItemDialog({
                     <Input
                       placeholder="เช่น MED2024001"
                       maxLength={25}
+                      className={fieldInputClass}
                       {...field}
                     />
                   </FormControl>
@@ -204,6 +209,7 @@ export default function CreateItemDialog({
                     <Input
                       placeholder="เช่น ชุดเครื่องมือผ่าตัดใหญ่"
                       maxLength={255}
+                      className={fieldInputClass}
                       {...field}
                     />
                   </FormControl>
@@ -223,13 +229,13 @@ export default function CreateItemDialog({
                     onValueChange={(v) => field.onChange(parseInt(v, 10))}
                   >
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className={cn('w-full', fieldInputClass)}>
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="0">ใช้งาน (IsCancel = 0)</SelectItem>
-                      <SelectItem value="1">ปิดการใช้งาน (IsCancel = 1)</SelectItem>
+                      <SelectItem value="0">ใช้งาน</SelectItem>
+                      <SelectItem value="1">ปิดการใช้งาน</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -279,6 +285,7 @@ export default function CreateItemDialog({
                     <Input
                       placeholder="เช่น 8859876543210"
                       maxLength={50}
+                      className={fieldInputClass}
                       {...field}
                     />
                   </FormControl>
@@ -383,6 +390,7 @@ export default function CreateItemDialog({
                       inputMode="numeric"
                       min={1}
                       placeholder="เช่น 18 (เม็ดต่อกล่อง)"
+                      className={fieldInputClass}
                       value={field.value ?? ''}
                       onChange={(e) => {
                         const v = e.target.value;
@@ -413,7 +421,7 @@ export default function CreateItemDialog({
                   <FormControl>
                     <Textarea
                       placeholder="รายละเอียดของอุปกรณ์..."
-                      className="min-h-[100px]"
+                      className={cn('min-h-[100px]', fieldInputClass)}
                       {...field}
                     />
                   </FormControl>

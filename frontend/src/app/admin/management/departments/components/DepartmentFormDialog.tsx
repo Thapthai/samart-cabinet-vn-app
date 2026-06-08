@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/dialog';
 import type { DeptRow } from '../types';
 
+const fieldInputClass = 'bg-white';
+
 export type DepartmentFormPayload = {
   DepName: string;
   DepName2: string;
@@ -92,6 +94,7 @@ export default function DepartmentFormDialog({
               onChange={(e) => setDepName(e.target.value)}
               placeholder="เช่น อายุรกรรม"
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-1.5">
@@ -102,6 +105,7 @@ export default function DepartmentFormDialog({
               onChange={(e) => setDepName2(e.target.value)}
               placeholder="เช่น MED"
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-1.5">
@@ -112,6 +116,7 @@ export default function DepartmentFormDialog({
               onChange={(e) => setRefDepId(e.target.value)}
               placeholder="เช่น REF-001"
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              className={fieldInputClass}
             />
           </div>
         </div>

@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import type { Item } from '@/types/item';
 import { Loader2, AlertCircle } from 'lucide-react';
-import SearchableSelect from '@/app/admin/cabinet-departments/components/SearchableSelect';
+import SearchableSelect from '@/app/admin/management/cabinet-departments/components/SearchableSelect';
 import {
   Select,
   SelectContent,
@@ -30,6 +30,9 @@ import {
   selectValueToDepartmentId,
   type DeptRow,
 } from '@/app/admin/management/items/components/itemHelpers';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 interface EditItemDialogProps {
   open: boolean;
@@ -270,12 +273,12 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
             <div>
               <Label>สถานะ</Label>
               <Select value={isCancel} onValueChange={setIsCancel} disabled={loading}>
-                <SelectTrigger className="mt-1 w-full">
+                <SelectTrigger className={cn('mt-1 w-full', fieldInputClass)}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">ใช้งาน (IsCancel = 0)</SelectItem>
-                  <SelectItem value="1">ปิดการใช้งาน (IsCancel = 1)</SelectItem>
+                  <SelectItem value="0">ใช้งาน</SelectItem>
+                  <SelectItem value="1">ปิดการใช้งาน</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -315,7 +318,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
                 }}
                 maxLength={255}
                 disabled={loading}
-                className="mt-1"
+                className={cn('mt-1', fieldInputClass)}
                 autoFocus
               />
               <p className="mt-1 text-xs text-gray-500">ความยาว: {itemname.length}/255 ตัวอักษร</p>
@@ -394,7 +397,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
                 value={subUnitQtyStr}
                 onChange={(e) => setSubUnitQtyStr(e.target.value)}
                 disabled={loading}
-                className="mt-1"
+                className={cn('mt-1', fieldInputClass)}
               />
               <p className="mt-1 text-xs text-muted-foreground">แสดงผลเท่านั้น — ไม่แปลง stock</p>
             </div>

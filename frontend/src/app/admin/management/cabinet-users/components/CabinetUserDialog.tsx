@@ -22,6 +22,8 @@ export interface CabinetOption {
   stock_id?: number | null;
 }
 
+const fieldInputClass = 'bg-white';
+
 export type CreateCabinetUserFormPayload = {
   user_name: string;
   emp_code: string | null;
@@ -155,6 +157,7 @@ export default function CabinetUserDialog({
                   maxLength={20}
                   required
                   autoComplete="off"
+                  className={fieldInputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -166,6 +169,7 @@ export default function CabinetUserDialog({
                   maxLength={20}
                   placeholder="ถ้ามี — ต้องมีใน employee"
                   autoComplete="off"
+                  className={fieldInputClass}
                 />
               </div>
 

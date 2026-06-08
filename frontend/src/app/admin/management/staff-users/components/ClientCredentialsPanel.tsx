@@ -28,7 +28,7 @@ export function ClientCredentialsPanel({
       <div>
         <Label>Client ID</Label>
         <div className="flex gap-2">
-          <Input value={clientId} readOnly className="font-mono text-sm" />
+          <Input value={clientId} readOnly className="bg-white font-mono text-sm" />
           <Button type="button" size="icon" variant="outline" onClick={() => onCopy(clientId, 'Client ID')}>
             <Copy className="h-4 w-4" />
           </Button>
@@ -37,7 +37,7 @@ export function ClientCredentialsPanel({
       <div>
         <Label>Client Secret</Label>
         <div className="flex gap-2">
-          <Input type={showSecret ? 'text' : 'password'} value={clientSecret} readOnly className="font-mono text-sm" />
+          <Input type={showSecret ? 'text' : 'password'} value={clientSecret} readOnly className="bg-white font-mono text-sm" />
           <Button type="button" size="icon" variant="outline" onClick={onToggleShowSecret}>
             {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </Button>

@@ -21,6 +21,9 @@ import {
 import CreateUnitDialog from './components/CreateUnitDialog';
 import EditUnitDialog from './components/EditUnitDialog';
 import CancelUnitDialog from './components/CancelUnitDialog';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 /** ตรงกับ admin/management/items */
 const PAGE_SIZE = 10;
@@ -169,7 +172,7 @@ export default function AdminUnitsManagementPage() {
                   value={keywordInput}
                   onChange={(e) => setKeywordInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="max-w-md"
+                  className={cn('max-w-md', fieldInputClass)}
                 />
                 <Button type="button" variant="secondary" onClick={handleSearch} className="gap-1.5">
                   <Search className="h-4 w-4" />
@@ -185,7 +188,7 @@ export default function AdminUnitsManagementPage() {
                     setPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-[160px]">
+                  <SelectTrigger className={cn('w-[160px]', fieldInputClass)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

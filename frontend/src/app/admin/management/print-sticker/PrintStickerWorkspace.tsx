@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import SearchableSelect from '@/app/admin/cabinet-departments/components/SearchableSelect';
+import SearchableSelect from '@/app/admin/management/cabinet-departments/components/SearchableSelect';
 import { PrintStickerItemListCard } from './components/PrintStickerItemListCard';
 import { PrintStickerOrderCard } from './components/PrintStickerOrderCard';
 import {
@@ -221,8 +221,8 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
   );
 
   const fetchCabinetItems = useCallback(async () => {
-    // Manual — รายการ Item ทั้งระบบ: ต้องปล่อย Division + ตู้ ว่างทั้งคู่
-    if (mode === 'manual' && !departmentId && !cabinetId) {
+    // Manual — ยังไม่เลือกตู้: โหลดรายการ Item master (ค้นหาได้โดยไม่ต้องเลือกตู้)
+    if (mode === 'manual' && !cabinetId) {
       try {
         setLoadingList(true);
         const res = (await itemsApi.getMasterList({
@@ -259,12 +259,6 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
       } finally {
         setLoadingList(false);
       }
-      return;
-    }
-
-    // Manual — เลือกกรองแต่ยังไม่ครบ
-    if (mode === 'manual' && departmentId && !cabinetId) {
-      toast.error('เลือกตู้ให้ครบ หรือกดล้าง Division/ตู้ เพื่อโหลดรายการ Item ทั้งหมด');
       return;
     }
 
@@ -400,12 +394,10 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
   }, [departmentId, cabinetId, mode, page, activeKeyword, buildLineFromRow]);
 
   useEffect(() => {
-    const manualAllItems = mode === 'manual' && !departmentId && !cabinetId;
-    if (manualAllItems) {
+    if (mode === 'manual' && !cabinetId) {
       void fetchCabinetItems();
       return;
     }
-    // โหลดจากตู้ทันทีเมื่อเลือก Division + ตู้ (ไม่ต้องรอ stock_id — ใช้แค่ตอนบันทึกเตรียมพิมพ์)
     if (!departmentId || !cabinetId) {
       return;
     }
@@ -718,10 +710,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
     return 'โหลดรายการจากตู้';
   })();
 
-  const reloadDisabled =
-    loadingList ||
-    (mode === 'auto' && !cabinetPairSelected) ||
-    manualFilterIncomplete;
+  const reloadDisabled = loadingList || (mode === 'auto' && !cabinetPairSelected);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -861,7 +850,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
             )}
             {manualFilterIncomplete && (
               <p className="mt-2 text-xs font-medium text-amber-900">
-                เลือก Division อยู่ — ให้เลือกตู้ให้ครบ
+                เลือก Division อยู่ — เลือกตู้เพื่อโหลดรายการในตู้ หรือค้นหา Item ทั้งระบบได้โดยไม่ต้องเลือกตู้
               </p>
             )}
           </div>
@@ -896,7 +885,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
         onPageChange={handlePageChange}
         selectedItemcodes={selectedItemcodes}
         onToggleRow={toggleRow}
-        variant="cabinet"
+        variant={cabinetPairSelected ? 'cabinet' : 'master'}
         hidePagination={hidePagination}
       />
 

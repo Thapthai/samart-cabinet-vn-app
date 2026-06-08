@@ -4,6 +4,9 @@ import { Search, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 export interface EmployeeSearchCardProps {
   keyword: string;
@@ -33,7 +36,7 @@ export default function EmployeeSearchCard({
             value={keyword}
             onChange={(e) => onKeywordChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-            className="max-w-md"
+            className={cn('max-w-md', fieldInputClass)}
           />
           <Button type="button" variant="secondary" onClick={onSearch} className="gap-1.5">
             <Search className="h-4 w-4" />

@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { UserPlus } from 'lucide-react';
 
+const fieldInputClass = 'bg-white';
+
 interface CreateEmployeeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -92,6 +94,7 @@ export default function CreateEmployeeDialog({
               onChange={(e) => setEmpCode(e.target.value)}
               maxLength={20}
               placeholder="เช่น E001234"
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-2">
@@ -101,6 +104,7 @@ export default function CreateEmployeeDialog({
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               maxLength={100}
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-2">
@@ -110,6 +114,7 @@ export default function CreateEmployeeDialog({
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               maxLength={100}
+              className={fieldInputClass}
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">

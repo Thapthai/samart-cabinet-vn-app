@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Package } from "lucide-react";
-import CabinetDetailsCard from "@/app/admin/cabinet-departments/components/CabinetDetailsCard";
+import CabinetDetailsCard from "@/app/admin/management/cabinet-departments/components/CabinetDetailsCard";
 
 export interface CabinetDepartment {
   id: number;

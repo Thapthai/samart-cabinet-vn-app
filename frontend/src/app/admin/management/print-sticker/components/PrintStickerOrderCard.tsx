@@ -18,6 +18,9 @@ import {
   MAX_TOTAL_LABELS,
 } from '../constants';
 import type { SelectedLine } from '../types';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 import { clampCopies } from '../utils';
 import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 import type { Item } from '@/types/item';
@@ -52,7 +55,7 @@ export function PrintStickerOrderCard({
     <Card className="border-slate-200 shadow-sm">
       <CardHeader>
         <CardTitle className="text-lg">สั่งพิมพ์</CardTitle>
-      
+
       </CardHeader>
       <CardContent className="space-y-4">
         {selectedLines.length === 0 ? (
@@ -108,7 +111,7 @@ export function PrintStickerOrderCard({
                         <Input
                           type="text"
                           maxLength={50}
-                          className="h-8 min-w-[7rem] text-sm font-mono"
+                          className={cn('h-8 min-w-[7rem] text-sm font-mono', fieldInputClass)}
                           placeholder=""
                           value={line.lotNo ?? ''}
                           onChange={(e) => onLotNoChange(line.itemcode, e.target.value)}
@@ -134,20 +137,20 @@ export function PrintStickerOrderCard({
                       </TableCell>
                       <TableCell className="align-middle py-2 text-center">
                         <div className="flex min-h-8 items-center justify-center">
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min={line.refillCap <= 0 ? 0 : 1}
-                          max={Math.max(line.refillCap, 1)}
-                          className="h-8 w-[4rem] text-center font-mono text-sm"
-                          value={line.refillCap <= 0 ? 0 : line.copies}
-                          disabled={inputDisabled}
-                          onChange={(e) => {
-                            const n = parseInt(e.target.value, 10);
-                            onSetCopies(line.itemcode, Number.isFinite(n) ? n : 1);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min={line.refillCap <= 0 ? 0 : 1}
+                            max={Math.max(line.refillCap, 1)}
+                            className={cn('h-8 w-[4rem] text-center font-mono text-sm', fieldInputClass)}
+                            value={line.refillCap <= 0 ? 0 : line.copies}
+                            disabled={inputDisabled}
+                            onChange={(e) => {
+                              const n = parseInt(e.target.value, 10);
+                              onSetCopies(line.itemcode, Number.isFinite(n) ? n : 1);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
                         </div>
                       </TableCell>
                     </TableRow>

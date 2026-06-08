@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Package } from 'lucide-react';
 
+const fieldInputClass = 'bg-white';
+
 interface CreateCabinetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -81,6 +83,7 @@ export default function CreateCabinetDialog({
             <Input
               id="cabinet_name"
               placeholder="เช่น ตู้ A1, ตู้ห้องผ่าตัด"
+              className={fieldInputClass}
               value={formData.cabinet_name}
               onChange={(e) => setFormData({ ...formData, cabinet_name: e.target.value })}
             />
@@ -92,6 +95,7 @@ export default function CreateCabinetDialog({
               id="stock_id"
               type="number"
               placeholder="กรอก Stock ID (ตัวเลข)"
+              className={fieldInputClass}
               value={formData.stock_id}
               onChange={(e) => setFormData({ ...formData, stock_id: e.target.value })}
             />

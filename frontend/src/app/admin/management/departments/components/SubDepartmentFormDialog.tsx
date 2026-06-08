@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import SearchableSelect from '@/app/admin/cabinet-departments/components/SearchableSelect';
+import SearchableSelect from '@/app/admin/management/cabinet-departments/components/SearchableSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,9 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import type { DeptRow, SubDepartmentRow } from '../types';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 type Props = {
   open: boolean;
@@ -98,6 +101,7 @@ export default function SubDepartmentFormDialog({
                 value={formCode}
                 onChange={(e) => onFormCodeChange(e.target.value)}
                 placeholder="เช่น emergency-opd, emergency-ipd"
+                className={fieldInputClass}
               />
             </div>
             <div className="space-y-2">
@@ -107,6 +111,7 @@ export default function SubDepartmentFormDialog({
                 value={formLabel}
                 onChange={(e) => onFormLabelChange(e.target.value)}
                 placeholder="คำอธิบายสั้น ๆ (ไม่บังคับ)"
+                className={fieldInputClass}
               />
             </div>
             <div className="space-y-2">
@@ -117,7 +122,7 @@ export default function SubDepartmentFormDialog({
                 onChange={(e) => onFormDescriptionChange(e.target.value)}
                 placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
                 rows={3}
-                className="resize-y min-h-[72px]"
+                className={cn('resize-y min-h-[72px]', fieldInputClass)}
               />
             </div>
             <div className="flex items-center justify-between rounded-lg border p-3">

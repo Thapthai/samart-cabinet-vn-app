@@ -12,6 +12,9 @@ import type { StaffRoleOption } from './types';
 import { selectableStaffRoles } from './types';
 import { ClientCredentialsPanel } from './ClientCredentialsPanel';
 import { StaffEmployeePicker } from './StaffEmployeePicker';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 const emptyForm = {
   email: '',
@@ -120,21 +123,22 @@ export function CreateStaffUserDialog({
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
+                className={fieldInputClass}
               />
             </div>
             <div>
               <Label htmlFor="fname">ชื่อจริง *</Label>
-              <Input id="fname" value={formData.fname} onChange={(e) => setFormData({ ...formData, fname: e.target.value })} required />
+              <Input id="fname" value={formData.fname} onChange={(e) => setFormData({ ...formData, fname: e.target.value })} required className={fieldInputClass} />
             </div>
             <div>
               <Label htmlFor="lname">นามสกุล *</Label>
-              <Input id="lname" value={formData.lname} onChange={(e) => setFormData({ ...formData, lname: e.target.value })} required />
+              <Input id="lname" value={formData.lname} onChange={(e) => setFormData({ ...formData, lname: e.target.value })} required className={fieldInputClass} />
             </div>
             <StaffEmployeePicker value={empCode} onChange={setEmpCode} />
             <div>
               <Label>บทบาท (Role) *</Label>
               <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })} required disabled={roleOptions.length === 0}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className={cn('w-full', fieldInputClass)}>
                   <SelectValue placeholder={roleOptions.length === 0 ? 'กำลังโหลด...' : 'เลือกบทบาท'} />
                 </SelectTrigger>
                 <SelectContent>
@@ -148,7 +152,7 @@ export function CreateStaffUserDialog({
             </div>
             <div>
               <Label htmlFor="password">รหัสผ่าน (ค่าเริ่มต้น: password123)</Label>
-              <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+              <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className={fieldInputClass} />
             </div>
             <div>
               <Label htmlFor="expires_at">วันหมดอายุ Client Credentials (ถ้ามี)</Label>
@@ -157,6 +161,7 @@ export function CreateStaffUserDialog({
                 type="datetime-local"
                 value={formData.expires_at}
                 onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
+                className={fieldInputClass}
               />
             </div>
             <Button type="submit" className="w-full">

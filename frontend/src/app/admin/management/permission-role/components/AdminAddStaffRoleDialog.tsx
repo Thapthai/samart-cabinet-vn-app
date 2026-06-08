@@ -15,6 +15,9 @@ import {
 } from '@/components/ui/dialog';
 import { Shield, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 export interface AdminAddStaffRoleDialogProps {
   open: boolean;
@@ -89,6 +92,7 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, onCreated }: Admin
               placeholder="เช่น ทีมสนับสนุน 4"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-2">
@@ -99,6 +103,7 @@ export function AdminAddStaffRoleDialog({ open, onOpenChange, onCreated }: Admin
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              className={fieldInputClass}
             />
           </div>
           <p className="text-xs text-muted-foreground">

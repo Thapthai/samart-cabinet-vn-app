@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { StaffUser, StaffRoleOption } from './types';
 import { selectableStaffRoles } from './types';
 import { StaffEmployeePicker } from './StaffEmployeePicker';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 interface EditStaffUserDialogProps {
   open: boolean;
@@ -109,15 +112,16 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
+              className={fieldInputClass}
             />
           </div>
           <div>
             <Label htmlFor="edit-fname">ชื่อจริง *</Label>
-            <Input id="edit-fname" value={formData.fname} onChange={(e) => setFormData({ ...formData, fname: e.target.value })} required />
+            <Input id="edit-fname" value={formData.fname} onChange={(e) => setFormData({ ...formData, fname: e.target.value })} required className={fieldInputClass} />
           </div>
           <div>
             <Label htmlFor="edit-lname">นามสกุล *</Label>
-            <Input id="edit-lname" value={formData.lname} onChange={(e) => setFormData({ ...formData, lname: e.target.value })} required />
+            <Input id="edit-lname" value={formData.lname} onChange={(e) => setFormData({ ...formData, lname: e.target.value })} required className={fieldInputClass} />
           </div>
           {staff ? (
             <StaffEmployeePicker
@@ -133,7 +137,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
               value={formData.is_active}
               onValueChange={(value) => setFormData({ ...formData, is_active: value })}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className={cn('w-full', fieldInputClass)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -153,7 +157,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
               required
               disabled={roleOptions.length === 0}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className={cn('w-full', fieldInputClass)}>
                 <SelectValue placeholder={roleOptions.length === 0 ? 'ไม่มีบทบาทที่เปิดใช้งาน' : 'เลือกบทบาท'} />
               </SelectTrigger>
               <SelectContent>
@@ -173,6 +177,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               placeholder="ปล่อยว่างถ้าไม่ต้องการเปลี่ยน"
+              className={fieldInputClass}
             />
           </div>
           <div>
@@ -182,6 +187,7 @@ export function EditStaffUserDialog({ open, onOpenChange, staff, staffRoles, onS
               type="datetime-local"
               value={formData.expires_at}
               onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
+              className={fieldInputClass}
             />
           </div>
           <div className="flex gap-2">

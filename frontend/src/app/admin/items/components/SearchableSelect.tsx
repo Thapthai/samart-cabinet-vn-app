@@ -1,3 +1,3 @@
 "use client";
 
-export { default } from "@/app/admin/cabinet-departments/components/SearchableSelect";
+export { default } from "@/app/admin/management/cabinet-departments/components/SearchableSelect";

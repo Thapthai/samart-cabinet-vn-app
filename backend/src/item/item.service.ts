@@ -19,7 +19,7 @@ const ITEM_CREATE_STICKER_DEFAULTS: Record<string, string | number> = {
 
 @Injectable()
 export class ItemService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async createItem(createItemDto: CreateItemDto) {
     try {
@@ -908,23 +908,27 @@ export class ItemService {
     try {
       const skip = (page - 1) * limit;
       const take = Math.min(Math.max(limit, 1), 100);
-      const where: Prisma.ItemWhereInput = {};
+      const andParts: Prisma.ItemWhereInput[] = [];
 
       const kw = keyword?.trim();
       if (kw) {
-        where.OR = [
-          { itemname: { contains: kw } },
-          { itemcode: { contains: kw } },
-          { Barcode: { contains: kw } },
-        ];
+        andParts.push({
+          OR: [
+            { itemname: { contains: kw } },
+            { itemcode: { contains: kw } },
+            { Barcode: { contains: kw } },
+          ],
+        });
       }
 
       const f = (item_status_filter ?? '').trim().toLowerCase();
       if (f === 'active' || f === '0') {
-        where.OR = [{ IsCancel: 0 }, { IsCancel: null }];
+        andParts.push({ OR: [{ IsCancel: 0 }, { IsCancel: null }] });
       } else if (f === 'inactive' || f === '1') {
-        where.IsCancel = 1;
+        andParts.push({ IsCancel: 1 });
       }
+
+      const where: Prisma.ItemWhereInput = andParts.length ? { AND: andParts } : {};
 
       const validSortFields = ['itemcode', 'itemname', 'CreateDate', 'CostPrice'];
       const field = validSortFields.includes(sort_by) ? sort_by : 'itemcode';
@@ -1535,9 +1539,9 @@ export class ItemService {
         const cabinetsByDept =
           cabinetIds.length > 0
             ? await this.prisma.cabinet.findMany({
-                where: { id: { in: cabinetIds }, stock_id: { not: null } },
-                select: { stock_id: true },
-              })
+              where: { id: { in: cabinetIds }, stock_id: { not: null } },
+              select: { stock_id: true },
+            })
             : [];
         const stockIdsByDept = cabinetsByDept
           .map((c) => c.stock_id)
@@ -1578,9 +1582,9 @@ export class ItemService {
       const cabinets =
         stockIds.length > 0
           ? await this.prisma.cabinet.findMany({
-              where: { stock_id: { in: stockIds } },
-              select: { id: true, stock_id: true, cabinet_name: true, cabinet_code: true },
-            })
+            where: { stock_id: { in: stockIds } },
+            select: { id: true, stock_id: true, cabinet_name: true, cabinet_code: true },
+          })
           : [];
       const stockIdToCabinet = new Map(
         cabinets.filter((c) => c.stock_id != null).map((c) => [c.stock_id as number, c]),
@@ -1590,17 +1594,17 @@ export class ItemService {
       const cdLinks =
         cabinetIds.length > 0
           ? await this.prisma.cabinetDepartment.findMany({
-              where: {
-                cabinet_id: { in: cabinetIds },
-                status: 'ACTIVE',
-                department_id: { not: null },
+            where: {
+              cabinet_id: { in: cabinetIds },
+              status: 'ACTIVE',
+              department_id: { not: null },
+            },
+            include: {
+              department: {
+                select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
               },
-              include: {
-                department: {
-                  select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
-                },
-              },
-            })
+            },
+          })
           : [];
 
       type DivRow = {
@@ -1640,11 +1644,11 @@ export class ItemService {
           /** แผนกที่ยืม (จาก DepID) */
           borrowDepartment: bd
             ? {
-                ID: bd.ID,
-                DepName: bd.DepName,
-                DepName2: bd.DepName2,
-                RefDepID: bd.RefDepID,
-              }
+              ID: bd.ID,
+              DepName: bd.DepName,
+              DepName2: bd.DepName2,
+              RefDepID: bd.RefDepID,
+            }
             : null,
           stockId: d.StockID,
           slotNo: d.SlotNo,
@@ -1655,10 +1659,10 @@ export class ItemService {
           modifyDate: d.ModifyDate?.toISOString?.() ?? null,
           cabinet: cab
             ? {
-                id: cab.id,
-                cabinet_name: cab.cabinet_name,
-                cabinet_code: cab.cabinet_code,
-              }
+              id: cab.id,
+              cabinet_name: cab.cabinet_name,
+              cabinet_code: cab.cabinet_code,
+            }
             : null,
           /** Division ที่ตั้งตู้ (StockID → ตู้ → แผนกที่ผูกตู้) */
           cabinetDivisions,

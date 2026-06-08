@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw, Search } from 'lucide-react';
+import { CheckSquare, RefreshCw, Search, Square } from 'lucide-react';
 import type { Item } from '@/types/item';
 import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 import { Button } from '@/components/ui/button';
@@ -81,47 +81,61 @@ export function PrintStickerItemListCard({
               ? 'กำลังโหลด…'
               : `แสดง ${items.length} รายการในหน้านี้ จากทั้งหมด ${total} รายการ`}
         </CardDescription>
-        <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-          <Input
-            placeholder="ค้นหา itemcode / ชื่อ"
-            value={keywordInput}
-            onChange={(e) => onKeywordInputChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-            className="sm:max-w-xs"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" size="sm" className="gap-1" onClick={onSearch}>
+        <div className="mt-3 space-y-3 rounded-lg border border-slate-200/80 bg-slate-50/60 p-3 sm:p-4">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-stretch">
+            <Input
+              placeholder="ค้นหา itemcode / ชื่อ"
+              value={keywordInput}
+              onChange={(e) => onKeywordInputChange(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+              className="min-h-10 flex-1 bg-white shadow-sm"
+            />
+            <Button
+              type="button"
+              size="default"
+              className="h-10 w-full shrink-0 gap-2 sm:w-auto sm:min-w-[7.5rem]"
+              onClick={onSearch}
+            >
               <Search className="h-4 w-4" />
               ค้นหา
             </Button>
+          </div>
+
+          <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              className="gap-1"
+              className="h-10 w-full gap-2 bg-white shadow-sm"
               onClick={onRefresh}
               disabled={loadingList}
             >
-              <RefreshCw className={cn('h-4 w-4', loadingList && 'animate-spin')} />
+              <RefreshCw className={cn('h-4 w-4 shrink-0', loadingList && 'animate-spin')} />
               รีเฟรช
             </Button>
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              className="h-10 w-full gap-2 bg-white shadow-sm"
               onClick={onSelectAllOnPage}
               disabled={loadingList || items.length === 0}
             >
+              <CheckSquare className="h-4 w-4 shrink-0" />
               เลือกทั้งหน้า
             </Button>
             <Button
               type="button"
-              variant="ghost"
-              size="sm"
+              variant="outline"
+              className="h-10 w-full gap-2 bg-white shadow-sm sm:col-span-2"
               onClick={onClearSelectionOnPage}
               disabled={loadingList || onPageSelectedCount === 0}
             >
+              <Square className="h-4 w-4 shrink-0" />
               ยกเลิกในหน้านี้
+              {onPageSelectedCount > 0 ? (
+                <span className="ml-0.5 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-800 tabular-nums">
+                  {onPageSelectedCount}
+                </span>
+              ) : null}
             </Button>
           </div>
         </div>

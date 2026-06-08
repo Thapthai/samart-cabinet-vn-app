@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Ruler } from 'lucide-react';
 
+const fieldInputClass = 'bg-white';
+
 interface CreateUnitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -74,7 +76,7 @@ export default function CreateUnitDialog({ open, onOpenChange, onSuccess }: Crea
             <Ruler className="h-5 w-5" />
             เพิ่มหน่วยนับ
           </DialogTitle>
-          <DialogDescription>ชื่อหน่วยใช้แสดงและผูกกับรายการ Item</DialogDescription>
+          <DialogDescription>ชื่อหน่วยใช้แสดงและผูกกับรายการ</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -85,9 +87,10 @@ export default function CreateUnitDialog({ open, onOpenChange, onSuccess }: Crea
               onChange={(e) => setUnitName(e.target.value)}
               maxLength={50}
               placeholder="เช่น ชิ้น, กล่อง, ม้วน"
+              className={fieldInputClass}
             />
           </div>
- 
+
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               ยกเลิก

@@ -17,6 +17,9 @@ import {
 } from '@/components/ui/dialog';
 import { Pencil, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 export type StaffRoleRow = {
   id: number;
@@ -103,6 +106,7 @@ export function EditStaffRoleDialog({ open, onOpenChange, role, onSaved }: EditS
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={!role}
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-2">
@@ -113,6 +117,7 @@ export function EditStaffRoleDialog({ open, onOpenChange, role, onSaved }: EditS
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={!role}
+              className={cn(fieldInputClass)}
             />
           </div>
           <div className="flex items-center justify-between rounded-lg border px-3 py-2">

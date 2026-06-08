@@ -3,6 +3,9 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 interface StaffUsersSearchCardProps {
   value: string;
@@ -19,7 +22,7 @@ export function StaffUsersSearchCard({ value, onChange }: StaffUsersSearchCardPr
             placeholder="ค้นหาตามชื่อ อีเมล หรือ Client ID..."
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="pl-10"
+            className={cn('pl-10', fieldInputClass)}
           />
         </div>
       </CardContent>

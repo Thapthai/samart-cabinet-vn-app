@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils';
 import { Building2, Layers, Loader2, RefreshCw, Save, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
+const fieldInputClass = 'bg-white';
+
 interface StaffRoleRow {
   id: number;
   code: string;
@@ -320,7 +322,7 @@ export default function StaffRolePermissionDepartmentPage() {
                             placeholder="ค้นหา ID หรือชื่อ Division…"
                             value={deptSearch}
                             onChange={(e) => setDeptSearch(e.target.value)}
-                            className="pl-9"
+                            className={cn('pl-9', fieldInputClass)}
                             disabled={loadingRole}
                             aria-label="ค้นหา Division"
                           />

@@ -14,7 +14,9 @@ import {
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { DeptRow, StatusFilter, SubDepartmentRow } from '../types';
+import { cn } from '@/lib/utils';
 
+const fieldInputClass = 'bg-white';
 const DEPTS_PER_PAGE = 10;
 const SUB_PREVIEW_COUNT = 5;
 
@@ -123,6 +125,7 @@ export default function DepartmentMasterTable({
                   value={deptKeywordInput}
                   onChange={(e) => onDeptKeywordInputChange(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                  className={fieldInputClass}
                 />
               </div>
               <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
@@ -132,12 +135,13 @@ export default function DepartmentMasterTable({
                   value={subKeywordInput}
                   onChange={(e) => onSubKeywordInputChange(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                  className={fieldInputClass}
                 />
               </div>
               <div className="flex min-w-[140px] flex-col gap-1.5">
                 <span className="text-xs text-muted-foreground">สถานะรหัส</span>
                 <Select value={statusFilter} onValueChange={(v) => onStatusFilterChange(v as StatusFilter)}>
-                  <SelectTrigger className="w-full lg:w-[160px]">
+                  <SelectTrigger className={cn('w-full lg:w-[160px]', fieldInputClass)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

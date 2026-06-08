@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Filter } from "lucide-react";
-import SearchableSelect from "@/app/admin/cabinet-departments/components/SearchableSelect";
+import SearchableSelect from "@/app/admin/management/cabinet-departments/components/SearchableSelect";
 import { weighingApi, departmentApi, cabinetDepartmentApi } from "@/lib/api";
 
 interface Department {

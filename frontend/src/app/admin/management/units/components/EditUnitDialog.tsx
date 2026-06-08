@@ -16,6 +16,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Ruler } from 'lucide-react';
 
+const fieldInputClass = 'bg-white';
+
 interface EditUnitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -100,6 +102,7 @@ export default function EditUnitDialog({
                 value={unitName}
                 onChange={(e) => setUnitName(e.target.value)}
                 maxLength={50}
+                className={fieldInputClass}
               />
             </div>
 

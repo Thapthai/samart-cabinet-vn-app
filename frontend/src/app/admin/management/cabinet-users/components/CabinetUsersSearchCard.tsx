@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Filter, RefreshCw, RotateCcw, Search } from "lucide-react";
 import SearchableSelect from "@/app/admin/items/components/SearchableSelect";
 import { cabinetApi, cabinetDepartmentApi, departmentApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
+
+const fieldInputClass = "bg-white";
 
 interface Department {
   ID: number;
@@ -195,6 +198,7 @@ export function CabinetUsersSearchCard({
                 handleSearch();
               }
             }}
+            className={fieldInputClass}
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">

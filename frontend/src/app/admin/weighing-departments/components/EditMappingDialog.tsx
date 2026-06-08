@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import SearchableSelect from "@/app/admin/cabinet-departments/components/SearchableSelect";
+import SearchableSelect from "@/app/admin/management/cabinet-departments/components/SearchableSelect";
 import { weighingApi, departmentApi } from "@/lib/api";
 
 interface Department {

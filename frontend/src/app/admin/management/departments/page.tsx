@@ -22,6 +22,9 @@ import DepartmentFormDialog, { type DepartmentFormPayload } from './components/D
 import DepartmentMasterTable from './components/DepartmentMasterTable';
 import DepartmentDetailsCard from './components/DepartmentDetailsCard';
 import type { DeptRow, StatusFilter, SubDepartmentRow } from './types';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 export default function DepartmentManagementPage() {
   const [rows, setRows] = useState<SubDepartmentRow[]>([]);
@@ -406,6 +409,7 @@ export default function DepartmentManagementPage() {
                     value={deptKwInput}
                     onChange={(e) => setDeptKwInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && applySearch()}
+                    className={fieldInputClass}
                   />
                 </div>
                 <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
@@ -415,12 +419,13 @@ export default function DepartmentManagementPage() {
                     value={subKwInput}
                     onChange={(e) => setSubKwInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && applySearch()}
+                    className={fieldInputClass}
                   />
                 </div>
                 <div className="flex min-w-[140px] flex-col gap-1.5">
                   <span className="text-xs text-muted-foreground">สถานะรหัส</span>
                   <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                    <SelectTrigger className="w-full lg:w-[160px]">
+                    <SelectTrigger className={cn('w-full lg:w-[160px]', fieldInputClass)}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

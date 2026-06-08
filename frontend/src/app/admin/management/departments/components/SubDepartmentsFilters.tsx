@@ -12,6 +12,9 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { DeptRow, StatusFilter } from '../types';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 type Props = {
   keyword: string;
@@ -51,7 +54,7 @@ export default function SubDepartmentsFilters({
             value={keyword}
             onChange={(e) => onKeywordChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-            className="max-w-md"
+            className={cn('max-w-md', fieldInputClass)}
           />
           <Button type="button" variant="secondary" onClick={onSearch} className="gap-1.5 shrink-0">
             <Search className="h-4 w-4" />
@@ -65,7 +68,7 @@ export default function SubDepartmentsFilters({
             onValueChange={(v) => onDepartmentFilterChange(v as 'all' | string)}
             disabled={departmentsLoading}
           >
-            <SelectTrigger className="w-full sm:w-[220px]">
+            <SelectTrigger className={cn('w-full sm:w-[220px]', fieldInputClass)}>
               <SelectValue placeholder={departmentsLoading ? 'กำลังโหลด...' : 'ทั้งหมด'} />
             </SelectTrigger>
             <SelectContent>
@@ -81,7 +84,7 @@ export default function SubDepartmentsFilters({
         <div className="flex flex-col gap-1.5 sm:min-w-[140px]">
           <span className="text-xs text-muted-foreground">สถานะ</span>
           <Select value={statusFilter} onValueChange={(v) => onStatusFilterChange(v as StatusFilter)}>
-            <SelectTrigger className="w-full sm:w-[140px]">
+            <SelectTrigger className={cn('w-full sm:w-[140px]', fieldInputClass)}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

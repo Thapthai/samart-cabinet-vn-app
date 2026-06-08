@@ -16,6 +16,8 @@ interface Cabinet {
   cabinet_status?: string;
 }
 
+const fieldInputClass = 'bg-white';
+
 interface EditCabinetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -113,6 +115,7 @@ export default function EditCabinetDialog({
               placeholder="เช่น ตู้ A1, ตู้ห้องผ่าตัด"
               value={formData.cabinet_name}
               onChange={(e) => setFormData({ ...formData, cabinet_name: e.target.value })}
+              className={fieldInputClass}
             />
           </div>
 
@@ -124,6 +127,7 @@ export default function EditCabinetDialog({
               placeholder="กรอก Stock ID"
               value={formData.stock_id}
               onChange={(e) => setFormData({ ...formData, stock_id: e.target.value })}
+              className={fieldInputClass}
             />
           </div>
 
