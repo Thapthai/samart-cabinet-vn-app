@@ -10,6 +10,9 @@ import { Loader2 } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
 import { fetchStaffDepartmentsForFilter, getStaffAllowedDepartmentIds } from "@/lib/staffDepartmentScope";
 import { getStaffScopedCabinetList } from "@/lib/staffScopedCabinetList";
+import { cn } from "@/lib/utils";
+
+const fieldInputClass = "bg-white";
 
 interface Department {
   ID: number;
@@ -183,7 +186,7 @@ export default function EditMappingDialog({
               value={formData.status || "ACTIVE"}
               onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
             >
-              <SelectTrigger className="h-9 w-full min-w-0 max-w-full">
+              <SelectTrigger className={cn("h-9 w-full min-w-0 max-w-full", fieldInputClass)}>
                 <SelectValue placeholder="เลือกสถานะ" />
               </SelectTrigger>
               <SelectContent>
@@ -200,7 +203,10 @@ export default function EditMappingDialog({
               rows={3}
               value={formData.description}
               onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-              className="min-h-[4.5rem] min-w-0 max-w-full resize-y break-words [overflow-wrap:anywhere]"
+              className={cn(
+                "min-h-[4.5rem] min-w-0 max-w-full resize-y break-words [overflow-wrap:anywhere]",
+                fieldInputClass,
+              )}
             />
           </div>
         </div>

@@ -10,6 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 interface CreateItemDialogProps {
   open: boolean;
@@ -95,6 +98,7 @@ export default function CreateItemDialog({
                     <Input
                       placeholder="เช่น MED2024001"
                       maxLength={25}
+                      className={fieldInputClass}
                       {...field}
                     />
                   </FormControl>
@@ -114,6 +118,7 @@ export default function CreateItemDialog({
                     <Input
                       placeholder="เช่น ชุดเครื่องมือผ่าตัดใหญ่"
                       maxLength={255}
+                      className={fieldInputClass}
                       {...field}
                     />
                   </FormControl>
@@ -133,6 +138,7 @@ export default function CreateItemDialog({
                     <Input
                       placeholder="เช่น 8859876543210"
                       maxLength={50}
+                      className={fieldInputClass}
                       {...field}
                     />
                   </FormControl>
@@ -155,6 +161,7 @@ export default function CreateItemDialog({
                         step="0.01"
                         min="0"
                         placeholder="0.00"
+                        className={fieldInputClass}
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
@@ -176,6 +183,7 @@ export default function CreateItemDialog({
                         type="number"
                         min="0"
                         placeholder="0"
+                        className={fieldInputClass}
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                       />
@@ -196,7 +204,7 @@ export default function CreateItemDialog({
                   <FormControl>
                     <Textarea
                       placeholder="รายละเอียดของสินค้า..."
-                      className="min-h-[100px]"
+                      className={cn('min-h-[100px]', fieldInputClass)}
                       {...field}
                     />
                   </FormControl>

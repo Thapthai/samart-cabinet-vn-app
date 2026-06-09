@@ -9,6 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { User, Lock, Save, Eye, EyeOff } from 'lucide-react';
 import { staffUserApi } from '@/lib/api';
 import { staffRoleDisplayLabel } from '@/lib/staffRolePolicy';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 export default function SettingsPage() {
   const [staffUser, setStaffUser] = useState<any>(null);
@@ -198,6 +201,7 @@ export default function SettingsPage() {
                   value={formData.fname}
                   onChange={(e) => setFormData({ ...formData, fname: e.target.value })}
                   required
+                  className={fieldInputClass}
                 />
               </div>
               <div>
@@ -207,6 +211,7 @@ export default function SettingsPage() {
                   value={formData.lname}
                   onChange={(e) => setFormData({ ...formData, lname: e.target.value })}
                   required
+                  className={fieldInputClass}
                 />
               </div>
             </div>
@@ -218,6 +223,7 @@ export default function SettingsPage() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
+                className={fieldInputClass}
               />
             </div>
           </CardContent>
@@ -282,6 +288,7 @@ export default function SettingsPage() {
                   value={formData.currentPassword}
                   onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
                   placeholder="กรอกรหัสผ่านปัจจุบัน"
+                  className={fieldInputClass}
                 />
                 <Button
                   type="button"
@@ -307,6 +314,7 @@ export default function SettingsPage() {
                   value={formData.newPassword}
                   onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
                   placeholder="กรอกรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)"
+                  className={fieldInputClass}
                 />
                 <Button
                   type="button"
@@ -332,6 +340,7 @@ export default function SettingsPage() {
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   placeholder="ยืนยันรหัสผ่านใหม่"
+                  className={fieldInputClass}
                 />
                 <Button
                   type="button"

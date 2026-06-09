@@ -20,6 +20,9 @@ import {
 import CreateItemDialog from '@/app/admin/management/items/components/CreateItemDialog';
 import EditItemDialog from '@/app/admin/items/components/EditItemDialog';
 import DeleteItemDialog from '@/app/admin/items/components/DeleteItemDialog';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 const PAGE_SIZE = 10;
 
@@ -167,7 +170,7 @@ export default function StaffItemMasterManagementPage() {
                 value={keywordInput}
                 onChange={(e) => setKeywordInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="max-w-md"
+                className={cn('max-w-md', fieldInputClass)}
               />
               <Button type="button" variant="secondary" onClick={handleSearch} className="gap-1.5">
                 <Search className="h-4 w-4" />
@@ -183,7 +186,7 @@ export default function StaffItemMasterManagementPage() {
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className={cn('w-[140px]', fieldInputClass)}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

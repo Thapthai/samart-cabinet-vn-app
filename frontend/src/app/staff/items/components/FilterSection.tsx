@@ -15,6 +15,8 @@ import {
   getStaffAllowedDepartmentIds,
 } from "@/lib/staffDepartmentScope";
 
+const fieldInputClass = "bg-white";
+
 interface Department {
   ID: number;
   DepName?: string;
@@ -402,6 +404,7 @@ export default function FilterSection({
                 handleSearch();
               }
             }}
+            className={fieldInputClass}
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">

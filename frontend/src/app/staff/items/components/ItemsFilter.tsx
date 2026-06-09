@@ -10,6 +10,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Search, X, Filter } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 interface ItemsFilterProps {
   searchTerm: string;
@@ -59,7 +62,7 @@ export default function ItemsFilter({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="pl-10 pr-10 focus:border-blue-500 focus:ring-blue-100 transition-all"
+                className={cn('pl-10 pr-10 focus:border-blue-500 focus:ring-blue-100 transition-all', fieldInputClass)}
               />
               {inputValue && (
                 <button
@@ -79,7 +82,7 @@ export default function ItemsFilter({
             </Button>
           </div>
           <Select value={statusFilter} onValueChange={onStatusChange}>
-            <SelectTrigger className="w-full sm:w-[180px] border-gray-300 hover:border-blue-400 transition-colors focus:ring-blue-100">
+            <SelectTrigger className={cn('w-full sm:w-[180px] border-gray-300 hover:border-blue-400 transition-colors focus:ring-blue-100', fieldInputClass)}>
               <SelectValue placeholder="สถานะ" />
             </SelectTrigger>
             <SelectContent>

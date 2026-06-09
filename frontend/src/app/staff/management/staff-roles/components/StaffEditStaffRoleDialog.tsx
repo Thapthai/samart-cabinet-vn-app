@@ -18,6 +18,9 @@ import {
 import { Pencil, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { StaffRoleRow } from '@/app/admin/management/staff-roles/components/EditStaffRoleDialog';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 function messageFromAxios(err: unknown): string | undefined {
   if (!err || typeof err !== 'object' || !('response' in err)) return undefined;
@@ -96,6 +99,7 @@ export function StaffEditStaffRoleDialog({ open, onOpenChange, role, onSaved }: 
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={!role}
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-2">
@@ -106,6 +110,7 @@ export function StaffEditStaffRoleDialog({ open, onOpenChange, role, onSaved }: 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={!role}
+              className={cn(fieldInputClass)}
             />
           </div>
           <div className="flex items-center justify-between rounded-lg border px-3 py-2">

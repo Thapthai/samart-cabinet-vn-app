@@ -16,6 +16,9 @@ import {
   getStaffAllowedDepartmentIds,
 } from '@/lib/staffDepartmentScope';
 import type { SubDepartmentOption } from '@/app/admin/medical-supplies/components/MedicalSuppliesSearchFilters';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 export type DepartmentOption = { ID: number; DepName?: string | null; DepName2?: string | null };
 
@@ -211,7 +214,7 @@ export default function ReturnHistoryFilter({
               value={itemKeyword}
               onChange={(e) => onItemKeywordChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearchClick()}
-              className="w-full"
+              className={cn('w-full', fieldInputClass)}
             />
           </div>
 
@@ -302,7 +305,7 @@ export default function ReturnHistoryFilter({
           <div className="space-y-2">
             <Label htmlFor="staff-history-reason">สาเหตุ</Label>
             <Select value={reason || 'ALL'} onValueChange={onReasonChange}>
-              <SelectTrigger id="staff-history-reason" className="h-10 w-full">
+              <SelectTrigger id="staff-history-reason" className={cn('h-10 w-full', fieldInputClass)}>
                 <SelectValue placeholder="ทั้งหมด" />
               </SelectTrigger>
               <SelectContent>

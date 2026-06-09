@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Ruler } from 'lucide-react';
 
+const fieldInputClass = 'bg-white';
+
 interface CreateUnitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -87,6 +89,7 @@ export default function CreateUnitDialog({ open, onOpenChange, onSuccess }: Crea
               onChange={(e) => setUnitName(e.target.value)}
               maxLength={50}
               placeholder="เช่น ชิ้น, กล่อง, ม้วน"
+              className={fieldInputClass}
             />
           </div>
 

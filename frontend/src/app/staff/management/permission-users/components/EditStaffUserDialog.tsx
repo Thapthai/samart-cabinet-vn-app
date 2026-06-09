@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { staffRoleDisplayLabel } from '@/lib/staffRolePolicy';
 import type { StaffRoleOption, StaffUser } from '../types';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 export interface EditStaffUserFormData {
   role: string;
@@ -57,7 +60,7 @@ export default function EditStaffUserDialog({
                 onValueChange={(value) => setEditRoleData((d) => ({ ...d, role: value }))}
                 required
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className={cn('w-full', fieldInputClass)}>
                   <SelectValue placeholder="เลือกบทบาท" />
                 </SelectTrigger>
                 <SelectContent>

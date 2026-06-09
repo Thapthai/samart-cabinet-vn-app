@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Edit } from 'lucide-react';
 
+const fieldInputClass = 'bg-white';
+
 interface Cabinet {
   id: number;
   cabinet_name?: string;
@@ -112,6 +114,7 @@ export default function EditCabinetDialog({
               placeholder="เช่น ตู้ A1, ตู้ห้องผ่าตัด"
               value={formData.cabinet_name}
               onChange={(e) => setFormData({ ...formData, cabinet_name: e.target.value })}
+              className={fieldInputClass}
             />
           </div>
 
@@ -122,6 +125,7 @@ export default function EditCabinetDialog({
               placeholder="เช่น CAB001, CAB-A1"
               value={formData.cabinet_code}
               onChange={(e) => setFormData({ ...formData, cabinet_code: e.target.value })}
+              className={fieldInputClass}
             />
           </div>
 
@@ -133,6 +137,7 @@ export default function EditCabinetDialog({
               placeholder="กรอก Stock ID"
               value={formData.stock_id}
               onChange={(e) => setFormData({ ...formData, stock_id: e.target.value })}
+              className={fieldInputClass}
             />
           </div>
 

@@ -13,6 +13,9 @@ import {
   readStaffUserIdFromStorage,
 } from '@/lib/staffRolePolicy';
 import type { StaffUser, StaffRoleOption } from '../types';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 import PermissionUsersPageLoading from './PermissionUsersPageLoading';
 
 export interface PermissionUsersTableCardProps {
@@ -60,7 +63,7 @@ export default function PermissionUsersTableCard({
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
             <Input
               placeholder="ค้นหา User (อีเมล, ชื่อ, บทบาท)..."
-              className="pl-10"
+              className={cn('pl-10', fieldInputClass)}
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
             />

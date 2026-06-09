@@ -16,6 +16,9 @@ import {
 } from "@/lib/staffDepartmentScope";
 import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
 import { staffMedicalSupplySubDepartmentsApi } from "@/lib/staffApi/medicalSupplySubDepartmentsApi";
+import { cn } from "@/lib/utils";
+
+const fieldInputClass = "bg-white";
 
 interface Department {
   ID: number;
@@ -330,7 +333,7 @@ export default function FilterSection({
               value={filters.searchItemCode}
               onChange={(e) => onFilterChange("searchItemCode", e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearchClick()}
-              className="w-full"
+              className={cn("w-full", fieldInputClass)}
             />
           </div>
 

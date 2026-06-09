@@ -9,12 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DatePickerBE } from '@/components/ui/date-picker-be';
 import SearchableSelect from '@/app/admin/items/components/SearchableSelect';
+import { cn } from '@/lib/utils';
 import {
   clampDepartmentIdString,
   fetchStaffDepartmentsForFilter,
   getStaffAllowedDepartmentIds,
 } from '@/lib/staffDepartmentScope';
 import type { SubDepartmentOption } from '@/app/admin/medical-supplies/components/MedicalSuppliesSearchFilters';
+
+const fieldInputClass = 'bg-white';
 
 export type DepartmentOption = { ID: number; DepName?: string | null; DepName2?: string | null };
 
@@ -215,7 +218,7 @@ export default function StaffWillReturnFilterCard({
               value={itemCode}
               onChange={(e) => onItemCodeChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearchClick()}
-              className="w-full"
+              className={cn('w-full', fieldInputClass)}
             />
           </div>
 

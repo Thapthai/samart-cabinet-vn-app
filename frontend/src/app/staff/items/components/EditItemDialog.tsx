@@ -7,6 +7,9 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import type { Item } from '@/types/item';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 interface EditItemDialogProps {
   open: boolean;
@@ -121,7 +124,7 @@ export default function EditItemDialog({
               }}
               maxLength={255}
               disabled={loading}
-              className="mt-1"
+              className={cn('mt-1', fieldInputClass)}
               autoFocus
             />
             <p className="text-xs text-gray-500 mt-1">

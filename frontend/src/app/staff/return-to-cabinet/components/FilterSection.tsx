@@ -11,6 +11,9 @@ import SearchableSelect from "@/app/admin/items/components/SearchableSelect";
 import { fetchStaffDepartmentsForFilter } from "@/lib/staffDepartmentScope";
 import { staffCabinetApi, staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
 import { staffMedicalSupplySubDepartmentsApi } from "@/lib/staffApi/medicalSupplySubDepartmentsApi";
+import { cn } from "@/lib/utils";
+
+const fieldInputClass = "bg-white";
 
 interface Department {
   ID: number;
@@ -214,7 +217,7 @@ export default function FilterSection({
             value={filters.searchItemCode}
             onChange={(e) => onFilterChange("searchItemCode", e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && onSearch()}
-            className="w-full"
+            className={cn("w-full", fieldInputClass)}
           />
         </div>
 

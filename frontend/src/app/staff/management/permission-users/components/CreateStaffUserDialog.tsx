@@ -10,6 +10,9 @@ import { Switch } from '@/components/ui/switch';
 import { Plus } from 'lucide-react';
 import { staffRoleDisplayLabel } from '@/lib/staffRolePolicy';
 import type { CreateStaffUserFormData, StaffRoleOption } from '../types';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 export interface CreateStaffUserDialogProps {
   open: boolean;
@@ -51,6 +54,7 @@ export default function CreateStaffUserDialog({
               value={formData.email}
               onChange={(e) => setFormData((f) => ({ ...f, email: e.target.value }))}
               required
+              className={fieldInputClass}
             />
           </div>
           <div>
@@ -60,6 +64,7 @@ export default function CreateStaffUserDialog({
               value={formData.fname}
               onChange={(e) => setFormData((f) => ({ ...f, fname: e.target.value }))}
               required
+              className={fieldInputClass}
             />
           </div>
           <div>
@@ -69,6 +74,7 @@ export default function CreateStaffUserDialog({
               value={formData.lname}
               onChange={(e) => setFormData((f) => ({ ...f, lname: e.target.value }))}
               required
+              className={fieldInputClass}
             />
           </div>
           <div>
@@ -78,7 +84,7 @@ export default function CreateStaffUserDialog({
               onValueChange={(value) => setFormData((f) => ({ ...f, role: value }))}
               required
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className={cn('w-full', fieldInputClass)}>
                 <SelectValue placeholder="เลือกบทบาท" />
               </SelectTrigger>
               <SelectContent>
@@ -110,6 +116,7 @@ export default function CreateStaffUserDialog({
               type="password"
               value={formData.password}
               onChange={(e) => setFormData((f) => ({ ...f, password: e.target.value }))}
+              className={fieldInputClass}
             />
           </div>
           <DialogFooter>

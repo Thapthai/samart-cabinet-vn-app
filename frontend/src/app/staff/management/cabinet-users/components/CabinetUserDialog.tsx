@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 
+const fieldInputClass = 'bg-white';
+
 export interface CabinetOption {
   id: number;
   cabinet_name?: string | null;
@@ -144,6 +146,7 @@ export default function CabinetUserDialog({
                   maxLength={20}
                   required
                   autoComplete="off"
+                  className={fieldInputClass}
                 />
               </div>
               <div className="space-y-2">
@@ -155,6 +158,7 @@ export default function CabinetUserDialog({
                   maxLength={20}
                   placeholder="ถ้ามี — ต้องมีใน employee"
                   autoComplete="off"
+                  className={fieldInputClass}
                 />
               </div>
             </>

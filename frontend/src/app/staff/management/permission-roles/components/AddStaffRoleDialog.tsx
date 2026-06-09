@@ -17,6 +17,8 @@ import { Shield, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { staffRoleIsStaffPermissionHead } from '@/lib/staffRolePolicy';
 
+const fieldInputClass = 'bg-white';
+
 export interface AddStaffRoleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -101,6 +103,7 @@ export default function AddStaffRoleDialog({
               placeholder="เช่น ทีมสนับสนุน"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className={fieldInputClass}
             />
           </div>
           <div className="space-y-2">
@@ -111,6 +114,7 @@ export default function AddStaffRoleDialog({
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              className={fieldInputClass}
             />
           </div>
           <p className="text-xs text-muted-foreground">

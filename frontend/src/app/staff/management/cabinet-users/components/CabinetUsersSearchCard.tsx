@@ -10,6 +10,8 @@ import SearchableSelect from "@/app/staff/items/components/SearchableSelect";
 import { staffCabinetApi, staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
 import { staffDepartmentApi } from "@/lib/staffApi/departmentApi";
 
+const fieldInputClass = "bg-white";
+
 interface Department {
   ID: number;
   DepName?: string;
@@ -200,6 +202,7 @@ export function CabinetUsersSearchCard({
                 handleSearch();
               }
             }}
+            className={fieldInputClass}
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">

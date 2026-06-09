@@ -10,6 +10,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import CreateCabinetDialog from './components/CreateCabinetDialog';
 import EditCabinetDialog from './components/EditCabinetDialog';
 import CabinetsTable from './components/CabinetsTable';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 interface Cabinet {
   id: number;
@@ -130,7 +133,7 @@ export default function CabinetsPage() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="pl-10"
+                className={cn('pl-10', fieldInputClass)}
               />
             </div>
           </CardContent>

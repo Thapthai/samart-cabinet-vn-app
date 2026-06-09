@@ -26,6 +26,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 import {
   formatLogCompareItemCodeCount,
@@ -282,7 +284,7 @@ export default function LogsPage() {
                 placeholder="เลข HN"
                 value={formFilters.patient_hn}
                 onChange={(e) => setFormFilters((p) => ({ ...p, patient_hn: e.target.value }))}
-                className="h-9 sm:h-10"
+                className={cn('h-9 sm:h-10', fieldInputClass)}
               />
             </div>
             <div className="space-y-1.5">
@@ -291,7 +293,7 @@ export default function LogsPage() {
                 placeholder="เลข EN"
                 value={formFilters.en}
                 onChange={(e) => setFormFilters((p) => ({ ...p, en: e.target.value }))}
-                className="h-9 sm:h-10"
+                className={cn('h-9 sm:h-10', fieldInputClass)}
               />
             </div>
             <div className="space-y-1.5">
@@ -302,7 +304,7 @@ export default function LogsPage() {
                   setFormFilters((p) => ({ ...p, log_status: v === 'all' ? '' : v }))
                 }
               >
-                <SelectTrigger className="h-9 sm:h-10 w-full">
+                <SelectTrigger className={cn('h-9 sm:h-10 w-full', fieldInputClass)}>
                   <SelectValue placeholder="ทั้งหมด" />
                 </SelectTrigger>
                 <SelectContent>

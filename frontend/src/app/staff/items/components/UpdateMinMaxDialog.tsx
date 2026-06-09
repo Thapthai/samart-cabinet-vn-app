@@ -16,6 +16,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle } from 'lucide-react';
 import type { Item } from '@/types/item';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 interface UpdateMinMaxDialogProps {
   open: boolean;
@@ -177,7 +180,7 @@ export default function UpdateMinMaxDialog({
                 value={formData.stock_min}
                 onChange={(e) => setFormData({ ...formData, stock_min: parseInt(e.target.value) || 0 })}
                 required
-                className="font-medium"
+                className={cn('font-medium', fieldInputClass)}
               />
               <p className="text-xs text-gray-500 mt-1">จำนวนขั้นต่ำ</p>
             </div>
@@ -194,7 +197,7 @@ export default function UpdateMinMaxDialog({
                 value={formData.stock_max}
                 onChange={(e) => setFormData({ ...formData, stock_max: parseInt(e.target.value) || 0 })}
                 required
-                className="font-medium"
+                className={cn('font-medium', fieldInputClass)}
               />
               <p className="text-xs text-gray-500 mt-1">จำนวนสูงสุด</p>
             </div>
