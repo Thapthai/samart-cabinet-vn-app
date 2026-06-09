@@ -59,8 +59,7 @@ export default function ItemComparisonPage() {
   const [subDepartmentsMaster, setSubDepartmentsMaster] = useState<SubDepartmentOption[]>([]);
   const [comparisonCabinets, setComparisonCabinets] = useState<CabinetFilterOption[]>([]);
 
-  // Filters - default to today's date
-  const [filters, setFilters] = useState<FilterState>({
+  const initialFilters: FilterState = {
     searchItemCode: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
@@ -68,7 +67,10 @@ export default function ItemComparisonPage() {
     departmentCode: '',
     subDepartmentId: '',
     cabinetId: '',
-  });
+  };
+
+  const [filters, setFilters] = useState<FilterState>(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(initialFilters);
 
   // Pagination for comparison list
   const [currentPage, setCurrentPage] = useState(1);
@@ -189,6 +191,7 @@ export default function ItemComparisonPage() {
     try {
       setLoadingList(true);
       const activeFilters = customFilters || filters;
+      setAppliedFilters(activeFilters);
       const params: any = {
         page,
         limit: itemsPerPage,
@@ -275,15 +278,12 @@ export default function ItemComparisonPage() {
 
   const handleClearSearch = () => {
     const clearedFilters: FilterState = {
-      searchItemCode: '',
+      ...initialFilters,
       startDate: getTodayDate(),
       endDate: getTodayDate(),
-      itemTypeFilter: 'all',
-      departmentCode: '',
-      subDepartmentId: '',
-      cabinetId: '',
     };
     setFilters(clearedFilters);
+    setAppliedFilters(clearedFilters);
     setCurrentPage(1);
     fetchComparisonList(1, clearedFilters);
   };
@@ -370,6 +370,7 @@ export default function ItemComparisonPage() {
           {/* Filter Section */}
           <FilterSection
             filters={filters}
+            appliedFilters={appliedFilters}
             onFilterChange={handleFilterChange}
             onSearch={handleSearch}
             onClear={handleClearSearch}

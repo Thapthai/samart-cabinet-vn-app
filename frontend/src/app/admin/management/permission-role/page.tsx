@@ -27,6 +27,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Shield, Save, Loader2, CornerDownRight, Plus } from "lucide-react";
 import { AdminAddStaffRoleDialog } from "./components/AdminAddStaffRoleDialog";
 import { toast } from "sonner";
+
+const gradientActionBtnClass =
+  "shrink-0 gap-2 border-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-700 hover:text-white";
 import {
   getAllStaffPermissionHrefs,
   getStaffPermissionTableRows,
@@ -267,19 +270,28 @@ export default function ManageStaffRolesPage() {
                   </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" onClick={() => setAddRoleOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
+                  <Button
+                    type="button"
+                    className={gradientActionBtnClass}
+                    onClick={() => setAddRoleOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" />
                     เพิ่ม Role
                   </Button>
-                  <Button onClick={handleSave} disabled={saving}>
+                  <Button
+                    type="button"
+                    className={gradientActionBtnClass}
+                    onClick={handleSave}
+                    disabled={saving}
+                  >
                     {saving ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                         กำลังบันทึก...
                       </>
                     ) : (
                       <>
-                        <Save className="mr-2 h-4 w-4" />
+                        <Save className="h-4 w-4" />
                         บันทึก
                       </>
                     )}

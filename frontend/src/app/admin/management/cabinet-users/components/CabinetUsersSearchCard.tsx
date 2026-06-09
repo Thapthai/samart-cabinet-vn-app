@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, RefreshCw, X } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Filter, RefreshCw, RotateCcw, Search } from "lucide-react";
 import SearchableSelect from "@/app/admin/items/components/SearchableSelect";
 import { cabinetApi, cabinetDepartmentApi, departmentApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -53,29 +52,37 @@ function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping["cabinet"]): Ca
   };
 }
 
-export function CabinetUsersSearchCard({
-  keywordInput,
-  onKeywordChange,
-  departmentId,
-  onDepartmentIdChange,
-  cabinetId,
-  onCabinetIdChange,
-  onSearch,
-  onReset,
-  onRefresh,
-  loading,
-}: {
+export interface CabinetUsersSearchCardProps {
   keywordInput: string;
+  activeKeyword: string;
   onKeywordChange: (value: string) => void;
   departmentId: string;
+  activeDepartmentId: string;
   onDepartmentIdChange: (value: string) => void;
   cabinetId: string;
+  activeCabinetId: string;
   onCabinetIdChange: (value: string) => void;
   onSearch: () => void;
-  onReset: () => void;
+  onClearFilters: () => void;
   onRefresh: () => void;
-  loading: boolean;
-}) {
+  loading?: boolean;
+}
+
+export function CabinetUsersSearchCard({
+  keywordInput,
+  activeKeyword,
+  onKeywordChange,
+  departmentId,
+  activeDepartmentId,
+  onDepartmentIdChange,
+  cabinetId,
+  activeCabinetId,
+  onCabinetIdChange,
+  onSearch,
+  onClearFilters,
+  onRefresh,
+  loading = false,
+}: CabinetUsersSearchCardProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
@@ -160,103 +167,149 @@ export function CabinetUsersSearchCard({
     }
   }, [cabinets, cabinetId, onCabinetIdChange]);
 
-  const handleSearch = () => {
-    onSearch();
-  };
+  const hasActiveFilters =
+    activeKeyword.trim() !== "" || activeDepartmentId !== "" || activeCabinetId !== "";
+
+  const appliedDept = departments.find((d) => d.ID.toString() === activeDepartmentId);
+  const appliedCabinet = cabinets.find((c) => c.id.toString() === activeCabinetId);
 
   return (
-    <Card className="mb-6 border-slate-200/80 shadow-sm rounded-xl">
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center space-x-2">
-            <Filter className="h-5 w-5 text-gray-500" />
-            <CardTitle>ค้นหาและกรอง</CardTitle>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={onRefresh}
-            aria-label="รีเฟรชรายการ"
-            className="shrink-0"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
-      </CardHeader>
+    <Card className="border-slate-200 shadow-sm">
       <CardContent>
-        <div className="space-y-2 mb-4">
-          <Label htmlFor="cabinet-user-keyword">UserName / EmpCode</Label>
-          <Input
-            id="cabinet-user-keyword"
-            placeholder="ค้นหา"
-            value={keywordInput}
-            onChange={(e) => onKeywordChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleSearch();
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-lg bg-amber-100 p-2">
+            <Search className="h-4 w-4 text-amber-700" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
+            <p className="text-xs text-slate-500">
+              ค้นจาก UserName / EmpCode · เลือก Division และตู้ Cabinet
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label htmlFor="cabinet-user-keyword" className="text-xs font-medium text-slate-600">
+              คำค้นหา
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="cabinet-user-keyword"
+                placeholder="เช่น UserName, EmpCode..."
+                value={keywordInput}
+                onChange={(e) => onKeywordChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    onSearch();
+                  }
+                }}
+                className={cn("h-10 pl-9 shadow-sm", fieldInputClass)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <SearchableSelect
+              label="Division"
+              placeholder="— เลือก Division —"
+              value={departmentId}
+              onValueChange={(value) => {
+                onDepartmentIdChange(value);
+                onCabinetIdChange("");
+              }}
+              options={[
+                { value: "", label: "ทั้งหมด" },
+                ...departments.map((dept) => ({
+                  value: dept.ID.toString(),
+                  label: dept.DepName || "",
+                  subLabel: dept.DepName2 || "",
+                })),
+              ]}
+              loading={loadingDepartments}
+              onSearch={loadDepartments}
+              searchPlaceholder="ค้นหา Division..."
+            />
+
+            <SearchableSelect
+              label="ตู้ Cabinet"
+              placeholder={departmentId ? "เลือกตู้ Cabinet" : "กรุณาเลือก Division ก่อน"}
+              value={cabinetId}
+              onValueChange={onCabinetIdChange}
+              options={[
+                { value: "", label: "ทั้งหมด" },
+                ...cabinets.map((cabinet) => ({
+                  value: cabinet.id.toString(),
+                  label: cabinet.cabinet_name || "",
+                  subLabel: cabinet.cabinet_code || "",
+                })),
+              ]}
+              loading={loadingCabinets}
+              onSearch={(searchKeyword) => {
+                void resolveCabinets(departmentId, searchKeyword);
+              }}
+              searchPlaceholder={
+                departmentId ? "ค้นหารหัสหรือชื่อตู้..." : "กรุณาเลือก Division ก่อน"
               }
-            }}
-            className={fieldInputClass}
-          />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
-          <SearchableSelect
-            label="Division"
-            placeholder="เลือก Division"
-            value={departmentId}
-            onValueChange={(value) => {
-              onDepartmentIdChange(value);
-              onCabinetIdChange("");
-            }}
-            options={[
-              { value: "", label: "ทั้งหมด" },
-              ...departments.map((dept) => ({
-                value: dept.ID.toString(),
-                label: dept.DepName || "",
-                subLabel: dept.DepName2 || "",
-              })),
-            ]}
-            loading={loadingDepartments}
-            onSearch={loadDepartments}
-            searchPlaceholder="ค้นหาชื่อ Division..."
-          />
+              disabled={!departmentId}
+            />
+          </div>
 
-          <SearchableSelect
-            label="ตู้ Cabinet"
-            placeholder={departmentId ? "เลือกตู้ Cabinet" : "กรุณาเลือก Division ก่อน"}
-            value={cabinetId}
-            onValueChange={onCabinetIdChange}
-            options={[
-              { value: "", label: "ทั้งหมด" },
-              ...cabinets.map((cabinet) => ({
-                value: cabinet.id.toString(),
-                label: cabinet.cabinet_name || "",
-                subLabel: cabinet.cabinet_code || "",
-              })),
-            ]}
-            loading={loadingCabinets}
-            onSearch={(searchKeyword) => {
-              void resolveCabinets(departmentId, searchKeyword);
-            }}
-            searchPlaceholder={
-              departmentId ? "ค้นหารหัสหรือชื่อตู้..." : "กรุณาเลือก Division ก่อน"
-            }
-            disabled={!departmentId}
-          />
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button type="button" onClick={onSearch} className="h-10 gap-2">
+              <Search className="h-4 w-4" />
+              ค้นหา
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              onClick={onRefresh}
+              aria-label="รีเฟรช"
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+          </div>
         </div>
 
-        <div className="flex gap-4">
-          <Button type="button" onClick={handleSearch} className="flex-1">
-            <Search className="mr-2 h-4 w-4" />
-            ค้นหา
-          </Button>
-          <Button type="button" onClick={onReset} variant="outline" className="flex-1">
-            <RotateCcw className="mr-2 h-4 w-4" />
-            รีเซ็ต
-          </Button>
-        </div>
+        {hasActiveFilters ? (
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
+            <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
+            {activeKeyword.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                คำค้น: {activeKeyword.trim()}
+              </span>
+            ) : null}
+            {activeDepartmentId ? (
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-900">
+                Division: {appliedDept?.DepName || activeDepartmentId}
+              </span>
+            ) : null}
+            {activeCabinetId ? (
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                  "border-indigo-200 bg-indigo-50 text-indigo-900",
+                )}
+              >
+                ตู้: {appliedCabinet?.cabinet_name || activeCabinetId}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-slate-600"
+              onClick={onClearFilters}
+            >
+              <X className="h-3.5 w-3.5" />
+              ล้างตัวกรอง
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

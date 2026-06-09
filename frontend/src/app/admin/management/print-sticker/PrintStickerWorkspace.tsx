@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Printer, Zap, LayoutList } from 'lucide-react';
+import { ArrowLeft, Printer, Zap, LayoutList, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { cabinetApi, cabinetDepartmentApi, departmentApi, itemsApi, itemStockApi, stickerPrintApi } from '@/lib/api';
@@ -704,13 +704,13 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
   const manualFilterIncomplete = mode === 'manual' && !!departmentId && !cabinetId;
   const cabinetPairSelected = !!departmentId && !!cabinetId;
 
-  const reloadButtonLabel = (() => {
-    if (loadingList) return 'กำลังโหลด…';
-    if (manualShowsAllItems) return 'โหลดรายการ Item';
-    return 'โหลดรายการจากตู้';
-  })();
-
   const reloadDisabled = loadingList || (mode === 'auto' && !cabinetPairSelected);
+
+  const reloadButtonLabel = loadingList
+    ? 'กำลังโหลด…'
+    : manualShowsAllItems
+      ? 'โหลดรายการ Item'
+      : 'โหลดรายการจากตู้';
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -742,8 +742,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
       <Card className="border-slate-200 shadow-sm">
 
         <CardContent className="flex flex-col gap-6 pt-1">
-          <div>
-
+           
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
@@ -780,7 +779,7 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
                 </span>
               </button>
             </div>
-          </div>
+       
 
           <div
             className={cn(
@@ -855,15 +854,14 @@ export default function PrintStickerWorkspace({ variant = 'admin' }: PrintSticke
             )}
           </div>
 
-          <div className="flex justify-end border-t pt-4">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
             <Button
               type="button"
-              variant="secondary"
-              size="sm"
-              className="shrink-0"
+              className="h-10 gap-2 shrink-0"
               disabled={reloadDisabled}
               onClick={() => void fetchCabinetItems()}
             >
+              <RefreshCw className={cn('h-4 w-4', loadingList && 'animate-spin')} />
               {reloadButtonLabel}
             </Button>
           </div>

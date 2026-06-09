@@ -153,6 +153,12 @@ export const adminMenuItems: StaffMenuItem[] = [
         description: 'จัดการตู้ Cabinet',
       },
       {
+        name: 'จัดการ Division',
+        href: '/admin/management/departments',
+        icon: Building2,
+        description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
+      },
+      {
         name: 'Cabinet - Division',
         href: '/admin/management/cabinet-departments',
         icon: Network,
@@ -176,12 +182,7 @@ export const adminMenuItems: StaffMenuItem[] = [
         icon: Ruler,
         description: 'หน่วยนับสำหรับผูกกับรายการ Item',
       },
-      {
-        name: 'จัดการ Division',
-        href: '/admin/management/departments',
-        icon: Building2,
-        description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
-      },
+
       {
         name: 'จัดการพนักงาน',
         href: '/admin/management/employee',

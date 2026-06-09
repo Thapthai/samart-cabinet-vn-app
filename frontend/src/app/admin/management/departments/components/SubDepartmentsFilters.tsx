@@ -1,8 +1,10 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Search, RefreshCw, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -10,90 +12,165 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { DeptRow, StatusFilter } from '../types';
-import { cn } from '@/lib/utils';
+import type { StatusFilter } from '../types';
 
 const fieldInputClass = 'bg-white';
 
-type Props = {
-  keyword: string;
-  onKeywordChange: (v: string) => void;
-  onSearch: () => void;
-  departmentFilter: 'all' | string;
-  onDepartmentFilterChange: (v: 'all' | string) => void;
+export interface SubDepartmentsFiltersProps {
+  deptKeywordInput: string;
+  activeDeptKeyword: string;
+  subKeywordInput: string;
+  activeSubKeyword: string;
   statusFilter: StatusFilter;
-  onStatusFilterChange: (v: StatusFilter) => void;
-  filterDepartments: DeptRow[];
-  departmentsLoading?: boolean;
-};
+  onDeptKeywordInputChange: (value: string) => void;
+  onSubKeywordInputChange: (value: string) => void;
+  onStatusFilterChange: (value: StatusFilter) => void;
+  onSearch: () => void;
+  onClearFilters: () => void;
+  onRefresh: () => void;
+  loading?: boolean;
+}
 
 export default function SubDepartmentsFilters({
-  keyword,
-  onKeywordChange,
-  onSearch,
-  departmentFilter,
-  onDepartmentFilterChange,
+  deptKeywordInput,
+  activeDeptKeyword,
+  subKeywordInput,
+  activeSubKeyword,
   statusFilter,
+  onDeptKeywordInputChange,
+  onSubKeywordInputChange,
   onStatusFilterChange,
-  filterDepartments,
-  departmentsLoading,
-}: Props) {
+  onSearch,
+  onClearFilters,
+  onRefresh,
+  loading = false,
+}: SubDepartmentsFiltersProps) {
+  const hasActiveFilters =
+    activeDeptKeyword.trim() !== '' ||
+    activeSubKeyword.trim() !== '' ||
+    statusFilter !== 'all';
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">ค้นหาและกรอง — รหัสแผนกย่อย</CardTitle>
-        <CardDescription>
-          ค้นจากรหัส (code) ชื่อ หรือรายละเอียด · เลือกแผนกหลักหรือสถานะการใช้งาน
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="flex min-w-[200px] flex-1 gap-2">
-          <Input
-            placeholder="คำค้น (code, ชื่อ, รายละเอียด)..."
-            value={keyword}
-            onChange={(e) => onKeywordChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-            className={cn('max-w-md', fieldInputClass)}
-          />
-          <Button type="button" variant="secondary" onClick={onSearch} className="gap-1.5 shrink-0">
-            <Search className="h-4 w-4" />
-            ค้นหา
-          </Button>
+    <Card className="border-slate-200 shadow-sm">
+      <CardContent>
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-lg bg-amber-100 p-2">
+            <Search className="h-4 w-4 text-amber-700" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
+            <p className="text-xs text-slate-500">
+              ค้นหา Division หรือรหัสแผนกย่อย (code, ชื่อ, รายละเอียด)
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5 sm:min-w-[200px]">
-          <span className="text-xs text-muted-foreground">แผนกหลัก</span>
-          <Select
-            value={departmentFilter}
-            onValueChange={(v) => onDepartmentFilterChange(v as 'all' | string)}
-            disabled={departmentsLoading}
-          >
-            <SelectTrigger className={cn('w-full sm:w-[220px]', fieldInputClass)}>
-              <SelectValue placeholder={departmentsLoading ? 'กำลังโหลด...' : 'ทั้งหมด'} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">ทั้งหมด</SelectItem>
-              {filterDepartments.map((d) => (
-                <SelectItem key={d.ID} value={String(d.ID)}>
-                  {d.DepName || d.DepName2 || `ID ${d.ID}`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_160px] lg:items-end">
+          <div className="space-y-1.5">
+            <label htmlFor="dept-keyword" className="text-xs font-medium text-slate-600">
+              ค้นหา Division
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="dept-keyword"
+                placeholder="ชื่อ, ชื่อย่อ, ID, RefDepID..."
+                value={deptKeywordInput}
+                onChange={(e) => onDeptKeywordInputChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className={cn('h-10 pl-9 shadow-sm', fieldInputClass)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="sub-dept-keyword" className="text-xs font-medium text-slate-600">
+              ค้นหารหัสแผนก
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="sub-dept-keyword"
+                placeholder="code, ชื่อ, รายละเอียด..."
+                value={subKeywordInput}
+                onChange={(e) => onSubKeywordInputChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className={cn('h-10 pl-9 shadow-sm', fieldInputClass)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="sub-dept-status-filter" className="text-xs font-medium text-slate-600">
+              สถานะ
+            </label>
+            <Select value={statusFilter} onValueChange={(v) => onStatusFilterChange(v as StatusFilter)}>
+              <SelectTrigger id="sub-dept-status-filter" className={cn('h-10 w-full shadow-sm', fieldInputClass)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ทั้งหมด</SelectItem>
+                <SelectItem value="active">ใช้งาน</SelectItem>
+                <SelectItem value="inactive">ไม่ใช้งาน</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="col-span-full flex justify-end gap-2">
+            <Button type="button" onClick={onSearch} className="h-10 gap-2">
+              <Search className="h-4 w-4" />
+              ค้นหา
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              onClick={onRefresh}
+              aria-label="รีเฟรช"
+            >
+              <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5 sm:min-w-[140px]">
-          <span className="text-xs text-muted-foreground">สถานะ</span>
-          <Select value={statusFilter} onValueChange={(v) => onStatusFilterChange(v as StatusFilter)}>
-            <SelectTrigger className={cn('w-full sm:w-[140px]', fieldInputClass)}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">ทั้งหมด</SelectItem>
-              <SelectItem value="active">เปิดใช้งาน</SelectItem>
-              <SelectItem value="inactive">ปิดใช้งาน</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+
+        {hasActiveFilters ? (
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
+            <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
+            {activeDeptKeyword.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                Division: {activeDeptKeyword.trim()}
+              </span>
+            ) : null}
+            {activeSubKeyword.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                รหัสแผนก: {activeSubKeyword.trim()}
+              </span>
+            ) : null}
+            {statusFilter !== 'all' ? (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  statusFilter === 'active'
+                    ? 'border-green-200 bg-green-50 text-green-800'
+                    : 'border-slate-200 bg-slate-50 text-slate-700',
+                )}
+              >
+                {statusFilter === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-slate-600"
+              onClick={onClearFilters}
+            >
+              <X className="h-3.5 w-3.5" />
+              ล้างตัวกรอง
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

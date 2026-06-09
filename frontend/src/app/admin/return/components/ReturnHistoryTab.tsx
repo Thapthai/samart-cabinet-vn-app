@@ -1,6 +1,6 @@
 'use client';
 
-import ReturnHistoryFilter from './ReturnHistoryFilter';
+import ReturnHistoryFilter, { type AppliedReturnHistoryFilters } from './ReturnHistoryFilter';
 import ReturnHistoryTable from './ReturnHistoryTable';
 import type { ReturnHistoryData } from '../types';
 import type {
@@ -16,6 +16,7 @@ interface ReturnHistoryTabProps {
   subDepartmentId: string;
   cabinetId: string;
   itemKeyword: string;
+  appliedHistoryFilters: AppliedReturnHistoryFilters;
   departments: DepartmentOption[];
   subDepartments: SubDepartmentOption[];
   cabinets: Array<{ id: number; cabinet_name?: string; cabinet_code?: string }>;
@@ -46,6 +47,7 @@ export default function ReturnHistoryTab({
   subDepartmentId,
   cabinetId,
   itemKeyword,
+  appliedHistoryFilters,
   departments,
   subDepartments,
   cabinets,
@@ -77,6 +79,7 @@ export default function ReturnHistoryTab({
         subDepartmentId={subDepartmentId}
         cabinetId={cabinetId}
         itemKeyword={itemKeyword}
+        appliedFilters={appliedHistoryFilters}
         departments={departments}
         subDepartments={subDepartments}
         cabinets={cabinets}

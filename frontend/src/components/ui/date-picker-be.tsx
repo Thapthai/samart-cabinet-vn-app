@@ -206,8 +206,10 @@ export function DatePickerBE({
   const showPortalCalendar =
     popoverPortal && open && portalPlacement != null && typeof document !== 'undefined';
 
+  const isTall = className?.includes('h-10');
+
   return (
-    <div ref={containerRef} className={cn('relative flex', className)}>
+    <div ref={containerRef} className="relative flex w-full items-stretch">
       <Input
         id={id}
         type="text"
@@ -217,14 +219,21 @@ export function DatePickerBE({
         onChange={handleInputChange}
         onBlur={handleBlur}
         disabled={disabled}
-        className="flex-1 font-medium"
+        className={cn(
+          'min-w-0 flex-1 rounded-r-none border-r-0 font-medium shadow-none',
+          isTall ? 'h-10' : 'h-9',
+          className,
+        )}
         autoComplete="off"
       />
       <Button
         type="button"
         variant="outline"
         size="icon"
-        className="ml-1 shrink-0 h-9 w-9"
+        className={cn(
+          'shrink-0 rounded-l-none px-0',
+          isTall ? 'h-10 w-10' : 'h-9 w-9',
+        )}
         onClick={() => setOpen((o) => !o)}
         disabled={disabled}
         aria-label="เลือกวันที่"

@@ -205,13 +205,16 @@ export default function CabinetUsersWorkspace({
       <div className="space-y-6">
         <CabinetUsersSearchCard
           keywordInput={keywordInput}
+          activeKeyword={activeKeyword}
           onKeywordChange={setKeywordInput}
           departmentId={departmentIdInput}
+          activeDepartmentId={activeDepartmentId}
           onDepartmentIdChange={setDepartmentIdInput}
           cabinetId={cabinetIdInput}
+          activeCabinetId={activeCabinetId}
           onCabinetIdChange={setCabinetIdInput}
           onSearch={handleSearch}
-          onReset={handleResetFilters}
+          onClearFilters={handleResetFilters}
           onRefresh={() => loadUsers()}
           loading={loading}
         />

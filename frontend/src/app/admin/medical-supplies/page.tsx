@@ -268,6 +268,7 @@ export default function MedicalSuppliesPage() {
 
           <MedicalSuppliesSearchFilters
             formFilters={formFilters}
+            activeFilters={activeFilters}
             onPatchFormFilters={(patch) => setFormFilters((prev) => ({ ...prev, ...patch }))}
             departments={departments}
             subDepartments={subDepartments}

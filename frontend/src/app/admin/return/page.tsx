@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
-import { RotateCcw, History } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RotateCcw, History, Undo2 } from 'lucide-react';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import {
   medicalSuppliesApi,
   itemsApi,
@@ -17,7 +19,8 @@ import {
 import { toast } from 'sonner';
 import ReturnFormTab from './components/ReturnFormTab';
 import ReturnHistoryTab from './components/ReturnHistoryTab';
-import WillReturnFilterCard from './components/WillReturnFilterCard';
+import WillReturnFilterCard, { type AppliedWillReturnFilters } from './components/WillReturnFilterCard';
+import type { AppliedReturnHistoryFilters } from './components/ReturnHistoryFilter';
 import type {
   DepartmentOption,
   SubDepartmentOption,
@@ -63,6 +66,16 @@ export default function ReturnMedicalSuppliesPage() {
   const [filterItemCode, setFilterItemCode] = useState('');
   const [filterStartDate, setFilterStartDate] = useState(() => getTodayDate());
   const [filterEndDate, setFilterEndDate] = useState(() => getTodayDate());
+  const [appliedWillReturnFilters, setAppliedWillReturnFilters] = useState<AppliedWillReturnFilters>(
+    () => ({
+      departmentId: '',
+      cabinetId: '',
+      subDepartmentId: '',
+      itemCode: '',
+      startDate: getTodayDate(),
+      endDate: getTodayDate(),
+    }),
+  );
 
   // Departments และ Cabinets สำหรับ dropdown กรอง
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
@@ -77,6 +90,17 @@ export default function ReturnMedicalSuppliesPage() {
   const [returnHistorySubDepartmentId, setReturnHistorySubDepartmentId] = useState('');
   const [returnHistoryCabinetId, setReturnHistoryCabinetId] = useState('');
   const [returnHistoryItemKeyword, setReturnHistoryItemKeyword] = useState('');
+  const [appliedHistoryFilters, setAppliedHistoryFilters] = useState<AppliedReturnHistoryFilters>(
+    () => ({
+      dateFrom: getTodayDate(),
+      dateTo: getTodayDate(),
+      reason: 'ALL',
+      departmentCode: '',
+      subDepartmentId: '',
+      cabinetId: '',
+      itemKeyword: '',
+    }),
+  );
   const [historyCabinets, setHistoryCabinets] = useState<CabinetFilterOption[]>([]);
   const [returnHistoryData, setReturnHistoryData] = useState<ReturnHistoryData | null>({
     data: [],
@@ -264,16 +288,37 @@ export default function ReturnMedicalSuppliesPage() {
 
   const handleWillReturnFilterReset = () => {
     const start = getTodayDate();
+    const reset: AppliedWillReturnFilters = {
+      departmentId: '',
+      cabinetId: '',
+      subDepartmentId: '',
+      itemCode: '',
+      startDate: start,
+      endDate: start,
+    };
     setFilterDepartmentId('');
     setFilterCabinetId('');
     setFilterSubDepartmentId('');
     setFilterItemCode('');
     setFilterStartDate(start);
     setFilterEndDate(start);
+    setAppliedWillReturnFilters(reset);
     loadWillReturnItems({
       start_date: start,
       end_date: start,
     });
+  };
+
+  const handleWillReturnSearch = () => {
+    setAppliedWillReturnFilters({
+      departmentId: filterDepartmentId,
+      cabinetId: filterCabinetId,
+      subDepartmentId: filterSubDepartmentId,
+      itemCode: filterItemCode,
+      startDate: filterStartDate,
+      endDate: filterEndDate,
+    });
+    void loadWillReturnItems();
   };
 
   const handleReturnSubmit = async (params: {
@@ -305,7 +350,7 @@ export default function ReturnMedicalSuppliesPage() {
         page: 1,
         limit: qtyToSubmit,
       });
- 
+
       const rows = listRes?.success && Array.isArray(listRes.data) ? listRes.data : [];
       const rowIds = rows
         .slice(0, qtyToSubmit)
@@ -370,6 +415,16 @@ export default function ReturnMedicalSuppliesPage() {
       const subDepartmentId = opts?.subDepartmentId ?? returnHistorySubDepartmentId;
       const cabinetId = opts?.cabinetId ?? returnHistoryCabinetId;
       const itemKeyword = opts?.itemKeyword ?? returnHistoryItemKeyword;
+
+      setAppliedHistoryFilters({
+        dateFrom,
+        dateTo,
+        reason,
+        departmentCode,
+        subDepartmentId,
+        cabinetId,
+        itemKeyword,
+      });
 
       const params: Record<string, string | number> = {
         page,
@@ -502,16 +557,50 @@ export default function ReturnMedicalSuppliesPage() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2 h-11 rounded-lg bg-slate-100 p-1">
-              <TabsTrigger value="return" className="flex items-center gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <RotateCcw className="h-4 w-4" />
-                แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <History className="h-4 w-4" />
-                ประวัติการแจ้งอุปกรณ์ที่ไม่ถูกใช้งาน
-              </TabsTrigger>
-            </TabsList>
+            <Card className="border-slate-200 shadow-sm">
+              <CardContent className="pt-6">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('return')}
+                    className={cn(
+                      'flex gap-3 rounded-xl border bg-background p-3.5 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      activeTab === 'return'
+                        ? 'border-primary bg-primary/[0.06] shadow-sm ring-2 ring-primary/15'
+                        : 'border-slate-200 hover:bg-muted/40',
+                    )}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800">
+                      <Undo2 className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 space-y-0.5">
+                      <span className="block text-base font-medium text-slate-900 sm:text-lg">
+                        แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('history')}
+                    className={cn(
+                      'flex gap-3 rounded-xl border bg-background p-3.5 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      activeTab === 'history'
+                        ? 'border-primary bg-primary/[0.06] shadow-sm ring-2 ring-primary/15'
+                        : 'border-slate-200 hover:bg-muted/40',
+                    )}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                      <History className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 space-y-0.5">
+                      <span className="block text-base font-medium text-slate-900 sm:text-lg">
+                        ประวัติการแจ้งอุปกรณ์ที่ไม่ถูกใช้งาน
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
 
             <TabsContent value="return" className="space-y-4">
               <WillReturnFilterCard
@@ -530,7 +619,8 @@ export default function ReturnMedicalSuppliesPage() {
                 onItemCodeChange={setFilterItemCode}
                 onStartDateChange={setFilterStartDate}
                 onEndDateChange={setFilterEndDate}
-                onSearch={() => loadWillReturnItems()}
+                appliedFilters={appliedWillReturnFilters}
+                onSearch={handleWillReturnSearch}
                 onReset={handleWillReturnFilterReset}
                 onRefresh={() => loadWillReturnItems()}
                 loading={loadingWillReturn}
@@ -553,6 +643,7 @@ export default function ReturnMedicalSuppliesPage() {
                 subDepartmentId={returnHistorySubDepartmentId}
                 cabinetId={returnHistoryCabinetId}
                 itemKeyword={returnHistoryItemKeyword}
+                appliedHistoryFilters={appliedHistoryFilters}
                 departments={departments}
                 subDepartments={subDepartmentsMaster}
                 cabinets={historyCabinets}

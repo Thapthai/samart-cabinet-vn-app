@@ -118,7 +118,7 @@ export default function CreateCabinetDialog({
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
               disabled={loading}
             >
-              {loading ? 'กำลังเพิ่ม...' : 'เพิ่มตู้'}
+              {loading ? 'กำลังบันทึก...' : 'บันทึก'}
             </Button>
           </div>
         </form>

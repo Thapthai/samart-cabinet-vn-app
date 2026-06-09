@@ -268,6 +268,8 @@ export default function ItemsPage() {
             onSearch={handleSearch}
             onBeforeSearch={() => setCurrentPage(1)}
             onReset={handleResetFilters}
+            onRefresh={() => void fetchItems()}
+            loading={loading}
           />
 
           {/* Table Section */}

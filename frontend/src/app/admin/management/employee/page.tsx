@@ -5,8 +5,7 @@ import { employeeApi, type EmployeeRow } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { toast } from 'sonner';
-import { Plus, IdCard } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { IdCard } from 'lucide-react';
 import CreateEmployeeDialog from './components/CreateEmployeeDialog';
 import EditEmployeeDialog from './components/EditEmployeeDialog';
 import DeleteEmployeeDialog from './components/DeleteEmployeeDialog';
@@ -68,6 +67,12 @@ export default function EmployeeManagementPage() {
     setPage(1);
   };
 
+  const handleClearFilters = () => {
+    setKeywordInput('');
+    setActiveKeyword('');
+    setPage(1);
+  };
+
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -77,28 +82,24 @@ export default function EmployeeManagementPage() {
     <ProtectedRoute>
       <AppLayout fullWidth>
         <div className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-teal-100 p-2.5">
-                <IdCard className="h-7 w-7 text-teal-700" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">จัดการ Employee</h1>
-                <p className="mt-0.5 text-sm text-slate-600">
-                  รายชื่อพนักงาน (EmpCode) สำหรับผูกกับ Staff User และผู้ใช้ตู้ Cabinet
-                </p>
-              </div>
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-teal-100 p-2.5">
+              <IdCard className="h-7 w-7 text-teal-700" />
             </div>
-            <Button type="button" onClick={() => setCreateOpen(true)} className="shrink-0 gap-2">
-              <Plus className="h-4 w-4" />
-              เพิ่มพนักงาน
-            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">จัดการ Employee</h1>
+              <p className="mt-0.5 text-sm text-slate-600">
+                รายชื่อพนักงาน (EmpCode) สำหรับผูกกับ Staff User และผู้ใช้ตู้ Cabinet
+              </p>
+            </div>
           </div>
 
           <EmployeeSearchCard
-            keyword={keywordInput}
-            onKeywordChange={setKeywordInput}
+            keywordInput={keywordInput}
+            activeKeyword={activeKeyword}
+            onKeywordInputChange={setKeywordInput}
             onSearch={handleSearch}
+            onClearFilters={handleClearFilters}
             onRefresh={fetchList}
             loading={loading}
           />
@@ -111,6 +112,7 @@ export default function EmployeeManagementPage() {
             total={total}
             totalPages={totalPages}
             onPageChange={handlePageChange}
+            onCreateClick={() => setCreateOpen(true)}
             onEdit={(row) => {
               setSelected(row);
               setEditOpen(true);

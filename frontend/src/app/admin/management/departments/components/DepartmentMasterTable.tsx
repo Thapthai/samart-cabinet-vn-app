@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
-import { Building2, ChevronDown, ChevronRight, Loader2, Pencil, RotateCcw, Search } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, Loader2, Pencil, Plus, RotateCcw, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,9 @@ type Props = {
   showFilterToolbar?: boolean;
   /** แก้ไขแผนกหลักจากแถวตาราง */
   onEditMainDepartment?: (dept: DeptRow) => void;
+  onCreateSubDepartment?: () => void;
+  onCreateMainDepartment?: () => void;
+  createSubDepartmentLabel?: string;
 };
 
 export default function DepartmentMasterTable({
@@ -61,6 +64,9 @@ export default function DepartmentMasterTable({
   onSelectDepartment,
   showFilterToolbar = true,
   onEditMainDepartment,
+  onCreateSubDepartment,
+  onCreateMainDepartment,
+  createSubDepartmentLabel = 'เพิ่มรหัสแผนกย่อย',
 }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedDepartmentId, setExpandedDepartmentId] = useState<number | null>(null);
@@ -108,70 +114,83 @@ export default function DepartmentMasterTable({
   return (
     <Card className="border-slate-200/80 shadow-sm overflow-hidden rounded-xl">
       <CardHeader className="border-b border-slate-100 bg-slate-50/50 space-y-4">
+        <div className="flex flex-row flex-wrap items-start justify-between gap-3">
+          <CardTitle className="text-slate-800 flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-cyan-600" />
+            แผนกหลักและรหัสแผนกย่อย ({departments.length} แผนก)
+          </CardTitle>
+          {(onCreateSubDepartment || onCreateMainDepartment) ? (
+            <div className="flex flex-wrap justify-end gap-2 shrink-0">
+              {onCreateSubDepartment ? (
+                <Button
+                  type="button"
+                  className="gap-2 bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-sm hover:from-cyan-600 hover:to-teal-700"
+                  onClick={onCreateSubDepartment}
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  {createSubDepartmentLabel}
+                </Button>
+              ) : null}
+              {onCreateMainDepartment ? (
+                <Button
+                  type="button"
+                  className="gap-2 bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-sm hover:from-cyan-600 hover:to-teal-700"
+                  onClick={onCreateMainDepartment}
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  เพิ่มแผนกหลัก
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         {showFilterToolbar ? (
-          <>
-            <div>
-              <CardTitle className="text-slate-800 flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-cyan-600" />
-                แผนกหลักและรหัสแผนกย่อย ({departments.length} แผนก)
-              </CardTitle>
-         
+          <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+            <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
+              <span className="text-xs text-muted-foreground">ค้นหาแผนก</span>
+              <Input
+                placeholder="ชื่อ, ชื่อย่อ, ID, RefDepID..."
+                value={deptKeywordInput}
+                onChange={(e) => onDeptKeywordInputChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className={fieldInputClass}
+              />
             </div>
-            <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-              <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
-                <span className="text-xs text-muted-foreground">ค้นหาแผนก</span>
-                <Input
-                  placeholder="ชื่อ, ชื่อย่อ, ID, RefDepID..."
-                  value={deptKeywordInput}
-                  onChange={(e) => onDeptKeywordInputChange(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-                  className={fieldInputClass}
-                />
-              </div>
-              <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
-                <span className="text-xs text-muted-foreground">ค้นหารหัสแผนกย่อย</span>
-                <Input
-                  placeholder="code, ชื่อ, รายละเอียด..."
-                  value={subKeywordInput}
-                  onChange={(e) => onSubKeywordInputChange(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-                  className={fieldInputClass}
-                />
-              </div>
-              <div className="flex min-w-[140px] flex-col gap-1.5">
-                <span className="text-xs text-muted-foreground">สถานะรหัส</span>
-                <Select value={statusFilter} onValueChange={(v) => onStatusFilterChange(v as StatusFilter)}>
-                  <SelectTrigger className={cn('w-full lg:w-[160px]', fieldInputClass)}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">ทั้งหมด</SelectItem>
-                    <SelectItem value="active">เปิดใช้งาน</SelectItem>
-                    <SelectItem value="inactive">ปิดใช้งาน</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="secondary" onClick={onSearch} className="gap-1.5">
-                  <Search className="h-4 w-4" />
-                  ค้นหา
-                </Button>
-                <Button type="button" variant="outline" onClick={onResetFilters} className="gap-1.5">
-                  <RotateCcw className="h-4 w-4" />
-                  ล้าง
-                </Button>
-              </div>
+            <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
+              <span className="text-xs text-muted-foreground">ค้นหารหัสแผนกย่อย</span>
+              <Input
+                placeholder="code, ชื่อ, รายละเอียด..."
+                value={subKeywordInput}
+                onChange={(e) => onSubKeywordInputChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className={fieldInputClass}
+              />
             </div>
-          </>
-        ) : (
-          <div>
-            <CardTitle className="text-slate-800 flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-cyan-600" />
-              แผนกหลักและรหัสแผนกย่อย ({departments.length} แผนก)
-            </CardTitle>
-
+            <div className="flex min-w-[140px] flex-col gap-1.5">
+              <span className="text-xs text-muted-foreground">สถานะรหัส</span>
+              <Select value={statusFilter} onValueChange={(v) => onStatusFilterChange(v as StatusFilter)}>
+                <SelectTrigger className={cn('w-full lg:w-[160px]', fieldInputClass)}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทั้งหมด</SelectItem>
+                  <SelectItem value="active">เปิดใช้งาน</SelectItem>
+                  <SelectItem value="inactive">ปิดใช้งาน</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" onClick={onSearch} className="gap-1.5">
+                <Search className="h-4 w-4" />
+                ค้นหา
+              </Button>
+              <Button type="button" variant="outline" onClick={onResetFilters} className="gap-1.5">
+                <RotateCcw className="h-4 w-4" />
+                ล้าง
+              </Button>
+            </div>
           </div>
-        )}
+        ) : null}
       </CardHeader>
       <CardContent className="p-2">
         <div className="overflow-x-auto rounded-b-xl">
@@ -237,7 +256,7 @@ export default function DepartmentMasterTable({
                         <TableCell className="font-medium">{dept.ID}</TableCell>
                         <TableCell>{dept.DepName || '—'}</TableCell>
                         <TableCell className="font-mono text-sm">{dept.DepName2?.trim() ? dept.DepName2 : '—'}</TableCell>
-                     
+
                         <TableCell className="text-center">
                           <span className="font-semibold text-slate-700">{subs.length}</span>
                         </TableCell>
@@ -245,9 +264,8 @@ export default function DepartmentMasterTable({
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <Button
                               type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8"
+                              size="sm"
+                              variant="outline"
                               onClick={() => onEditMainDepartment(dept)}
                               aria-label="แก้ไขแผนกหลัก"
                             >

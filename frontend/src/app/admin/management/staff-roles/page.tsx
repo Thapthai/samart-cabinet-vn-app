@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
@@ -20,6 +20,10 @@ import { UserCog, Loader2, Pencil, Plus, Trash2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdminAddStaffRoleDialog } from '../permission-role/components/AdminAddStaffRoleDialog';
 import { EditStaffRoleDialog, type StaffRoleRow } from './components/EditStaffRoleDialog';
+import {
+  StaffRolesSearchCard,
+  type StaffRoleStatusFilter,
+} from './components/StaffRolesSearchCard';
 
 function messageFromAxios(err: unknown): string | undefined {
   if (!err || typeof err !== 'object' || !('response' in err)) return undefined;
@@ -32,6 +36,9 @@ export default function AdminStaffRolesManagementPage() {
   const [rows, setRows] = useState<StaffRoleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+  const [keywordInput, setKeywordInput] = useState('');
+  const [activeKeyword, setActiveKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StaffRoleStatusFilter>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selected, setSelected] = useState<StaffRoleRow | null>(null);
@@ -72,7 +79,19 @@ export default function AdminStaffRolesManagementPage() {
     load();
   }, [load]);
 
-  const allCodes = rows.map((r) => r.code);
+  const handleSearch = () => {
+    setActiveKeyword(keywordInput);
+  };
+
+  const handleClearFilters = () => {
+    setKeywordInput('');
+    setActiveKeyword('');
+    setStatusFilter('all');
+  };
+
+  const handleStatusFilterChange = (value: StaffRoleStatusFilter) => {
+    setStatusFilter(value);
+  };
 
   const handleDelete = async (r: StaffRoleRow) => {
     if (
@@ -91,40 +110,55 @@ export default function AdminStaffRolesManagementPage() {
     }
   };
 
-  const sorted = [...rows].sort((a, b) => a.code.localeCompare(b.code, 'en'));
+  const filteredRows = useMemo(() => {
+    let list = rows;
+    const q = activeKeyword.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (r) =>
+          r.code.toLowerCase().includes(q) ||
+          r.name.toLowerCase().includes(q) ||
+          (r.description?.toLowerCase().includes(q) ?? false),
+      );
+    }
+    if (statusFilter === 'active') list = list.filter((r) => r.is_active);
+    if (statusFilter === 'inactive') list = list.filter((r) => !r.is_active);
+    return [...list].sort((a, b) => a.code.localeCompare(b.code, 'en'));
+  }, [rows, activeKeyword, statusFilter]);
 
   return (
     <ProtectedRoute>
       <AppLayout fullWidth>
         <div className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 p-2.5 shadow-lg">
-                <UserCog className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">จัดการ Staff Role</h1>
-                <p className="text-sm text-slate-500">
-                  แก้ไขชื่อแสดง คำอธิบาย สถานะ — กำหนดสิทธิ์เมนูแต่ละ Role ได้ที่{' '}
-                  <Link
-                    href="/admin/management/permission-role"
-                    className="text-violet-600 underline-offset-2 hover:underline"
-                  >
-                    จัดการ Staff Role และสิทธิ์
-                  </Link>
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 p-2.5 shadow-lg">
+              <UserCog className="h-6 w-6 text-white" />
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => load()} disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'รีเฟรช'}
-              </Button>
-              <Button type="button" onClick={() => setCreateOpen(true)} className="shrink-0">
-                <Plus className="mr-2 h-4 w-4" />
-                เพิ่ม Role
-              </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">จัดการ Staff Role</h1>
+              <p className="text-sm text-slate-500">
+                แก้ไขชื่อแสดง คำอธิบาย สถานะ — กำหนดสิทธิ์เมนูแต่ละ Role ได้ที่{' '}
+                <Link
+                  href="/admin/management/permission-role"
+                  className="text-violet-600 underline-offset-2 hover:underline"
+                >
+                  จัดการ Staff Role และสิทธิ์
+                </Link>
+              </p>
             </div>
           </div>
+
+          <StaffRolesSearchCard
+            keywordInput={keywordInput}
+            activeKeyword={activeKeyword}
+            statusFilter={statusFilter}
+            onKeywordInputChange={setKeywordInput}
+            onStatusFilterChange={handleStatusFilterChange}
+            onSearch={handleSearch}
+            onClearFilters={handleClearFilters}
+            onRefresh={load}
+            loading={loading}
+          />
 
           {listError ? (
             <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -137,22 +171,32 @@ export default function AdminStaffRolesManagementPage() {
           ) : null}
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-violet-600" />
-                รายการ Role
-              </CardTitle>
-              <CardDescription>
-                รหัส Role สร้างครั้งแรกแล้วคงที่ — ใช้หน้านี้ปรับข้อมูลที่แสดงและเปิด/ปิดการใช้งาน
-              </CardDescription>
+            <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-2">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-violet-600" />
+                  รายการ Role
+                </CardTitle>
+                <CardDescription>
+                  รหัส Role สร้างครั้งแรกแล้วคงที่ — ใช้หน้านี้ปรับข้อมูลที่แสดงและเปิด/ปิดการใช้งาน
+                </CardDescription>
+              </div>
+              <Button type="button" onClick={() => setCreateOpen(true)} className="shrink-0 gap-2">
+                <Plus className="h-4 w-4" />
+                เพิ่ม Role
+              </Button>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="flex justify-center py-12 text-slate-500">
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
-              ) : sorted.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-500">ยังไม่มี Role — กด «เพิ่ม Role»</p>
+              ) : filteredRows.length === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-500">
+                  {rows.length === 0
+                    ? 'ยังไม่มี Role — กด «เพิ่ม Role»'
+                    : 'ไม่พบรายการที่ตรงกับตัวกรอง'}
+                </p>
               ) : (
                 <div className="overflow-x-auto rounded-md border">
                   <Table>
@@ -166,7 +210,7 @@ export default function AdminStaffRolesManagementPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sorted.map((r) => (
+                      {filteredRows.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-mono font-medium">{r.code}</TableCell>
                           <TableCell>{r.name}</TableCell>

@@ -16,7 +16,8 @@ export default function StaffUsersPage() {
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [staffRoles, setStaffRoles] = useState<StaffRoleOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [keywordInput, setKeywordInput] = useState('');
+  const [activeKeyword, setActiveKeyword] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffUser | null>(null);
@@ -118,7 +119,16 @@ export default function StaffUsersPage() {
     toast.success(`คัดลอก ${label} เรียบร้อยแล้ว`);
   }, []);
 
-  const q = searchTerm.trim().toLowerCase();
+  const handleSearch = () => {
+    setActiveKeyword(keywordInput);
+  };
+
+  const handleClearFilters = () => {
+    setKeywordInput('');
+    setActiveKeyword('');
+  };
+
+  const q = activeKeyword.trim().toLowerCase();
   const filteredUsers = q
     ? staffUsers.filter(
         (u) =>
@@ -148,12 +158,20 @@ export default function StaffUsersPage() {
             </div>
           </div>
 
-          <StaffUsersSearchCard value={searchTerm} onChange={setSearchTerm} />
+          <StaffUsersSearchCard
+            keywordInput={keywordInput}
+            activeKeyword={activeKeyword}
+            onKeywordInputChange={setKeywordInput}
+            onSearch={handleSearch}
+            onClearFilters={handleClearFilters}
+            onRefresh={fetchStaffUsers}
+            loading={loading}
+          />
 
           <StaffUsersTable
             loading={loading}
             users={filteredUsers}
-            searchTerm={searchTerm}
+            searchTerm={activeKeyword}
             staffRoles={staffRoles}
             isCreateDialogOpen={isCreateDialogOpen}
             onCreateDialogOpenChange={setIsCreateDialogOpen}

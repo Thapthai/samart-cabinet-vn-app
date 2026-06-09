@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Package, Download, ChevronDown, ChevronRight } from "lucide-react";
+import { Edit, Trash2, Package, Download, ChevronDown, ChevronRight, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CabinetDetailsCard from "./CabinetDetailsCard";
 
@@ -64,13 +64,21 @@ interface MappingTableProps {
   onDelete: (mapping: CabinetDepartment) => void;
   onExportExcel?: () => void;
   onExportPdf?: () => void;
+  onCreateClick?: () => void;
 }
 
 /** คอลัมน์หลัก: ลูกศร + ลำดับ + ตู้ + Division + สถานะ + หมายเหตุ + จัดการ */
 const COLUMN_COUNT = 7;
 const itemsPerPage = 5;
 
-export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel, onExportPdf }: MappingTableProps) {
+export default function MappingTable({
+  mappings,
+  onEdit,
+  onDelete,
+  onExportExcel,
+  onExportPdf,
+  onCreateClick,
+}: MappingTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRow, setSelectedRow] = useState<CabinetDepartment | null>(null);
   const [expandedCabinetId, setExpandedCabinetId] = useState<number | null>(null);
@@ -106,6 +114,16 @@ export default function MappingTable({ mappings, onEdit, onDelete, onExportExcel
               การเชื่อมโยงทั้งหมด {mappings.length} รายการ
             </span>
           </CardTitle>
+          {onCreateClick ? (
+            <Button
+              type="button"
+              onClick={onCreateClick}
+              className="shrink-0 gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm hover:from-blue-600 hover:to-purple-700"
+            >
+              <Network className="h-4 w-4" />
+              เพิ่มการเชื่อมโยง
+            </Button>
+          ) : null}
           {/* <div className="flex shrink-0 gap-2">
             {onExportExcel && (
               <Button onClick={onExportExcel} variant="outline" size="sm">

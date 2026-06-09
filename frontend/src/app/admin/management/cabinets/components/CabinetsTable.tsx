@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Loader2, Package } from 'lucide-react';
+import { Edit, Trash2, Loader2, Package, Plus } from 'lucide-react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -34,6 +34,7 @@ interface CabinetsTableProps {
   onEdit: (cabinet: Cabinet) => void;
   onDelete: (cabinet: Cabinet) => void;
   onPageChange: (page: number) => void;
+  onCreateClick: () => void;
 }
 
 export default function CabinetsTable({
@@ -46,6 +47,7 @@ export default function CabinetsTable({
   onEdit,
   onDelete,
   onPageChange,
+  onCreateClick,
 }: CabinetsTableProps) {
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -60,38 +62,32 @@ export default function CabinetsTable({
     }
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
+  return (
+    <Card>
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-2">
+        <CardTitle>รายการตู้ทั้งหมด ({totalItems})</CardTitle>
+        <Button
+          type="button"
+          onClick={onCreateClick}
+          className="shrink-0 gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+        >
+          <Plus className="h-4 w-4" />
+          เพิ่มตู้ใหม่
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
             <span className="ml-2 text-gray-500">กำลังโหลดข้อมูล...</span>
           </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (cabinets.length === 0) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
+        ) : cabinets.length === 0 ? (
           <div className="text-center py-12">
             <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">ไม่พบข้อมูลตู้</p>
           </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>รายการตู้ทั้งหมด ({totalItems})</CardTitle>
-      </CardHeader>
-      <CardContent>
+        ) : (
+          <>
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -114,22 +110,12 @@ export default function CabinetsTable({
                   <TableCell>{cabinet.cabinet_type || '-'}</TableCell>
                   <TableCell>{cabinet.stock_id || '-'}</TableCell>
                   <TableCell>{getStatusBadge(cabinet.cabinet_status)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(cabinet)}
-                        className="h-8 w-8 p-0"
-                      >
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-end flex-wrap gap-2">
+                      <Button variant="outline" size="sm" onClick={() => onEdit(cabinet)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDelete(cabinet)}
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                      >
+                      <Button variant="destructive" size="sm" onClick={() => onDelete(cabinet)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -184,6 +170,8 @@ export default function CabinetsTable({
               </Button>
             </div>
           </div>
+        )}
+          </>
         )}
       </CardContent>
     </Card>

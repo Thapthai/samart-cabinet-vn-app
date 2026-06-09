@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, RotateCcw, Filter } from "lucide-react";
+import { Search, RotateCcw, X } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
 import { cabinetApi, departmentApi, cabinetDepartmentApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface Department {
   ID: number;
@@ -32,12 +31,20 @@ interface CabinetDepartmentMapping {
   };
 }
 
+type FilterValues = {
+  cabinetId: string;
+  departmentId: string;
+  status: string;
+};
+
+const defaultFilters: FilterValues = {
+  cabinetId: "",
+  departmentId: "",
+  status: "ALL",
+};
+
 interface FilterSectionProps {
-  onSearch: (filters: {
-    cabinetId: string;
-    departmentId: string;
-    status: string;
-  }) => void;
+  onSearch: (filters: FilterValues) => void;
   /** เรียกก่อน onSearch เพื่อให้ตารางรีเซ็ตเป็นหน้า 1 */
   onBeforeSearch?: () => void;
 }
@@ -48,14 +55,9 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
 
-  // Form state (local)
-  const [formFilters, setFormFilters] = useState({
-    cabinetId: "",
-    departmentId: "",
-    status: "ALL",
-  });
+  const [formFilters, setFormFilters] = useState<FilterValues>(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState<FilterValues>(defaultFilters);
 
-  // Load departments with search
   const loadDepartments = async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
@@ -70,10 +72,8 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
     }
   };
 
-  // Load cabinets based on selected department (Select Chain)
   const loadCabinetsByDepartment = async (departmentId: string, keyword?: string) => {
     if (!departmentId || departmentId === "") {
-      // If no department selected, load all cabinets
       loadAllCabinets(keyword);
       return;
     }
@@ -86,7 +86,6 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
       });
 
       if (response.success && response.data) {
-        // Extract unique cabinets from mappings
         const mappings = response.data as CabinetDepartmentMapping[];
         const uniqueCabinets = new Map<number, Cabinet>();
 
@@ -112,7 +111,6 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
     }
   };
 
-  // Load all cabinets (fallback when no department selected)
   const loadAllCabinets = async (keyword?: string) => {
     try {
       setLoadingCabinets(true);
@@ -127,36 +125,42 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
     }
   };
 
-  // Load cabinets when department changes
   useEffect(() => {
     loadCabinetsByDepartment(formFilters.departmentId);
   }, [formFilters.departmentId]);
 
   const handleSearch = () => {
-    onBeforeSearch?.(); // รีเซ็ตเป็นหน้า 1 ก่อนค้นหา
+    onBeforeSearch?.();
+    setAppliedFilters(formFilters);
     onSearch(formFilters);
   };
 
   const handleReset = () => {
-    const defaultFilters = {
-      cabinetId: "",
-      departmentId: "",
-      status: "ALL",
-    };
     setFormFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
     onSearch(defaultFilters);
   };
 
+  const hasActiveFilters =
+    appliedFilters.departmentId !== "" || appliedFilters.cabinetId !== "";
+
+  const appliedDept = departments.find((d) => d.ID.toString() === appliedFilters.departmentId);
+  const appliedCabinet = cabinets.find((c) => c.id.toString() === appliedFilters.cabinetId);
+
   return (
-    <Card className="mb-6 border-slate-200/80 shadow-sm rounded-xl">
-      <CardHeader className="border-b border-slate-100 bg-slate-50/50">
-        <CardTitle className="flex items-center gap-2 text-slate-800">
-          <Filter className="h-5 w-5 text-blue-600" />
-          ค้นหาและกรอง
-        </CardTitle>
-      </CardHeader>
+    <Card className="mb-6 border-slate-200 shadow-sm">
       <CardContent className="pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-lg bg-blue-100 p-2">
+            <Search className="h-4 w-4 text-blue-700" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
+            <p className="text-xs text-slate-500">เลือก Division และตู้ Cabinet เพื่อกรองรายการเชื่อมโยง</p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
           <SearchableSelect
             label="Division"
             placeholder="— เลือก Division —"
@@ -165,7 +169,7 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
               setFormFilters({
                 ...formFilters,
                 departmentId: value,
-                cabinetId: "", // Reset cabinet when department changes
+                cabinetId: "",
               });
             }}
             options={[
@@ -183,7 +187,7 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
 
           <SearchableSelect
             label="ตู้ Cabinet"
-            placeholder={formFilters.departmentId ? "เลือกตู้ Cabinet" : "กรุณาเลือกแผนกก่อน"}
+            placeholder={formFilters.departmentId ? "เลือกตู้ Cabinet" : "กรุณาเลือก Division ก่อน"}
             value={formFilters.cabinetId}
             onValueChange={(value) => setFormFilters({ ...formFilters, cabinetId: value })}
             options={[
@@ -196,30 +200,66 @@ export default function FilterSection({ onSearch, onBeforeSearch }: FilterSectio
             ]}
             loading={loadingCabinets}
             onSearch={(searchKeyword) => {
-              // When searching in cabinet dropdown, load based on selected department
               if (formFilters.departmentId) {
                 loadCabinetsByDepartment(formFilters.departmentId, searchKeyword);
               } else {
                 loadAllCabinets(searchKeyword);
               }
             }}
-            searchPlaceholder={formFilters.departmentId ? "ค้นหารหัสหรือชื่อตู้..." : "กรุณาเลือกแผนกก่อน"}
+            searchPlaceholder={
+              formFilters.departmentId ? "ค้นหารหัสหรือชื่อตู้..." : "กรุณาเลือก Division ก่อน"
+            }
             disabled={!formFilters.departmentId}
           />
-
-
         </div>
 
-        <div className="flex gap-3 pt-1">
-          <Button onClick={handleSearch} className="flex-1">
-            <Search className="mr-2 h-4 w-4" />
+        <div className="mt-4 flex flex-wrap gap-2 justify-end">
+          <Button type="button" onClick={handleSearch} className="h-10 gap-2">
+            <Search className="h-4 w-4" />
             ค้นหา
           </Button>
-          <Button onClick={handleReset} variant="outline" className="flex-1 border-slate-200 hover:bg-slate-50">
-            <RotateCcw className="mr-2 h-4 w-4" />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleReset}
+            className="h-10 gap-2 border-slate-200"
+          >
+            <RotateCcw className="h-4 w-4" />
             รีเซ็ต
           </Button>
         </div>
+
+        {hasActiveFilters ? (
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
+            <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
+            {appliedFilters.departmentId ? (
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-900">
+                Division: {appliedDept?.DepName || appliedFilters.departmentId}
+              </span>
+            ) : null}
+            {appliedFilters.cabinetId ? (
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                  "border-indigo-200 bg-indigo-50 text-indigo-900",
+                )}
+              >
+                ตู้: {appliedCabinet?.cabinet_name || appliedFilters.cabinetId}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-slate-600"
+              onClick={handleReset}
+            >
+              <X className="h-3.5 w-3.5" />
+              ล้างตัวกรอง
+            </Button>
+          </div>
+        ) : null}
+
       </CardContent>
     </Card>
   );

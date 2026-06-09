@@ -76,7 +76,7 @@ export default function LogsPage() {
     setCurrentPage(1);
   };
 
-  const handleReset = () => {
+  const handleClearFilters = () => {
     const reset: LogFilterState = {
       patient_hn: '',
       en: '',
@@ -87,6 +87,10 @@ export default function LogsPage() {
     setFormFilters(reset);
     setActiveFilters(reset);
     setCurrentPage(1);
+  };
+
+  const handleRefresh = () => {
+    void fetchLogs(activeFilters, currentPage);
   };
 
   const toggleGroup = (key: string) => {
@@ -106,9 +110,12 @@ export default function LogsPage() {
 
           <LogsFiltersCard
             formFilters={formFilters}
+            activeFilters={activeFilters}
             setFormFilters={setFormFilters}
             onSearch={handleSearch}
-            onReset={handleReset}
+            onClearFilters={handleClearFilters}
+            onRefresh={handleRefresh}
+            loading={loading}
           />
 
           <LogsGroupsList

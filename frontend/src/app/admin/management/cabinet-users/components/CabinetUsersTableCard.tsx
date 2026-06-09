@@ -100,7 +100,7 @@ export function CabinetUsersTableCard({
                     </TableCell>
                     <TableCell className="text-right">
                       <Button type="button" variant="outline" size="sm" onClick={() => onEditRow(r)}>
-                        <Edit className="mr-1 h-4 w-4" />
+                        <Edit className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>

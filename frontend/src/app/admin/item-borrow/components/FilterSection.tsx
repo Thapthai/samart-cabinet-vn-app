@@ -1,13 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { DatePickerBE } from '@/components/ui/date-picker-be';
 import SearchableSelect from '@/app/admin/items/components/SearchableSelect';
 import { cabinetApi, cabinetDepartmentApi, departmentApi } from '@/lib/api';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
 
 type Department = {
   ID: number;
@@ -57,6 +60,7 @@ function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping['cabinet']): Ca
 
 type Props = {
   filters: BorrowFilterState;
+  appliedFilters: BorrowFilterState;
   onFilterChange: (key: keyof BorrowFilterState, value: string) => void;
   onSearch: () => void;
   onClear: () => void;
@@ -66,6 +70,7 @@ type Props = {
 
 export default function FilterSection({
   filters,
+  appliedFilters,
   onFilterChange,
   onSearch,
   onClear,
@@ -154,45 +159,77 @@ export default function FilterSection({
     }
   }, [cabinets, filters.cabinetId, onFilterChange]);
 
+  const appliedDept = departments.find((d) => d.ID.toString() === appliedFilters.departmentId);
+  const appliedCabinet = cabinets.find((c) => c.id.toString() === appliedFilters.cabinetId);
+  const appliedBorrowDept = departments.find((d) => d.ID.toString() === appliedFilters.borrowDepartmentId);
+
+  const hasActiveFilters =
+    appliedFilters.searchItemCode.trim() !== '' ||
+    appliedFilters.departmentId !== '' ||
+    appliedFilters.cabinetId !== '' ||
+    appliedFilters.borrowDepartmentId !== '' ||
+    appliedFilters.startDate !== '' ||
+    appliedFilters.endDate !== '';
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>กรองข้อมูล</CardTitle>
-        <CardDescription>ค้นหาและกรองรายการยืมอุปกรณ์</CardDescription>
-      </CardHeader>
+    <Card className="border-slate-200 shadow-sm">
       <CardContent>
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">รหัส/ชื่อเวชภัณฑ์</label>
-            <Input
-              placeholder="ค้นหา..."
-              value={filters.searchItemCode}
-              onChange={(e) => onFilterChange('searchItemCode', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-              className="w-full"
-            />
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-lg bg-amber-100 p-2">
+            <Search className="h-4 w-4 text-amber-700" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
+            <p className="text-xs text-slate-500">ค้นหาและกรองรายการยืมอุปกรณ์</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="borrow-item-keyword" className="text-xs font-medium text-slate-600">
+              รหัส/ชื่อเวชภัณฑ์
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="borrow-item-keyword"
+                placeholder="ค้นหา..."
+                value={filters.searchItemCode}
+                onChange={(e) => onFilterChange('searchItemCode', e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className={cn('h-10 pl-9 shadow-sm', fieldInputClass)}
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">วันที่เริ่มต้น</label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="borrow-start-date" className="text-xs font-medium text-slate-600">
+                วันที่เริ่มต้น
+              </label>
               <DatePickerBE
+                id="borrow-start-date"
                 value={filters.startDate}
                 onChange={(v) => onFilterChange('startDate', v)}
                 placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">วันที่สิ้นสุด</label>
+            <div className="space-y-1.5">
+              <label htmlFor="borrow-end-date" className="text-xs font-medium text-slate-600">
+                วันที่สิ้นสุด
+              </label>
               <DatePickerBE
+                id="borrow-end-date"
                 value={filters.endDate}
                 onChange={(v) => onFilterChange('endDate', v)}
                 placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <SearchableSelect
               label="Division (ที่ตั้งตู้)"
               placeholder="เลือก Division"
@@ -232,10 +269,9 @@ export default function FilterSection({
               }}
               searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
             />
-
           </div>
 
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-3">
             <SearchableSelect
               label="Division ที่ยืม"
               placeholder="เลือก Division ที่ยืม"
@@ -256,21 +292,72 @@ export default function FilterSection({
           </div>
         </div>
 
-        <div className="flex gap-2 mt-4">
-          <Button onClick={onSearch} disabled={loading}>
-            <Search className="h-4 w-4 mr-2" />
+        <div className="mt-4 flex flex-wrap gap-2 justify-end">
+          <Button type="button" onClick={onSearch} disabled={loading} className="h-10 gap-2">
+            <Search className="h-4 w-4" />
             ค้นหา
           </Button>
-          <Button onClick={onClear} variant="outline">
+          <Button type="button" onClick={onClear} variant="outline" className="h-10">
             ล้าง
           </Button>
-          <Button onClick={onRefresh} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            รีเฟรช
+          <Button
+            type="button"
+            onClick={onRefresh}
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 shrink-0"
+            aria-label="รีเฟรช"
+          >
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </Button>
         </div>
+
+        {hasActiveFilters ? (
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
+            <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
+            {appliedFilters.searchItemCode.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                คำค้น: {appliedFilters.searchItemCode.trim()}
+              </span>
+            ) : null}
+            {appliedFilters.startDate || appliedFilters.endDate ? (
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                วันที่: {appliedFilters.startDate || '—'} – {appliedFilters.endDate || '—'}
+              </span>
+            ) : null}
+            {appliedFilters.departmentId ? (
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-900">
+                Division: {appliedDept?.DepName || appliedFilters.departmentId}
+              </span>
+            ) : null}
+            {appliedFilters.cabinetId ? (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  'border-indigo-200 bg-indigo-50 text-indigo-900',
+                )}
+              >
+                ตู้: {appliedCabinet?.cabinet_name || appliedFilters.cabinetId}
+              </span>
+            ) : null}
+            {appliedFilters.borrowDepartmentId ? (
+              <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-900">
+                ยืม: {appliedBorrowDept?.DepName || appliedFilters.borrowDepartmentId}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-slate-600"
+              onClick={onClear}
+            >
+              <X className="h-3.5 w-3.5" />
+              ล้างตัวกรอง
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
 }
-

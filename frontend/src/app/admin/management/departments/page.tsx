@@ -5,26 +5,14 @@ import { medicalSupplySubDepartmentsApi, departmentApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import { toast } from 'sonner';
-import { Building2, Plus, RefreshCw, RotateCcw, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Building2 } from 'lucide-react';
+import SubDepartmentsFilters from './components/SubDepartmentsFilters';
 import SubDepartmentFormDialog from './components/SubDepartmentFormDialog';
 import SubDepartmentDeleteDialog from './components/SubDepartmentDeleteDialog';
 import DepartmentFormDialog, { type DepartmentFormPayload } from './components/DepartmentFormDialog';
 import DepartmentMasterTable from './components/DepartmentMasterTable';
 import DepartmentDetailsCard from './components/DepartmentDetailsCard';
 import type { DeptRow, StatusFilter, SubDepartmentRow } from './types';
-import { cn } from '@/lib/utils';
-
-const fieldInputClass = 'bg-white';
 
 export default function DepartmentManagementPage() {
   const [rows, setRows] = useState<SubDepartmentRow[]>([]);
@@ -356,98 +344,35 @@ export default function DepartmentManagementPage() {
     <ProtectedRoute>
       <AppLayout fullWidth>
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 shadow-lg">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">จัดการ Division</h1>
-                <p className="text-sm text-slate-500 mt-0.5 max-w-3xl">
-                  คลิกแถว Division เพื่อดูและจัดการรหัสแผนกย่อยด้านล่าง
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 shadow-lg">
+              <Building2 className="h-6 w-6 text-white" />
             </div>
-            <div className="flex flex-wrap gap-2 shrink-0">
-              <Button variant="outline" size="sm" onClick={() => loadSubs()} disabled={loadingSubs}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${loadingSubs ? 'animate-spin' : ''}`} />
-                รีเฟรช
-              </Button>
-              <Button
-                size="sm"
-                className="gap-1.5 bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-sm hover:from-cyan-600 hover:to-teal-700"
-                onClick={openCreate}
-              >
-                <Plus className="h-4 w-4 shrink-0" />
-                {selectedDept ? 'เพิ่มรหัสแผนกย่อย (แผนกที่เลือก)' : 'เพิ่มรหัสแผนกย่อย'}
-              </Button>
-              <Button
-                size="sm"
-                className="gap-1.5 bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-sm hover:from-cyan-600 hover:to-teal-700"
-                onClick={openDeptMainCreate}
-              >
-                <Plus className="h-4 w-4 shrink-0" />
-                เพิ่มแผนกหลัก
-              </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">จัดการ Division</h1>
+              <p className="text-sm text-slate-500 mt-0.5 max-w-3xl">
+                คลิกแถว Division เพื่อดูและจัดการรหัสแผนกย่อยด้านล่าง
+              </p>
             </div>
           </div>
 
-          <Card className="border-slate-200/80 shadow-sm rounded-xl">
-            <CardHeader className="border-b border-slate-100 bg-slate-50/50 space-y-4">
-              <div>
-                <CardTitle className="text-slate-800 flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-cyan-600" />
-                  กรองข้อมูล
-                </CardTitle>
-
-              </div>
-              <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-                <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
-                  <span className="text-xs text-muted-foreground">ค้นหา Division</span>
-                  <Input
-                    placeholder="ชื่อ, ชื่อย่อ, ID, RefDepID..."
-                    value={deptKwInput}
-                    onChange={(e) => setDeptKwInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && applySearch()}
-                    className={fieldInputClass}
-                  />
-                </div>
-                <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
-                  <span className="text-xs text-muted-foreground">ค้นหารหัสแผนก</span>
-                  <Input
-                    placeholder="code, ชื่อ, รายละเอียด..."
-                    value={subKwInput}
-                    onChange={(e) => setSubKwInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && applySearch()}
-                    className={fieldInputClass}
-                  />
-                </div>
-                <div className="flex min-w-[140px] flex-col gap-1.5">
-                  <span className="text-xs text-muted-foreground">สถานะรหัส</span>
-                  <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                    <SelectTrigger className={cn('w-full lg:w-[160px]', fieldInputClass)}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">ทั้งหมด</SelectItem>
-                      <SelectItem value="active">เปิดใช้งาน</SelectItem>
-                      <SelectItem value="inactive">ปิดใช้งาน</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" onClick={applySearch} className="gap-1.5">
-                    <Search className="h-4 w-4" />
-                    ค้นหา
-                  </Button>
-                  <Button type="button" variant="outline" onClick={resetFilters} className="gap-1.5">
-                    <RotateCcw className="h-4 w-4" />
-                    ล้าง
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
+          <SubDepartmentsFilters
+            deptKeywordInput={deptKwInput}
+            activeDeptKeyword={activeDeptKw}
+            subKeywordInput={subKwInput}
+            activeSubKeyword={activeSubKw}
+            statusFilter={statusFilter}
+            onDeptKeywordInputChange={setDeptKwInput}
+            onSubKeywordInputChange={setSubKwInput}
+            onStatusFilterChange={setStatusFilter}
+            onSearch={applySearch}
+            onClearFilters={resetFilters}
+            onRefresh={() => {
+              loadSubs();
+              loadFilterDepartments();
+            }}
+            loading={loadingSubs || filterDeptLoading}
+          />
 
           <DepartmentMasterTable
             departments={departmentsForTable}
@@ -467,6 +392,11 @@ export default function DepartmentManagementPage() {
             onSelectDepartment={(d) => setSelectedDept(d)}
             showFilterToolbar={false}
             onEditMainDepartment={openDeptMainEdit}
+            onCreateSubDepartment={openCreate}
+            onCreateMainDepartment={openDeptMainCreate}
+            createSubDepartmentLabel={
+              selectedDept ? 'เพิ่มรหัสแผนกย่อย (แผนกที่เลือก)' : 'เพิ่มรหัสแผนกย่อย'
+            }
           />
 
           {selectedDept && (

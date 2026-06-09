@@ -1,9 +1,21 @@
-import { Search, RefreshCw, ChevronDown } from 'lucide-react';
+'use client';
+
+import { Search, RefreshCw, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { DatePickerBE } from '@/components/ui/date-picker-be';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
+
+function getTodayDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +30,7 @@ import type {
 
 interface FilterSectionProps {
   filters: FilterState;
+  appliedFilters: FilterState;
   onFilterChange: (key: keyof FilterState, value: string) => void;
   onSearch: (keyword?: string) => void;
   onClear: () => void;
@@ -32,6 +45,7 @@ interface FilterSectionProps {
 
 export function FilterSection({
   filters,
+  appliedFilters,
   onFilterChange,
   onSearch,
   onClear,
@@ -133,50 +147,97 @@ export function FilterSection({
     return `ตู้ ${cabinetId}`;
   };
 
+  const handleClear = () => {
+    setSearchInput('');
+    setDepartmentSearch('');
+    setSubDepartmentSearch('');
+    setCabinetSearch('');
+    onClear();
+  };
+
+  const today = getTodayDate();
+  const dropdownTriggerClass = cn(
+    'h-10 w-full justify-between font-normal shadow-sm',
+    fieldInputClass,
+  );
+  const appliedDept = departments.find((d) => String(d.ID) === appliedFilters.departmentCode);
+  const appliedSubDept = subDepartments.find(
+    (s) => String(s.id) === appliedFilters.subDepartmentId,
+  );
+  const appliedCabinet = cabinets.find((c) => c.id.toString() === appliedFilters.cabinetId);
+
+  const hasActiveFilters =
+    appliedFilters.searchItemCode.trim() !== '' ||
+    appliedFilters.departmentCode !== '' ||
+    appliedFilters.subDepartmentId !== '' ||
+    appliedFilters.cabinetId !== '' ||
+    appliedFilters.startDate !== today ||
+    appliedFilters.endDate !== today;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>กรองข้อมูล</CardTitle>
-        <CardDescription>ค้นหาและกรองรายการเปรียบเทียบ</CardDescription>
-      </CardHeader>
+    <Card className="border-slate-200 shadow-sm">
       <CardContent>
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">รหัส/ชื่อเวชภัณฑ์</label>
-            <Input
-              placeholder="ค้นหา..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
-              className="w-full"
-            />
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-lg bg-amber-100 p-2">
+            <Search className="h-4 w-4 text-amber-700" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
+            <p className="text-xs text-slate-500">ค้นหาและกรองรายการเปรียบเทียบ</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="comparison-item-keyword" className="text-xs font-medium text-slate-600">
+              รหัส/ชื่อเวชภัณฑ์
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="comparison-item-keyword"
+                placeholder="ค้นหา..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
+                className={cn('h-10 w-full pl-9 shadow-sm', fieldInputClass)}
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">วันที่เริ่มต้น</label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="comparison-start-date" className="text-xs font-medium text-slate-600">
+                วันที่เริ่มต้น
+              </label>
               <DatePickerBE
+                id="comparison-start-date"
                 value={filters.startDate}
                 onChange={(v) => onFilterChange('startDate', v)}
                 placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">วันที่สิ้นสุด</label>
+            <div className="space-y-1.5">
+              <label htmlFor="comparison-end-date" className="text-xs font-medium text-slate-600">
+                วันที่สิ้นสุด
+              </label>
               <DatePickerBE
+                id="comparison-end-date"
                 value={filters.endDate}
                 onChange={(v) => onFilterChange('endDate', v)}
                 placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="min-w-0 space-y-2">
-              <Label>Division</Label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
+              <span className="text-xs font-medium text-slate-600">Division</span>
               <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="h-10 w-full justify-between font-normal" type="button">
+                  <Button variant="outline" className={dropdownTriggerClass} type="button">
                     <span className="truncate text-left">{divisionTriggerLabel()}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -229,8 +290,8 @@ export function FilterSection({
               </DropdownMenu>
             </div>
 
-            <div className="min-w-0 space-y-2">
-              <Label>แผนก</Label>
+            <div className="min-w-0 space-y-1.5">
+              <span className="text-xs font-medium text-slate-600">แผนก</span>
               <DropdownMenu
                 open={subDepartmentDropdownOpen}
                 onOpenChange={setSubDepartmentDropdownOpen}
@@ -238,7 +299,7 @@ export function FilterSection({
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="h-10 w-full justify-between font-normal"
+                    className={dropdownTriggerClass}
                     type="button"
                     disabled={!hasMainDepartment}
                   >
@@ -304,15 +365,11 @@ export function FilterSection({
             </div>
           </div>
 
-          <div className="min-w-0 space-y-2">
-            <Label>ตู้ Cabinet</Label>
+          <div className="min-w-0 space-y-1.5">
+            <span className="text-xs font-medium text-slate-600">ตู้ Cabinet</span>
             <DropdownMenu open={cabinetDropdownOpen} onOpenChange={setCabinetDropdownOpen}>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-10 w-full justify-between font-normal"
-                  type="button"
-                >
+                <Button variant="outline" className={dropdownTriggerClass} type="button">
                   <span className="truncate text-left">{cabinetTriggerLabel()}</span>
                   <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -377,29 +434,69 @@ export function FilterSection({
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <Button onClick={submitSearch} disabled={loading}>
-            <Search className="mr-2 h-4 w-4" />
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button type="button" onClick={submitSearch} disabled={loading} className="h-10 gap-2">
+            <Search className="h-4 w-4" />
             ค้นหา
           </Button>
           <Button
-            onClick={() => {
-              setSearchInput('');
-              setDepartmentSearch('');
-              setSubDepartmentSearch('');
-              setCabinetSearch('');
-              onClear();
-            }}
-            variant="outline"
             type="button"
+            onClick={onRefresh}
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 shrink-0"
+            disabled={loading}
+            aria-label="รีเฟรช"
           >
-            ล้าง
-          </Button>
-          <Button onClick={onRefresh} variant="outline" type="button" disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            รีเฟรช
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
           </Button>
         </div>
+
+        {hasActiveFilters ? (
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
+            <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
+            {appliedFilters.searchItemCode.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                คำค้น: {appliedFilters.searchItemCode.trim()}
+              </span>
+            ) : null}
+            {appliedFilters.startDate !== today || appliedFilters.endDate !== today ? (
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                วันที่: {appliedFilters.startDate || '—'} – {appliedFilters.endDate || '—'}
+              </span>
+            ) : null}
+            {appliedFilters.departmentCode ? (
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-900">
+                Division: {appliedDept?.DepName || appliedFilters.departmentCode}
+              </span>
+            ) : null}
+            {appliedFilters.subDepartmentId ? (
+              <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-900">
+                แผนก: {appliedSubDept?.code || appliedFilters.subDepartmentId}
+              </span>
+            ) : null}
+            {appliedFilters.cabinetId ? (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  'border-indigo-200 bg-indigo-50 text-indigo-900',
+                )}
+              >
+                ตู้: {appliedCabinet?.cabinet_name || appliedFilters.cabinetId}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-slate-600"
+              onClick={handleClear}
+            >
+              <X className="h-3.5 w-3.5" />
+              ล้างตัวกรอง
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

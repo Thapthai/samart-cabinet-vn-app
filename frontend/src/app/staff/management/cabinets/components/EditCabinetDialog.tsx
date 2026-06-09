@@ -155,7 +155,7 @@ export default function EditCabinetDialog({
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
               disabled={loading}
             >
-              {loading ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+              {loading ? 'กำลังบันทึก...' : 'บันทึก'}
             </Button>
           </div>
         </form>

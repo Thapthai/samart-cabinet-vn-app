@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
-import { Button } from "@/components/ui/button";
 import { cabinetDepartmentApi, reportsApi } from "@/lib/api";
 import { Loader2, Network } from "lucide-react";
 import { toast } from "sonner";
@@ -16,7 +15,7 @@ import CreateMappingDialog, {
 } from "./components/CreateMappingDialog";
 import EditMappingDialog from "./components/EditMappingDialog";
 import DeleteMappingDialog from "./components/DeleteMappingDialog";
-import CreateCabinetDialog from "@/app/admin/cabinets/components/CreateCabinetDialog";
+// import CreateCabinetDialog from "@/app/admin/cabinets/components/CreateCabinetDialog";
 
 interface CabinetDepartment {
   id: number;
@@ -296,28 +295,18 @@ export default function ItemStockDepartmentsPage() {
       <AppLayout fullWidth>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg">
-                <Network className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-                  จัดการตู้ Cabinet - Division
-                </h1>
-                <p className="mt-0.5 text-sm text-gray-500">
-                  จัดการตู้ Cabinet และเชื่อมโยงกับ Division
-                </p>
-              </div>
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg">
+              <Network className="h-6 w-6" />
             </div>
-            <Button
-              onClick={handleCreate}
-              size="lg"
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-shadow shrink-0"
-            >
-              <Network className="mr-2 h-5 w-5" />
-              เพิ่มการเชื่อมโยง
-            </Button>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+                จัดการตู้ Cabinet - Division
+              </h1>
+              <p className="mt-0.5 text-sm text-gray-500">
+                จัดการตู้ Cabinet และเชื่อมโยงกับ Division
+              </p>
+            </div>
           </div>
 
           <FilterSection onSearch={handleSearch} onBeforeSearch={() => setSearchVersion((v) => v + 1)} key={`filter-${filterVersion}`} />
@@ -329,6 +318,7 @@ export default function ItemStockDepartmentsPage() {
             onDelete={handleDelete}
             onExportExcel={() => handleExportReport("excel")}
             onExportPdf={() => handleExportReport("pdf")}
+            onCreateClick={handleCreate}
           />
 
           <CreateMappingDialog
@@ -339,12 +329,6 @@ export default function ItemStockDepartmentsPage() {
             onSubmit={submitCreate}
             saving={saving}
             existingMappings={mappings}
-          />
-
-          <CreateCabinetDialog
-            open={showCreateCabinetDialog}
-            onOpenChange={setShowCreateCabinetDialog}
-            onSuccess={loadData}
           />
 
           <EditMappingDialog

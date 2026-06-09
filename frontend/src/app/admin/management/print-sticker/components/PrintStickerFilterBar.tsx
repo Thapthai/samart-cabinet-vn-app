@@ -1,8 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Search, X } from 'lucide-react';
 import SearchableSelect from '@/app/admin/items/components/SearchableSelect';
 import { cabinetApi, cabinetDepartmentApi, departmentApi } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 
 type Department = { ID: number; DepName?: string; DepName2?: string };
 
@@ -133,49 +137,105 @@ export function PrintStickerFilterBar({
     }
   }, [cabinets, cabinetId, onCabinetIdChange]);
 
-  return (
-    <div className="grid gap-4 border-b border-slate-100 pb-4 md:grid-cols-2">
-      <SearchableSelect
-        label="Division"
-        placeholder="เลือก Division"
-        value={departmentId}
-        onValueChange={(value) => {
-          onDepartmentIdChange(value);
-          onCabinetIdChange('');
-        }}
-        options={[
-          { value: '', label: 'ทั้งหมด' },
-          ...departments.map((dept) => ({
-            value: dept.ID.toString(),
-            label: dept.DepName || '',
-            subLabel: dept.DepName2 || '',
-          })),
-        ]}
-        loading={loadingDepartments}
-        onSearch={loadDepartments}
-        searchPlaceholder="ค้นหาชื่อ Division..."
-      />
+  const handleClear = () => {
+    onDepartmentIdChange('');
+    onCabinetIdChange('');
+  };
 
-      <SearchableSelect
-        label="ตู้ Cabinet"
-        placeholder={departmentId ? 'เลือกตู้ Cabinet' : 'กรุณาเลือก Division ก่อน'}
-        value={cabinetId}
-        onValueChange={onCabinetIdChange}
-        options={[
-          { value: '', label: 'ทั้งหมด' },
-          ...cabinets.map((cabinet) => ({
-            value: cabinet.id.toString(),
-            label: cabinet.cabinet_name || '',
-            subLabel: cabinet.cabinet_code || '',
-          })),
-        ]}
-        loading={loadingCabinets}
-        onSearch={(kw) => {
-          void resolveCabinets(departmentId, kw);
-        }}
-        searchPlaceholder={departmentId ? 'ค้นหารหัสหรือชื่อตู้…' : 'กรุณาเลือก Division ก่อน'}
-        disabled={!departmentId}
-      />
-    </div>
+  const hasActiveFilters = departmentId !== '' || cabinetId !== '';
+  const selectedDept = departments.find((d) => d.ID.toString() === departmentId);
+  const selectedCabinet = cabinets.find((c) => c.id.toString() === cabinetId);
+
+  return (
+    <Card className="border-slate-200 shadow-sm">
+      <CardContent className="pt-6">
+        <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50/90 to-white p-4 sm:p-5">
+          <div className="mb-4 flex items-start gap-3">
+            <div className="rounded-lg bg-amber-100 p-2">
+              <Search className="h-4 w-4 text-amber-700" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-slate-900">กรอง Division และตู้</p>
+              <p className="text-xs text-slate-500">เลือก Division และตู้เพื่อโหลดรายการสติกเกอร์</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <SearchableSelect
+              label="Division"
+              placeholder="เลือก Division"
+              value={departmentId}
+              onValueChange={(value) => {
+                onDepartmentIdChange(value);
+                onCabinetIdChange('');
+              }}
+              options={[
+                { value: '', label: 'ทั้งหมด' },
+                ...departments.map((dept) => ({
+                  value: dept.ID.toString(),
+                  label: dept.DepName || '',
+                  subLabel: dept.DepName2 || '',
+                })),
+              ]}
+              loading={loadingDepartments}
+              onSearch={loadDepartments}
+              searchPlaceholder="ค้นหาชื่อ Division..."
+            />
+
+            <SearchableSelect
+              label="ตู้ Cabinet"
+              placeholder={departmentId ? 'เลือกตู้ Cabinet' : 'กรุณาเลือก Division ก่อน'}
+              value={cabinetId}
+              onValueChange={onCabinetIdChange}
+              options={[
+                { value: '', label: 'ทั้งหมด' },
+                ...cabinets.map((cabinet) => ({
+                  value: cabinet.id.toString(),
+                  label: cabinet.cabinet_name || '',
+                  subLabel: cabinet.cabinet_code || '',
+                })),
+              ]}
+              loading={loadingCabinets}
+              onSearch={(kw) => {
+                void resolveCabinets(departmentId, kw);
+              }}
+              searchPlaceholder={departmentId ? 'ค้นหารหัสหรือชื่อตู้…' : 'กรุณาเลือก Division ก่อน'}
+              disabled={!departmentId}
+            />
+          </div>
+
+          {hasActiveFilters ? (
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
+              <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
+              {departmentId ? (
+                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                  Division: {selectedDept?.DepName || departmentId}
+                </span>
+              ) : null}
+              {cabinetId ? (
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                    'border-violet-200 bg-violet-50 text-violet-900',
+                  )}
+                >
+                  ตู้: {selectedCabinet?.cabinet_name || cabinetId}
+                </span>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 px-2 text-xs text-slate-600"
+                onClick={handleClear}
+              >
+                <X className="h-3.5 w-3.5" />
+                ล้างตัวกรอง
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

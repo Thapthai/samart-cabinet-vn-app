@@ -1,72 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { itemsApi, departmentApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
 import type { Item } from '@/types/item';
 import { toast } from 'sonner';
-import { Boxes, Plus, Pencil, Trash2, Search, RefreshCw, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Boxes } from 'lucide-react';
 import CreateItemDialog from './components/CreateItemDialog';
 import EditItemDialog from '@/app/admin/items/components/EditItemDialog';
 import DeleteItemDialog from '@/app/admin/items/components/DeleteItemDialog';
-import ItemNameWithUnit from '@/components/ItemNameWithUnit';
-import { formatItemDepartmentLabel, itemIsActive, type DeptRow } from './components/itemHelpers';
-
-/** ตรงกับ admin/items (itemsPerPage = 10) */
-const PAGE_SIZE = 10;
-
-function generatePageNumbers(currentPage: number, totalPages: number): (number | string)[] {
-  const pages: (number | string)[] = [];
-  const maxVisible = 5;
-  if (totalPages <= maxVisible) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i);
-  } else if (currentPage <= 3) {
-    for (let i = 1; i <= 4; i++) pages.push(i);
-    pages.push('...');
-    pages.push(totalPages);
-  } else if (currentPage >= totalPages - 2) {
-    pages.push(1);
-    pages.push('...');
-    for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-  } else {
-    pages.push(1);
-    pages.push('...');
-    for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-    pages.push('...');
-    pages.push(totalPages);
-  }
-  return pages;
-}
-
-function StatusBadge({ item }: { item: Item }) {
-  if (itemIsActive(item)) {
-    return (
-      <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-800">
-        ใช้งาน
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700">
-      ปิดการใช้งาน
-    </span>
-  );
-}
+import ItemsSearchCard, { type ItemStatusFilter } from './components/ItemsSearchCard';
+import ItemsMasterTableCard from './components/ItemsMasterTableCard';
+import { ITEMS_PAGE_SIZE } from './components/itemPagination';
+import type { DeptRow } from './components/itemHelpers';
 
 export default function AdminItemManagementPage() {
   const { user } = useAuth();
@@ -74,7 +22,7 @@ export default function AdminItemManagementPage() {
   const [loading, setLoading] = useState(true);
   const [keywordInput, setKeywordInput] = useState('');
   const [activeKeyword, setActiveKeyword] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [statusFilter, setStatusFilter] = useState<ItemStatusFilter>('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -109,7 +57,7 @@ export default function AdminItemManagementPage() {
       setLoading(true);
       const params: Record<string, string | number> = {
         page,
-        limit: PAGE_SIZE,
+        limit: ITEMS_PAGE_SIZE,
         sort_by: 'itemcode',
         sort_order: 'asc',
       };
@@ -135,7 +83,7 @@ export default function AdminItemManagementPage() {
       const list = Array.isArray(res?.data) ? res.data : [];
       setItems(list);
       setTotal(res?.total ?? list.length);
-      setTotalPages(res?.lastPage ?? Math.max(1, Math.ceil((res?.total ?? 0) / PAGE_SIZE)));
+      setTotalPages(res?.lastPage ?? Math.max(1, Math.ceil((res?.total ?? 0) / ITEMS_PAGE_SIZE)));
     } catch (e) {
       console.error(e);
       toast.error('โหลดรายการไม่สำเร็จ');
@@ -161,324 +109,67 @@ export default function AdminItemManagementPage() {
     setPage(1);
   };
 
-  const hasActiveFilters = activeKeyword.trim() !== '' || statusFilter !== 'all';
+  const handleStatusFilterChange = (value: ItemStatusFilter) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
 
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleEdit = (item: Item) => {
+    setSelected(item);
+    setEditOpen(true);
+  };
+
+  const handleDelete = (item: Item) => {
+    setSelected(item);
+    setDeleteOpen(true);
+  };
+
   return (
     <ProtectedRoute>
       <AppLayout fullWidth>
         <div className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-amber-100 p-2.5">
-                <Boxes className="h-7 w-7 text-amber-700" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">จัดการ Item (Master)</h1>
-                <p className="mt-0.5 text-sm text-slate-600">
-                  รายการรหัสเวชภัณฑ์ในฐานข้อมูล รวมรายการที่ยังไม่มีในตู้
-                </p>
-              </div>
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-amber-100 p-2.5">
+              <Boxes className="h-7 w-7 text-amber-700" />
             </div>
-            <Button type="button" onClick={() => setCreateOpen(true)} className="shrink-0 gap-2">
-              <Plus className="h-4 w-4" />
-              เพิ่ม Item
-            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">จัดการ Item (Master)</h1>
+              <p className="mt-0.5 text-sm text-slate-600">
+                รายการรหัสเวชภัณฑ์ในฐานข้อมูล รวมรายการที่ยังไม่มีในตู้
+              </p>
+            </div>
           </div>
 
-          <Card className="border-slate-200 shadow-sm">
-            <CardContent className="pt-6">
-              <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50/90 to-white p-4 sm:p-5">
-                <div className="mb-4 flex items-start gap-3">
-                  <div className="rounded-lg bg-amber-100 p-2">
-                    <Search className="h-4 w-4 text-amber-700" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
-                    <p className="text-xs text-slate-500">ค้นจากรหัส Item, ชื่อ หรือบาร์โค้ด</p>
-                  </div>
-                </div>
+          <ItemsSearchCard
+            keywordInput={keywordInput}
+            activeKeyword={activeKeyword}
+            statusFilter={statusFilter}
+            onKeywordInputChange={setKeywordInput}
+            onStatusFilterChange={handleStatusFilterChange}
+            onSearch={handleSearch}
+            onClearFilters={handleClearFilters}
+            onRefresh={fetchList}
+            loading={loading}
+          />
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_160px_auto_auto] lg:items-end">
-                  <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-                    <label htmlFor="item-keyword" className="text-xs font-medium text-slate-600">
-                      คำค้นหา
-                    </label>
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <Input
-                        id="item-keyword"
-                        placeholder="เช่น MED001, ชื่อเวชภัณฑ์, บาร์โค้ด..."
-                        value={keywordInput}
-                        onChange={(e) => setKeywordInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        className="h-10 bg-white pl-9 shadow-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label htmlFor="item-status-filter" className="text-xs font-medium text-slate-600">
-                      สถานะ
-                    </label>
-                    <Select
-                      value={statusFilter}
-                      onValueChange={(v) => {
-                        setStatusFilter(v as 'all' | 'active' | 'inactive');
-                        setPage(1);
-                      }}
-                    >
-                      <SelectTrigger id="item-status-filter" className="h-10 w-full bg-white shadow-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">ทั้งหมด</SelectItem>
-                        <SelectItem value="active">ใช้งาน</SelectItem>
-                        <SelectItem value="inactive">ไม่ใช้งาน</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button
-                    type="button"
-                    onClick={handleSearch}
-                    className="h-10 gap-2 sm:col-span-2 lg:col-span-1"
-                  >
-                    <Search className="h-4 w-4" />
-                    ค้นหา
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 shrink-0"
-                    onClick={() => fetchList()}
-                    aria-label="รีเฟรช"
-                  >
-                    <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
-                  </Button>
-                </div>
-
-                {hasActiveFilters ? (
-                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200/70 pt-4">
-                    <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
-                    {activeKeyword.trim() ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
-                        คำค้น: {activeKeyword.trim()}
-                      </span>
-                    ) : null}
-                    {statusFilter !== 'all' ? (
-                      <span
-                        className={cn(
-                          'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
-                          statusFilter === 'active'
-                            ? 'border-green-200 bg-green-50 text-green-800'
-                            : 'border-slate-200 bg-slate-50 text-slate-700',
-                        )}
-                      >
-                        {statusFilter === 'active' ? 'ใช้งาน' : 'ไม่ใช้งาน'}
-                      </span>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1 px-2 text-xs text-slate-600"
-                      onClick={handleClearFilters}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      ล้างตัวกรอง
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-2">
-              <div>
-                <CardTitle>รายการ Item</CardTitle>
-                <CardDescription>
-                  {loading && items.length === 0
-                    ? 'กำลังโหลด…'
-                    : `แสดง ${items.length} รายการ จากทั้งหมด ${total} รายการ`}
-                </CardDescription>
-              </div>
-              {/*
-              <Button
-                type="button"
-                size="sm"
-                className="shrink-0 gap-1.5"
-                onClick={() => setCreateOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                เพิ่ม Item
-              </Button>
-              */}
-            </CardHeader>
-            <CardContent>
-              {loading && items.length === 0 ? (
-                <div className="flex justify-center py-12 text-muted-foreground">
-                  <RefreshCw className="h-8 w-8 animate-spin" />
-                </div>
-              ) : items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-                  <p className="text-muted-foreground">ไม่พบรายการ</p>
-                  <Button type="button" className="gap-2" onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-4 w-4" />
-                    เพิ่ม Item
-                  </Button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-14">#</TableHead>
-                        <TableHead>รหัส Item</TableHead>
-                        <TableHead className="min-w-[200px]">ชื่อ / หน่วย</TableHead>
-                        <TableHead>บาร์โค้ด</TableHead>
-                        <TableHead>แผนก</TableHead>
-                        <TableHead>สถานะ</TableHead>
-                        <TableHead>หน่วย</TableHead>
-                        <TableHead>หน่วยการเบิก</TableHead>
-                        <TableHead className="w-[120px] text-right">จัดการ</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((it, i) => (
-                        <TableRow key={it.itemcode}>
-                          <TableCell className="text-muted-foreground">
-                            {(page - 1) * PAGE_SIZE + i + 1}
-                          </TableCell>
-                          <TableCell>
-                            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{it.itemcode}</code>
-                          </TableCell>
-                          <TableCell className="max-w-[320px] min-w-0">
-                            <ItemNameWithUnit item={it} />
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{it.Barcode || '—'}</TableCell>
-                          <TableCell className="text-sm">
-                            {formatItemDepartmentLabel(it.DepartmentID, deptMap)}
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge item={it} />
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {it.unit?.UnitName?.trim() ? it.unit.UnitName : '—'}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {it.subUnit?.UnitName?.trim()
-                              ? `${it.subUnit.UnitName}${it.SubUnitQty != null && Number(it.SubUnitQty) > 0
-                                ? ` ×${it.SubUnitQty}`
-                                : ''
-                              }`
-                              : '—'}
-                          </TableCell>
-                          <TableCell className="text-right whitespace-nowrap">
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8"
-                              onClick={() => {
-                                setSelected(it);
-                                setEditOpen(true);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => {
-                                setSelected(it);
-                                setDeleteOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-
-              {totalPages > 1 && (
-                <div className="mt-6 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    หน้า {page} จาก {totalPages} ({total} รายการ)
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(1)}
-                      disabled={page === 1 || loading}
-                    >
-                      แรกสุด
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(page - 1)}
-                      disabled={page === 1 || loading}
-                    >
-                      ก่อนหน้า
-                    </Button>
-                    {generatePageNumbers(page, totalPages).map((pNum, idx) =>
-                      pNum === '...' ? (
-                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
-                          ...
-                        </span>
-                      ) : (
-                        <Button
-                          key={pNum}
-                          type="button"
-                          variant={page === pNum ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handlePageChange(pNum as number)}
-                          disabled={loading}
-                        >
-                          {pNum}
-                        </Button>
-                      ),
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(page + 1)}
-                      disabled={page === totalPages || loading}
-                    >
-                      ถัดไป
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(totalPages)}
-                      disabled={page === totalPages || loading}
-                    >
-                      สุดท้าย
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ItemsMasterTableCard
+            items={items}
+            loading={loading}
+            page={page}
+            pageSize={ITEMS_PAGE_SIZE}
+            total={total}
+            totalPages={totalPages}
+            deptMap={deptMap}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onCreateClick={() => setCreateOpen(true)}
+            onPageChange={handlePageChange}
+          />
         </div>
 
         <CreateItemDialog

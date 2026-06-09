@@ -1,16 +1,20 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Search, RefreshCw, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
 import { DatePickerBE } from '@/components/ui/date-picker-be';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+import { todayYyyyMmDdUtc } from '@/lib/formatThaiDateTime';
+
+const fieldInputClass = 'bg-white';
 
 export type DepartmentOption = { ID: number; DepName: string | null; DepName2: string | null };
 
@@ -36,6 +40,7 @@ export type MedicalSuppliesSearchFilterFields = {
 
 interface MedicalSuppliesSearchFiltersProps {
   formFilters: MedicalSuppliesSearchFilterFields;
+  activeFilters: MedicalSuppliesSearchFilterFields;
   onPatchFormFilters: (patch: Partial<MedicalSuppliesSearchFilterFields>) => void;
   departments: DepartmentOption[];
   subDepartments: SubDepartmentOption[];
@@ -47,6 +52,7 @@ interface MedicalSuppliesSearchFiltersProps {
 
 export default function MedicalSuppliesSearchFilters({
   formFilters,
+  activeFilters,
   onPatchFormFilters,
   departments,
   subDepartments,
@@ -63,6 +69,7 @@ export default function MedicalSuppliesSearchFilters({
   const [subDepartmentDropdownOpen, setSubDepartmentDropdownOpen] = useState(false);
 
   const hasMainDepartment = Boolean(formFilters.departmentCode?.trim());
+  const today = todayYyyyMmDdUtc();
 
   const filteredDepartments = useMemo(() => {
     const q = departmentSearch.trim().toLowerCase();
@@ -87,6 +94,19 @@ export default function MedicalSuppliesSearchFilters({
     });
   }, [subDepartments, formFilters.departmentCode, subDepartmentSearch]);
 
+  const appliedDept = departments.find((d) => String(d.ID) === activeFilters.departmentCode);
+  const appliedSubDept = subDepartments.find((s) => s.code === activeFilters.usageType);
+
+  const hasActiveFilters =
+    activeFilters.itemName.trim() !== '' ||
+    activeFilters.patientName.trim() !== '' ||
+    activeFilters.patientHN.trim() !== '' ||
+    activeFilters.patientEN.trim() !== '' ||
+    activeFilters.departmentCode !== '' ||
+    activeFilters.usageType !== '' ||
+    activeFilters.startDate !== today ||
+    activeFilters.endDate !== today;
+
   const divisionTriggerLabel = () => {
     if (!formFilters.departmentCode) return 'เลือก Division...';
     const d = departments.find((x) => String(x.ID) === formFilters.departmentCode);
@@ -104,206 +124,293 @@ export default function MedicalSuppliesSearchFilters({
     return code;
   };
 
+  const dropdownTriggerClass = cn(
+    'h-10 w-full justify-between font-normal shadow-sm',
+    fieldInputClass,
+  );
+
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-6 shadow-sm w-full min-w-0">
-      <div className="font-bold text-base sm:text-lg mb-4">วันที่เบิกอุปกรณ์ใช้กับคนไข้</div>
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2 min-w-0">
-            <Label htmlFor="startDate">วันที่เริ่มต้น</Label>
-            <DatePickerBE
-              id="startDate"
-              value={formFilters.startDate}
-              onChange={(v) => patch({ startDate: v })}
-              placeholder="วว/ดด/ปปปป (พ.ศ.)"
-            />
+    <Card className="border-slate-200 shadow-sm">
+      <CardContent>
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-lg bg-amber-100 p-2">
+            <Search className="h-4 w-4 text-amber-700" />
           </div>
-          <div className="space-y-2 min-w-0">
-            <Label htmlFor="endDate">วันที่สิ้นสุด</Label>
-            <DatePickerBE
-              id="endDate"
-              value={formFilters.endDate}
-              onChange={(v) => patch({ endDate: v })}
-              placeholder="วว/ดด/ปปปป (พ.ศ.)"
-            />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
+            <p className="text-xs text-slate-500">วันที่เบิกอุปกรณ์ใช้กับคนไข้</p>
           </div>
         </div>
 
-        <div className="space-y-2 min-w-0">
-          <Label htmlFor="itemName">ค้นหาชื่ออุปกรณ์</Label>
-          <Input
-            id="itemName"
-            placeholder="กรอกชื่ออุปกรณ์ / รหัส / คำอธิบาย..."
-            value={formFilters.itemName}
-            onChange={(e) => patch({ itemName: e.target.value })}
-            onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-            className="w-full"
-          />
-        </div>
+        <div className="space-y-4">
+          <div className="min-w-0 space-y-1.5">
+            <label htmlFor="ms-item-name" className="text-xs font-medium text-slate-600">
+              ค้นหาชื่ออุปกรณ์
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="ms-item-name"
+                placeholder="กรอกชื่ออุปกรณ์ / รหัส / คำอธิบาย..."
+                value={formFilters.itemName}
+                onChange={(e) => patch({ itemName: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className={cn('h-10 w-full pl-9 shadow-sm', fieldInputClass)}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
+              <label htmlFor="ms-start-date" className="text-xs font-medium text-slate-600">
+                วันที่เริ่มต้น
+              </label>
+              <DatePickerBE
+                id="ms-start-date"
+                value={formFilters.startDate}
+                onChange={(v) => patch({ startDate: v })}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
+              />
+            </div>
+            <div className="min-w-0 space-y-1.5">
+              <label htmlFor="ms-end-date" className="text-xs font-medium text-slate-600">
+                วันที่สิ้นสุด
+              </label>
+              <DatePickerBE
+                id="ms-end-date"
+                value={formFilters.endDate}
+                onChange={(v) => patch({ endDate: v })}
+                placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
+              />
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="min-w-0 space-y-2">
-            <Label>Division</Label>
-            <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="h-10 w-full justify-between font-normal" type="button">
-                  <span className="truncate text-left">{divisionTriggerLabel()}</span>
-                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
-              >
-                <div className="px-2 pb-2">
-                  <Input
-                    placeholder="ค้นหา Division..."
-                    value={departmentSearch}
-                    onChange={(e) => setDepartmentSearch(e.target.value)}
-                    className="h-8"
-                    onKeyDown={(e) => e.stopPropagation()}
-                  />
-                </div>
-                <div className="max-h-60 overflow-auto">
-                  <button
-                    type="button"
-                    className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                    onClick={() => {
-                      patch({ departmentCode: '', usageType: '' });
-                      setDepartmentDropdownOpen(false);
-                      setDepartmentSearch('');
-                    }}
-                  >
-                    -- ทุก Division --
-                  </button>
-                  {filteredDepartments.map((dept) => (
+
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
+              <span className="text-xs font-medium text-slate-600">Division</span>
+              <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className={dropdownTriggerClass} type="button">
+                    <span className="truncate text-left">{divisionTriggerLabel()}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
+                >
+                  <div className="px-2 pb-2">
+                    <Input
+                      placeholder="ค้นหา Division..."
+                      value={departmentSearch}
+                      onChange={(e) => setDepartmentSearch(e.target.value)}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-auto">
                     <button
-                      key={dept.ID}
                       type="button"
                       className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                       onClick={() => {
-                        patch({ departmentCode: String(dept.ID), usageType: '' });
+                        patch({ departmentCode: '', usageType: '' });
                         setDepartmentDropdownOpen(false);
                         setDepartmentSearch('');
                       }}
                     >
-                      {dept.DepName || dept.DepName2 || `แผนก ${dept.ID}`}
+                      -- ทุก Division --
                     </button>
-                  ))}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          <div className="min-w-0 space-y-2">
-            <Label>แผนก</Label>
-            <DropdownMenu open={subDepartmentDropdownOpen} onOpenChange={setSubDepartmentDropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-10 w-full justify-between font-normal"
-                  type="button"
-                  disabled={!hasMainDepartment}
-                >
-                  <span className="truncate text-left">{subDepartmentTriggerLabel()}</span>
-                  <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
-              >
-                <div className="px-2 pb-2">
-                  <Input
-                    placeholder="ค้นหารหัสหรือชื่อแผนก ..."
-                    value={subDepartmentSearch}
-                    onChange={(e) => setSubDepartmentSearch(e.target.value)}
-                    className="h-8"
-                    onKeyDown={(e) => e.stopPropagation()}
-                  />
-                </div>
-                <div className="max-h-60 overflow-auto">
-                  <button
-                    type="button"
-                    className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-                    onClick={() => {
-                      patch({ usageType: '' });
-                      setSubDepartmentDropdownOpen(false);
-                      setSubDepartmentSearch('');
-                    }}
-                  >
-                    -- ทุกแผนก --
-                  </button>
-                  {!hasMainDepartment ? (
-                    <div className="px-2 py-3 text-center text-xs text-muted-foreground">
-                      เลือกแผนก (Division) ก่อน
-                    </div>
-                  ) : filteredSubDepartments.length === 0 ? (
-                    <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
-                  ) : (
-                    filteredSubDepartments.map((sub) => (
+                    {filteredDepartments.map((dept) => (
                       <button
-                        key={sub.id}
+                        key={dept.ID}
                         type="button"
                         className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
                         onClick={() => {
-                          patch({ usageType: sub.code });
-                          setSubDepartmentDropdownOpen(false);
-                          setSubDepartmentSearch('');
+                          patch({ departmentCode: String(dept.ID), usageType: '' });
+                          setDepartmentDropdownOpen(false);
+                          setDepartmentSearch('');
                         }}
                       >
-                        <span className="font-mono text-xs">{sub.code}</span>
-                        {sub.name ? (
-                          <span className="text-muted-foreground"> · {sub.name}</span>
-                        ) : null}
+                        {dept.DepName || dept.DepName2 || `แผนก ${dept.ID}`}
                       </button>
-                    ))
-                  )}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    ))}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <div className="min-w-0 space-y-1.5">
+              <span className="text-xs font-medium text-slate-600">แผนก</span>
+              <DropdownMenu open={subDepartmentDropdownOpen} onOpenChange={setSubDepartmentDropdownOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={dropdownTriggerClass}
+                    type="button"
+                    disabled={!hasMainDepartment}
+                  >
+                    <span className="truncate text-left">{subDepartmentTriggerLabel()}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[12rem] p-1"
+                >
+                  <div className="px-2 pb-2">
+                    <Input
+                      placeholder="ค้นหารหัสหรือชื่อแผนก ..."
+                      value={subDepartmentSearch}
+                      onChange={(e) => setSubDepartmentSearch(e.target.value)}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-auto">
+                    <button
+                      type="button"
+                      className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                      onClick={() => {
+                        patch({ usageType: '' });
+                        setSubDepartmentDropdownOpen(false);
+                        setSubDepartmentSearch('');
+                      }}
+                    >
+                      -- ทุกแผนก --
+                    </button>
+                    {!hasMainDepartment ? (
+                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                        เลือกแผนก (Division) ก่อน
+                      </div>
+                    ) : filteredSubDepartments.length === 0 ? (
+                      <div className="px-2 py-3 text-center text-xs text-muted-foreground">ไม่พบรายการ</div>
+                    ) : (
+                      filteredSubDepartments.map((sub) => (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                          onClick={() => {
+                            patch({ usageType: sub.code });
+                            setSubDepartmentDropdownOpen(false);
+                            setSubDepartmentSearch('');
+                          }}
+                        >
+                          <span className="font-mono text-xs">{sub.code}</span>
+                          {sub.name ? (
+                            <span className="text-muted-foreground"> · {sub.name}</span>
+                          ) : null}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
+              <label htmlFor="ms-patient-hn" className="text-xs font-medium text-slate-600">
+                HN
+              </label>
+              <Input
+                id="ms-patient-hn"
+                placeholder="กรอกเลข HN..."
+                value={formFilters.patientHN}
+                onChange={(e) => patch({ patientHN: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className={cn('h-10 shadow-sm', fieldInputClass)}
+              />
+            </div>
+            <div className="min-w-0 space-y-1.5">
+              <label htmlFor="ms-patient-en" className="text-xs font-medium text-slate-600">
+                EN
+              </label>
+              <Input
+                id="ms-patient-en"
+                placeholder="กรอกเลข EN..."
+                value={formFilters.patientEN}
+                onChange={(e) => patch({ patientEN: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className={cn('h-10 shadow-sm', fieldInputClass)}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      
-          <div className="space-y-2 min-w-0">
-            <Label htmlFor="patientHN">HN</Label>
-            <Input
-              id="patientHN"
-              placeholder="กรอกเลข HN..."
-              value={formFilters.patientHN}
-              onChange={(e) => patch({ patientHN: e.target.value })}
-              onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-            />
-          </div>
-          <div className="space-y-2 min-w-0">
-            <Label htmlFor="patientEN">EN</Label>
-            <Input
-              id="patientEN"
-              placeholder="กรอกเลข EN..."
-              value={formFilters.patientEN}
-              onChange={(e) => patch({ patientEN: e.target.value })}
-              onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-            />
-          </div>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button type="button" onClick={onSearch} disabled={loading} className="h-10 gap-2">
+            <Search className="h-4 w-4" />
+            ค้นหา
+          </Button>
+          <Button
+            type="button"
+            onClick={onReload}
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 shrink-0"
+            disabled={loading}
+            aria-label="รีเฟรช"
+          >
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+          </Button>
         </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 mt-4">
-        <Button onClick={onSearch} disabled={loading} className="w-full sm:w-auto">
-          <Search className="h-4 w-4 mr-2 shrink-0" />
-          ค้นหา
-        </Button>
-        <Button onClick={onReset} variant="outline" disabled={loading} className="w-full sm:w-auto">
-          <RefreshCw className="h-4 w-4 mr-2 shrink-0" />
-          รีเซ็ต
-        </Button>
-        <Button onClick={onReload} variant="outline" disabled={loading} className="w-full sm:w-auto">
-          <RefreshCw className={`h-4 w-4 mr-2 shrink-0 ${loading ? 'animate-spin' : ''}`} />
-          โหลดใหม่
-        </Button>
-      </div>
-    </div>
+        {hasActiveFilters ? (
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
+            <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
+            {activeFilters.itemName.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                อุปกรณ์: {activeFilters.itemName.trim()}
+              </span>
+            ) : null}
+            {activeFilters.patientName.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                คนไข้: {activeFilters.patientName.trim()}
+              </span>
+            ) : null}
+            {activeFilters.patientHN.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                HN: {activeFilters.patientHN.trim()}
+              </span>
+            ) : null}
+            {activeFilters.patientEN.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                EN: {activeFilters.patientEN.trim()}
+              </span>
+            ) : null}
+            {activeFilters.startDate !== today || activeFilters.endDate !== today ? (
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                วันที่: {activeFilters.startDate || '—'} – {activeFilters.endDate || '—'}
+              </span>
+            ) : null}
+            {activeFilters.departmentCode ? (
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-900">
+                Division: {appliedDept?.DepName || activeFilters.departmentCode}
+              </span>
+            ) : null}
+            {activeFilters.usageType ? (
+              <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-900">
+                แผนก: {appliedSubDept?.code || activeFilters.usageType}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-slate-600"
+              onClick={onReset}
+            >
+              <X className="h-3.5 w-3.5" />
+              ล้างตัวกรอง
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }

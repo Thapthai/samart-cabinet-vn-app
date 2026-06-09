@@ -1,11 +1,30 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Search, RefreshCw, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+
+const fieldInputClass = 'bg-white';
+
+function getTodayDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export type AppliedWillReturnFilters = {
+  departmentId: string;
+  cabinetId: string;
+  subDepartmentId: string;
+  itemCode: string;
+  startDate: string;
+  endDate: string;
+};
 import { DatePickerBE } from '@/components/ui/date-picker-be';
 import {
   DropdownMenu,
@@ -24,6 +43,7 @@ interface WillReturnFilterCardProps {
   itemCode: string;
   startDate: string;
   endDate: string;
+  appliedFilters: AppliedWillReturnFilters;
   departments: DepartmentOption[];
   cabinets: Array<{ id: number; cabinet_name?: string; cabinet_code?: string }>;
   /** Master แผนกย่อย — กรองตามแผนกหลักที่เลือก (เหมือนหน้าเวชภัณฑ์) */
@@ -48,6 +68,7 @@ export default function WillReturnFilterCard({
   itemCode,
   startDate,
   endDate,
+  appliedFilters,
   departments,
   cabinets,
   subDepartments,
@@ -143,55 +164,94 @@ export default function WillReturnFilterCard({
     return `ตู้ ${cabinetId}`;
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>กรองข้อมูล</CardTitle>
+  const today = getTodayDate();
+  const dropdownTriggerClass = cn(
+    'h-10 w-full justify-between font-normal shadow-sm',
+    fieldInputClass,
+  );
+  const appliedDept = departments.find((d) => String(d.ID) === appliedFilters.departmentId);
+  const appliedSubDept = subDepartments.find(
+    (s) => String(s.id) === appliedFilters.subDepartmentId,
+  );
+  const appliedCabinet = cabinets.find((c) => c.id.toString() === appliedFilters.cabinetId);
 
-      </CardHeader>
+  const hasActiveFilters =
+    appliedFilters.itemCode.trim() !== '' ||
+    appliedFilters.departmentId !== '' ||
+    appliedFilters.subDepartmentId !== '' ||
+    appliedFilters.cabinetId !== '' ||
+    appliedFilters.startDate !== today ||
+    appliedFilters.endDate !== today;
+
+  return (
+    <Card className="border-slate-200 shadow-sm">
       <CardContent>
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">รหัส/ชื่อเวชภัณฑ์</label>
-            <Input
-              placeholder="ค้นหา..."
-              value={itemCode}
-              onChange={(e) => onItemCodeChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-              className="w-full"
-            />
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-lg bg-amber-100 p-2">
+            <Search className="h-4 w-4 text-amber-700" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
+            <p className="text-xs text-slate-500">รายการอุปกรณ์ที่รอแจ้งคืน</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="will-return-item-code" className="text-xs font-medium text-slate-600">
+              รหัส/ชื่อเวชภัณฑ์
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="will-return-item-code"
+                placeholder="ค้นหา..."
+                value={itemCode}
+                onChange={(e) => onItemCodeChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className={cn('h-10 w-full pl-9 shadow-sm', fieldInputClass)}
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">วันที่เริ่มต้น</label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="will-return-start-date" className="text-xs font-medium text-slate-600">
+                วันที่เริ่มต้น
+              </label>
               <DatePickerBE
+                id="will-return-start-date"
                 value={startDate}
                 onChange={onStartDateChange}
                 placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">วันที่สิ้นสุด</label>
+            <div className="space-y-1.5">
+              <label htmlFor="will-return-end-date" className="text-xs font-medium text-slate-600">
+                วันที่สิ้นสุด
+              </label>
               <DatePickerBE
+                id="will-return-end-date"
                 value={endDate}
                 onChange={onEndDateChange}
                 placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="min-w-0 space-y-2">
-              <Label>Division</Label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
+              <span className="text-xs font-medium text-slate-600">Division</span>
               {departmentLocked ? (
-                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground shadow-sm">
                   <span className="truncate">{lockedDeptLabel}</span>
                 </div>
               ) : (
                 <DropdownMenu open={departmentDropdownOpen} onOpenChange={setDepartmentDropdownOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-10 w-full justify-between font-normal" type="button">
+                    <Button variant="outline" className={dropdownTriggerClass} type="button">
                       <span className="truncate text-left">{divisionTriggerLabel()}</span>
                       <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -245,8 +305,8 @@ export default function WillReturnFilterCard({
               )}
             </div>
 
-            <div className="min-w-0 space-y-2">
-              <Label>แผนก</Label>
+            <div className="min-w-0 space-y-1.5">
+              <span className="text-xs font-medium text-slate-600">แผนก</span>
               <DropdownMenu
                 open={subDepartmentDropdownOpen}
                 onOpenChange={setSubDepartmentDropdownOpen}
@@ -254,7 +314,7 @@ export default function WillReturnFilterCard({
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="h-10 w-full justify-between font-normal"
+                    className={dropdownTriggerClass}
                     type="button"
                     disabled={!hasMainDepartment}
                   >
@@ -318,20 +378,16 @@ export default function WillReturnFilterCard({
             </div>
           </div>
 
-          <div className="min-w-0 space-y-2">
-            <Label>ตู้ Cabinet</Label>
+          <div className="min-w-0 space-y-1.5">
+            <span className="text-xs font-medium text-slate-600">ตู้ Cabinet</span>
             {!hasMainDepartment ? (
-              <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+              <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground shadow-sm">
                 เลือก Division (แผนกหลัก) ก่อน
               </div>
             ) : (
               <DropdownMenu open={cabinetDropdownOpen} onOpenChange={setCabinetDropdownOpen}>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="h-10 w-full justify-between font-normal"
-                    type="button"
-                  >
+                  <Button variant="outline" className={dropdownTriggerClass} type="button">
                     <span className="truncate text-left">{cabinetTriggerLabel()}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -397,21 +453,71 @@ export default function WillReturnFilterCard({
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <Button onClick={onSearch} disabled={loading}>
-            <Search className="mr-2 h-4 w-4" />
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button type="button" onClick={onSearch} disabled={loading} className="h-10 gap-2">
+            <Search className="h-4 w-4" />
             ค้นหา
           </Button>
-          <Button onClick={onReset} variant="outline">
-            ล้าง
-          </Button>
-          {onRefresh && (
-            <Button onClick={onRefresh} variant="outline">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              รีเฟรช
+          {onRefresh ? (
+            <Button
+              type="button"
+              onClick={onRefresh}
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              disabled={loading}
+              aria-label="รีเฟรช"
+            >
+              <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
             </Button>
-          )}
+          ) : null}
         </div>
+
+        {hasActiveFilters ? (
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
+            <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
+            {appliedFilters.itemCode.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                คำค้น: {appliedFilters.itemCode.trim()}
+              </span>
+            ) : null}
+            {appliedFilters.startDate !== today || appliedFilters.endDate !== today ? (
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                วันที่: {appliedFilters.startDate || '—'} – {appliedFilters.endDate || '—'}
+              </span>
+            ) : null}
+            {appliedFilters.departmentId ? (
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-900">
+                Division: {appliedDept?.DepName || appliedFilters.departmentId}
+              </span>
+            ) : null}
+            {appliedFilters.subDepartmentId ? (
+              <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-900">
+                แผนก: {appliedSubDept?.code || appliedFilters.subDepartmentId}
+              </span>
+            ) : null}
+            {appliedFilters.cabinetId ? (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  'border-indigo-200 bg-indigo-50 text-indigo-900',
+                )}
+              >
+                ตู้: {appliedCabinet?.cabinet_name || appliedFilters.cabinetId}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-slate-600"
+              onClick={onReset}
+            >
+              <X className="h-3.5 w-3.5" />
+              ล้างตัวกรอง
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

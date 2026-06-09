@@ -28,7 +28,7 @@ export default function DispenseFromCabinetPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [dispensedList, setDispensedList] = useState<DispensedItem[]>([]);
 
-  const [filters, setFilters] = useState<FilterState>({
+  const initialFilters: FilterState = {
     searchItemCode: '',
     startDate: getTodayDate(),
     endDate: getTodayDate(),
@@ -36,7 +36,10 @@ export default function DispenseFromCabinetPage() {
     departmentId: '',
     subDepartmentId: '',
     cabinetId: '',
-  });
+  };
+
+  const [filters, setFilters] = useState<FilterState>(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(initialFilters);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRawItems, setTotalRawItems] = useState(0);
@@ -53,7 +56,7 @@ export default function DispenseFromCabinetPage() {
       overrideFilters?: FilterState,
       opts?: { resetPage?: boolean; silent?: boolean },
     ) => {
-      const activeFilters = overrideFilters ?? filters;
+      const activeFilters = overrideFilters ?? appliedFilters;
       try {
         setLoadingList(true);
         const params: Record<string, string | number> = {
@@ -137,7 +140,7 @@ export default function DispenseFromCabinetPage() {
         setLoadingList(false);
       }
     },
-    [filters],
+    [appliedFilters],
   );
 
   useEffect(() => {
@@ -152,21 +155,19 @@ export default function DispenseFromCabinetPage() {
   }, [user?.id, fetchDispensedList]);
 
   const handleSearch = () => {
+    setAppliedFilters(filters);
     setCurrentPage(1);
-    void fetchDispensedList(undefined, { resetPage: true });
+    void fetchDispensedList(filters, { resetPage: true });
   };
 
   const handleClearSearch = () => {
     const clearedFilters: FilterState = {
-      searchItemCode: '',
+      ...initialFilters,
       startDate: getTodayDate(),
       endDate: getTodayDate(),
-      itemTypeFilter: 'all',
-      departmentId: '',
-      subDepartmentId: '',
-      cabinetId: '',
     };
     setFilters(clearedFilters);
+    setAppliedFilters(clearedFilters);
     setCurrentPage(1);
     void fetchDispensedList(clearedFilters, { resetPage: true, silent: true });
   };
@@ -178,12 +179,12 @@ export default function DispenseFromCabinetPage() {
   const handleExportReport = async (format: 'excel' | 'pdf') => {
     try {
       const params: Record<string, string | number | undefined> = {};
-      if (filters.searchItemCode) params.keyword = filters.searchItemCode;
-      if (filters.startDate) params.startDate = filters.startDate;
-      if (filters.endDate) params.endDate = filters.endDate;
-      if (filters.departmentId) params.departmentId = filters.departmentId;
-      if (filters.subDepartmentId) params.subDepartmentId = filters.subDepartmentId;
-      if (filters.cabinetId) params.cabinetId = filters.cabinetId;
+      if (appliedFilters.searchItemCode) params.keyword = appliedFilters.searchItemCode;
+      if (appliedFilters.startDate) params.startDate = appliedFilters.startDate;
+      if (appliedFilters.endDate) params.endDate = appliedFilters.endDate;
+      if (appliedFilters.departmentId) params.departmentId = appliedFilters.departmentId;
+      if (appliedFilters.subDepartmentId) params.subDepartmentId = appliedFilters.subDepartmentId;
+      if (appliedFilters.cabinetId) params.cabinetId = appliedFilters.cabinetId;
 
       toast.info(`กำลังสร้างรายงาน ${format.toUpperCase()}...`);
 
@@ -233,6 +234,7 @@ export default function DispenseFromCabinetPage() {
 
           <FilterSection
             filters={filters}
+            appliedFilters={appliedFilters}
             onFilterChange={handleFilterChange}
             onSearch={handleSearch}
             onClear={handleClearSearch}
@@ -249,8 +251,8 @@ export default function DispenseFromCabinetPage() {
             totalRawItems={totalRawItems}
             totalGroups={totalGroups}
             groupsPerPage={GROUPS_PER_PAGE}
-            searchItemCode={filters.searchItemCode}
-            itemTypeFilter={filters.itemTypeFilter}
+            searchItemCode={appliedFilters.searchItemCode}
+            itemTypeFilter={appliedFilters.itemTypeFilter}
             onPageChange={handlePageChange}
             onExportExcel={() => handleExportReport('excel')}
             onExportPdf={() => handleExportReport('pdf')}
