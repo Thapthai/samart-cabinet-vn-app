@@ -1,11 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { cabinetApi } from '@/lib/api';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { cabinetEditFormSchema, type CabinetEditFormData } from '@/lib/validations';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Edit } from 'lucide-react';
+
+function cabinetStatusToFormValue(status?: string): 'ACTIVE' | 'INACTIVE' {
+  return status?.toUpperCase() === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
+}
+
+function resolveCabinetStatusForSave(
+  formStatus: 'ACTIVE' | 'INACTIVE',
+  previousStatus?: string,
+): string {
+  if (formStatus === 'INACTIVE') return 'INACTIVE';
+  const prev = previousStatus?.trim();
+  if (prev && prev.toUpperCase() !== 'INACTIVE') return prev;
+  return 'ACTIVE';
+}
 
 interface Cabinet {
   id: number;
@@ -32,42 +72,40 @@ export default function EditCabinetDialog({
   onSuccess,
 }: EditCabinetDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    cabinet_name: '',
-    stock_id: '',
+
+  const form = useForm<CabinetEditFormData>({
+    resolver: zodResolver(cabinetEditFormSchema),
+    defaultValues: {
+      cabinet_name: '',
+      stock_id: '',
+      cabinet_status: 'ACTIVE',
+    },
   });
 
-  // Load cabinet data when dialog opens
   useEffect(() => {
     if (open && cabinet) {
-      setFormData({
+      form.reset({
         cabinet_name: cabinet.cabinet_name || '',
         stock_id: cabinet.stock_id != null ? String(cabinet.stock_id) : '',
+        cabinet_status: cabinetStatusToFormValue(cabinet.cabinet_status),
       });
     }
-  }, [open, cabinet]);
-
-  // Reset form when dialog is closed
-  useEffect(() => {
     if (!open) {
-      setFormData({
-        cabinet_name: '',
-        stock_id: '',
-      });
+      form.reset({ cabinet_name: '', stock_id: '', cabinet_status: 'ACTIVE' });
     }
-  }, [open]);
+  }, [open, cabinet, form]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (values: CabinetEditFormData) => {
     if (!cabinet) return;
 
     try {
       setLoading(true);
-      const data: any = {
-        cabinet_name: formData.cabinet_name || undefined,
+      const data: { cabinet_name: string; stock_id?: number; cabinet_status: string } = {
+        cabinet_name: values.cabinet_name.trim(),
+        cabinet_status: resolveCabinetStatusForSave(values.cabinet_status, cabinet.cabinet_status),
       };
-      if (formData.stock_id.trim()) {
-        const sid = parseInt(formData.stock_id, 10);
+      if (values.stock_id?.trim()) {
+        const sid = parseInt(values.stock_id.trim(), 10);
         if (!Number.isNaN(sid)) data.stock_id = sid;
       }
 
@@ -80,8 +118,9 @@ export default function EditCabinetDialog({
       } else {
         toast.error(response.message || 'ไม่สามารถแก้ไขตู้ได้');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการแก้ไขตู้');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาดในการแก้ไขตู้');
     } finally {
       setLoading(false);
     }
@@ -102,53 +141,94 @@ export default function EditCabinetDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>รหัสตู้</Label>
-            <Input value={cabinet.cabinet_code || '-'} readOnly className="bg-muted" />
-          </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label>รหัสตู้</Label>
+              <Input value={cabinet.cabinet_code || '-'} readOnly className="bg-muted" />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="cabinet_name">ชื่อตู้</Label>
-            <Input
-              id="cabinet_name"
-              placeholder="เช่น ตู้ A1, ตู้ห้องผ่าตัด"
-              value={formData.cabinet_name}
-              onChange={(e) => setFormData({ ...formData, cabinet_name: e.target.value })}
-              className={fieldInputClass}
+            <FormField
+              control={form.control}
+              name="cabinet_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    ชื่อตู้ <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="เช่น ตู้ A1, ตู้ห้องผ่าตัด"
+                      className={fieldInputClass}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="stock_id">Stock ID</Label>
-            <Input
-              id="stock_id"
-              type="number"
-              placeholder="กรอก Stock ID"
-              value={formData.stock_id}
-              onChange={(e) => setFormData({ ...formData, stock_id: e.target.value })}
-              className={fieldInputClass}
+            <FormField
+              control={form.control}
+              name="stock_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Stock ID</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="กรอก Stock ID"
+                      className={fieldInputClass}
+                      {...field}
+                      value={field.value ?? ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              type="submit"
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-              disabled={loading}
-            >
-              {loading ? 'กำลังบันทึก...' : 'บันทึก'}
-            </Button>
-          </div>
-        </form>
+            <FormField
+              control={form.control}
+              name="cabinet_status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>สถานะการใช้งาน</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className={cn('w-full', fieldInputClass)}>
+                        <SelectValue placeholder="เลือกสถานะ" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">เปิดการใช้งาน</SelectItem>
+                      <SelectItem value="INACTIVE">ปิดการใช้งาน</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                disabled={loading}
+              >
+                {loading ? 'กำลังบันทึก...' : 'บันทึก'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

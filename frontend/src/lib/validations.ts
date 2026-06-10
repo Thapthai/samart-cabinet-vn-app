@@ -51,7 +51,34 @@ export const categorySchema = z.object({
   is_active: z.boolean(),
 });
 
+export const cabinetFormSchema = z.object({
+  cabinet_name: z
+    .string()
+    .trim()
+    .min(1, 'ชื่อตู้ต้องไม่ว่าง')
+    .min(2, 'ชื่อตู้ต้องมีอย่างน้อย 2 ตัวอักษร')
+    .max(255, 'ชื่อตู้ต้องไม่เกิน 255 ตัวอักษร'),
+  stock_id: z
+    .string()
+    .optional()
+    .refine(
+      (v) => {
+        if (!v?.trim()) return true;
+        const n = parseInt(v.trim(), 10);
+        return !Number.isNaN(n) && n > 0;
+      },
+      { message: 'Stock ID ต้องเป็นตัวเลขที่ถูกต้อง' },
+    ),
+});
+
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
 export type ItemFormData = z.infer<typeof itemSchema>;
 export type CategoryFormData = z.infer<typeof categorySchema>;
+export type CabinetFormData = z.infer<typeof cabinetFormSchema>;
+
+export const cabinetEditFormSchema = cabinetFormSchema.extend({
+  cabinet_status: z.enum(['ACTIVE', 'INACTIVE']),
+});
+
+export type CabinetEditFormData = z.infer<typeof cabinetEditFormSchema>;

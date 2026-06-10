@@ -1,9 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { cabinetApi } from '@/lib/api';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { cabinetFormSchema, type CabinetFormData } from '@/lib/validations';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { toast } from 'sonner';
 import { Package } from 'lucide-react';
 
@@ -15,36 +32,37 @@ interface CreateCabinetDialogProps {
   onSuccess: () => void;
 }
 
+const defaultValues: CabinetFormData = {
+  cabinet_name: '',
+  stock_id: '',
+};
+
 export default function CreateCabinetDialog({
   open,
   onOpenChange,
   onSuccess,
 }: CreateCabinetDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    cabinet_name: '',
-    stock_id: '',
+
+  const form = useForm<CabinetFormData>({
+    resolver: zodResolver(cabinetFormSchema),
+    defaultValues,
   });
 
   useEffect(() => {
     if (!open) {
-      setFormData({
-        cabinet_name: '',
-        stock_id: '',
-      });
+      form.reset(defaultValues);
     }
-  }, [open]);
+  }, [open, form]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (values: CabinetFormData) => {
     try {
       setLoading(true);
-      const data: any = {
-        cabinet_name: formData.cabinet_name || undefined,
+      const data: { cabinet_name: string; stock_id?: number } = {
+        cabinet_name: values.cabinet_name.trim(),
       };
-      if (formData.stock_id.trim()) {
-        const sid = parseInt(formData.stock_id, 10);
+      if (values.stock_id?.trim()) {
+        const sid = parseInt(values.stock_id.trim(), 10);
         if (!Number.isNaN(sid)) data.stock_id = sid;
       }
 
@@ -57,8 +75,9 @@ export default function CreateCabinetDialog({
       } else {
         toast.error(response.message || 'ไม่สามารถเพิ่มตู้ได้');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการเพิ่มตู้');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาดในการเพิ่มตู้');
     } finally {
       setLoading(false);
     }
@@ -72,56 +91,73 @@ export default function CreateCabinetDialog({
             <Package className="h-5 w-5" />
             <span>เพิ่มตู้ใหม่</span>
           </DialogTitle>
-          <DialogDescription>
-            รหัสตู้จะสร้างอัตโนมัติจากระบบ
-          </DialogDescription>
+          <DialogDescription>รหัสตู้จะสร้างอัตโนมัติจากระบบ</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="cabinet_name">ชื่อตู้</Label>
-            <Input
-              id="cabinet_name"
-              placeholder="เช่น ตู้ A1, ตู้ห้องผ่าตัด"
-              className={fieldInputClass}
-              value={formData.cabinet_name}
-              onChange={(e) => setFormData({ ...formData, cabinet_name: e.target.value })}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="cabinet_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    ชื่อตู้ <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="เช่น ตู้ A1, ตู้ห้องผ่าตัด"
+                      className={fieldInputClass}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="stock_id">Stock ID</Label>
-            <Input
-              id="stock_id"
-              type="number"
-              placeholder="กรอก Stock ID (ตัวเลข)"
-              className={fieldInputClass}
-              value={formData.stock_id}
-              onChange={(e) => setFormData({ ...formData, stock_id: e.target.value })}
+            <FormField
+              control={form.control}
+              name="stock_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Stock ID</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="กรอก Stock ID (ตัวเลข)"
+                      className={fieldInputClass}
+                      {...field}
+                      value={field.value ?? ''}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    ไม่กรอกระบบจะสร้างให้อัตโนมัติ
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            <p className="text-xs text-muted-foreground">
-              ไม่กรอกระบบจะสร้างให้อัตโนมัติ
-            </p>
-          </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              ยกเลิก
-            </Button>
-            <Button
-              type="submit"
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-              disabled={loading}
-            >
-              {loading ? 'กำลังบันทึก...' : 'บันทึก'}
-            </Button>
-          </div>
-        </form>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                disabled={loading}
+              >
+                {loading ? 'กำลังบันทึก...' : 'บันทึก'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

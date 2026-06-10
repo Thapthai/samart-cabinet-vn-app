@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { itemsApi, departmentApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -16,15 +16,24 @@ import ItemsMasterTableCard from './components/ItemsMasterTableCard';
 import { ITEMS_PAGE_SIZE } from './components/itemPagination';
 import type { DeptRow } from './components/itemHelpers';
 
+const FETCH_BATCH_LIMIT = 5000;
+
+type AppliedFilters = {
+  keyword: string;
+  statusFilter: ItemStatusFilter;
+};
+
 export default function AdminItemManagementPage() {
   const { user } = useAuth();
-  const [items, setItems] = useState<Item[]>([]);
+  const [allItems, setAllItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [keywordInput, setKeywordInput] = useState('');
-  const [activeKeyword, setActiveKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<ItemStatusFilter>('all');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
+    keyword: '',
+    statusFilter: 'all',
+  });
+  const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -32,6 +41,11 @@ export default function AdminItemManagementPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<Item | null>(null);
   const [departments, setDepartments] = useState<DeptRow[]>([]);
+
+  const totalPages = useMemo(
+    () => (allItems.length > 0 ? Math.ceil(allItems.length / ITEMS_PAGE_SIZE) : 1),
+    [allItems.length],
+  );
 
   useEffect(() => {
     void (async () => {
@@ -52,72 +66,121 @@ export default function AdminItemManagementPage() {
     return m;
   }, [departments]);
 
-  const fetchList = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params: Record<string, string | number> = {
-        page,
-        limit: ITEMS_PAGE_SIZE,
-        sort_by: 'itemcode',
-        sort_order: 'asc',
-      };
-      if (activeKeyword.trim()) params.keyword = activeKeyword.trim();
-      if (statusFilter !== 'all') params.item_status_filter = statusFilter;
+  const fetchList = useCallback(
+    async (
+      overrideFilters?: AppliedFilters,
+      opts?: { resetPage?: boolean; silent?: boolean },
+    ) => {
+      const active = overrideFilters ?? appliedFilters;
+      try {
+        setLoading(true);
+        const baseParams: Record<string, string | number> = {
+          sort_by: 'itemcode',
+          sort_order: 'asc',
+        };
+        if (active.keyword.trim()) baseParams.keyword = active.keyword.trim();
+        if (active.statusFilter !== 'all') baseParams.item_status_filter = active.statusFilter;
 
-      const res = (await itemsApi.getMasterList(params)) as {
-        success?: boolean;
-        data?: Item[];
-        total?: number;
-        lastPage?: number;
-        message?: string;
-      };
+        const aggregated: Item[] = [];
+        let reportedTotal = 0;
+        let fetchPage = 1;
 
-      if (res?.success === false) {
-        toast.error((res as { message?: string }).message || 'โหลดรายการไม่สำเร็จ');
-        setItems([]);
+        while (true) {
+          const res = (await itemsApi.getMasterList({
+            ...baseParams,
+            page: fetchPage,
+            limit: FETCH_BATCH_LIMIT,
+          })) as {
+            success?: boolean;
+            data?: Item[] | { data?: Item[] };
+            total?: number;
+            message?: string;
+          };
+
+          if (res?.success === false) {
+            toast.error((res as { message?: string }).message || 'โหลดรายการไม่สำเร็จ');
+            setAllItems([]);
+            setTotal(0);
+            break;
+          }
+
+          const raw = res?.data;
+          const batch = Array.isArray(raw)
+            ? raw
+            : raw != null && typeof raw === 'object' && Array.isArray(raw.data)
+              ? raw.data
+              : [];
+
+          reportedTotal =
+            typeof res.total === 'number' ? res.total : aggregated.length + batch.length;
+          aggregated.push(...batch);
+
+          if (batch.length < FETCH_BATCH_LIMIT || aggregated.length >= reportedTotal) {
+            break;
+          }
+          fetchPage += 1;
+          if (fetchPage > 500) {
+            console.warn('admin items master: stopped batch fetch after 500 pages');
+            break;
+          }
+        }
+
+        setAllItems(aggregated);
+        setTotal(reportedTotal);
+        if (opts?.resetPage !== false) {
+          setCurrentPage(1);
+        }
+
+        if (!opts?.silent && aggregated.length === 0) {
+          toast.info('ไม่พบรายการ Item ตามเงื่อนไขที่เลือก');
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error('โหลดรายการไม่สำเร็จ');
+        setAllItems([]);
         setTotal(0);
-        setTotalPages(1);
-        return;
+      } finally {
+        setLoading(false);
       }
-
-      const list = Array.isArray(res?.data) ? res.data : [];
-      setItems(list);
-      setTotal(res?.total ?? list.length);
-      setTotalPages(res?.lastPage ?? Math.max(1, Math.ceil((res?.total ?? 0) / ITEMS_PAGE_SIZE)));
-    } catch (e) {
-      console.error(e);
-      toast.error('โหลดรายการไม่สำเร็จ');
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, activeKeyword, statusFilter]);
+    },
+    [appliedFilters],
+  );
 
   useEffect(() => {
-    fetchList();
-  }, [fetchList]);
+    setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
+  }, [totalPages]);
+
+  const initialFetchDone = useRef(false);
+  useEffect(() => {
+    if (!user?.id || initialFetchDone.current) return;
+    initialFetchDone.current = true;
+    void fetchList(undefined, { resetPage: true, silent: true });
+  }, [user?.id, fetchList]);
 
   const handleSearch = () => {
-    setActiveKeyword(keywordInput);
-    setPage(1);
+    const next: AppliedFilters = { keyword: keywordInput, statusFilter };
+    setAppliedFilters(next);
+    setCurrentPage(1);
+    void fetchList(next, { resetPage: true });
   };
 
   const handleClearFilters = () => {
+    const cleared: AppliedFilters = { keyword: '', statusFilter: 'all' };
     setKeywordInput('');
-    setActiveKeyword('');
     setStatusFilter('all');
-    setPage(1);
+    setAppliedFilters(cleared);
+    setCurrentPage(1);
+    void fetchList(cleared, { resetPage: true, silent: true });
   };
 
   const handleStatusFilterChange = (value: ItemStatusFilter) => {
     setStatusFilter(value);
-    setPage(1);
   };
 
-  const handlePageChange = (nextPage: number) => {
-    setPage(nextPage);
+  const handlePageChange = useCallback((nextPage: number) => {
+    setCurrentPage(nextPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
   const handleEdit = (item: Item) => {
     setSelected(item);
@@ -147,21 +210,21 @@ export default function AdminItemManagementPage() {
 
           <ItemsSearchCard
             keywordInput={keywordInput}
-            activeKeyword={activeKeyword}
+            activeKeyword={appliedFilters.keyword}
             statusFilter={statusFilter}
             onKeywordInputChange={setKeywordInput}
             onStatusFilterChange={handleStatusFilterChange}
             onSearch={handleSearch}
             onClearFilters={handleClearFilters}
-            onRefresh={fetchList}
+            onRefresh={() => fetchList(undefined, { resetPage: false, silent: true })}
             loading={loading}
           />
 
           <ItemsMasterTableCard
-            items={items}
+            items={allItems}
             loading={loading}
-            page={page}
-            pageSize={ITEMS_PAGE_SIZE}
+            currentPage={currentPage}
+            itemsPerPage={ITEMS_PAGE_SIZE}
             total={total}
             totalPages={totalPages}
             deptMap={deptMap}
@@ -176,14 +239,19 @@ export default function AdminItemManagementPage() {
           open={createOpen}
           onOpenChange={setCreateOpen}
           userId={user?.id}
-          onSuccess={fetchList}
+          onSuccess={() => fetchList(undefined, { resetPage: false, silent: true })}
         />
-        <EditItemDialog open={editOpen} onOpenChange={setEditOpen} item={selected} onSuccess={fetchList} />
+        <EditItemDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          item={selected}
+          onSuccess={() => fetchList(undefined, { resetPage: false, silent: true })}
+        />
         <DeleteItemDialog
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
           item={selected}
-          onSuccess={fetchList}
+          onSuccess={() => fetchList(undefined, { resetPage: false, silent: true })}
         />
       </AppLayout>
     </ProtectedRoute>

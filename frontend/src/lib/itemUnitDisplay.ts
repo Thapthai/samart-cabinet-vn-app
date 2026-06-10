@@ -43,6 +43,11 @@ export function formatItemUnitBracket(
   return `${main} (${n} ${sub})`;
 }
 
+/** จำนวนในตู้ — ตรงกับคอลัมน์ count_itemstock ในตารางอุปกรณ์ */
+export function getCabinetQty(item: Item): number {
+  return (item as Item & { count_itemstock?: number }).count_itemstock ?? item.itemStocks?.length ?? 0;
+}
+
 /** Min/Max ในตาราง — null/undefined แสดงเป็น 0 */
 export function toStockLimitNumber(n: number | null | undefined): number {
   if (n == null) return 0;

@@ -50,6 +50,13 @@ export default function CabinetsTable({
   onCreateClick,
 }: CabinetsTableProps) {
   const getStatusBadge = (status?: string) => {
+    const u = (status ?? '').toUpperCase();
+    if (u === 'INACTIVE') {
+      return <Badge className="bg-slate-500 hover:bg-slate-600">ปิดการใช้งาน</Badge>;
+    }
+    if (u === 'ACTIVE') {
+      return <Badge className="bg-emerald-600 hover:bg-emerald-700">เปิดการใช้งาน</Badge>;
+    }
     switch (status) {
       case 'AVAILIABLE':
         return <Badge className="bg-green-500 hover:bg-green-600">ใช้งานได้</Badge>;
