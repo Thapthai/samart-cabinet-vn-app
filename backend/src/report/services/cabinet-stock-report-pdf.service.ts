@@ -155,7 +155,7 @@ export class CabinetStockReportPdfService {
         // ลำดับ:0.04 แผนก:0.09 รหัส:0.11 อุปกรณ์:0.21 | 5x0.11
         // ลำดับ, แผนก, รหัสอุปกรณ์(เหลือ), อุปกรณ์, จำนวนในตู้, ถูกใช้งาน, ไม่ถูกใช้งาน, Min/Max, จำนวนที่ต้องเติม
  
-        const colPct = [0.05, 0.08, 0.13, 0.14, 0.09, 0.08, 0.08, 0.08, 0.10, 0.13];
+        const colPct = [0.05, 0.13, 0.13, 0.14, 0.09, 0.08, 0.08, 0.08, 0.10, 0.08];
         const colWidths = colPct.map((p) => Math.floor(totalTableWidth * p));
         let sumW = colWidths.reduce((a, b) => a + b, 0);
         if (sumW < totalTableWidth) colWidths[colWidths.length - 1] += totalTableWidth - sumW;
