@@ -137,6 +137,9 @@ export class ItemService {
         RfidCode: {
           not: '',
         },
+        StockID: {
+          not: 0,
+        },
       };
 
       // Filter by cabinet_id if provided (เก็บ cabinetStockId สำหรับอ้างอิงจำนวนชุดรุดต่อตู้)
@@ -166,7 +169,13 @@ export class ItemService {
             .filter(Boolean);
         }
       } else if (staffListOptions?.restrictedStockIds?.length) {
-        itemStocksWhere.StockID = { in: staffListOptions.restrictedStockIds };
+        const validStockIds = staffListOptions.restrictedStockIds.filter(
+          (id) => id != null && id !== 0,
+        );
+        if (validStockIds.length === 0) {
+          return emptyPage();
+        }
+        itemStocksWhere.StockID = { in: validStockIds };
         if (staffListOptions.usageDepartmentIds?.length) {
           deptCodesForUsage = staffListOptions.usageDepartmentIds;
         } else if (department_id) {

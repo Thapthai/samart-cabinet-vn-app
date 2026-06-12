@@ -2374,6 +2374,12 @@ export class ReportServiceService {
         params?.departmentId,
       );
 
+      if (!('data' in listResult)) {
+        throw new Error(
+          ('message' in listResult && listResult.message) || 'Failed to fetch cabinet stock items',
+        );
+      }
+
       const items = (listResult.data ?? []) as Array<{
         itemcode: string;
         itemname?: string | null;
