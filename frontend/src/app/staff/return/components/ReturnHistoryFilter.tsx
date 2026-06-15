@@ -1,10 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DatePickerBE } from '@/components/ui/date-picker-be';
@@ -19,6 +19,35 @@ import type { SubDepartmentOption } from '@/app/admin/medical-supplies/component
 import { cn } from '@/lib/utils';
 
 const fieldInputClass = 'bg-white';
+
+function getTodayDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getReasonChipLabel(reason: string) {
+  const labels: Record<string, string> = {
+    OTHER: 'อื่นๆ',
+    UNWRAPPED_UNUSED: 'อื่นๆ (ข้อมูลเก่า)',
+    EXPIRED: 'อุปกรณ์หมดอายุ',
+    CONTAMINATED: 'อุปกรณ์มีการปนเปื้อน',
+    DAMAGED: 'อุปกรณ์ชำรุด',
+  };
+  return labels[reason] || reason;
+}
+
+export type AppliedReturnHistoryFilters = {
+  dateFrom: string;
+  dateTo: string;
+  reason: string;
+  departmentCode: string;
+  subDepartmentId: string;
+  cabinetId: string;
+  itemKeyword: string;
+};
 
 export type DepartmentOption = { ID: number; DepName?: string | null; DepName2?: string | null };
 
@@ -37,6 +66,7 @@ interface ReturnHistoryFilterProps {
   subDepartmentId: string;
   cabinetId: string;
   itemKeyword: string;
+  appliedFilters: AppliedReturnHistoryFilters;
   subDepartments: SubDepartmentOption[];
   cabinets: Array<{ id: number; cabinet_name?: string; cabinet_code?: string }>;
   loading: boolean;
@@ -60,6 +90,7 @@ export default function ReturnHistoryFilter({
   subDepartmentId,
   cabinetId,
   itemKeyword,
+  appliedFilters,
   subDepartments,
   cabinets,
   loading,
@@ -200,44 +231,81 @@ export default function ReturnHistoryFilter({
       ? 'ไม่มีตู้ในแผนกนี้'
       : 'เลือกตู้หรือทุกตู้';
 
+  const today = getTodayDate();
+  const appliedDept = departments.find((d) => String(d.ID) === appliedFilters.departmentCode);
+  const appliedSubDept = subDepartments.find(
+    (s) => String(s.id) === appliedFilters.subDepartmentId,
+  );
+  const appliedCabinet = cabinets.find((c) => c.id.toString() === appliedFilters.cabinetId);
+
+  const hasActiveFilters =
+    appliedFilters.itemKeyword.trim() !== '' ||
+    appliedFilters.departmentCode !== '' ||
+    appliedFilters.subDepartmentId !== '' ||
+    appliedFilters.cabinetId !== '' ||
+    (appliedFilters.reason && appliedFilters.reason !== 'ALL') ||
+    appliedFilters.dateFrom !== today ||
+    appliedFilters.dateTo !== today;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>กรองข้อมูล</CardTitle>
-      </CardHeader>
+    <Card className="border-slate-200 shadow-sm">
       <CardContent>
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">รหัส/ชื่อเวชภัณฑ์</label>
-            <Input
-              placeholder="ค้นหา..."
-              value={itemKeyword}
-              onChange={(e) => onItemKeywordChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearchClick()}
-              className={cn('w-full', fieldInputClass)}
-            />
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-lg bg-amber-100 p-2">
+            <Search className="h-4 w-4 text-amber-700" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
+            <p className="text-xs text-slate-500">ประวัติการแจ้งอุปกรณ์ที่ไม่ถูกใช้งาน</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="staff-history-item-keyword" className="text-xs font-medium text-slate-600">
+              รหัส/ชื่อเวชภัณฑ์
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                id="staff-history-item-keyword"
+                placeholder="ค้นหา..."
+                value={itemKeyword}
+                onChange={(e) => onItemKeywordChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchClick()}
+                className={cn('h-10 w-full pl-9 shadow-sm', fieldInputClass)}
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">วันที่เริ่มต้น</label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="staff-history-start-date" className="text-xs font-medium text-slate-600">
+                วันที่เริ่มต้น
+              </label>
               <DatePickerBE
+                id="staff-history-start-date"
                 value={dateFrom}
                 onChange={onDateFromChange}
                 placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">วันที่สิ้นสุด</label>
+            <div className="space-y-1.5">
+              <label htmlFor="staff-history-end-date" className="text-xs font-medium text-slate-600">
+                วันที่สิ้นสุด
+              </label>
               <DatePickerBE
+                id="staff-history-end-date"
                 value={dateTo}
                 onChange={onDateToChange}
                 placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                className={cn('h-10 shadow-sm', fieldInputClass)}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <SearchableSelect
               label="Division"
               placeholder={
@@ -281,11 +349,11 @@ export default function ReturnHistoryFilter({
             />
           </div>
 
-          <div className="min-w-0 space-y-2">
+          <div className="min-w-0 space-y-1.5">
             {!hasMainDepartment ? (
               <>
-                <Label>ตู้ Cabinet</Label>
-                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                <Label className="text-xs font-medium text-slate-600">ตู้ Cabinet</Label>
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground shadow-sm">
                   เลือก Division (แผนกหลัก) ก่อน
                 </div>
               </>
@@ -302,10 +370,12 @@ export default function ReturnHistoryFilter({
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="staff-history-reason">สาเหตุ</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-history-reason" className="text-xs font-medium text-slate-600">
+              สาเหตุ
+            </Label>
             <Select value={reason || 'ALL'} onValueChange={onReasonChange}>
-              <SelectTrigger id="staff-history-reason" className={cn('h-10 w-full', fieldInputClass)}>
+              <SelectTrigger id="staff-history-reason" className={cn('h-10 w-full shadow-sm', fieldInputClass)}>
                 <SelectValue placeholder="ทั้งหมด" />
               </SelectTrigger>
               <SelectContent>
@@ -320,21 +390,76 @@ export default function ReturnHistoryFilter({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={handleSearchClick} disabled={loading}>
-            <Search className="mr-2 h-4 w-4" />
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button type="button" onClick={handleSearchClick} disabled={loading} className="h-10 gap-2">
+            <Search className="h-4 w-4" />
             ค้นหา
           </Button>
-          <Button onClick={onReset} variant="outline" type="button">
-            ล้าง
-          </Button>
-          {onRefresh && (
-            <Button onClick={onRefresh} variant="outline" type="button" disabled={loading}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              รีเฟรช
+          {onRefresh ? (
+            <Button
+              type="button"
+              onClick={onRefresh}
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              disabled={loading}
+              aria-label="รีเฟรช"
+            >
+              <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
             </Button>
-          )}
+          ) : null}
         </div>
+
+        {hasActiveFilters ? (
+          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
+            <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
+            {appliedFilters.itemKeyword.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                คำค้น: {appliedFilters.itemKeyword.trim()}
+              </span>
+            ) : null}
+            {appliedFilters.dateFrom !== today || appliedFilters.dateTo !== today ? (
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                วันที่: {appliedFilters.dateFrom || '—'} – {appliedFilters.dateTo || '—'}
+              </span>
+            ) : null}
+            {appliedFilters.departmentCode ? (
+              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-900">
+                Division: {appliedDept?.DepName || appliedFilters.departmentCode}
+              </span>
+            ) : null}
+            {appliedFilters.subDepartmentId ? (
+              <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-900">
+                แผนก: {appliedSubDept?.code || appliedFilters.subDepartmentId}
+              </span>
+            ) : null}
+            {appliedFilters.cabinetId ? (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  'border-indigo-200 bg-indigo-50 text-indigo-900',
+                )}
+              >
+                ตู้: {appliedCabinet?.cabinet_name || appliedFilters.cabinetId}
+              </span>
+            ) : null}
+            {appliedFilters.reason && appliedFilters.reason !== 'ALL' ? (
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                สาเหตุ: {getReasonChipLabel(appliedFilters.reason)}
+              </span>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs text-slate-600"
+              onClick={onReset}
+            >
+              <X className="h-3.5 w-3.5" />
+              ล้างตัวกรอง
+            </Button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -53,9 +53,18 @@ export default function ItemComparisonPage() {
     subDepartmentId: '',
     cabinetId: '',
   });
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>({
+    searchItemCode: '',
+    startDate: getTodayDate(),
+    endDate: getTodayDate(),
+    itemTypeFilter: 'all',
+    departmentCode: '',
+    subDepartmentId: '',
+    cabinetId: '',
+  });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
@@ -234,6 +243,7 @@ export default function ItemComparisonPage() {
       cabinetId: '',
     };
     setFilters(initialFilters);
+    setAppliedFilters(initialFilters);
     void fetchComparisonList(1, initialFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
   }, []);
@@ -243,10 +253,12 @@ export default function ItemComparisonPage() {
     if (keywordOverride !== undefined) {
       setFilters((prev) => {
         const updated = { ...prev, searchItemCode: keywordOverride };
+        setAppliedFilters(updated);
         fetchComparisonList(1, updated);
         return updated;
       });
     } else {
+      setAppliedFilters(filters);
       fetchComparisonList(1);
     }
   };
@@ -262,6 +274,7 @@ export default function ItemComparisonPage() {
       cabinetId: '',
     };
     setFilters(clearedFilters);
+    setAppliedFilters(clearedFilters);
     setCurrentPage(1);
     fetchComparisonList(1, clearedFilters);
   };
@@ -342,6 +355,7 @@ export default function ItemComparisonPage() {
 
         <FilterSection
           filters={filters}
+          appliedFilters={appliedFilters}
           onFilterChange={handleFilterChange}
           onSearch={handleSearch}
           onClear={handleClearSearch}

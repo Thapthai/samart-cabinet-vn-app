@@ -3,16 +3,11 @@
 import { useEffect, useState } from 'react';
 import { staffCabinetApi } from '@/lib/staffApi/cabinetApi';
 import { toast } from 'sonner';
-import { Package, Plus, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Package } from 'lucide-react';
 import CreateCabinetDialog from './components/CreateCabinetDialog';
 import EditCabinetDialog from './components/EditCabinetDialog';
 import CabinetsTable from './components/CabinetsTable';
-import { cn } from '@/lib/utils';
-
-const fieldInputClass = 'bg-white';
+import CabinetsSearchCard from './components/CabinetsSearchCard';
 
 interface Cabinet {
   id: number;
@@ -29,12 +24,12 @@ export default function CabinetsPage() {
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [filteredCabinets, setFilteredCabinets] = useState<Cabinet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [keywordInput, setKeywordInput] = useState('');
+  const [activeKeyword, setActiveKeyword] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedCabinet, setSelectedCabinet] = useState<Cabinet | null>(null);
 
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -42,22 +37,22 @@ export default function CabinetsPage() {
 
   useEffect(() => {
     fetchCabinets();
-  }, [currentPage, searchTerm]);
+  }, [currentPage, activeKeyword]);
 
   useEffect(() => {
     filterCabinets();
-  }, [cabinets, searchTerm]);
+  }, [cabinets, activeKeyword]);
 
   const fetchCabinets = async (opts?: { silent?: boolean }) => {
     try {
       if (!opts?.silent) setLoading(true);
-      const params: any = {
+      const params: Record<string, string | number> = {
         page: currentPage,
         limit: itemsPerPage,
       };
 
-      if (searchTerm) {
-        params.keyword = searchTerm;
+      if (activeKeyword.trim()) {
+        params.keyword = activeKeyword.trim();
       }
 
       const response = await staffCabinetApi.getAll(params);
@@ -77,15 +72,27 @@ export default function CabinetsPage() {
   const filterCabinets = () => {
     let filtered = cabinets;
 
-    // Filter by search term (client-side for instant feedback)
-    if (searchTerm) {
-      filtered = filtered.filter(cabinet =>
-        cabinet.cabinet_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cabinet.cabinet_code?.toLowerCase().includes(searchTerm.toLowerCase())
+    if (activeKeyword.trim()) {
+      const kw = activeKeyword.trim().toLowerCase();
+      filtered = filtered.filter(
+        (cabinet) =>
+          cabinet.cabinet_name?.toLowerCase().includes(kw) ||
+          cabinet.cabinet_code?.toLowerCase().includes(kw),
       );
     }
 
     setFilteredCabinets(filtered);
+  };
+
+  const handleSearch = () => {
+    setActiveKeyword(keywordInput);
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setKeywordInput('');
+    setActiveKeyword('');
+    setCurrentPage(1);
   };
 
   const handlePageChange = (page: number) => {
@@ -101,45 +108,26 @@ export default function CabinetsPage() {
   return (
     <>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Package className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">จัดการตู้ Cabinet</h1>
-              <p className="text-sm text-gray-500">จัดการและดูรายการตู้ทั้งหมด</p>
-            </div>
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Package className="h-6 w-6 text-blue-600" />
           </div>
-          <Button
-            onClick={() => setShowCreateDialog(true)}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            เพิ่มตู้ใหม่
-          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">จัดการตู้ Cabinet</h1>
+            <p className="text-sm text-gray-500">จัดการและดูรายการตู้ทั้งหมด</p>
+          </div>
         </div>
 
-        {/* Search */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="ค้นหาตู้ (ชื่อตู้, รหัสตู้)..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className={cn('pl-10', fieldInputClass)}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <CabinetsSearchCard
+          keywordInput={keywordInput}
+          activeKeyword={activeKeyword}
+          onKeywordInputChange={setKeywordInput}
+          onSearch={handleSearch}
+          onClearFilters={handleClearFilters}
+          onRefresh={() => fetchCabinets()}
+          loading={loading}
+        />
 
-        {/* Table Section */}
         <CabinetsTable
           cabinets={filteredCabinets}
           loading={loading}
@@ -149,10 +137,10 @@ export default function CabinetsPage() {
           itemsPerPage={itemsPerPage}
           onEdit={handleEdit}
           onPageChange={handlePageChange}
+          onCreateClick={() => setShowCreateDialog(true)}
         />
       </div>
 
-      {/* Dialogs */}
       <CreateCabinetDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
@@ -165,7 +153,6 @@ export default function CabinetsPage() {
         cabinet={selectedCabinet}
         onSuccess={fetchCabinets}
       />
-
     </>
   );
 }

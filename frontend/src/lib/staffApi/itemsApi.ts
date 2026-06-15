@@ -34,6 +34,19 @@ export const staffItemsApi = {
         return response.data;
     },
 
+    /** รายการ master จากตาราง Item (ทุกรายการ รวมที่ยังไม่มีในตู้) */
+    getMasterList: async (query?: {
+        page?: number;
+        limit?: number;
+        keyword?: string;
+        sort_by?: string;
+        sort_order?: string;
+        item_status_filter?: 'all' | 'active' | 'inactive' | string;
+    }): Promise<PaginatedResponse<Item>> => {
+        const response = await staffApi.get('/items/master', { params: query });
+        return response.data;
+    },
+
     getById: async (itemcode: string): Promise<ApiResponse<Item>> => {
         const response = await staffApi.get(`/items/${itemcode}`);
         return response.data;

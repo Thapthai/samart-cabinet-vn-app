@@ -32,6 +32,15 @@ export default function ReturnToCabinetPage() {
     subDepartmentId: '',
     cabinetId: '',
   });
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>({
+    searchItemCode: '',
+    startDate: getTodayDate(),
+    endDate: getTodayDate(),
+    itemTypeFilter: 'all',
+    departmentId: '',
+    subDepartmentId: '',
+    cabinetId: '',
+  });
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRawItems, setTotalRawItems] = useState(0);
@@ -142,6 +151,7 @@ export default function ReturnToCabinetPage() {
   }, []);
 
   const handleSearch = () => {
+    setAppliedFilters(filters);
     setCurrentPage(1);
     void fetchReturnedList(undefined, { resetPage: true });
   };
@@ -157,6 +167,7 @@ export default function ReturnToCabinetPage() {
       cabinetId: '',
     };
     setFilters(resetFilters);
+    setAppliedFilters(resetFilters);
     setCurrentPage(1);
     void fetchReturnedList(resetFilters, { resetPage: true, silent: true });
   };
@@ -243,6 +254,7 @@ export default function ReturnToCabinetPage() {
 
         <FilterSection
           filters={filters}
+          appliedFilters={appliedFilters}
           onFilterChange={handleFilterChange}
           onSearch={handleSearch}
           onClear={handleClearSearch}

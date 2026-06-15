@@ -5,26 +5,15 @@ import Link from 'next/link';
 import { staffUnitsApi } from '@/lib/staffApi/unitsApi';
 import type { UnitRow } from '@/lib/api';
 import { toast } from 'sonner';
-import { Ruler, Plus, Pencil, Ban, Search, RefreshCw } from 'lucide-react';
+import { Ruler, Plus, Pencil, Ban, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import CreateUnitDialog from './components/CreateUnitDialog';
 import EditUnitDialog from './components/EditUnitDialog';
 import CancelUnitDialog from './components/CancelUnitDialog';
-import { cn } from '@/lib/utils';
+import UnitsSearchCard, { type UnitStatusFilter } from './components/UnitsSearchCard';
 
-const fieldInputClass = 'bg-white';
-
-/** ตรงกับ staff/management/items */
 const PAGE_SIZE = 10;
 
 function generatePageNumbers(currentPage: number, totalPages: number): (number | string)[] {
@@ -70,7 +59,7 @@ export default function StaffUnitsManagementPage() {
   const [loading, setLoading] = useState(true);
   const [keywordInput, setKeywordInput] = useState('');
   const [activeKeyword, setActiveKeyword] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled'>('all');
+  const [statusFilter, setStatusFilter] = useState<UnitStatusFilter>('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -126,6 +115,18 @@ export default function StaffUnitsManagementPage() {
     setPage(1);
   };
 
+  const handleClearFilters = () => {
+    setKeywordInput('');
+    setActiveKeyword('');
+    setStatusFilter('all');
+    setPage(1);
+  };
+
+  const handleStatusFilterChange = (value: UnitStatusFilter) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
+
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -134,76 +135,38 @@ export default function StaffUnitsManagementPage() {
   return (
     <>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-violet-100 p-2.5">
-              <Ruler className="h-7 w-7 text-violet-700" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">จัดการหน่วยนับ (Unit)</h1>
-              <p className="mt-0.5 text-sm text-slate-600">
-                รายการหน่วย (API Staff) ·{' '}
-                <Link
-                  href="/staff/management/items"
-                  className="font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  ไปหน้าจัดการ Item (Master)
-                </Link>
-              </p>
-            </div>
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-violet-100 p-2.5">
+            <Ruler className="h-7 w-7 text-violet-700" />
           </div>
-          <Button type="button" onClick={() => setCreateOpen(true)} className="shrink-0 gap-2">
-            <Plus className="h-4 w-4" />
-            เพิ่มหน่วย
-          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">จัดการหน่วยนับ (Unit)</h1>
+            <p className="mt-0.5 text-sm text-slate-600">
+              รายการหน่วย (API Staff) ·{' '}
+              <Link
+                href="/staff/management/items"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                ไปหน้าจัดการ Item (Master)
+              </Link>
+            </p>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">ค้นหา</CardTitle>
-            <CardDescription>ค้นจากชื่อหน่วย (UnitName)</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="flex min-w-[200px] flex-1 gap-2">
-              <Input
-                placeholder="คำค้น..."
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className={cn('max-w-md', fieldInputClass)}
-              />
-              <Button type="button" variant="secondary" onClick={handleSearch} className="gap-1.5">
-                <Search className="h-4 w-4" />
-                ค้นหา
-              </Button>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="whitespace-nowrap text-sm text-muted-foreground">สถานะ</span>
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => {
-                  setStatusFilter(v as 'all' | 'active' | 'cancelled');
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className={cn('w-[160px]', fieldInputClass)}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">ทั้งหมด</SelectItem>
-                  <SelectItem value="active">ใช้งาน</SelectItem>
-                  <SelectItem value="cancelled">ยกเลิกแล้ว</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="button" variant="outline" size="icon" onClick={() => fetchList()} aria-label="รีเฟรช">
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-          </CardContent>
-        </Card>
+        <UnitsSearchCard
+          keywordInput={keywordInput}
+          activeKeyword={activeKeyword}
+          statusFilter={statusFilter}
+          onKeywordInputChange={setKeywordInput}
+          onStatusFilterChange={handleStatusFilterChange}
+          onSearch={handleSearch}
+          onClearFilters={handleClearFilters}
+          onRefresh={fetchList}
+          loading={loading}
+        />
 
         <Card>
-          <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-2">
             <div>
               <CardTitle>รายการหน่วยนับ</CardTitle>
               <CardDescription>
@@ -212,6 +175,10 @@ export default function StaffUnitsManagementPage() {
                   : `แสดง ${units.length} รายการ จากทั้งหมด ${total} รายการ`}
               </CardDescription>
             </div>
+            <Button type="button" onClick={() => setCreateOpen(true)} className="shrink-0 gap-2">
+              <Plus className="h-4 w-4" />
+              เพิ่มหน่วย
+            </Button>
           </CardHeader>
           <CardContent>
             {loading && units.length === 0 ? (
@@ -226,9 +193,7 @@ export default function StaffUnitsManagementPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-14">ลำดับ</TableHead>
-
                       <TableHead>ชื่อหน่วย</TableHead>
-
                       <TableHead>สถานะ</TableHead>
                       <TableHead className="w-[120px] text-right">จัดการ</TableHead>
                     </TableRow>
@@ -239,11 +204,9 @@ export default function StaffUnitsManagementPage() {
                         <TableCell className="text-muted-foreground">
                           {(page - 1) * PAGE_SIZE + i + 1}
                         </TableCell>
-
                         <TableCell className="max-w-[280px] truncate font-medium" title={u.unitName}>
                           {u.unitName || '—'}
                         </TableCell>
-
                         <TableCell>
                           <UnitStatusBadge isCancel={u.isCancel} />
                         </TableCell>

@@ -275,6 +275,7 @@ export default function MedicalSuppliesPage() {
 
         <MedicalSuppliesSearchFilters
           formFilters={formFilters}
+          activeFilters={activeFilters}
           onPatchFormFilters={(patch) => setFormFilters((prev) => ({ ...prev, ...patch }))}
           loading={loading}
           onSearch={handleSearch}

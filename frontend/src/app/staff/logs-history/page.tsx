@@ -3,21 +3,11 @@
 import { useEffect, useState } from 'react';
 import { staffMedicalSuppliesApi } from '@/lib/staffApi/medicalSuppliesApi';
 import { toast } from 'sonner';
-import { FileText, Search, RefreshCw, Eye, ChevronDown, ChevronRight } from 'lucide-react';
+import { FileText, Eye, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DatePickerBE } from '@/components/ui/date-picker-be';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -26,8 +16,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-
-const fieldInputClass = 'bg-white';
+import { LogsFiltersCard } from './components/LogsFiltersCard';
+import { getTodayDate, type LogFilterState } from './types';
 import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 import {
   formatLogCompareItemCodeCount,
@@ -57,24 +47,21 @@ export default function LogsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 20;
 
-  const getTodayDate = () => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  };
+  const getTodayDateLocal = getTodayDate;
 
-  const [formFilters, setFormFilters] = useState({
+  const [formFilters, setFormFilters] = useState<LogFilterState>({
     patient_hn: '',
     en: '',
     log_status: '',
-    startDate: getTodayDate(),
-    endDate: getTodayDate(),
+    startDate: getTodayDateLocal(),
+    endDate: getTodayDateLocal(),
   });
-  const [activeFilters, setActiveFilters] = useState({
+  const [activeFilters, setActiveFilters] = useState<LogFilterState>({
     patient_hn: '',
     en: '',
     log_status: '',
-    startDate: getTodayDate(),
-    endDate: getTodayDate(),
+    startDate: getTodayDateLocal(),
+    endDate: getTodayDateLocal(),
   });
   const [selectedLog, setSelectedLog] = useState<{ id: number; usage_id: number | null; action: any; created_at: string } | null>(null);
 
@@ -113,13 +100,13 @@ export default function LogsPage() {
     setCurrentPage(1);
   };
 
-  const handleReset = () => {
-    const reset = {
+  const handleClearFilters = () => {
+    const reset: LogFilterState = {
       patient_hn: '',
       en: '',
       log_status: '',
-      startDate: getTodayDate(),
-      endDate: getTodayDate(),
+      startDate: getTodayDateLocal(),
+      endDate: getTodayDateLocal(),
     };
     setFormFilters(reset);
     setActiveFilters(reset);
@@ -271,80 +258,15 @@ export default function LogsPage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3 sm:pb-6">
-          <CardTitle className="text-base sm:text-lg">ตัวกรอง</CardTitle>
-          <CardDescription>กรองตามเลข HN, EN สถานะ หรือช่วงวันที่</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm">HN</Label>
-              <Input
-                placeholder="เลข HN"
-                value={formFilters.patient_hn}
-                onChange={(e) => setFormFilters((p) => ({ ...p, patient_hn: e.target.value }))}
-                className={cn('h-9 sm:h-10', fieldInputClass)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm">EN</Label>
-              <Input
-                placeholder="เลข EN"
-                value={formFilters.en}
-                onChange={(e) => setFormFilters((p) => ({ ...p, en: e.target.value }))}
-                className={cn('h-9 sm:h-10', fieldInputClass)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm">สถานะ</Label>
-              <Select
-                value={formFilters.log_status || 'all'}
-                onValueChange={(v) =>
-                  setFormFilters((p) => ({ ...p, log_status: v === 'all' ? '' : v }))
-                }
-              >
-                <SelectTrigger className={cn('h-9 sm:h-10 w-full', fieldInputClass)}>
-                  <SelectValue placeholder="ทั้งหมด" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">ทั้งหมด</SelectItem>
-                  <SelectItem value="SUCCESS">SUCCESS</SelectItem>
-                  <SelectItem value="ERROR">ERROR</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm">วันที่เริ่ม</Label>
-              <DatePickerBE
-                value={formFilters.startDate}
-                onChange={(v) => setFormFilters((p) => ({ ...p, startDate: v }))}
-                placeholder="วว/ดด/ปปปป (พ.ศ.)"
-                className="h-9 sm:h-10"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm">วันที่สิ้นสุด</Label>
-              <DatePickerBE
-                value={formFilters.endDate}
-                onChange={(v) => setFormFilters((p) => ({ ...p, endDate: v }))}
-                placeholder="วว/ดด/ปปปป (พ.ศ.)"
-                className="h-9 sm:h-10"
-              />
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-end lg:flex-col lg:flex-row lg:col-span-1">
-              <Button onClick={handleSearch} className="gap-2 h-9 sm:h-10 order-1" size="sm">
-                <Search className="h-4 w-4 shrink-0" />
-                ค้นหา
-              </Button>
-              <Button variant="outline" onClick={handleReset} className="gap-2 h-9 sm:h-10 order-2" size="sm">
-                <RefreshCw className="h-4 w-4 shrink-0" />
-                ล้าง
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <LogsFiltersCard
+        formFilters={formFilters}
+        activeFilters={activeFilters}
+        setFormFilters={setFormFilters}
+        onSearch={handleSearch}
+        onClearFilters={handleClearFilters}
+        onRefresh={() => fetchLogs(activeFilters, currentPage)}
+        loading={loading}
+      />
 
       <Card>
         <CardHeader className="pb-3 sm:pb-6">

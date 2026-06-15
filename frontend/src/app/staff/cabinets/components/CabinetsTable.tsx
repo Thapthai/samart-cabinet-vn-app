@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Loader2, Package } from 'lucide-react';
+import { Edit, Trash2, Loader2, Package, Plus } from 'lucide-react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -33,6 +33,7 @@ interface CabinetsTableProps {
   onEdit: (cabinet: Cabinet) => void;
   onDelete: (cabinet: Cabinet) => void;
   onPageChange: (page: number) => void;
+  onCreateClick?: () => void;
 }
 
 export default function CabinetsTable({
@@ -45,6 +46,7 @@ export default function CabinetsTable({
   onEdit,
   onDelete,
   onPageChange,
+  onCreateClick,
 }: CabinetsTableProps) {
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -59,10 +61,27 @@ export default function CabinetsTable({
     }
   };
 
+  const tableHeader = (
+    <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-2">
+      <CardTitle>รายการตู้ทั้งหมด ({totalItems})</CardTitle>
+      {onCreateClick ? (
+        <Button
+          type="button"
+          onClick={onCreateClick}
+          className="shrink-0 gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+        >
+          <Plus className="h-4 w-4" />
+          เพิ่มตู้ใหม่
+        </Button>
+      ) : null}
+    </CardHeader>
+  );
+
   if (loading) {
     return (
       <Card>
-        <CardContent className="pt-6">
+        {tableHeader}
+        <CardContent>
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
             <span className="ml-2 text-gray-500">กำลังโหลดข้อมูล...</span>
@@ -75,7 +94,8 @@ export default function CabinetsTable({
   if (cabinets.length === 0) {
     return (
       <Card>
-        <CardContent className="pt-6">
+        {tableHeader}
+        <CardContent>
           <div className="text-center py-12">
             <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">ไม่พบข้อมูลตู้</p>
@@ -87,9 +107,7 @@ export default function CabinetsTable({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>รายการตู้ทั้งหมด ({totalItems})</CardTitle>
-      </CardHeader>
+      {tableHeader}
       <CardContent>
         <div className="rounded-md border">
           <Table>

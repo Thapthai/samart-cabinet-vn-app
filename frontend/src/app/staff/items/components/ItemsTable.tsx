@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { Item } from "@/types/item";
 import ItemNameWithUnit from "@/components/ItemNameWithUnit";
 import { formatUtcDateTime } from "@/lib/formatThaiDateTime";
+import { getCabinetQty } from "@/lib/itemUnitDisplay";
 
 /** itemcode -> max_available_qty (แจ้งอุปกรณ์ที่ไม่ถูกใช้งาน / รอแจ้ง) จาก will-return */
 interface ItemsTableProps {
@@ -46,11 +47,6 @@ function isNearExpiry(expireStr: string | null | undefined): boolean {
   return d.getTime() >= now && d.getTime() <= end.getTime();
 }
 
-/** จำนวนในตู้ — ตรงกับคอลัมน์ในตาราง */
-function getCabinetQty(item: Item): number {
-  return (item as Item & { count_itemstock?: number }).count_itemstock ?? item.itemStocks?.length ?? 0;
-}
-
 function getItemDepartmentDisplay(item: Item): string {
   if (item.department?.DepName || item.department?.DepName2) {
     return item.department.DepName || item.department.DepName2 || "-";
@@ -80,10 +76,22 @@ export default function ItemsTable({
 }: ItemsTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  /** ไม่แสดงแถวที่จำนวนในตู้ = 0 */
+  /** ไม่แสดงแถวที่จำนวนในตู้ = 0 — กรองก่อนแบ่งหน้า */
   const visibleItems = useMemo(
     () => items.filter((item) => getCabinetQty(item) !== 0),
     [items],
+  );
+
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return visibleItems.slice(start, start + itemsPerPage);
+  }, [visibleItems, currentPage, itemsPerPage]);
+
+  const rowOffset = (currentPage - 1) * itemsPerPage;
+
+  const effectiveTotalPages = useMemo(
+    () => (visibleItems.length > 0 ? Math.ceil(visibleItems.length / itemsPerPage) : 1),
+    [visibleItems.length, itemsPerPage],
   );
 
   const getStatusBadge = (status: number | undefined) => {
@@ -106,23 +114,23 @@ export default function ItemsTable({
   const generatePageNumbers = () => {
     const pages: (number | string)[] = [];
     const maxVisible = 5;
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    if (effectiveTotalPages <= maxVisible) {
+      for (let i = 1; i <= effectiveTotalPages; i++) pages.push(i);
     } else {
       if (currentPage <= 3) {
         for (let i = 1; i <= 4; i++) pages.push(i);
         pages.push("...");
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
+        pages.push(effectiveTotalPages);
+      } else if (currentPage >= effectiveTotalPages - 2) {
         pages.push(1);
         pages.push("...");
-        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+        for (let i = effectiveTotalPages - 3; i <= effectiveTotalPages; i++) pages.push(i);
       } else {
         pages.push(1);
         pages.push("...");
         for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
         pages.push("...");
-        pages.push(totalPages);
+        pages.push(effectiveTotalPages);
       }
     }
     return pages;
@@ -134,11 +142,13 @@ export default function ItemsTable({
         <div className="space-y-1.5">
           <CardTitle>รายการอุปกรณ์</CardTitle>
           <CardDescription>
-            แสดง {visibleItems.length} รายการ
+            {visibleItems.length > 0
+              ? `แสดง ${paginatedItems.length} รายการในหน้านี้ (สูงสุด ${itemsPerPage} รายการต่อหน้า) · รวม ${visibleItems.length} อุปกรณ์ที่มีในตู้`
+              : "รายการอุปกรณ์ทั้งหมดในระบบ"}
             {items.length !== visibleItems.length
-              ? ` (ซ่อน ${items.length - visibleItems.length} รายการที่จำนวนในตู้เป็น 0)`
-              : ""}{" "}
-            · จากทั้งหมด {totalItems} อุปกรณ์
+              ? ` (ไม่นับ ${items.length - visibleItems.length} รายการที่จำนวนในตู้เป็น 0)`
+              : ""}
+            {totalItems > visibleItems.length ? ` · จากทั้งหมด ${totalItems} อุปกรณ์` : ""}
           </CardDescription>
         </div>
         {headerActions ? <div className="flex shrink-0 items-center gap-2">{headerActions}</div> : null}
@@ -188,7 +198,7 @@ export default function ItemsTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {visibleItems.map((item, index) => {
+                  {paginatedItems.map((item, index) => {
                     const countItemStock = getCabinetQty(item);
                     const stockMin = item.stock_min ?? 0;
                     const isLowStock = stockMin > 0 && countItemStock < stockMin;
@@ -229,7 +239,7 @@ export default function ItemsTable({
                             )}
                           </TableCell>
                           <TableCell className="font-medium">
-                            {(currentPage - 1) * itemsPerPage + index + 1}
+                            {rowOffset + index + 1}
                           </TableCell>
                           <TableCell>
                             <code className="text-xs bg-gray-100 px-2 py-1 rounded">
@@ -387,10 +397,10 @@ export default function ItemsTable({
               </Table>
             </div>
 
-            {totalPages > 1 && (
+            {effectiveTotalPages > 1 && (
               <div className="mt-6 flex items-center justify-between border-t pt-4">
                 <div className="text-sm text-gray-500">
-                  หน้า {currentPage} จาก {totalPages} ({totalItems} อุปกรณ์)
+                  หน้า {currentPage} จาก {effectiveTotalPages} ({visibleItems.length} อุปกรณ์)
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button variant="outline" size="sm" onClick={() => onPageChange(1)} disabled={currentPage === 1}>
@@ -415,10 +425,10 @@ export default function ItemsTable({
                       </Button>
                     )
                   )}
-                  <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+                  <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === effectiveTotalPages}>
                     ถัดไป
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages}>
+                  <Button variant="outline" size="sm" onClick={() => onPageChange(effectiveTotalPages)} disabled={currentPage === effectiveTotalPages}>
                     สุดท้าย
                   </Button>
                 </div>

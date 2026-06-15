@@ -187,6 +187,7 @@ export default function StaffItemBorrowPage() {
 
       <FilterSection
         filters={filters}
+        appliedFilters={appliedFilters}
         onFilterChange={onFilterChange}
         onSearch={onSearch}
         onClear={onClear}
