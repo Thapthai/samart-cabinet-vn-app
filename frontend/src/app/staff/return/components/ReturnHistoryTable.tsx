@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, FileText, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Download, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import TablePagination from '@/components/TablePagination';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -85,7 +86,6 @@ export default function ReturnHistoryTable({
 
   const totalPages = Math.ceil(data.total / limit) || 1;
   const startItem = (currentPage - 1) * limit + 1;
-  const endItem = Math.min(currentPage * limit, data.total);
 
   return (
     <Card className="overflow-hidden border-0 shadow-sm bg-white rounded-xl">
@@ -196,36 +196,19 @@ export default function ReturnHistoryTable({
           </div>
         )}
 
-        {data.total > limit && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-4 border-t bg-slate-50/30">
-            <p className="text-sm text-slate-500 order-2 sm:order-1">
-              แสดง <span className="font-medium text-slate-700">{startItem}</span> – <span className="font-medium text-slate-700">{endItem}</span> จากทั้งหมด <span className="font-medium text-slate-700">{data.total}</span> รายการ
-            </p>
-            <div className="flex items-center gap-2 order-1 sm:order-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-                disabled={currentPage <= 1}
-                className="gap-1"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                ก่อนหน้า
-              </Button>
-              <span className="text-sm text-slate-600 min-w-[80px] text-center">
-                หน้า {currentPage} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onPageChange(currentPage + 1)}
-                disabled={currentPage >= totalPages}
-                className="gap-1"
-              >
-                ถัดไป
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+        {totalPages > 1 && (
+          <div className="px-4 pb-4">
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+              summary={
+                <>
+                  หน้า {currentPage} จาก {totalPages} ({data.total} รายการ)
+                </>
+              }
+              className="mt-0"
+            />
           </div>
         )}
       </CardContent>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { itemStockApi } from '@/lib/api';
 import FilterSection, { type BorrowFilterState } from './components/FilterSection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import DispensedPagination from '@/app/staff/dispense-from-cabinet/components/DispensedPagination';
+import TablePagination from '@/components/TablePagination';
 import {
   Table,
   TableBody,
@@ -251,14 +251,19 @@ export default function StaffItemBorrowPage() {
             </div>
           )}
 
-          <DispensedPagination
-            currentPage={page}
-            totalPages={lastPage}
-            totalItems={total}
-            itemsPerPage={limit}
-            countLabel="รายการ"
-            onPageChange={setPage}
-          />
+          {lastPage > 1 && (
+            <TablePagination
+              currentPage={page}
+              totalPages={lastPage}
+              onPageChange={setPage}
+              loading={loading}
+              summary={
+                <>
+                  หน้า {page} จาก {lastPage} ({total} อุปกรณ์)
+                </>
+              }
+            />
+          )}
         </CardContent>
       </Card>
     </div>

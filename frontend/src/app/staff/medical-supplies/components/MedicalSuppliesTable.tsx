@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { RefreshCw, Package, XCircle, Download, ChevronRight } from 'lucide-react';
+import TablePagination from '@/components/TablePagination';
 import { formatPrintDateTime, formatUtcDateTime, formatYyyyMmDdThaiUtc } from '@/lib/formatThaiDateTime';
 
 interface MedicalSuppliesTableProps {
@@ -114,34 +115,6 @@ export default function MedicalSuppliesTable({
         {config.label}
       </Badge>
     );
-  };
-
-  const generatePageNumbers = () => {
-    const pages: (number | string)[] = [];
-    const maxVisible = 5;
-
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1);
-        pages.push('...');
-        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-      } else {
-        pages.push(1);
-        pages.push('...');
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-        pages.push('...');
-        pages.push(totalPages);
-      }
-    }
-    return pages;
   };
 
   return (
@@ -397,44 +370,19 @@ export default function MedicalSuppliesTable({
           </>
         )}
 
-        {/* Pagination */}
-        {!loading && supplies.length > 0 && totalPages > 1 && (
-          <div className="mt-4 sm:mt-6 flex flex-col gap-3 border-t pt-4">
-            <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
-              หน้า {currentPage} จาก {totalPages} ({totalItems} รายการ)
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
-              <Button variant="outline" size="sm" onClick={() => onPageChange(1)} disabled={currentPage === 1} className="text-xs h-8 px-2 sm:px-3">
-                แรก
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="text-xs h-8 px-2 sm:px-3">
-                ก่อนหน้า
-              </Button>
-              <span className="hidden sm:flex items-center gap-1">
-                {generatePageNumbers().map((page, idx) =>
-                  page === '...' ? (
-                    <span key={`ellipsis-${idx}`} className="px-1 text-gray-400 text-xs">...</span>
-                  ) : (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      className="min-w-[2rem] h-8 text-xs"
-                      onClick={() => onPageChange(page as number)}
-                    >
-                      {page}
-                    </Button>
-                  )
-                )}
-              </span>
-              <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="text-xs h-8 px-2 sm:px-3">
-                ถัดไป
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} className="text-xs h-8 px-2 sm:px-3">
-                สุดท้าย
-              </Button>
-            </div>
-          </div>
+        {!loading && supplies.length > 0 && (
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={onPageChange}
+            variant="responsive"
+            className="mt-4 sm:mt-6"
+            summary={
+              <>
+                หน้า {currentPage} จาก {totalPages} ({totalItems} รายการ)
+              </>
+            }
+          />
         )}
       </CardContent>
     </Card>

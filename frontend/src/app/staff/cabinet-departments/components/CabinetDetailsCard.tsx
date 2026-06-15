@@ -9,6 +9,7 @@ import { Loader2, Package } from "lucide-react";
 import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
 import { toast } from "sonner";
 import { formatUtcDateTime } from "@/lib/formatThaiDateTime";
+import TablePagination from "@/components/TablePagination";
 
 interface CabinetDepartment {
   id: number;
@@ -198,57 +199,18 @@ export default function CabinetDetailsCard({ selectedRow, onClose }: CabinetDeta
                 </Table>
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-gray-600">
-                    แสดง {(currentPage - 1) * itemsPerPage + 1}-
-                    {Math.min(currentPage * itemsPerPage, totalItems)} จาก {totalItems} รายการ
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => loadItemStocks(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      ก่อนหน้า
-                    </Button>
-                    <div className="flex items-center gap-2">
-                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                        let page;
-                        if (totalPages <= 5) {
-                          page = i + 1;
-                        } else if (currentPage <= 3) {
-                          page = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          page = totalPages - 4 + i;
-                        } else {
-                          page = currentPage - 2 + i;
-                        }
-                        return (
-                          <Button
-                            key={page}
-                            variant={currentPage === page ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => loadItemStocks(page)}
-                          >
-                            {page}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => loadItemStocks(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    >
-                      ถัดไป
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={loadItemStocks}
+                loading={loading}
+                variant="responsive"
+                summary={
+                  <>
+                    หน้า {currentPage} จาก {totalPages} ({totalItems} รายการ)
+                  </>
+                }
+              />
             </>
           ) : (
             <div className="text-center py-8 text-gray-500">ไม่พบอุปกรณ์ในตู้นี้</div>

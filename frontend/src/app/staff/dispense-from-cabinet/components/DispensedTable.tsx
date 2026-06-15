@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import DispensedPagination from './DispensedPagination';
+import TablePagination from '@/components/TablePagination';
 import type { DispensedItem } from '../types';
 import type { Item } from '@/types/item';
 import ItemNameWithUnit from '@/components/ItemNameWithUnit';
@@ -267,13 +267,15 @@ export default function DispensedTable({
               </Table>
             </div>
 
-            <DispensedPagination
+            <TablePagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={totalGroups}
-              itemsPerPage={groupsPerPage}
-              countLabel="กลุ่ม"
               onPageChange={onPageChange}
+              summary={
+                <>
+                  หน้า {currentPage} จาก {totalPages} ({totalGroups} กลุ่ม · {totalRawItems} รายการ)
+                </>
+              }
             />
           </>
         )}
