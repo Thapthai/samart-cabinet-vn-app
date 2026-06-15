@@ -170,10 +170,88 @@ export class EmpolyeeService {
     });
     if (!existing) throw new NotFoundException(`ไม่พบพนักงาน EmpCode ${code}`);
 
+    const employeePatch: Prisma.EmployeeUpdateInput = {};
+    if (dto.FirstName !== undefined) {
+      employeePatch.FirstName = dto.FirstName.trim() || null;
+    }
+    if (dto.LastName !== undefined) {
+      employeePatch.LastName = dto.LastName.trim() || null;
+    }
+    if (dto.IsUser !== undefined) {
+      employeePatch.IsUser = dto.IsUser;
+    }
+
+    let targetCode = code;
+    const requestedEmpCode = dto.EmpCode?.trim();
+    if (requestedEmpCode !== undefined && requestedEmpCode !== code) {
+      if (!requestedEmpCode) {
+        throw new BadRequestException('กรุณาระบุ EmpCode');
+      }
+      const duplicate = await this.prisma.employee.findUnique({
+        where: { EmpCode: requestedEmpCode },
+        select: { EmpCode: true },
+      });
+      if (duplicate) {
+        throw new BadRequestException(`EmpCode "${requestedEmpCode}" มีอยู่แล้ว`);
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        const linkedStaff = await tx.user.findMany({
+          where: { emp_code: code },
+          select: { id: true },
+        });
+        const linkedLegacy = await tx.legacyUsers.findMany({
+          where: { EmpCode: code },
+          select: { id: true },
+        });
+
+        if (linkedStaff.length > 0) {
+          await tx.user.updateMany({
+            where: { emp_code: code },
+            data: { emp_code: null },
+          });
+        }
+        if (linkedLegacy.length > 0) {
+          await tx.legacyUsers.updateMany({
+            where: { EmpCode: code },
+            data: { EmpCode: null },
+          });
+        }
+
+        await tx.employee.update({
+          where: { EmpCode: code },
+          data: {
+            EmpCode: requestedEmpCode,
+            ...employeePatch,
+          },
+        });
+
+        for (const staff of linkedStaff) {
+          await tx.user.update({
+            where: { id: staff.id },
+            data: { emp_code: requestedEmpCode },
+          });
+        }
+        for (const legacy of linkedLegacy) {
+          await tx.legacyUsers.update({
+            where: { id: legacy.id },
+            data: { EmpCode: requestedEmpCode },
+          });
+        }
+      });
+
+      targetCode = requestedEmpCode;
+    } else if (Object.keys(employeePatch).length > 0) {
+      await this.prisma.employee.update({
+        where: { EmpCode: code },
+        data: employeePatch,
+      });
+    }
+
     if (dto.IsUser !== undefined) {
       const isActive = dto.IsUser === 1;
       const staff = await this.prisma.user.findFirst({
-        where: { emp_code: code, is_admin: false },
+        where: { emp_code: targetCode, is_admin: false },
         select: { id: true },
       });
       if (staff) {
@@ -184,13 +262,8 @@ export class EmpolyeeService {
       }
     }
 
-    const row = await this.prisma.employee.update({
-      where: { EmpCode: code },
-      data: {
-        ...(dto.FirstName !== undefined ? { FirstName: dto.FirstName.trim() || null } : {}),
-        ...(dto.LastName !== undefined ? { LastName: dto.LastName.trim() || null } : {}),
-        ...(dto.IsUser !== undefined ? { IsUser: dto.IsUser } : {}),
-      },
+    const row = await this.prisma.employee.findUniqueOrThrow({
+      where: { EmpCode: targetCode },
       include: employeeIncludeLinks,
     });
 

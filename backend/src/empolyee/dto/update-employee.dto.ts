@@ -11,6 +11,11 @@ function toIsUserFlag(value: unknown): number | undefined {
 export class UpdateEmployeeDto {
   @IsOptional()
   @IsString()
+  @MaxLength(20)
+  EmpCode?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(100)
   FirstName?: string;
 

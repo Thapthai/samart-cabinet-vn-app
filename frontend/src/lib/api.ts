@@ -2180,7 +2180,7 @@ export const employeeApi = {
 
   update: async (
     empCode: string,
-    data: { FirstName?: string; LastName?: string; IsUser?: 0 | 1 },
+    data: { EmpCode?: string; FirstName?: string; LastName?: string; IsUser?: 0 | 1 },
   ): Promise<ApiResponse<EmployeeRow>> => {
     const response = await api.put(`/employees/${encodeURIComponent(empCode)}`, data);
     return response.data;

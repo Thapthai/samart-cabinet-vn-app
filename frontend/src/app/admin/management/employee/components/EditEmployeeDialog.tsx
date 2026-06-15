@@ -12,17 +12,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Pencil } from 'lucide-react';
 import { isUserToSelectValue } from './employeeUserStatus';
-import { cn } from '@/lib/utils';
 
 const fieldInputClass = 'bg-white';
 
@@ -40,14 +33,17 @@ export default function EditEmployeeDialog({
   onSuccess,
 }: EditEmployeeDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [empCode, setEmpCode] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [isUser, setIsUser] = useState('1');
 
   const hasLinkedStaff = employee?.linkedStaffUser != null;
+  const empCodeChanged = employee != null && empCode.trim() !== employee.empCode;
 
   useEffect(() => {
     if (open && employee) {
+      setEmpCode(employee.empCode ?? '');
       setFirstName(employee.firstName ?? '');
       setLastName(employee.lastName ?? '');
       setIsUser(isUserToSelectValue(employee.isUser));
@@ -57,13 +53,26 @@ export default function EditEmployeeDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!employee) return;
+    const nextEmpCode = empCode.trim();
+    if (!nextEmpCode) {
+      toast.error('กรุณาระบุ EmpCode');
+      return;
+    }
     try {
       setLoading(true);
-      const payload: { FirstName: string; LastName: string; IsUser: 0 | 1 } = {
+      const payload: {
+        EmpCode?: string;
+        FirstName: string;
+        LastName: string;
+        IsUser: 0 | 1;
+      } = {
         FirstName: firstName.trim(),
         LastName: lastName.trim(),
         IsUser: isUser === '1' ? 1 : 0,
       };
+      if (empCodeChanged) {
+        payload.EmpCode = nextEmpCode;
+      }
       const res = await employeeApi.update(employee.empCode, payload);
       if (res.success) {
         toast.success(res.message || 'บันทึกแล้ว');
@@ -91,11 +100,25 @@ export default function EditEmployeeDialog({
             <Pencil className="h-5 w-5" />
             แก้ไขพนักงาน
           </DialogTitle>
-          <DialogDescription>
-            EmpCode: <span className="font-mono font-medium">{employee?.empCode ?? '—'}</span>
-          </DialogDescription>
+          <DialogDescription>แก้ไขข้อมูลพนักงานในตาราง employee</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-emp-code">EmpCode</Label>
+            <Input
+              id="edit-emp-code"
+              value={empCode}
+              onChange={(e) => setEmpCode(e.target.value)}
+              maxLength={20}
+              placeholder="เช่น E001234"
+              className={fieldInputClass}
+            />
+            {empCodeChanged && hasLinkedStaff ? (
+              <p className="text-xs text-amber-700">
+                เปลี่ยน EmpCode จะอัปเดตการผูกกับ Staff User ที่เชื่อมอยู่ด้วย
+              </p>
+            ) : null}
+          </div>
           <div className="space-y-2">
             <Label htmlFor="edit-first-name">ชื่อ (FirstName)</Label>
             <Input
@@ -116,21 +139,18 @@ export default function EditEmployeeDialog({
               className={fieldInputClass}
             />
           </div>
-          <div className="space-y-2">
-            <Label>สถานะ</Label>
-            <Select value={isUser} onValueChange={setIsUser} disabled={loading}>
-              <SelectTrigger id="edit-is-user" className={cn('w-full', fieldInputClass)}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">ใช้งาน</SelectItem>
-                <SelectItem value="0">ปิดการใช้งาน</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              บันทึกลงตาราง employee
-              {hasLinkedStaff ? ' และ sync สถานะ Staff User ที่ผูก EmpCode นี้' : ''}
-            </p>
+          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+            <div className="space-y-0.5 pr-3">
+              <Label htmlFor="edit-is-user" className="cursor-pointer">
+                {isUser === '1' ? 'ใช้งาน' : 'ปิดการใช้งาน'}
+              </Label>
+            </div>
+            <Switch
+              id="edit-is-user"
+              checked={isUser === '1'}
+              onCheckedChange={(checked) => setIsUser(checked ? '1' : '0')}
+              disabled={loading}
+            />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
