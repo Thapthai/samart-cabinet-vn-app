@@ -113,11 +113,14 @@ export default function ItemsTable({
   const [printTarget, setPrintTarget] = useState<{ item: Item; maxCopies: number } | null>(null);
   const [printCopiesInput, setPrintCopiesInput] = useState("1");
 
-  /** ไม่แสดงแถวที่จำนวนในตู้ = 0 — กรองก่อนแบ่งหน้า */
-  const visibleItems = useMemo(
-    () => items.filter((item) => getCabinetQty(item) !== 0),
-    [items],
-  );
+  /** ไม่แสดงแถวที่จำนวนในตู้ = 0 — ยกเว้นเมื่อเลือกตู้และ refill > 0 */
+  const visibleItems = useMemo(() => {
+    return items.filter((item) => {
+      const qty = getCabinetQty(item);
+      const refill = Math.max(0, Number((item as Item & { refill_qty?: number }).refill_qty ?? 0));
+      return qty !== 0 || refill > 0;
+    });
+  }, [items]);
 
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -272,6 +275,11 @@ export default function ItemsTable({
                         (s) => s.IsStock === true || (s as { IsStock?: boolean | number }).IsStock === 1,
                       ),
                     );
+                    const refillByCabinet = item.refill_by_cabinet ?? [];
+                    const hasCabinetRefillSummary = refillByCabinet.some(
+                      (row) => row.refill_qty > 0 || row.stock_max > 0,
+                    );
+                    const canExpandRow = itemStocks.length > 0 || refillByCabinet.length > 0;
                     const isExpanded = expandedRow === item.itemcode;
                     const hasExpired = itemStocks.some((s) => isExpired(s.ExpireDate));
                     const hasNearExpiry = !hasExpired && itemStocks.some((s) => isNearExpiry(s.ExpireDate));
@@ -288,7 +296,7 @@ export default function ItemsTable({
                           )}
                         >
                           <TableCell className="w-12">
-                            {itemStocks.length > 0 ? (
+                            {canExpandRow ? (
                               <button
                                 type="button"
                                 onClick={() => setExpandedRow(isExpanded ? null : item.itemcode)}
@@ -351,7 +359,14 @@ export default function ItemsTable({
                             </span>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="font-medium text-slate-700">
+                            <span
+                              className={cn(
+                                'font-medium',
+                                refillQty > 0
+                                  ? 'inline-flex min-w-[2rem] items-center justify-center rounded-full bg-amber-100 px-2 py-0.5 text-amber-900'
+                                  : 'text-slate-700',
+                              )}
+                            >
                               {refillQty}
                             </span>
                           </TableCell>
@@ -385,10 +400,62 @@ export default function ItemsTable({
                           </TableCell>
                         </TableRow>
 
-                        {isExpanded && itemStocks.length > 0 && (
+                        {isExpanded && canExpandRow && (
                           <TableRow>
                             <TableCell colSpan={COLUMN_COUNT} className="bg-gray-50 p-4">
-                              <div>
+                              <div className="space-y-4">
+                                {hasCabinetRefillSummary ? (
+                                  <div>
+                                    <h4 className="mb-3 flex items-center gap-2 font-semibold text-amber-900">
+                                      <Gauge className="h-4 w-4" />
+                                      ต้องเติมต่อตู้ (Max − จำนวนในตู้)
+                                    </h4>
+                                    <div className="overflow-hidden rounded-lg border border-amber-200/80 bg-white">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow className="border-b border-amber-100 bg-amber-50/80 hover:bg-amber-50/80">
+                                            <TableHead className="text-slate-600">ตู้ (Cabinet)</TableHead>
+                                            <TableHead className="text-center text-slate-600">ในตู้</TableHead>
+                                            <TableHead className="text-center text-slate-600">Max</TableHead>
+                                            <TableHead className="text-center text-slate-600">ต้องเติม</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {refillByCabinet.map((row) => (
+                                            <TableRow
+                                              key={row.cabinet_id}
+                                              className={cn(
+                                                "border-b border-slate-100",
+                                                row.refill_qty > 0 && "bg-amber-50/60 hover:bg-amber-50/60",
+                                              )}
+                                            >
+                                              <TableCell className="font-medium text-slate-800">
+                                                {row.cabinet_name?.trim() || `#${row.cabinet_id}`}
+                                              </TableCell>
+                                              <TableCell className="text-center font-medium text-blue-700">
+                                                {row.in_cabinet.toLocaleString()}
+                                              </TableCell>
+                                              <TableCell className="text-center text-muted-foreground">
+                                                {row.stock_max.toLocaleString()}
+                                              </TableCell>
+                                              <TableCell className="text-center">
+                                                {row.refill_qty > 0 ? (
+                                                  <span className="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-900">
+                                                    {row.refill_qty.toLocaleString()}
+                                                  </span>
+                                                ) : (
+                                                  <span className="text-muted-foreground">0</span>
+                                                )}
+                                              </TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                  </div>
+                                ) : null}
+                                {itemStocks.length > 0 ? (
+                                <div>
                                 <h4 className="mb-3 flex items-center gap-2 font-semibold text-gray-700">
                                   <Package className="h-4 w-4" />
                                   รายการสต็อกอุปกรณ์ในตู้ ({itemStocks.length} รายการ)
@@ -469,6 +536,8 @@ export default function ItemsTable({
                                     </TableBody>
                                   </Table>
                                 </div>
+                                </div>
+                                ) : null}
                               </div>
                             </TableCell>
                           </TableRow>

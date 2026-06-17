@@ -109,6 +109,19 @@ export interface Item {
   damaged_qty?: number;
   /** จำนวนที่ต้องเติม: X=M-A, Y=B+C; if X<Y then 0, if X>Y then X-Y */
   refill_qty?: number;
+  /** เมื่อไม่เลือกตู้ — ตู้ที่มี refill สูงสุด */
+  refill_cabinet_name?: string | null;
+  refill_cabinet_count?: number;
+  /** สรุปต้องเติมแยกตามตู้ (ใช้ใน expanded subtable) */
+  refill_by_cabinet?: ItemRefillByCabinet[];
+}
+
+export interface ItemRefillByCabinet {
+  cabinet_id: number;
+  cabinet_name?: string | null;
+  in_cabinet: number;
+  stock_max: number;
+  refill_qty: number;
 }
 
 export interface ItemStockRow {

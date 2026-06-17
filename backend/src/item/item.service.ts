@@ -100,6 +100,8 @@ export class ItemService {
         page,
         limit,
         lastPage: 0,
+        refill_preview: [] as any[],
+        refill_count: 0,
       });
 
       const where: any = {};
@@ -382,19 +384,46 @@ export class ItemService {
         }
       }
 
-      // Override min/max ต่อตู้: โหลด CabinetItemSetting เมื่อมี cabinet_id
+      // Override min/max ต่อตู้ — โหลด CabinetItemSetting (ทุกตู้เมื่อไม่ระบุ cabinet_id)
       const overrideMap = new Map<string, { stock_min?: number | null; stock_max?: number | null }>();
-      if (cabinet_id != null && itemCodes.length > 0) {
-        const overrides = await this.prisma.cabinetItemSetting.findMany({
-          where: {
-            cabinet_id,
-            item_code: { in: itemCodes },
-          },
-          select: { item_code: true, stock_min: true, stock_max: true },
-        });
-        overrides.forEach((o) => {
-          overrideMap.set(o.item_code, { stock_min: o.stock_min, stock_max: o.stock_max });
-        });
+      /** key = `${cabinet_id}:${item_code}` — ใช้คำนวณ refill ข้ามตู้ */
+      const overrideByCabinetItem = new Map<
+        string,
+        { stock_min?: number | null; stock_max?: number | null }
+      >();
+      if (itemCodes.length > 0) {
+        if (cabinet_id != null) {
+          const overrides = await this.prisma.cabinetItemSetting.findMany({
+            where: {
+              cabinet_id,
+              item_code: { in: itemCodes },
+            },
+            select: { item_code: true, stock_min: true, stock_max: true },
+          });
+          overrides.forEach((o) => {
+            overrideMap.set(o.item_code, { stock_min: o.stock_min, stock_max: o.stock_max });
+            overrideByCabinetItem.set(`${cabinet_id}:${o.item_code}`, {
+              stock_min: o.stock_min,
+              stock_max: o.stock_max,
+            });
+          });
+        } else {
+          const overrides = await this.prisma.cabinetItemSetting.findMany({
+            where: { item_code: { in: itemCodes } },
+            select: {
+              cabinet_id: true,
+              item_code: true,
+              stock_min: true,
+              stock_max: true,
+            },
+          });
+          overrides.forEach((o) => {
+            overrideByCabinetItem.set(`${o.cabinet_id}:${o.item_code}`, {
+              stock_min: o.stock_min,
+              stock_max: o.stock_max,
+            });
+          });
+        }
       }
 
       const now = new Date();
@@ -451,13 +480,6 @@ export class ItemService {
           }
         });
 
-        // ดึง min/max จาก CabinetItemSetting เท่านั้น (ไม่ใช้ Item)
-        const override = overrideMap.get(item.itemcode);
-        const effectiveStockMin = override?.stock_min ?? null;
-        const effectiveStockMax = override?.stock_max ?? 0;
-        const stockMin = effectiveStockMin ?? 0;
-        const isLowStock = stockMin > 0 && countItemStock < stockMin;
-
         // จำนวนที่แจ้งชำรุด (อ้างอิงตู้/stock_id) — กรองตู้แล้วใช้ของตู้นั้น; ไม่กรองตู้แล้วใช้ของตู้แรกเท่านั้น (ไม่ sum หลายตู้เพราะจะทำให้ค่าเพี้ยน เช่น 10 ตู้ × 6 = 60)
         let damagedQty: number;
         if (cabinetStockId != null) {
@@ -472,12 +494,88 @@ export class ItemService {
 
         const qtyInUse = qtyInUseMap.get(item.itemcode) ?? 0;
 
-        // จำนวนที่ต้องเติม = MAX − จำนวนในตู้ (MAX จาก CabinetItemSetting ต่อตู้, จำนวนในตู้ = IsStock ในตู้)
-        const maxForRefill = effectiveStockMax ?? 0;
-        let refillQty = maxForRefill - countItemStock;
-        if (refillQty < 0) {
-          refillQty = 0;
+        let effectiveStockMin: number | null = null;
+        let effectiveStockMax = 0;
+        let refillQty = 0;
+        let refillCabinetName: string | null = null;
+        let refillCabinetCount = 0;
+
+        const byCabinet = new Map<
+          number,
+          { stocks: any[]; cabinet?: { id?: number; cabinet_name?: string | null } }
+        >();
+        for (const stock of matchingItemStocks) {
+          const cabId = stock.cabinet?.id;
+          if (typeof cabId !== 'number') continue;
+          const entry = byCabinet.get(cabId);
+          if (entry) {
+            entry.stocks.push(stock);
+          } else {
+            byCabinet.set(cabId, { stocks: [stock], cabinet: stock.cabinet });
+          }
         }
+
+        const refillByCabinet: {
+          cabinet_id: number;
+          cabinet_name: string | null;
+          in_cabinet: number;
+          stock_max: number;
+          refill_qty: number;
+        }[] = [];
+
+        for (const [cabId, group] of byCabinet) {
+          const inCabinet = group.stocks.filter(
+            (s: any) => s.IsStock === true || s.IsStock === 1,
+          ).length;
+          const setting =
+            cabinet_id != null
+              ? overrideMap.get(item.itemcode)
+              : overrideByCabinetItem.get(`${cabId}:${item.itemcode}`);
+          const cabMax = setting?.stock_max ?? 0;
+          const cabRefill = Math.max(0, cabMax - inCabinet);
+          const cabName = (group.cabinet?.cabinet_name ?? '').trim() || null;
+          refillByCabinet.push({
+            cabinet_id: cabId,
+            cabinet_name: cabName,
+            in_cabinet: inCabinet,
+            stock_max: cabMax,
+            refill_qty: cabRefill,
+          });
+        }
+
+        refillByCabinet.sort((a, b) => {
+          if (b.refill_qty !== a.refill_qty) return b.refill_qty - a.refill_qty;
+          const nameA = (a.cabinet_name ?? '').toLowerCase();
+          const nameB = (b.cabinet_name ?? '').toLowerCase();
+          return nameA.localeCompare(nameB, 'th', { sensitivity: 'base' });
+        });
+
+        if (cabinet_id != null) {
+          const override = overrideMap.get(item.itemcode);
+          effectiveStockMin = override?.stock_min ?? null;
+          effectiveStockMax = override?.stock_max ?? 0;
+          const maxForRefill = effectiveStockMax ?? 0;
+          refillQty = Math.max(0, maxForRefill - countItemStock);
+          const cabRow = refillByCabinet.find((r) => r.cabinet_id === cabinet_id);
+          if (cabRow) {
+            refillCabinetName = cabRow.cabinet_name;
+            refillCabinetCount = cabRow.in_cabinet;
+          }
+        } else {
+          for (const row of refillByCabinet) {
+            if (row.refill_qty > refillQty) {
+              refillQty = row.refill_qty;
+              const setting = overrideByCabinetItem.get(`${row.cabinet_id}:${item.itemcode}`);
+              effectiveStockMin = setting?.stock_min ?? null;
+              effectiveStockMax = row.stock_max;
+              refillCabinetCount = row.in_cabinet;
+              refillCabinetName = row.cabinet_name;
+            }
+          }
+        }
+
+        const stockMin = effectiveStockMin ?? 0;
+        const isLowStock = stockMin > 0 && countItemStock < stockMin;
 
         const itemWithCount = {
           ...item,
@@ -488,6 +586,13 @@ export class ItemService {
           qty_in_use: qtyInUse,
           damaged_qty: damagedQty,
           refill_qty: refillQty,
+          refill_by_cabinet: refillByCabinet,
+          ...(refillCabinetName
+            ? {
+                refill_cabinet_name: refillCabinetName,
+                refill_cabinet_count: refillCabinetCount,
+              }
+            : {}),
         };
 
         return {
@@ -495,40 +600,60 @@ export class ItemService {
           hasExpired,
           hasNearExpire,
           isLowStock,
+          needsRefill: refillQty > 0,
+          refillQty,
           earliestExpireDate,
         };
       });
 
+      const REFILL_PREVIEW_LIMIT = 15;
+
       const sortedItems = itemsWithMeta
         .sort((a, b) => {
-          // 1) มี stock หมดอายุก่อน
+          // 1) ต้องเติม (refill > 0) — ความสำคัญหลัก
+          if (a.needsRefill !== b.needsRefill) {
+            return a.needsRefill ? -1 : 1;
+          }
+
+          // 2) เรียงตามจำนวนที่ต้องเติมมาก → น้อย
+          if (a.refillQty !== b.refillQty) {
+            return b.refillQty - a.refillQty;
+          }
+
+          // 3) มี stock หมดอายุ
           if (a.hasExpired !== b.hasExpired) {
             return a.hasExpired ? -1 : 1;
           }
 
-          // 2) ถัดมา stock ใกล้หมดอายุ (ภายใน 7 วัน)
+          // 4) stock ใกล้หมดอายุ (ภายใน 7 วัน)
           if (a.hasNearExpire !== b.hasNearExpire) {
             return a.hasNearExpire ? -1 : 1;
           }
 
-          // 3) ถัดมาคือ stock ที่จำนวนชิ้นต่ำกว่า MIN
+          // 5) จำนวนชิ้นต่ำกว่า MIN
           if (a.isLowStock !== b.isLowStock) {
             return a.isLowStock ? -1 : 1;
           }
 
-          // 4) ถ้ามีวันหมดอายุทั้งคู่ ให้เรียงจากหมดอายุเร็วไปช้า
+          // 6) วันหมดอายุเร็ว → ช้า
           if (a.earliestExpireDate && b.earliestExpireDate) {
             const aTime = (a.earliestExpireDate as Date).getTime();
             const bTime = (b.earliestExpireDate as Date).getTime();
             return aTime - bTime;
           }
 
-          // 5) fallback: เรียงตาม itemcode (A-Z)
+          // 7) fallback: itemcode (A-Z)
           const codeA = a.item.itemcode || '';
           const codeB = b.item.itemcode || '';
           return codeA.localeCompare(codeB);
         })
         .map((x) => x.item);
+
+      const refillItems = sortedItems.filter(
+        (i: any) => Number(i.refill_qty ?? 0) > 0,
+      );
+      const refill_count = refillItems.length;
+      const refill_preview = refillItems.slice(0, REFILL_PREVIEW_LIMIT);
 
       // Apply pagination after sorting
       const total = sortedItems.length;
@@ -541,6 +666,8 @@ export class ItemService {
         page,
         limit,
         lastPage: Math.ceil(total / limit),
+        refill_preview,
+        refill_count,
       };
 
     } catch (error) {

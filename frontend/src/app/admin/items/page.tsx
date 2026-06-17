@@ -17,6 +17,13 @@ import DeleteItemDialog from './components/DeleteItemDialog';
 import UpdateMinMaxDialog from './components/UpdateMinMaxDialog';
 import FilterSection from './components/FilterSection';
 import ItemsTable from './components/ItemsTable';
+import RefillPreviewCard from './components/RefillPreviewCard';
+
+function isItemVisible(item: Item): boolean {
+  const qty = getCabinetQty(item);
+  const refill = Math.max(0, Number(item.refill_qty ?? 0));
+  return qty !== 0 || refill > 0;
+}
 
 const FETCH_BATCH_LIMIT = 5000;
 const ITEMS_PER_PAGE = 10;
@@ -51,6 +58,8 @@ export default function ItemsPage() {
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>(defaultFilters);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRawItems, setTotalRawItems] = useState(0);
+  const [refillPreview, setRefillPreview] = useState<Item[]>([]);
+  const [refillCount, setRefillCount] = useState(0);
 
   const filteredItems = useMemo(() => {
     let filtered = allItems;
@@ -63,7 +72,7 @@ export default function ItemsPage() {
   }, [allItems, activeFilters.statusFilter]);
 
   const visibleItemCount = useMemo(
-    () => filteredItems.filter((item) => getCabinetQty(item) !== 0).length,
+    () => filteredItems.filter((item) => isItemVisible(item)).length,
     [filteredItems],
   );
 
@@ -105,6 +114,8 @@ export default function ItemsPage() {
         const aggregated: Item[] = [];
         let reportedTotal = 0;
         let fetchPage = 1;
+        let previewFromApi: Item[] = [];
+        let refillTotalFromApi = 0;
 
         while (true) {
           const response = (await itemsApi.getAll({
@@ -115,6 +126,8 @@ export default function ItemsPage() {
             success?: boolean;
             data?: Item[] | { data?: Item[] };
             total?: number;
+            refill_preview?: Item[];
+            refill_count?: number;
             message?: string;
           };
 
@@ -122,7 +135,15 @@ export default function ItemsPage() {
             toast.error((response as { message?: string }).message || 'โหลดข้อมูลไม่สำเร็จ');
             setAllItems([]);
             setTotalRawItems(0);
+            setRefillPreview([]);
+            setRefillCount(0);
             break;
+          }
+
+          if (fetchPage === 1) {
+            previewFromApi = Array.isArray(response.refill_preview) ? response.refill_preview : [];
+            refillTotalFromApi =
+              typeof response.refill_count === 'number' ? response.refill_count : previewFromApi.length;
           }
 
           const raw = response?.data;
@@ -148,6 +169,8 @@ export default function ItemsPage() {
 
         setAllItems(aggregated);
         setTotalRawItems(reportedTotal);
+        setRefillPreview(previewFromApi);
+        setRefillCount(refillTotalFromApi);
         if (opts?.resetPage !== false) {
           setCurrentPage(1);
         }
@@ -160,6 +183,8 @@ export default function ItemsPage() {
         toast.error('ไม่สามารถโหลดข้อมูลสินค้าได้');
         setAllItems([]);
         setTotalRawItems(0);
+        setRefillPreview([]);
+        setRefillCount(0);
       } finally {
         setLoading(false);
       }
@@ -319,6 +344,12 @@ export default function ItemsPage() {
             onRefresh={() => void fetchItems(undefined, { resetPage: false, silent: true })}
             loading={loading}
           />
+
+          {/* <RefillPreviewCard
+            items={refillPreview}
+            totalNeedRefill={refillCount}
+            loading={loading}
+          /> */}
 
           <ItemsTable
             items={filteredItems}
