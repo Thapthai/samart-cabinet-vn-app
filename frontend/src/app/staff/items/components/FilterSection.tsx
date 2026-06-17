@@ -132,7 +132,6 @@ export default function FilterSection({
         keyword,
         page: 1,
         limit: 200,
-        allowedDepartmentIds: allowed,
         withCabinet: true,
       });
       setDepartments(list as Department[]);
@@ -221,7 +220,6 @@ export default function FilterSection({
         const list = await fetchStaffDepartmentsForFilter({
           page: 1,
           limit: 200,
-          allowedDepartmentIds: allowed,
           withCabinet: true,
         });
         if (cancelled) return;

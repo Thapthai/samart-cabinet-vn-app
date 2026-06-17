@@ -17,7 +17,15 @@ export type StaffMeDepartmentsResponse = {
   message?: string;
 };
 
-export async function fetchStaffMeDepartments(): Promise<StaffMeDepartmentsResponse> {
-  const response = await staffApi.get<StaffMeDepartmentsResponse>('/staff/me/departments');
+export async function fetchStaffMeDepartments(opts?: {
+  withCabinet?: boolean;
+}): Promise<StaffMeDepartmentsResponse> {
+  const params: Record<string, string> = {};
+  if (opts?.withCabinet) {
+    params.with_cabinet = 'true';
+  }
+  const response = await staffApi.get<StaffMeDepartmentsResponse>('/staff/me/departments', {
+    params,
+  });
   return response.data;
 }

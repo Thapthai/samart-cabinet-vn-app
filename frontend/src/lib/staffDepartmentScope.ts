@@ -1,5 +1,4 @@
 import { fetchStaffMeDepartments } from '@/lib/staffApi/staffMeApi';
-import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
 
 export type StaffMeDepartmentRow = {
   ID: number;
@@ -57,7 +56,9 @@ async function ensureMeScopeLoaded(): Promise<MeScopeCache | null> {
     const departments = res.data.departments ?? [];
     const allowedIds = unrestricted
       ? null
-      : [...new Set(departments.map((d) => d.ID).filter((n) => Number.isFinite(n) && n > 0))].sort((a, b) => a - b);
+      : [...new Set(departments.map((d) => d.ID).filter((n) => Number.isFinite(n) && n > 0))].sort(
+          (a, b) => a - b,
+        );
 
     meScopeCache = {
       staffUserId: Number(serverUserId),
@@ -73,7 +74,7 @@ async function ensureMeScopeLoaded(): Promise<MeScopeCache | null> {
 
 /**
  * null = ไม่จำกัดแผนก
- * number[] = เฉพาะ ID เหล่านี้
+ * number[] = เฉพาะ ID เหล่านี้ (จาก StaffRolePermissionDepartment)
  * undefined = ยังไม่รู้ / ไม่มี session / เรียก API ไม่สำเร็จ
  */
 export async function getStaffAllowedDepartmentIds(): Promise<number[] | null | undefined> {
@@ -84,10 +85,7 @@ export async function getStaffAllowedDepartmentIds(): Promise<number[] | null | 
 }
 
 /**
- * รายการแผนกจาก GET /staff/me/departments สำหรับ dropdown/filter:
- * - role จำกัดแผนก: รายการจาก permission rows
- * - role ไม่จำกัดแต่ user มี department_id: รายการแผนกหลักนั้น (ยัง unrestricted สำหรับ API อื่น)
- * คืน null เมื่อไม่มีรายการแผนกจาก me (เช่น unrestricted + ไม่มี department_id)
+ * รายการแผนกจาก GET /staff/me/departments (StaffRole → StaffRolePermissionDepartment)
  */
 export async function getStaffRestrictedDepartmentsFromMe(): Promise<StaffMeDepartmentRow[] | null> {
   const c = await ensureMeScopeLoaded();
@@ -97,80 +95,45 @@ export async function getStaffRestrictedDepartmentsFromMe(): Promise<StaffMeDepa
 }
 
 /**
- * รายการแผนกสำหรับ dropdown/filter ทุกหน้า Staff (ให้ตรงกับ cabinet-departments):
- * - มีรายการจาก GET /staff/me/departments (จำกัดแผนกหรือ unrestricted + แผนกจาก profile): ใช้รายการนั้นเท่านั้น
- * - ไม่มีรายการจาก me: ไม่เรียก GET /departments แบบทั้งโรงพยาบาล (กัน Division ที่ไม่เกี่ยวข้อง)
- * - กรณีขอบเขตเป็น number[] แต่ไม่มีรายการชื่อจาก me (กรณีขอบไม่ตรง): ดึง /departments แล้วกรองด้วย allowed เท่านั้น
+ * รายการ Division สำหรับ dropdown/filter ทุกหน้า Staff
+ * อิงจาก GET /staff/me/departments เท่านั้น (role → app_staff_role_permission_departments)
+ * ไม่ดึง GET /departments ทั้งโรงพยาบาล
  */
 export async function fetchStaffDepartmentsForFilter(opts?: {
   keyword?: string;
   page?: number;
   limit?: number;
-  /** ส่งจาก ref หลัง getStaffAllowedDepartmentIds() เพื่อไม่ต้อง await ซ้ำ; ถ้าไม่ส่งจะเรียก getStaffAllowedDepartmentIds เอง */
   allowedDepartmentIds?: number[] | null | undefined;
-  /** เฉพาะ Division ที่มีตู้ Cabinet ผูกอยู่ (ACTIVE) */
+  /** เฉพาะ Division ที่มีตู้ Cabinet ผูก ACTIVE */
   withCabinet?: boolean;
 }): Promise<StaffMeDepartmentRow[]> {
-  const allowed =
-    opts !== undefined && opts.allowedDepartmentIds !== undefined
-      ? opts.allowedDepartmentIds
-      : await getStaffAllowedDepartmentIds();
-
   const rawKw = opts?.keyword?.trim() ?? '';
   const kwLower = rawKw.toLowerCase();
   const limit = Math.min(500, Math.max(1, opts?.limit ?? 50));
   const page = opts?.page ?? 1;
   const skip = (page - 1) * limit;
 
-  const intersectWithCabinet = async (list: StaffMeDepartmentRow[]): Promise<StaffMeDepartmentRow[]> => {
-    if (!opts?.withCabinet) return list;
-    const response = await staffDepartmentApi.getAll({
-      page: 1,
-      limit: 500,
-      ...(rawKw ? { keyword: rawKw } : {}),
-      withCabinet: true,
-    });
-    if (!response.success || !response.data) return [];
-    const ids = new Set((response.data as StaffMeDepartmentRow[]).map((d) => d.ID));
-    return list.filter((d) => ids.has(d.ID));
-  };
-
-  const fromMe = await getStaffRestrictedDepartmentsFromMe();
-  if (fromMe != null) {
-    let list = fromMe;
-    if (rawKw) {
-      list = list.filter(
-        (d) =>
-          (d.DepName ?? '').toLowerCase().includes(kwLower) ||
-          (d.DepName2 ?? '').toLowerCase().includes(kwLower) ||
-          String(d.ID).includes(rawKw),
-      );
-    }
-    list = await intersectWithCabinet(list);
-    return list.slice(skip, skip + limit);
-  }
-
-  if (allowed === undefined) {
-    return [];
-  }
-  if (allowed === null) {
-    return [];
-  }
-  if (allowed.length === 0) {
+  const res = await fetchStaffMeDepartments({ withCabinet: opts?.withCabinet });
+  if (!res?.success || !res.data) {
     return [];
   }
 
-  const response = await staffDepartmentApi.getAll({
-    page,
-    limit,
-    ...(rawKw ? { keyword: rawKw } : {}),
-    ...(opts?.withCabinet ? { withCabinet: true } : {}),
-  });
-  if (response.success && response.data) {
-    const raw = response.data as StaffMeDepartmentRow[];
-    return applyDepartmentScopeToList(raw, allowed).slice(skip, skip + limit);
+  let list = (res.data.departments ?? []) as StaffMeDepartmentRow[];
+
+  if (rawKw) {
+    list = list.filter(
+      (d) =>
+        (d.DepName ?? '').toLowerCase().includes(kwLower) ||
+        (d.DepName2 ?? '').toLowerCase().includes(kwLower) ||
+        String(d.ID).includes(rawKw),
+    );
   }
-  return [];
+
+  if (opts?.allowedDepartmentIds !== undefined && opts.allowedDepartmentIds !== null) {
+    list = applyDepartmentScopeToList(list, opts.allowedDepartmentIds);
+  }
+
+  return list.slice(skip, skip + limit);
 }
 
 /** undefined = ยังไม่รู้ขอบเขต (ห้ามถือว่าไม่จำกัด — ไม่แสดงรายการจนกว่าจะโหลดเสร็จ) */

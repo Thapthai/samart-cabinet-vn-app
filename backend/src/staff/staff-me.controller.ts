@@ -1,4 +1,4 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import { Controller, Get, Query, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { StaffService } from './staff.service';
 
@@ -11,7 +11,12 @@ export class StaffMeController {
 
   /** แผนกหลักจาก app_staff_role_permission_departments ของ role ของ Staff ที่ล็อกอิน */
   @Get('departments')
-  async myDepartments(@Req() req: Request) {
-    return this.staffService.findMyPermissionDepartments(req);
+  async myDepartments(
+    @Req() req: Request,
+    @Query('with_cabinet') with_cabinet?: string,
+  ) {
+    return this.staffService.findMyPermissionDepartments(req, {
+      with_cabinet: with_cabinet === 'true' || with_cabinet === '1',
+    });
   }
 }

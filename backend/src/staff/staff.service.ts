@@ -595,53 +595,61 @@ export class StaffService {
 
   /**
    * Staff ปัจจุบัน → role → app_staff_role_permission_departments → department
-   * ไม่มีแถวใน permission_departments = unrestricted (ข้อมูล/ตู้ยังไม่บังคับกรองตามแผนก)
-   * แต่ส่งแผนกหลักจาก app_users.department_id ให้ dropdown/filter ใช้เป็นค่าเริ่มต้นของ staff
+   * มีแถวใน permission_departments = รายการแผนกใน dropdown ตาม role เท่านั้น
+   * ไม่มีแถว = unrestricted (API ข้อมูลไม่กรองแผนก); dropdown ใช้ with_cabinet → ทุกแผนกที่มีตู้ ACTIVE
+   * ไม่ใช้ app_users.department_id สำหรับรายการ Division
    */
-  async findMyPermissionDepartments(req: { headers: Record<string, string | string[] | undefined> }) {
+  async findMyPermissionDepartments(
+    req: { headers: Record<string, string | string[] | undefined> },
+    opts?: { with_cabinet?: boolean },
+  ) {
     const staff = await this.staffDepartmentScope.resolveActiveStaffUser(req);
     if (!staff) {
       throw new UnauthorizedException('ต้องล็อกอิน Staff (Bearer token หรือ client_id)');
     }
 
+    const departmentSelect = {
+      ID: true,
+      DepName: true,
+      DepName2: true,
+      RefDepID: true,
+    } as const;
+
+    type DepartmentRow = {
+      ID: number;
+      DepName: string | null;
+      DepName2: string | null;
+      RefDepID: string | null;
+    };
+
     const rows = await this.prisma.staffRolePermissionDepartment.findMany({
       where: { role_id: staff.role_id },
       include: {
         department: {
-          select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
+          select: departmentSelect,
         },
       },
       orderBy: { department_id: 'asc' },
     });
 
+    let departments: DepartmentRow[] = rows.map((r) => r.department);
+
+    if (rows.length === 0 && opts?.with_cabinet) {
+      departments = await this.listDepartmentsWithActiveCabinet();
+    }
+
+    if (opts?.with_cabinet && departments.length > 0) {
+      departments = await this.filterDepartmentsWithActiveCabinet(departments);
+    }
+
     if (rows.length === 0) {
-      const u = await this.prisma.user.findUnique({
-        where: { id: staff.id },
-        select: { department_id: true },
-      });
-      let primaryDepartments: Array<{
-        ID: number;
-        DepName: string | null;
-        DepName2: string | null;
-        RefDepID: string | null;
-      }> = [];
-      if (u?.department_id != null && u.department_id >= 1) {
-        const d = await this.prisma.department.findFirst({
-          where: {
-            ID: u.department_id,
-            OR: [{ IsCancel: null }, { IsCancel: 0 }],
-          },
-          select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
-        });
-        if (d) primaryDepartments = [d];
-      }
       return {
         success: true,
         data: {
           unrestricted: true,
           staff_user_id: staff.id,
           role_id: staff.role_id,
-          departments: primaryDepartments,
+          departments,
         },
       };
     }
@@ -652,13 +660,59 @@ export class StaffService {
         unrestricted: false,
         staff_user_id: staff.id,
         role_id: staff.role_id,
-        departments: rows.map((r) => ({
-          ID: r.department.ID,
-          DepName: r.department.DepName,
-          DepName2: r.department.DepName2,
-          RefDepID: r.department.RefDepID,
-        })),
+        departments,
       },
     };
+  }
+
+  /** แผนกหลักที่มีตู้ผูก ACTIVE อย่างน้อยหนึ่งตู้ */
+  private async listDepartmentsWithActiveCabinet(): Promise<
+    Array<{ ID: number; DepName: string | null; DepName2: string | null; RefDepID: string | null }>
+  > {
+    const mappings = await this.prisma.cabinetDepartment.findMany({
+      where: {
+        status: 'ACTIVE',
+        department_id: { not: null },
+      },
+      select: { department_id: true },
+      distinct: ['department_id'],
+    });
+    const ids = [
+      ...new Set(
+        mappings
+          .map((m) => m.department_id)
+          .filter((id): id is number => typeof id === 'number' && Number.isFinite(id)),
+      ),
+    ];
+    if (ids.length === 0) return [];
+    return this.prisma.department.findMany({
+      where: {
+        ID: { in: ids },
+        OR: [{ IsCancel: null }, { IsCancel: 0 }],
+      },
+      select: { ID: true, DepName: true, DepName2: true, RefDepID: true },
+      orderBy: { ID: 'asc' },
+    });
+  }
+
+  private async filterDepartmentsWithActiveCabinet<
+    T extends { ID: number },
+  >(departments: T[]): Promise<T[]> {
+    if (departments.length === 0) return [];
+    const ids = departments.map((d) => d.ID);
+    const mappings = await this.prisma.cabinetDepartment.findMany({
+      where: {
+        status: 'ACTIVE',
+        department_id: { in: ids },
+      },
+      select: { department_id: true },
+      distinct: ['department_id'],
+    });
+    const withCabinet = new Set(
+      mappings
+        .map((m) => m.department_id)
+        .filter((id): id is number => typeof id === 'number'),
+    );
+    return departments.filter((d) => withCabinet.has(d.ID));
   }
 }
