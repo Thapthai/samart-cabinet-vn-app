@@ -121,7 +121,7 @@ export default function FilterSection({
   const loadDepartments = async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const list = await fetchStaffDepartmentsForFilter({ keyword, page: 1, limit: 50 });
+      const list = await fetchStaffDepartmentsForFilter({ keyword, page: 1, limit: 50, withCabinet: true });
       setDepartments(list as Department[]);
     } catch (error) {
       console.error("Failed to load departments:", error);

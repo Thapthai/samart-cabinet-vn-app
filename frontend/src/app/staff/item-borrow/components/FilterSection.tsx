@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { DatePickerBE } from '@/components/ui/date-picker-be';
 import SearchableSelect from '@/app/admin/items/components/SearchableSelect';
-import { cabinetApi, cabinetDepartmentApi, departmentApi } from '@/lib/api';
+import { cabinetApi, cabinetDepartmentApi } from '@/lib/api';
+import { fetchStaffDepartmentsForFilter, getStaffAllowedDepartmentIds } from '@/lib/staffDepartmentScope';
 import { cn } from '@/lib/utils';
 
 const fieldInputClass = 'bg-white';
@@ -93,10 +94,15 @@ export default function FilterSection({
   const loadDepartments = async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const response = await departmentApi.getAll({ limit: 50, keyword });
-      if (response.success && response.data) {
-        setDepartments(response.data as Department[]);
-      }
+      const allowed = await getStaffAllowedDepartmentIds();
+      const list = await fetchStaffDepartmentsForFilter({
+        keyword,
+        page: 1,
+        limit: 200,
+        allowedDepartmentIds: allowed,
+        withCabinet: true,
+      });
+      setDepartments(list as Department[]);
     } catch (error) {
       console.error('Failed to load departments:', error);
     } finally {

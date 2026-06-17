@@ -2,8 +2,13 @@ import staffApi from './index';
 import type { ApiResponse } from '@/types/common';
 
 export const staffDepartmentApi = {
-  getAll: async (params?: { page?: number; limit?: number; keyword?: string; isCancel?: boolean }): Promise<ApiResponse<any[]>> => {
-    const response = await staffApi.get('/departments', { params });
+  getAll: async (params?: { page?: number; limit?: number; keyword?: string; isCancel?: boolean; withCabinet?: boolean }): Promise<ApiResponse<any[]>> => {
+    const safeParams: Record<string, string | number | boolean> = { ...params };
+    if (params?.withCabinet === true) {
+      safeParams.with_cabinet = true;
+    }
+    delete safeParams.withCabinet;
+    const response = await staffApi.get('/departments', { params: safeParams });
     return response.data;
   },
 

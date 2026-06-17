@@ -148,6 +148,7 @@ export function FilterSection({
         page: 1,
         limit: 200,
         allowedDepartmentIds: allowed,
+        withCabinet: true,
       });
       setDepartments(list as DepartmentOption[]);
     } catch (e) {

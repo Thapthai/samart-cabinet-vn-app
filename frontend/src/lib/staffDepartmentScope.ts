@@ -108,6 +108,8 @@ export async function fetchStaffDepartmentsForFilter(opts?: {
   limit?: number;
   /** ส่งจาก ref หลัง getStaffAllowedDepartmentIds() เพื่อไม่ต้อง await ซ้ำ; ถ้าไม่ส่งจะเรียก getStaffAllowedDepartmentIds เอง */
   allowedDepartmentIds?: number[] | null | undefined;
+  /** เฉพาะ Division ที่มีตู้ Cabinet ผูกอยู่ (ACTIVE) */
+  withCabinet?: boolean;
 }): Promise<StaffMeDepartmentRow[]> {
   const allowed =
     opts !== undefined && opts.allowedDepartmentIds !== undefined
@@ -120,6 +122,19 @@ export async function fetchStaffDepartmentsForFilter(opts?: {
   const page = opts?.page ?? 1;
   const skip = (page - 1) * limit;
 
+  const intersectWithCabinet = async (list: StaffMeDepartmentRow[]): Promise<StaffMeDepartmentRow[]> => {
+    if (!opts?.withCabinet) return list;
+    const response = await staffDepartmentApi.getAll({
+      page: 1,
+      limit: 500,
+      ...(rawKw ? { keyword: rawKw } : {}),
+      withCabinet: true,
+    });
+    if (!response.success || !response.data) return [];
+    const ids = new Set((response.data as StaffMeDepartmentRow[]).map((d) => d.ID));
+    return list.filter((d) => ids.has(d.ID));
+  };
+
   const fromMe = await getStaffRestrictedDepartmentsFromMe();
   if (fromMe != null) {
     let list = fromMe;
@@ -131,6 +146,7 @@ export async function fetchStaffDepartmentsForFilter(opts?: {
           String(d.ID).includes(rawKw),
       );
     }
+    list = await intersectWithCabinet(list);
     return list.slice(skip, skip + limit);
   }
 
@@ -148,6 +164,7 @@ export async function fetchStaffDepartmentsForFilter(opts?: {
     page,
     limit,
     ...(rawKw ? { keyword: rawKw } : {}),
+    ...(opts?.withCabinet ? { withCabinet: true } : {}),
   });
   if (response.success && response.data) {
     const raw = response.data as StaffMeDepartmentRow[];

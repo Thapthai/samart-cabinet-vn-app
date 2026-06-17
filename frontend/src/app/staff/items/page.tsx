@@ -26,6 +26,22 @@ const defaultFilters: StaffItemsSearchFilters = {
   keyword: '',
 };
 
+function isItemVisible(item: Item): boolean {
+  const qty = getCabinetQty(item);
+  const refill = Math.max(0, Number(item.refill_qty ?? 0));
+  return qty !== 0 || refill > 0;
+}
+
+function hasAppliedFilters(filters: StaffItemsSearchFilters): boolean {
+  return Boolean(
+    filters.searchTerm.trim() ||
+      filters.keyword.trim() ||
+      filters.departmentId ||
+      filters.cabinetId ||
+      filters.statusFilter !== 'all',
+  );
+}
+
 export default function ItemsPage() {
   const [itemsFilterKey, setItemsFilterKey] = useState(0);
   const [allItems, setAllItems] = useState<Item[]>([]);
@@ -52,8 +68,10 @@ export default function ItemsPage() {
     return filtered;
   }, [allItems, activeFilters.statusFilter]);
 
+  const highlightRefill = useMemo(() => hasAppliedFilters(activeFilters), [activeFilters]);
+
   const visibleItemCount = useMemo(
-    () => filteredItems.filter((item) => getCabinetQty(item) !== 0).length,
+    () => filteredItems.filter((item) => isItemVisible(item)).length,
     [filteredItems],
   );
 
@@ -288,6 +306,7 @@ export default function ItemsPage() {
           totalItems={totalRawItems}
           itemsPerPage={ITEMS_PER_PAGE}
           hasSearched={hasSearched}
+          highlightRefill={highlightRefill}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onUpdateMinMax={handleUpdateMinMax}
