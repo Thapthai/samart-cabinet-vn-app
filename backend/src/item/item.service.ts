@@ -562,15 +562,19 @@ export class ItemService {
             refillCabinetCount = cabRow.in_cabinet;
           }
         } else {
-          for (const row of refillByCabinet) {
-            if (row.refill_qty > refillQty) {
-              refillQty = row.refill_qty;
-              const setting = overrideByCabinetItem.get(`${row.cabinet_id}:${item.itemcode}`);
-              effectiveStockMin = setting?.stock_min ?? null;
-              effectiveStockMax = row.stock_max;
-              refillCabinetCount = row.in_cabinet;
-              refillCabinetName = row.cabinet_name;
-            }
+          /** ไม่เลือกตู้ — รวมจำนวนที่ต้องเติมจากทุกตู้ */
+          refillQty = refillByCabinet.reduce((sum, row) => sum + row.refill_qty, 0);
+          const needingRefill = refillByCabinet.filter((row) => row.refill_qty > 0);
+          if (needingRefill.length === 1) {
+            const row = needingRefill[0];
+            const setting = overrideByCabinetItem.get(`${row.cabinet_id}:${item.itemcode}`);
+            effectiveStockMin = setting?.stock_min ?? null;
+            effectiveStockMax = row.stock_max;
+            refillCabinetCount = row.in_cabinet;
+            refillCabinetName = row.cabinet_name;
+          } else if (needingRefill.length > 1) {
+            effectiveStockMin = null;
+            effectiveStockMax = needingRefill.reduce((sum, row) => sum + row.stock_max, 0);
           }
         }
 

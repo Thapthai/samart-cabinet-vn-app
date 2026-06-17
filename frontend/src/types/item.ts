@@ -107,9 +107,9 @@ export interface Item {
   qty_in_use?: number;
   /** จำนวนที่แจ้งชำรุด (จาก supply_item_return_records, return_reason=DAMAGED, อ้างอิงตู้/stock_id) */
   damaged_qty?: number;
-  /** จำนวนที่ต้องเติม: X=M-A, Y=B+C; if X<Y then 0, if X>Y then X-Y */
+  /** จำนวนที่ต้องเติม: Max − ในตู้ (เลือกตู้ = ตู้นั้น; ไม่เลือกตู้ = รวมทุกตู้) */
   refill_qty?: number;
-  /** เมื่อไม่เลือกตู้ — ตู้ที่มี refill สูงสุด */
+  /** เมื่อไม่เลือกตู้และมีตู้เดียวที่ต้องเติม — ชื่อตู้นั้น */
   refill_cabinet_name?: string | null;
   refill_cabinet_count?: number;
   /** สรุปต้องเติมแยกตามตู้ (ใช้ใน expanded subtable) */

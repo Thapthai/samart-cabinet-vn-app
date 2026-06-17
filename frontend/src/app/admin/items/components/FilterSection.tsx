@@ -107,7 +107,7 @@ export default function FilterSection({
   const loadDepartments = async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const response = await departmentApi.getAll({ limit: 50, keyword });
+      const response = await departmentApi.getAll({ limit: 50, keyword, withCabinet: true });
       if (response.success && response.data) {
         setDepartments(response.data as Department[]);
       }

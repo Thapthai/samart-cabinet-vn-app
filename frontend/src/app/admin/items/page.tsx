@@ -44,6 +44,16 @@ const defaultFilters: ActiveFilters = {
   keyword: '',
 };
 
+function hasAppliedFilters(filters: ActiveFilters): boolean {
+  return Boolean(
+    filters.searchTerm.trim() ||
+      filters.keyword.trim() ||
+      filters.departmentId ||
+      filters.cabinetId ||
+      filters.statusFilter !== 'all',
+  );
+}
+
 export default function ItemsPage() {
   const { user } = useAuth();
   const [allItems, setAllItems] = useState<Item[]>([]);
@@ -70,6 +80,8 @@ export default function ItemsPage() {
     }
     return filtered;
   }, [allItems, activeFilters.statusFilter]);
+
+  const highlightRefill = useMemo(() => hasAppliedFilters(activeFilters), [activeFilters]);
 
   const visibleItemCount = useMemo(
     () => filteredItems.filter((item) => isItemVisible(item)).length,
@@ -359,6 +371,7 @@ export default function ItemsPage() {
             totalItems={totalRawItems}
             itemsPerPage={ITEMS_PER_PAGE}
             hasSearched={hasSearched}
+            highlightRefill={highlightRefill}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onUpdateMinMax={handleUpdateMinMax}

@@ -1943,11 +1943,15 @@ export const medicalSupplyUsageTypesApi = medicalSupplySubDepartmentsApi;
 
 // Department API
 export const departmentApi = {
-  getAll: async (params?: { page?: number; limit?: number; keyword?: string; isCancel?: boolean }): Promise<ApiResponse<any[]>> => {
-    const safeParams = { ...params };
+  getAll: async (params?: { page?: number; limit?: number; keyword?: string; isCancel?: boolean; withCabinet?: boolean }): Promise<ApiResponse<any[]>> => {
+    const safeParams: Record<string, string | number | boolean> = { ...params };
     if (safeParams.keyword !== undefined && typeof safeParams.keyword === 'string' && !safeParams.keyword.trim()) {
       delete safeParams.keyword;
     }
+    if (params?.withCabinet === true) {
+      safeParams.with_cabinet = true;
+    }
+    delete safeParams.withCabinet;
     const response = await api.get('/departments', { params: safeParams });
     return response.data;
   },

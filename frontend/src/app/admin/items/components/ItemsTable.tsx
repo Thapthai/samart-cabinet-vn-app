@@ -31,6 +31,8 @@ interface ItemsTableProps {
   itemsPerPage: number;
   /** false = ยังไม่กดค้นหา — แสดงข้อความแนะนำแทน «ไม่พบข้อมูล» */
   hasSearched?: boolean;
+  /** true = กรองแล้ว — ไฮไลต์แถว/คอลัมน์ต้องเติมด้วยสีแดง */
+  highlightRefill?: boolean;
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
   onUpdateMinMax: (item: Item) => void;
@@ -103,6 +105,7 @@ export default function ItemsTable({
   totalItems,
   itemsPerPage,
   hasSearched = true,
+  highlightRefill = false,
   onUpdateMinMax,
   onPrintSticker,
   onPageChange,
@@ -251,11 +254,10 @@ export default function ItemsTable({
                     <TableHead>ชื่ออุปกรณ์</TableHead>
                     <TableHead>Division</TableHead>
                     <TableHead className="text-center">จำนวนในตู้</TableHead>
-                    <TableHead className="text-center">จำนวนอุปกรณ์ที่ถูกใช้งานในปัจจุบัน</TableHead>
+                    <TableHead className="text-center">จำนวนที่ถูกใช้งาน</TableHead>
                     <TableHead className="text-center">Min/Max</TableHead>
-                    <TableHead className="text-center">ชำรุด</TableHead>
                     <TableHead className="text-center">จำนวนที่ต้องเติม</TableHead>
-                    <TableHead>สถานะ</TableHead>
+                    <TableHead className="text-center">สถานะ</TableHead>
 
                     <TableHead className="text-right">จัดการ</TableHead>
                   </TableRow>
@@ -267,8 +269,8 @@ export default function ItemsTable({
                       0,
                       Number((item as Item & { refill_qty?: number }).refill_qty ?? 0),
                     );
-                    const stockMin = toStockLimitNumber(item.stock_min);
-                    const stockMax = toStockLimitNumber(item.stock_max);
+                    const stockMin = highlightRefill ? toStockLimitNumber(item.stock_min) : 0;
+                    const stockMax = highlightRefill ? toStockLimitNumber(item.stock_max) : 0;
                     const isLowStock = stockMin > 0 && countItemStock < stockMin;
                     const itemStocks = sortItemStocksByCabinet(
                       (item.itemStocks ?? []).filter(
@@ -289,10 +291,18 @@ export default function ItemsTable({
                         <TableRow
                           className={cn(
                             "transition-colors",
-                            hasExpired && "bg-orange-100 hover:bg-orange-200",
-                            !hasExpired && hasNearExpiry && "bg-amber-100 hover:bg-amber-200",
+                            hasExpired && highlightRefill && "bg-orange-100 hover:bg-orange-200",
+                            !hasExpired && hasNearExpiry && highlightRefill && "bg-amber-100 hover:bg-amber-200",
                             !hasExpired && !hasNearExpiry && isLowStock && "bg-red-50 hover:bg-red-100",
-                            !hasExpired && !hasNearExpiry && !isLowStock && "hover:bg-slate-50/80"
+                            !hasExpired &&
+                            !hasNearExpiry &&
+                            highlightRefill &&
+                            refillQty > 0 &&
+                            "bg-red-100 hover:bg-red-200",
+                            !hasExpired &&
+                            !hasNearExpiry &&
+                            !(isLowStock || (highlightRefill && refillQty > 0)) &&
+                            "hover:bg-slate-50/80"
                           )}
                         >
                           <TableCell className="w-12">
@@ -321,14 +331,14 @@ export default function ItemsTable({
                               {item.itemcode}
                             </code>
                           </TableCell>
-                          <TableCell className={cn("min-w-0 max-w-[280px]", hasExpired && "text-red-600")}>
+                          <TableCell className={cn("min-w-0 max-w-[280px]", highlightRefill && hasExpired && "text-red-600")}>
                             <div className="flex flex-col gap-1">
                               <ItemNameWithUnit
                                 item={item}
                                 qtyMain={getCabinetQty(item)}
-                                nameClassName={hasExpired ? "text-red-600 font-semibold" : undefined}
+                                nameClassName={highlightRefill && hasExpired ? "text-red-600 font-semibold" : undefined}
                               />
-                              {hasExpired ? (
+                              {highlightRefill && hasExpired ? (
                                 <span className="text-xs font-medium text-red-600">(มีอุปกรณ์หมดอายุ)</span>
                               ) : null}
                             </div>
@@ -346,31 +356,29 @@ export default function ItemsTable({
                             <span className="font-medium text-slate-700">{item.qty_in_use ?? 0}</span>
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="text-gray-600">{stockMin}</span>
-                            <span className="text-gray-400 mx-1">/</span>
-                            <span className="text-gray-600">{stockMax}</span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className={cn(
-                              "font-medium",
-                              (Number(item.damaged_qty) || 0) > 0 && "text-amber-700"
-                            )}>
-                              {Number(item.damaged_qty) || 0}
-                            </span>
+                            {highlightRefill ? (
+                              <>
+                                <span className="text-gray-600">{stockMin}</span>
+                                <span className="mx-1 text-gray-400">/</span>
+                                <span className="text-gray-600">{stockMax}</span>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <span
                               className={cn(
                                 'font-medium',
-                                refillQty > 0
-                                  ? 'inline-flex min-w-[2rem] items-center justify-center rounded-full bg-amber-100 px-2 py-0.5 text-amber-900'
-                                  : 'text-slate-700',
+                                highlightRefill && refillQty > 0
+                                  ? 'inline-flex min-w-[2rem] items-center justify-center rounded-full bg-red-100 px-2 py-0.5 text-red-900'
+                                  : 'font-medium text-slate-700',
                               )}
                             >
                               {refillQty}
                             </span>
                           </TableCell>
-                          <TableCell>{getStatusBadge(item.item_status)}</TableCell>
+                          <TableCell className="text-center">{getStatusBadge(item.item_status)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               {/* <Button
@@ -406,14 +414,31 @@ export default function ItemsTable({
                               <div className="space-y-4">
                                 {hasCabinetRefillSummary ? (
                                   <div>
-                                    <h4 className="mb-3 flex items-center gap-2 font-semibold text-amber-900">
+                                    <h4
+                                      className={cn(
+                                        'mb-3 flex items-center gap-2 font-semibold',
+                                        highlightRefill ? 'text-red-900' : 'text-gray-700',
+                                      )}
+                                    >
                                       <Gauge className="h-4 w-4" />
                                       ต้องเติมต่อตู้ (Max − จำนวนในตู้)
                                     </h4>
-                                    <div className="overflow-hidden rounded-lg border border-amber-200/80 bg-white">
+                                    <div
+                                      className={cn(
+                                        'overflow-hidden rounded-lg border bg-white',
+                                        highlightRefill ? 'border-red-200/80' : 'border-slate-200',
+                                      )}
+                                    >
                                       <Table>
                                         <TableHeader>
-                                          <TableRow className="border-b border-amber-100 bg-amber-50/80 hover:bg-amber-50/80">
+                                          <TableRow
+                                            className={cn(
+                                              'border-b hover:bg-slate-50',
+                                              highlightRefill
+                                                ? 'border-red-100 bg-red-50/80 hover:bg-red-50/80'
+                                                : 'border-slate-200 bg-slate-50 hover:bg-slate-50',
+                                            )}
+                                          >
                                             <TableHead className="text-slate-600">ตู้ (Cabinet)</TableHead>
                                             <TableHead className="text-center text-slate-600">ในตู้</TableHead>
                                             <TableHead className="text-center text-slate-600">Max</TableHead>
@@ -426,7 +451,9 @@ export default function ItemsTable({
                                               key={row.cabinet_id}
                                               className={cn(
                                                 "border-b border-slate-100",
-                                                row.refill_qty > 0 && "bg-amber-50/60 hover:bg-amber-50/60",
+                                                highlightRefill &&
+                                                row.refill_qty > 0 &&
+                                                "bg-red-50/60 hover:bg-red-50/60",
                                               )}
                                             >
                                               <TableCell className="font-medium text-slate-800">
@@ -436,11 +463,20 @@ export default function ItemsTable({
                                                 {row.in_cabinet.toLocaleString()}
                                               </TableCell>
                                               <TableCell className="text-center text-muted-foreground">
-                                                {row.stock_max.toLocaleString()}
+                                                {highlightRefill
+                                                  ? row.stock_max.toLocaleString()
+                                                  : '—'}
                                               </TableCell>
                                               <TableCell className="text-center">
                                                 {row.refill_qty > 0 ? (
-                                                  <span className="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-semibold text-amber-900">
+                                                  <span
+                                                    className={cn(
+                                                      'inline-flex min-w-[2rem] items-center justify-center rounded-full px-2.5 py-0.5 text-sm font-semibold',
+                                                      highlightRefill
+                                                        ? 'bg-red-100 text-red-900'
+                                                        : 'bg-slate-100 text-slate-800',
+                                                    )}
+                                                  >
                                                     {row.refill_qty.toLocaleString()}
                                                   </span>
                                                 ) : (
@@ -455,88 +491,88 @@ export default function ItemsTable({
                                   </div>
                                 ) : null}
                                 {itemStocks.length > 0 ? (
-                                <div>
-                                <h4 className="mb-3 flex items-center gap-2 font-semibold text-gray-700">
-                                  <Package className="h-4 w-4" />
-                                  รายการสต็อกอุปกรณ์ในตู้ ({itemStocks.length} รายการ)
-                                </h4>
-                                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
-                                        <TableHead className="w-14 text-slate-600">ลำดับ</TableHead>
-                                        <TableHead className="text-slate-600">ตู้ (Cabinet)</TableHead>
-                                        <TableHead className="text-slate-600">สถานะสต็อก</TableHead>
-                                        <TableHead className="text-slate-600">หมดอายุ</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {itemStocks.map((stock, idx) => {
-                                        const expireStr = stock.ExpireDate;
-                                        const expired = isExpired(expireStr);
-                                        const nearExpiry = !expired && isNearExpiry(expireStr);
-                                        const expireDisplay = expireStr
-                                          ? formatUtcDateTime(expireStr)
-                                          : "-";
-                                        const inCabinet =
-                                          stock.IsStock === true ||
-                                          (stock as { IsStock?: boolean | number }).IsStock === 1;
-                                        return (
-                                          <TableRow
-                                            key={stock.RowID ?? idx}
-                                            className={cn(
-                                              "border-b border-slate-100",
-                                              expired && "bg-red-50 hover:bg-red-50",
-                                              !expired && nearExpiry && "bg-amber-50/80 hover:bg-amber-50/80"
-                                            )}
-                                          >
-                                            <TableCell className="text-slate-600">{idx + 1}</TableCell>
-                                            <TableCell className="text-slate-800">
-                                              {stock.cabinet?.cabinet_name || stock.cabinet?.cabinet_code || "-"}
-                                            </TableCell>
-                                            <TableCell>
-                                              {inCabinet ? (
-                                                <Badge
-                                                  variant="default"
-                                                  className="border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
-                                                >
-                                                  อยู่ในตู้
-                                                </Badge>
-                                              ) : (
-                                                <Badge
-                                                  variant="secondary"
-                                                  className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100"
-                                                >
-                                                  ถูกเบิก
-                                                </Badge>
-                                              )}
-                                            </TableCell>
-                                            <TableCell className="text-slate-700">
-                                              <span className="tabular-nums">{expireDisplay}</span>
-                                              {expired && (
-                                                <Badge
-                                                  variant="destructive"
-                                                  className="ml-2 border-red-200 bg-red-100 text-red-800 hover:bg-red-100"
-                                                >
-                                                  หมดอายุ
-                                                </Badge>
-                                              )}
-                                              {nearExpiry && (
-                                                <Badge
-                                                  variant="secondary"
-                                                  className="ml-2 border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100"
-                                                >
-                                                  ใกล้หมดอายุ
-                                                </Badge>
-                                              )}
-                                            </TableCell>
+                                  <div>
+                                    <h4 className="mb-3 flex items-center gap-2 font-semibold text-gray-700">
+                                      <Package className="h-4 w-4" />
+                                      รายการสต็อกอุปกรณ์ในตู้ ({itemStocks.length} รายการ)
+                                    </h4>
+                                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
+                                            <TableHead className="w-14 text-slate-600">ลำดับ</TableHead>
+                                            <TableHead className="text-slate-600">ตู้ (Cabinet)</TableHead>
+                                            <TableHead className="text-slate-600">สถานะสต็อก</TableHead>
+                                            <TableHead className="text-slate-600">หมดอายุ</TableHead>
                                           </TableRow>
-                                        );
-                                      })}
-                                    </TableBody>
-                                  </Table>
-                                </div>
-                                </div>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {itemStocks.map((stock, idx) => {
+                                            const expireStr = stock.ExpireDate;
+                                            const expired = isExpired(expireStr);
+                                            const nearExpiry = !expired && isNearExpiry(expireStr);
+                                            const expireDisplay = expireStr
+                                              ? formatUtcDateTime(expireStr)
+                                              : "-";
+                                            const inCabinet =
+                                              stock.IsStock === true ||
+                                              (stock as { IsStock?: boolean | number }).IsStock === 1;
+                                            return (
+                                              <TableRow
+                                                key={stock.RowID ?? idx}
+                                                className={cn(
+                                                  "border-b border-slate-100",
+                                                  highlightRefill && expired && "bg-red-50 hover:bg-red-50",
+                                                  highlightRefill && !expired && nearExpiry && "bg-amber-50/80 hover:bg-amber-50/80"
+                                                )}
+                                              >
+                                                <TableCell className="text-slate-600">{idx + 1}</TableCell>
+                                                <TableCell className="text-slate-800">
+                                                  {stock.cabinet?.cabinet_name || stock.cabinet?.cabinet_code || "-"}
+                                                </TableCell>
+                                                <TableCell>
+                                                  {inCabinet ? (
+                                                    <Badge
+                                                      variant="default"
+                                                      className="border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                                                    >
+                                                      อยู่ในตู้
+                                                    </Badge>
+                                                  ) : (
+                                                    <Badge
+                                                      variant="secondary"
+                                                      className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100"
+                                                    >
+                                                      ถูกเบิก
+                                                    </Badge>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="text-slate-700">
+                                                  <span className="tabular-nums">{expireDisplay}</span>
+                                                  {highlightRefill && expired && (
+                                                    <Badge
+                                                      variant="destructive"
+                                                      className="ml-2 border-red-200 bg-red-100 text-red-800 hover:bg-red-100"
+                                                    >
+                                                      หมดอายุ
+                                                    </Badge>
+                                                  )}
+                                                  {highlightRefill && nearExpiry && (
+                                                    <Badge
+                                                      variant="secondary"
+                                                      className="ml-2 border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100"
+                                                    >
+                                                      ใกล้หมดอายุ
+                                                    </Badge>
+                                                  )}
+                                                </TableCell>
+                                              </TableRow>
+                                            );
+                                          })}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                  </div>
                                 ) : null}
                               </div>
                             </TableCell>

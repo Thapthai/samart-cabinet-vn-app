@@ -23,12 +23,14 @@ export class DepartmentController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('keyword') keyword?: string,
+    @Query('with_cabinet') with_cabinet?: string,
   ) {
     const allowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
     const params = {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       keyword: typeof keyword === 'string' && keyword.trim() ? keyword.trim() : undefined,
+      with_cabinet: with_cabinet === 'true' || with_cabinet === '1',
     };
     try {
       return await this.departmentService.getAllDepartments(params, allowedDepartmentIds);

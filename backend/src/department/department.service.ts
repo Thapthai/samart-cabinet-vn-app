@@ -18,7 +18,7 @@ export class DepartmentService {
   constructor(private prisma: PrismaService) { }
 
   async getAllDepartments(
-    query?: { page?: number; limit?: number; keyword?: string },
+    query?: { page?: number; limit?: number; keyword?: string; with_cabinet?: boolean },
     /** Staff role จำกัดแผนก — null/undefined = ไม่กรอง (admin / staff ไม่จำกัด) */
     allowedDepartmentIds?: number[] | null,
   ) {
@@ -39,6 +39,38 @@ export class DepartmentService {
           return { success: true, data: [], total: 0, page, limit, lastPage: 0 };
         }
         where.ID = { in: allowedDepartmentIds };
+      }
+      if (query?.with_cabinet) {
+        const mappings = await this.prisma.cabinetDepartment.findMany({
+          where: {
+            status: 'ACTIVE',
+            department_id: { not: null },
+            cabinet_id: { not: null },
+          },
+          select: { department_id: true },
+          distinct: ['department_id'],
+        });
+        const departmentIdsWithCabinet = [
+          ...new Set(
+            mappings
+              .map((m) => m.department_id)
+              .filter((id): id is number => typeof id === 'number'),
+          ),
+        ];
+        if (departmentIdsWithCabinet.length === 0) {
+          return { success: true, data: [], total: 0, page, limit, lastPage: 0 };
+        }
+        if (where.ID?.in) {
+          const intersected = (where.ID.in as number[]).filter((id) =>
+            departmentIdsWithCabinet.includes(id),
+          );
+          if (intersected.length === 0) {
+            return { success: true, data: [], total: 0, page, limit, lastPage: 0 };
+          }
+          where.ID = { in: intersected };
+        } else {
+          where.ID = { in: departmentIdsWithCabinet };
+        }
       }
       const [departments, total] = await Promise.all([
         this.prisma.department.findMany({
