@@ -104,7 +104,7 @@ export default function FilterSection({
   const [formFilters, setFormFilters] = useState<FormFilters>(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState<FormFilters>(defaultFilters);
 
-  const loadDepartments = async (keyword?: string) => {
+  const loadDepartments = useCallback(async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
       const response = await departmentApi.getAll({ limit: 50, keyword, withCabinet: true });
@@ -116,7 +116,7 @@ export default function FilterSection({
     } finally {
       setLoadingDepartments(false);
     }
-  };
+  }, []);
 
   const resolveCabinets = useCallback(async (departmentIdStr: string, keyword?: string) => {
     try {
@@ -168,7 +168,7 @@ export default function FilterSection({
 
   useEffect(() => {
     void loadDepartments();
-  }, []);
+  }, [loadDepartments]);
 
   useEffect(() => {
     void resolveCabinets(formFilters.departmentId);

@@ -6,6 +6,7 @@ import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { UpdateItemMinMaxDto } from './dto/update-item-minmax.dto';
 import { ItemStockDto } from './dto/item-stock.dto';
+import { log } from 'console';
 
 /** ค่า DB สำหรับพิมพ์สติ๊กเกอร์์ / legacy — ใส่เมื่อสร้าง Item ใหม่ถ้าไม่ส่งมาจาก client */
 const ITEM_CREATE_STICKER_DEFAULTS: Record<string, string | number> = {
@@ -593,9 +594,9 @@ export class ItemService {
           refill_by_cabinet: refillByCabinet,
           ...(refillCabinetName
             ? {
-                refill_cabinet_name: refillCabinetName,
-                refill_cabinet_count: refillCabinetCount,
-              }
+              refill_cabinet_name: refillCabinetName,
+              refill_cabinet_count: refillCabinetCount,
+            }
             : {}),
         };
 
@@ -1442,7 +1443,7 @@ export class ItemService {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to fetch user items',
+        message: 'ดึงรายการอุปกรณ์ของผู้ใช้ไม่สำเร็จ',
         error: error.message,
       };
     }
@@ -1452,6 +1453,7 @@ export class ItemService {
     itemcode: string,
     updateMinMaxDto: UpdateItemMinMaxDto,
   ) {
+
     try {
       // Check if item exists
       const existingItem = await this.prisma.item.findUnique({
@@ -1459,7 +1461,7 @@ export class ItemService {
       });
 
       if (!existingItem) {
-        return { success: false, message: 'Item not found' };
+        return { success: false, message: 'รายการอุปกรณ์ไม่พบ' };
       }
 
       // Validate: stock_max should be >= stock_min
@@ -1470,19 +1472,30 @@ export class ItemService {
         if (updateMinMaxDto.stock_max < updateMinMaxDto.stock_min) {
           return {
             success: false,
-            message: 'Stock Max must be greater than or equal to Stock Min',
+            message: 'จำนวนสูงสุดต้องมากกว่าหรือเท่ากับจำนวนต่ำสุด',
           };
         }
       }
 
-      // อัปเดตเฉพาะ CabinetItemSetting เท่านั้น (ต้องส่ง cabinet_id)
-      const cabinetId = updateMinMaxDto.cabinet_id;
-      if (cabinetId == null) {
+      const rawCabinetId = updateMinMaxDto.cabinet_id;
+      if (rawCabinetId == null || !Number.isFinite(rawCabinetId) || rawCabinetId < 1) {
         return {
           success: false,
-          message: 'cabinet_id is required to update min/max',
+          message: 'ต้องระบุ cabinet_id (app_cabinets.id) เพื่ออัปเดต min/max ต่อตู้',
         };
       }
+
+      const cabinet = await this.prisma.cabinet.findUnique({
+        where: { id: Math.trunc(rawCabinetId) },
+        select: { id: true },
+      });
+      if (!cabinet) {
+        return {
+          success: false,
+          message: `ไม่พบตู้ในระบบ (cabinet_id=${rawCabinetId})`,
+        };
+      }
+      const cabinetId = cabinet.id;
 
       const overrideData: { stock_min?: number; stock_max?: number } = {};
       if (updateMinMaxDto.stock_min !== undefined) overrideData.stock_min = updateMinMaxDto.stock_min;
@@ -1490,7 +1503,10 @@ export class ItemService {
 
       const row = await this.prisma.cabinetItemSetting.upsert({
         where: {
-          cabinet_id_item_code: { cabinet_id: cabinetId, item_code: itemcode },
+          cabinet_id_item_code: {
+            cabinet_id: cabinetId,
+            item_code: itemcode,
+          },
         },
         create: {
           cabinet_id: cabinetId,
@@ -1506,7 +1522,7 @@ export class ItemService {
 
       return {
         success: true,
-        message: 'Item min/max updated successfully (per cabinet)',
+        message: 'อัปเดตข้อมูล min/max สำเร็จ',
         data: {
           itemcode,
           stock_min: row.stock_min,
@@ -1514,11 +1530,21 @@ export class ItemService {
         },
       };
     } catch (error) {
-      console.error('❌ Update min/max error:', error.message);
+      const err = error as { code?: string; message?: string };
+      console.error('❌ Update min/max error:', err.message);
+      if (err.code === 'P2003') {
+        return {
+          success: false,
+          message:
+            'บันทึก min/max ไม่สำเร็จ — ตาราง app_cabinet_item_settings ยังมี FOREIGN KEY เก่าบน cabinet_id ' +
+            '(มักอ้าง stock_id แทน app_cabinets.id) ให้รัน: npx prisma migrate deploy',
+          error: err.message,
+        };
+      }
       return {
         success: false,
-        message: 'Failed to update item min/max',
-        error: error.message,
+        message: 'อัปเดตข้อมูล min/max ไม่สำเร็จ',
+        error: err.message,
       };
     }
   }

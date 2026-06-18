@@ -74,6 +74,10 @@ export default function SearchableSelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
   const initialLoadDone = useRef(false);
+  const onSearchRef = useRef(onSearch);
+  onSearchRef.current = onSearch;
+  /** จำ label ของตัวเลือกที่ user เลือกล่าสุด — แสดงบน trigger เมื่อ options จาก API เปลี่ยน */
+  const lastSelectedRef = useRef<Option | null>(null);
 
   const updatePosition = () => {
     if (!triggerRef.current) return;
@@ -204,57 +208,82 @@ export default function SearchableSelect({
 
   // เปิดครั้งแรกโหลดทันที — ค้นหาว่างโหลดทันที — มีข้อความค้นหา debounce 300ms
   useEffect(() => {
-    if (!isOpen || !onSearch) return;
+    const search = onSearchRef.current;
+    if (!isOpen || !search) return;
 
     if (!initialLoadDone.current) {
-      onSearch("");
+      search("");
       initialLoadDone.current = true;
       return;
     }
 
-    const q = searchTerm.trim();
-    if (q === "") {
-      onSearch("");
+    const trimmed = searchTerm.trim();
+    if (trimmed === "") {
+      search("");
       return;
     }
 
     const debounce = setTimeout(() => {
-      onSearch(searchTerm);
+      search(searchTerm);
     }, 300);
 
     return () => clearTimeout(debounce);
   }, [searchTerm, isOpen]);
 
-  // Filter options locally if no onSearch provided
-  const filteredOptions = onSearch
-    ? options
-    : options.filter(
-        (opt) =>
-          opt.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          opt.subLabel?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
+  const q = searchTerm.trim().toLowerCase();
   const trimmedValue = value?.trim() ?? "";
-  const selectedOption = options.find((opt) => opt.value === value);
-  /** ค่าที่เลือกแล้วแต่ไม่อยู่ในรายการ (เช่น หลังค้นหา) — แปะไว้บนสุดให้เห็นว่าเลือกอะไรอยู่ */
+
+  const selectedOption = options.find((opt) => opt.value === trimmedValue);
+  if (selectedOption) {
+    lastSelectedRef.current = selectedOption;
+  } else if (
+    trimmedValue &&
+    (initialDisplay?.label || initialDisplay?.subLabel)
+  ) {
+    lastSelectedRef.current = {
+      value: trimmedValue,
+      label: initialDisplay.label || "—",
+      subLabel: initialDisplay.subLabel,
+    };
+  }
+
+  const matchesLocalQuery = (opt: Option): boolean => {
+    if (!q) return true;
+    return (
+      opt.label.toLowerCase().includes(q) ||
+      (opt.subLabel?.toLowerCase().includes(q) ?? false) ||
+      opt.value.toLowerCase().includes(q)
+    );
+  };
+
+  /** มี onSearch = รายการมาจาก API แล้ว — ตอนพิมพ์ค้นหาใช้ผลจาก server โดยตรง (ซ่อนแค่ "ทั้งหมด") */
+  const filteredOptions = onSearch
+    ? q
+      ? options.filter((opt) => opt.value !== "")
+      : options
+    : options.filter(matchesLocalQuery);
+
+  /** ตอนกำลังค้นหาไม่ pin ค่าเดิม — ตอนไม่ค้นหา pin ถ้าค่าที่เลือกไม่อยู่ใน list ปัจจุบัน */
   const pinnedSelectedOption: Option | null =
-    trimmedValue && !filteredOptions.some((o) => o.value === trimmedValue)
+    !q &&
+    trimmedValue &&
+    !filteredOptions.some((o) => o.value === trimmedValue)
       ? selectedOption ??
-        ((initialDisplay?.label || initialDisplay?.subLabel) && initialDisplay
-          ? {
-              value: trimmedValue,
-              label: initialDisplay.label || "—",
-              subLabel: initialDisplay.subLabel,
-            }
-          : { value: trimmedValue, label: trimmedValue })
+        lastSelectedRef.current ??
+        (trimmedValue ? { value: trimmedValue, label: trimmedValue } : null)
       : null;
+
   const listOptions: Option[] = pinnedSelectedOption
-    ? [pinnedSelectedOption, ...filteredOptions]
+    ? [
+        pinnedSelectedOption,
+        ...filteredOptions.filter((o) => o.value !== pinnedSelectedOption.value),
+      ]
     : filteredOptions;
 
   // แสดงรายการที่เลือกใน trigger: จาก options → initialDisplay → อย่างน้อยแสดงค่า value
   const displayValue =
     selectedOption ||
+    lastSelectedRef.current ||
     (trimmedValue
       ? (initialDisplay?.label || initialDisplay?.subLabel) && initialDisplay
         ? initialDisplay
@@ -301,6 +330,7 @@ export default function SearchableSelect({
             key={`opt-${option.value}-${idx}`}
             type="button"
             onClick={() => {
+              lastSelectedRef.current = option;
               onValueChange(option.value);
               setIsOpen(false);
               setSearchTerm("");
