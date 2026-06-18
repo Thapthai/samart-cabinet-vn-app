@@ -120,6 +120,7 @@ export interface ItemRefillByCabinet {
   cabinet_id: number;
   cabinet_name?: string | null;
   in_cabinet: number;
+  stock_min?: number | null;
   stock_max: number;
   refill_qty: number;
 }

@@ -68,7 +68,7 @@ export default function RefillPreviewCard({
                 ต้องเติมด่วน ({totalNeedRefill} รายการ)
               </CardTitle>
               <CardDescription className="text-red-900/70">
-                Max − จำนวนในตู้ · รวมทุกตู้เมื่อไม่เลือกตู้ · เรียง (มาก → น้อย)
+                Min − จำนวนในตู้ · รวมทุกตู้เมื่อไม่เลือกตู้ · เรียง (มาก → น้อย)
                 {hasMore ? ` · แสดง ${previewLimit} รายการแรก` : null}
               </CardDescription>
             </div>

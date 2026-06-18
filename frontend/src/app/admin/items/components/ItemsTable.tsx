@@ -279,7 +279,7 @@ export default function ItemsTable({
                     );
                     const refillByCabinet = item.refill_by_cabinet ?? [];
                     const hasCabinetRefillSummary = refillByCabinet.some(
-                      (row) => row.refill_qty > 0 || row.stock_max > 0,
+                      (row) => row.refill_qty > 0 || (row.stock_min ?? 0) > 0,
                     );
                     const canExpandRow = itemStocks.length > 0 || refillByCabinet.length > 0;
                     const isExpanded = expandedRow === item.itemcode;
@@ -416,7 +416,7 @@ export default function ItemsTable({
                                   <div>
                                     <h4 className="mb-3 flex items-center gap-2 font-semibold text-gray-700">
                                       <Gauge className="h-4 w-4" />
-                                      ต้องเติมต่อตู้ (Max − จำนวนในตู้)
+                                      ต้องเติมต่อตู้ (Min − จำนวนในตู้)
                                     </h4>
                                     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                                       <Table>
@@ -424,7 +424,7 @@ export default function ItemsTable({
                                           <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
                                             <TableHead className="text-slate-600">ตู้ (Cabinet)</TableHead>
                                             <TableHead className="text-center text-slate-600">ในตู้</TableHead>
-                                            <TableHead className="text-center text-slate-600">Max</TableHead>
+                                            <TableHead className="text-center text-slate-600">Min</TableHead>
                                             <TableHead className="text-center text-slate-600">ต้องเติม</TableHead>
                                           </TableRow>
                                         </TableHeader>
@@ -444,7 +444,7 @@ export default function ItemsTable({
                                                 {row.in_cabinet.toLocaleString()}
                                               </TableCell>
                                               <TableCell className="text-center text-muted-foreground">
-                                                {row.stock_max.toLocaleString()}
+                                                {(row.stock_min ?? 0).toLocaleString()}
                                               </TableCell>
                                               <TableCell className="text-center">
                                                 {row.refill_qty > 0 ? (

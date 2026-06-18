@@ -22,6 +22,13 @@ const ITEM_CREATE_STICKER_DEFAULTS: Record<string, string | number> = {
 export class ItemService {
   constructor(private prisma: PrismaService) { }
 
+  /** จำนวนที่ต้องเติม = max(0, Stock Min − ในตู้) — ใช้เมื่อ Min > 0 เท่านั้น */
+  private refillQtyFromMin(inCabinet: number, stockMin: number | null | undefined): number {
+    const min = stockMin ?? 0;
+    if (min <= 0) return 0;
+    return Math.max(0, min - inCabinet);
+  }
+
   async createItem(createItemDto: CreateItemDto) {
     try {
       // Remove undefined/null values from the DTO
@@ -520,6 +527,7 @@ export class ItemService {
           cabinet_id: number;
           cabinet_name: string | null;
           in_cabinet: number;
+          stock_min: number | null;
           stock_max: number;
           refill_qty: number;
         }[] = [];
@@ -532,13 +540,15 @@ export class ItemService {
             cabinet_id != null
               ? overrideMap.get(item.itemcode)
               : overrideByCabinetItem.get(`${cabId}:${item.itemcode}`);
+          const cabMin = setting?.stock_min ?? null;
           const cabMax = setting?.stock_max ?? 0;
-          const cabRefill = Math.max(0, cabMax - inCabinet);
+          const cabRefill = this.refillQtyFromMin(inCabinet, cabMin);
           const cabName = (group.cabinet?.cabinet_name ?? '').trim() || null;
           refillByCabinet.push({
             cabinet_id: cabId,
             cabinet_name: cabName,
             in_cabinet: inCabinet,
+            stock_min: cabMin,
             stock_max: cabMax,
             refill_qty: cabRefill,
           });
@@ -555,8 +565,7 @@ export class ItemService {
           const override = overrideMap.get(item.itemcode);
           effectiveStockMin = override?.stock_min ?? null;
           effectiveStockMax = override?.stock_max ?? 0;
-          const maxForRefill = effectiveStockMax ?? 0;
-          refillQty = Math.max(0, maxForRefill - countItemStock);
+          refillQty = this.refillQtyFromMin(countItemStock, effectiveStockMin);
           const cabRow = refillByCabinet.find((r) => r.cabinet_id === cabinet_id);
           if (cabRow) {
             refillCabinetName = cabRow.cabinet_name;
@@ -975,9 +984,7 @@ export class ItemService {
         const damagedQty = damagedReturnMap.get(item.itemcode) ?? 0;
         const qtyInUse = qtyInUseMap.get(item.itemcode) ?? 0;
 
-        const maxForRefill = effectiveStockMax ?? 0;
-        let refillQty = maxForRefill - countItemStock;
-        if (refillQty < 0) refillQty = 0;
+        let refillQty = this.refillQtyFromMin(countItemStock, effectiveStockMin);
 
         const stockMin = effectiveStockMin ?? 0;
         const isLowStock = stockMin > 0 && countItemStock < stockMin;

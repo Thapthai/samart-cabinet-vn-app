@@ -2334,7 +2334,7 @@ export class ReportServiceService {
    * Get Cabinet Stock Report Data (สต๊อกอุปกรณ์ในตู้)
    * คอลัมน์: ลำดับ, แผนก, รหัสอุปกรณ์, อุปกรณ์, คงเหลือ, Stock Max, Stock Min, จำนวนที่ต้องเติม
    * คงเหลือ = จำนวนชิ้นในตู้ (นับเฉพาะ itemstock ที่ IsStock = 1 เท่านั้น)
-   * จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้ (ไม่ติดลบ; Max จาก CabinetItemSetting หรือ Item)
+   * จำนวนที่ต้องเติม = Stock Min − จำนวนในตู้ (ไม่ติดลบ; Min จาก CabinetItemSetting หรือ Item)
    * รายงาน Excel/PDF: แสดงทุกรายการตาม filter (เหมือนหน้าเว็บ) — เรียงหมดอายุ/ใกล้หมดอายุ/ต่ำกว่า Min ก่อน
    */
   async getCabinetStockData(params: {
