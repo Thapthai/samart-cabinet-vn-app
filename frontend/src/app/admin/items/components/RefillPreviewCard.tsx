@@ -98,7 +98,7 @@ export default function RefillPreviewCard({
                 const max = toStockLimitNumber(item.stock_max);
                 const refill = Math.max(0, Number(item.refill_qty ?? 0));
                 return (
-                  <TableRow key={`${item.itemcode}-${index}`} className="hover:bg-red-50/50">
+                  <TableRow key={`${item.itemcode}-${index}`} className="hover:bg-slate-50/80">
                     <TableCell className="text-center text-sm text-muted-foreground">
                       {index + 1}
                     </TableCell>
@@ -120,7 +120,7 @@ export default function RefillPreviewCard({
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground">{max}</TableCell>
                     <TableCell className="text-center">
-                      <span className="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-semibold text-red-900">
+                      <span className="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-semibold text-slate-900">
                         {refill.toLocaleString()}
                       </span>
                     </TableCell>

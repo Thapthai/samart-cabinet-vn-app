@@ -91,12 +91,24 @@ export function formatSignedQtyWithMainUnitForReport(
 }
 
 /** คอลัมน์หมายเหตุรายงานสต๊อกตู้ — หมดอายุ / ต้องเติม */
-export function formatCabinetStockRemark(row: {
-  has_expired?: boolean;
-  refill_qty?: number;
-}): string {
+export function formatCabinetStockRemark(
+  row: {
+    has_expired?: boolean;
+    has_near_expiry?: boolean;
+    stock_min?: number | null;
+    balance_qty?: number;
+    refill_qty?: number;
+  },
+  options?: { showRowHighlight?: boolean },
+): string {
   const parts: string[] = [];
-  if (row.has_expired) parts.push('หมดอายุ');
+  const showRowHighlight = options?.showRowHighlight === true;
+  if (showRowHighlight) {
+    if (row.has_expired) parts.push('หมดอายุ');
+    else if (row.has_near_expiry) parts.push('ใกล้หมดอายุ');
+    const stockMin = row.stock_min ?? 0;
+    if (stockMin > 0 && (row.balance_qty ?? 0) < stockMin) parts.push('ต่ำกว่า Min');
+  }
   if ((row.refill_qty ?? 0) > 0) parts.push('ต้องเติม');
   return parts.length > 0 ? parts.join(' / ') : '-';
 }

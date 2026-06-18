@@ -28,6 +28,7 @@ import {
 import { ItemBorrowReportPdfService } from './services/item-borrow-report-pdf.service';
 import { buildReturnedGroups } from './utils/build-returned-groups';
 import { buildDispensedGroups, sortDispensedItemsForReport } from './utils/build-dispensed-groups';
+import { isValidCabinetFilterId } from './utils/cabinet-stock-row-highlight.util';
 import { DispensedItemsExcelService, DispensedItemsReportData } from './services/dispensed-items-excel.service';
 import { DispensedItemsPdfService } from './services/dispensed-items-pdf.service';
 import {
@@ -139,6 +140,8 @@ export class ReportServiceService {
     return names.size > 0 ? [...names].join(', ') : '-';
   }
 
+  private static readonly NEAR_EXPIRY_DAYS = 30;
+
   /** มีอุปกรณ์หมดอายุในตู้ — logic เดียวกับ item.service / ItemsTable (IsStock=1 และ ExpireDate < วันนี้) */
   private itemHasExpiredStock(item: {
     itemStocks?: Array<{ ExpireDate?: Date | string | null; IsStock?: boolean | number | null }>;
@@ -149,6 +152,24 @@ export class ReportServiceService {
       if (!stock.ExpireDate) return false;
       const exp = new Date(stock.ExpireDate);
       return !Number.isNaN(exp.getTime()) && exp < now;
+    });
+  }
+
+  /** ใกล้หมดอายุภายใน 30 วัน — logic เดียวกับ ItemsTable (ไม่นับรายการที่หมดอายุแล้ว) */
+  private itemHasNearExpiryStock(item: {
+    itemStocks?: Array<{ ExpireDate?: Date | string | null; IsStock?: boolean | number | null }>;
+  }): boolean {
+    if (this.itemHasExpiredStock(item)) return false;
+    const now = Date.now();
+    const end = new Date(now);
+    end.setDate(end.getDate() + ReportServiceService.NEAR_EXPIRY_DAYS);
+    const endMs = end.getTime();
+    return (item.itemStocks ?? []).some((stock) => {
+      if (!(stock.IsStock === true || stock.IsStock === 1)) return false;
+      if (!stock.ExpireDate) return false;
+      const exp = new Date(stock.ExpireDate);
+      const t = exp.getTime();
+      return !Number.isNaN(t) && t >= now && t <= endMs;
     });
   }
   private formatCabinetReportDateDisplay(isoDate?: string): string {
@@ -2355,12 +2376,14 @@ export class ReportServiceService {
       }
 
       let cabinetId = params?.cabinetId;
-      if (cabinetId == null && params?.cabinetCode) {
+      if (!isValidCabinetFilterId(cabinetId) && params?.cabinetCode) {
         const cab = await this.prisma.cabinet.findFirst({
           where: { cabinet_code: params.cabinetCode },
           select: { id: true },
         });
-        cabinetId = cab?.id ?? undefined;
+        cabinetId = isValidCabinetFilterId(cab?.id) ? cab.id : undefined;
+      } else if (!isValidCabinetFilterId(cabinetId)) {
+        cabinetId = undefined;
       }
 
       // ใช้ ItemService.findAllItems — logic เดียวกับหน้า /admin/items และ /staff/items
@@ -2416,6 +2439,7 @@ export class ReportServiceService {
         stock_min: item.stock_min ?? null,
         refill_qty: Number(item.refill_qty ?? 0),
         has_expired: this.itemHasExpiredStock(item),
+        has_near_expiry: this.itemHasNearExpiryStock(item),
         unit:
           item.unit?.UnitName != null && String(item.unit.UnitName).trim() !== ''
             ? { UnitName: String(item.unit.UnitName).trim() }
@@ -2452,8 +2476,9 @@ export class ReportServiceService {
       return {
         reportDateDisplay: this.formatCabinetReportDateDisplay(asOfIso),
         reportDateISO: this.cabinetReportDateISO(asOfIso),
+        showRowHighlight: isValidCabinetFilterId(cabinetId),
         filters: {
-          cabinetId: cabinetId ?? params?.cabinetId,
+          cabinetId,
           cabinetCode: params?.cabinetCode,
           cabinetName: filterCabinetName,
           departmentId: params?.departmentId,

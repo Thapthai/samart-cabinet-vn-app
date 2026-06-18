@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { applyExcelStandardTitleHeader } from '../utils/excel-report-header.util';
+import { resolveCabinetStockShowRowHighlight, CABINET_STOCK_NEUTRAL_ROW_BG } from '../utils/cabinet-stock-row-highlight.util';
 import {
   formatQtyWithMainUnitForReport,
   formatQtyPlainForReport,
@@ -23,6 +24,8 @@ export interface CabinetStockRow {
   refill_qty: number;
   /** มีชิ้น IsStock=1 ที่หมดอายุแล้ว — ใช้ highlight สีส้ม */
   has_expired?: boolean;
+  /** ใกล้หมดอายุภายใน 30 วัน (ไม่รวมที่หมดอายุแล้ว) — สีเหลือง amber */
+  has_near_expiry?: boolean;
   unit?: { UnitName?: string | null };
   subUnit?: { UnitName?: string | null };
   SubUnitQty?: number | null;
@@ -40,6 +43,8 @@ export interface CabinetStockReportData {
     departmentId?: number;
     departmentName?: string;
   };
+  /** แสดงสี highlight แถว — เฉพาะเมื่อเลือกตู้ (ตรงกับ showCabinetMinMax หน้าเว็บ) */
+  showRowHighlight?: boolean;
   summary: { total_rows: number; total_qty: number; total_refill_qty: number };
   data: CabinetStockRow[];
 }
@@ -131,20 +136,29 @@ export class CabinetStockReportExcelService {
     });
     headerRow.height = 28;
 
-    const LIGHT_RED = 'FFF8D7D7';
-    /** ตรงกับหน้าเว็บ bg-orange-100 */
+    /** ตรงกับหน้าเว็บ bg-red-100 — ต่ำกว่า Min */
+    const LIGHT_RED = 'FFFEE2E2';
+    /** ตรงกับหน้าเว็บ bg-orange-100 — หมดอายุ */
     const LIGHT_ORANGE = 'FFFFEDD5';
+    /** ตรงกับหน้าเว็บ bg-amber-100 — ใกล้หมดอายุ */
+    const LIGHT_AMBER = 'FFFEF3C7';
+    const showRowHighlight = resolveCabinetStockShowRowHighlight(data);
     let dataRowIndex = tableStartRow + 1;
     data.data.forEach((row, idx) => {
       const excelRow = worksheet.getRow(dataRowIndex);
-      const hasRefill = (row.refill_qty ?? 0) > 0;
-      const bg = row.has_expired
-        ? LIGHT_ORANGE
-        : hasRefill
-          ? LIGHT_RED
-          : idx % 2 === 0
-            ? 'FFFFFFFF'
-            : 'FFF8F9FA';
+      const stockMin = row.stock_min ?? 0;
+      const isLowStock = stockMin > 0 && (row.balance_qty ?? 0) < stockMin;
+      const bg = !showRowHighlight
+        ? CABINET_STOCK_NEUTRAL_ROW_BG.argb
+        : row.has_expired
+          ? LIGHT_ORANGE
+          : row.has_near_expiry
+            ? LIGHT_AMBER
+            : isLowStock
+              ? LIGHT_RED
+              : idx % 2 === 0
+                ? 'FFFFFFFF'
+                : 'FFF8F9FA';
       const u: ReportItemUnitFields = {
         unit: row.unit,
         subUnit: row.subUnit,
@@ -161,7 +175,7 @@ export class CabinetStockReportExcelService {
         formatQtyPlainForReport(row.damaged_qty ?? 0),
         minMaxStr,
         formatQtyPlainForReport(row.refill_qty),
-        formatCabinetStockRemark(row),
+        formatCabinetStockRemark(row, { showRowHighlight }),
       ].forEach((val, colIndex) => {
         const cell = excelRow.getCell(colIndex + 1);
         cell.value = val;
@@ -189,8 +203,9 @@ export class CabinetStockReportExcelService {
     const noteRow = footerRow + 1;
     worksheet.mergeCells(`A${noteRow}:J${noteRow}`);
     const noteCell = worksheet.getCell(`A${noteRow}`);
-    noteCell.value =
-      'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้';
+    noteCell.value = showRowHighlight
+      ? 'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้ | สีแดง = ต่ำกว่า Min | สีเหลือง = ใกล้หมดอายุ | สีส้ม = หมดอายุ'
+      : 'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้ | ไม่แสดงสี highlight เมื่อกรองตู้ = ทั้งหมด';
     noteCell.font = { name: 'Tahoma', size: 11, color: { argb: 'FF6C757D' } };
     noteCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(noteRow).height = 16;

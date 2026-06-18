@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import { CabinetStockReportData, CabinetStockRow } from './cabinet-stock-report-excel.service';
+import { resolveCabinetStockShowRowHighlight, CABINET_STOCK_NEUTRAL_ROW_BG } from '../utils/cabinet-stock-row-highlight.util';
 import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.config';
 import {
   formatQtyWithMainUnitForReport,
@@ -82,6 +83,7 @@ export class CabinetStockReportPdfService {
         const contentWidth = pageWidth - margin * 2;
         const summary = data?.summary ?? { total_rows: 0, total_qty: 0, total_refill_qty: 0 };
         const rows = data?.data && Array.isArray(data.data) ? data.data : [];
+        const showRowHighlight = resolveCabinetStockShowRowHighlight(data);
 
         // ---- Header block with logo ----
         const headerTop = 35;
@@ -237,7 +239,7 @@ export class CabinetStockReportPdfService {
               formatQtyPlainForReport(damagedQty),
               minMaxStr,
               formatQtyPlainForReport(refill),
-              formatCabinetStockRemark(row),
+              formatCabinetStockRemark(row, { showRowHighlight }),
             ];
 
             // คำนวณความสูงแถวตามข้อความที่อาจขึ้นบรรทัดใหม่
@@ -259,14 +261,19 @@ export class CabinetStockReportPdfService {
             }
 
             const rowY = doc.y;
-            const hasRefill = (row.refill_qty ?? 0) > 0;
-            const bg = row.has_expired
-              ? '#FFEDD5'
-              : hasRefill
-                ? '#F8D7D7'
-                : idx % 2 === 0
-                  ? '#FFFFFF'
-                  : '#F8F9FA';
+            const stockMin = smin ?? 0;
+            const isLowStock = stockMin > 0 && bal < stockMin;
+            const bg = !showRowHighlight
+              ? CABINET_STOCK_NEUTRAL_ROW_BG.hex
+              : row.has_expired
+                ? '#FFEDD5'
+                : row.has_near_expiry
+                  ? '#FEF3C7'
+                  : isLowStock
+                    ? '#FEE2E2'
+                    : idx % 2 === 0
+                      ? '#FFFFFF'
+                      : '#F8F9FA';
             let xPos = margin;
             for (let i = 0; i < headers.length; i++) {
               const cw = colWidths[i];
@@ -285,7 +292,9 @@ export class CabinetStockReportPdfService {
 
         doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
         doc.text(
-          'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้',
+          showRowHighlight
+            ? 'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้ | สีแดง = ต่ำกว่า Min | สีเหลือง = ใกล้หมดอายุ | สีส้ม = หมดอายุ'
+            : 'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้ | ไม่แสดงสี highlight เมื่อกรองตู้ = ทั้งหมด',
           margin,
           doc.y + 6,
           {
