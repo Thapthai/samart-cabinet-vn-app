@@ -22,11 +22,11 @@ const ITEM_CREATE_STICKER_DEFAULTS: Record<string, string | number> = {
 export class ItemService {
   constructor(private prisma: PrismaService) { }
 
-  /** จำนวนที่ต้องเติม = max(0, Stock Min − ในตู้) — ใช้เมื่อ Min > 0 เท่านั้น */
-  private refillQtyFromMin(inCabinet: number, stockMin: number | null | undefined): number {
-    const min = stockMin ?? 0;
-    if (min <= 0) return 0;
-    return Math.max(0, min - inCabinet);
+  /** จำนวนที่ต้องเติม = max(0, Stock Max − ในตู้) */
+  private refillQtyFromMax(inCabinet: number, stockMax: number | null | undefined): number {
+    const max = stockMax ?? 0;
+    if (max <= 0) return 0;
+    return Math.max(0, max - inCabinet);
   }
 
   async createItem(createItemDto: CreateItemDto) {
@@ -542,7 +542,7 @@ export class ItemService {
               : overrideByCabinetItem.get(`${cabId}:${item.itemcode}`);
           const cabMin = setting?.stock_min ?? null;
           const cabMax = setting?.stock_max ?? 0;
-          const cabRefill = this.refillQtyFromMin(inCabinet, cabMin);
+          const cabRefill = this.refillQtyFromMax(inCabinet, cabMax);
           const cabName = (group.cabinet?.cabinet_name ?? '').trim() || null;
           refillByCabinet.push({
             cabinet_id: cabId,
@@ -565,7 +565,7 @@ export class ItemService {
           const override = overrideMap.get(item.itemcode);
           effectiveStockMin = override?.stock_min ?? null;
           effectiveStockMax = override?.stock_max ?? 0;
-          refillQty = this.refillQtyFromMin(countItemStock, effectiveStockMin);
+          refillQty = this.refillQtyFromMax(countItemStock, effectiveStockMax);
           const cabRow = refillByCabinet.find((r) => r.cabinet_id === cabinet_id);
           if (cabRow) {
             refillCabinetName = cabRow.cabinet_name;
@@ -984,7 +984,7 @@ export class ItemService {
         const damagedQty = damagedReturnMap.get(item.itemcode) ?? 0;
         const qtyInUse = qtyInUseMap.get(item.itemcode) ?? 0;
 
-        let refillQty = this.refillQtyFromMin(countItemStock, effectiveStockMin);
+        let refillQty = this.refillQtyFromMax(countItemStock, effectiveStockMax);
 
         const stockMin = effectiveStockMin ?? 0;
         const isLowStock = stockMin > 0 && countItemStock < stockMin;

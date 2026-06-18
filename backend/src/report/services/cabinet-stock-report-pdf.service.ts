@@ -285,7 +285,7 @@ export class CabinetStockReportPdfService {
 
         doc.fontSize(11).font(finalFontName).fillColor('#6C757D');
         doc.text(
-          'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Min − จำนวนในตู้',
+          'หมายเหตุ: จำนวนในตู้ = ชิ้นในตู้ (IsStock=1) | ถูกใช้งาน = supply_usage_items ตามวันที่รายงาน | จำนวนที่ต้องเติม = Stock Max − จำนวนในตู้',
           margin,
           doc.y + 6,
           {

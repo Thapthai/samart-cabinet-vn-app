@@ -279,7 +279,7 @@ export default function ItemsTable({
                     );
                     const refillByCabinet = item.refill_by_cabinet ?? [];
                     const hasCabinetRefillSummary = refillByCabinet.some(
-                      (row) => row.refill_qty > 0 || (row.stock_min ?? 0) > 0,
+                      (row) => row.refill_qty > 0 || row.stock_max > 0,
                     );
                     const canExpandRow = itemStocks.length > 0 || refillByCabinet.length > 0;
                     const isExpanded = expandedRow === item.itemcode;
@@ -293,15 +293,14 @@ export default function ItemsTable({
                             "transition-colors",
                             hasExpired && showCabinetMinMax && "bg-orange-100 hover:bg-orange-200",
                             !hasExpired && hasNearExpiry && showCabinetMinMax && "bg-amber-100 hover:bg-amber-200",
-                            !hasExpired && !hasNearExpiry && isLowStock && "bg-red-50 hover:bg-red-100",
                             !hasExpired &&
                             !hasNearExpiry &&
                             showCabinetMinMax &&
-                            refillQty > 0 &&
+                            isLowStock &&
                             "bg-red-100 hover:bg-red-200",
                             !hasExpired &&
                             !hasNearExpiry &&
-                            !(isLowStock || (showCabinetMinMax && refillQty > 0)) &&
+                            !(showCabinetMinMax && isLowStock) &&
                             "hover:bg-slate-50/80"
                           )}
                         >
@@ -371,7 +370,7 @@ export default function ItemsTable({
                               className={cn(
                                 'font-medium',
                                 showCabinetMinMax && refillQty > 0
-                                  ? 'inline-flex min-w-[2rem] items-center justify-center rounded-full bg-red-100 px-2 py-0.5 text-red-900'
+                                  ? 'inline-flex min-w-[2rem] items-center justify-center rounded-full bg-slate-100 px-2 py-0.5 text-slate-900'
                                   : 'font-medium text-slate-700',
                               )}
                             >
@@ -416,7 +415,7 @@ export default function ItemsTable({
                                   <div>
                                     <h4 className="mb-3 flex items-center gap-2 font-semibold text-gray-700">
                                       <Gauge className="h-4 w-4" />
-                                      ต้องเติมต่อตู้ (Min − จำนวนในตู้)
+                                      ต้องเติมต่อตู้ (Max − จำนวนในตู้)
                                     </h4>
                                     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                                       <Table>
@@ -424,17 +423,20 @@ export default function ItemsTable({
                                           <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50">
                                             <TableHead className="text-slate-600">ตู้ (Cabinet)</TableHead>
                                             <TableHead className="text-center text-slate-600">ในตู้</TableHead>
-                                            <TableHead className="text-center text-slate-600">Min</TableHead>
+                                            <TableHead className="text-center text-slate-600">Max</TableHead>
                                             <TableHead className="text-center text-slate-600">ต้องเติม</TableHead>
                                           </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                          {refillByCabinet.map((row) => (
+                                          {refillByCabinet.map((row) => {
+                                            const rowMin = row.stock_min ?? 0;
+                                            const rowLowStock = rowMin > 0 && row.in_cabinet < rowMin;
+                                            return (
                                             <TableRow
                                               key={row.cabinet_id}
                                               className={cn(
                                                 "border-b border-slate-100",
-                                                row.refill_qty > 0 && "bg-red-50/40 hover:bg-red-50/40",
+                                                rowLowStock && "bg-red-50/60 hover:bg-red-50/60",
                                               )}
                                             >
                                               <TableCell className="font-medium text-slate-800">
@@ -444,11 +446,11 @@ export default function ItemsTable({
                                                 {row.in_cabinet.toLocaleString()}
                                               </TableCell>
                                               <TableCell className="text-center text-muted-foreground">
-                                                {(row.stock_min ?? 0).toLocaleString()}
+                                                {row.stock_max.toLocaleString()}
                                               </TableCell>
                                               <TableCell className="text-center">
                                                 {row.refill_qty > 0 ? (
-                                                  <span className="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-semibold text-red-900">
+                                                  <span className="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-semibold text-slate-900">
                                                     {row.refill_qty.toLocaleString()}
                                                   </span>
                                                 ) : (
@@ -456,7 +458,8 @@ export default function ItemsTable({
                                                 )}
                                               </TableCell>
                                             </TableRow>
-                                          ))}
+                                            );
+                                          })}
                                         </TableBody>
                                       </Table>
                                     </div>
