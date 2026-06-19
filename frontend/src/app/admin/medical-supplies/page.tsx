@@ -131,7 +131,7 @@ export default function MedicalSuppliesPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await departmentApi.getAll({ limit: 500, withCabinet: true });
+        const res = await departmentApi.getAll({ limit: 500 });
         if (res?.data && Array.isArray(res.data)) setDepartments(res.data);
       } catch {
         // ignore
