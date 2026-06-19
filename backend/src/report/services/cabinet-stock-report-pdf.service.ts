@@ -7,7 +7,7 @@ import { resolveReportLogoPath, getReportThaiFontPaths } from '../config/report.
 import {
   formatQtyWithMainUnitForReport,
   formatQtyPlainForReport,
-  formatMinMaxPlainForReport,
+  formatCabinetStockMinMaxForReport,
   formatCabinetStockRemark,
   type ReportItemUnitFields,
 } from '../utils/format-item-qty';
@@ -228,7 +228,7 @@ export class CabinetStockReportPdfService {
               subUnit: row.subUnit,
               SubUnitQty: row.SubUnitQty,
             };
-            const minMaxStr = formatMinMaxPlainForReport(smin, smax);
+            const minMaxStr = formatCabinetStockMinMaxForReport(smin, smax, showRowHighlight);
             const cellTexts = [
               String(seq),
               String(dept),

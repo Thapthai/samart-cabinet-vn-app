@@ -5,7 +5,7 @@ import { resolveCabinetStockShowRowHighlight, CABINET_STOCK_NEUTRAL_ROW_BG } fro
 import {
   formatQtyWithMainUnitForReport,
   formatQtyPlainForReport,
-  formatMinMaxPlainForReport,
+  formatCabinetStockMinMaxForReport,
   formatCabinetStockRemark,
   type ReportItemUnitFields,
 } from '../utils/format-item-qty';
@@ -164,7 +164,11 @@ export class CabinetStockReportExcelService {
         subUnit: row.subUnit,
         SubUnitQty: row.SubUnitQty,
       };
-      const minMaxStr = formatMinMaxPlainForReport(row.stock_min, row.stock_max);
+      const minMaxStr = formatCabinetStockMinMaxForReport(
+        row.stock_min,
+        row.stock_max,
+        showRowHighlight,
+      );
       [
         row.seq,
         row.department_name ?? '-',

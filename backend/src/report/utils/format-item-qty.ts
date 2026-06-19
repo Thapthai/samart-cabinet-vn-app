@@ -80,6 +80,16 @@ export function formatMinMaxPlainForReport(
   return `${fmt(min)} / ${fmt(max)}`;
 }
 
+/** Min/Max ในรายงานสต๊อกตู้ — ไม่เลือกตู้แสดง `-` (ตรงกับหน้าเว็บ) */
+export function formatCabinetStockMinMaxForReport(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  showCabinetMinMax: boolean,
+): string {
+  if (!showCabinetMinMax) return '-';
+  return formatMinMaxPlainForReport(min, max);
+}
+
 /** ส่วนต่างที่อาจติดลบ — คงหน่วยเดียวกับรายการ */
 export function formatSignedQtyWithMainUnitForReport(
   qty: number,
@@ -108,7 +118,7 @@ export function formatCabinetStockRemark(
     else if (row.has_near_expiry) parts.push('ใกล้หมดอายุ');
     const stockMin = row.stock_min ?? 0;
     if (stockMin > 0 && (row.balance_qty ?? 0) < stockMin) parts.push('ต่ำกว่า Min');
+    if ((row.refill_qty ?? 0) > 0) parts.push('ต้องเติม');
   }
-  if ((row.refill_qty ?? 0) > 0) parts.push('ต้องเติม');
   return parts.length > 0 ? parts.join(' / ') : '-';
 }
