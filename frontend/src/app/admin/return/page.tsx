@@ -271,7 +271,7 @@ export default function ReturnMedicalSuppliesPage() {
 
   const fetchDepartments = async () => {
     try {
-      const res = await departmentApi.getAll({ limit: 1000, withCabinet: true });
+      const res = await departmentApi.getAll({ limit: 1000 });
       if (res.success && Array.isArray(res.data)) {
         setDepartments(
           res.data.map((d: { ID: number; DepName?: string | null; DepName2?: string | null }) => ({
