@@ -517,7 +517,9 @@ export class MedicalSupplyController {
   }
 
   @Get('returned-items')
+  @UseGuards(FlexibleAuthGuard)
   async getReturnedItems(
+    @Req() req: Request & MedicalSuppliesAuthRequest,
     @Query('keyword') keyword?: string,
     @Query('itemTypeId') itemTypeId?: string,
     @Query('startDate') startDate?: string,
@@ -529,6 +531,11 @@ export class MedicalSupplyController {
     @Query('subDepartmentId') subDepartmentId?: string,
   ) {
     try {
+      let staffAllowedDepartmentIds: number[] | null | undefined = undefined;
+      const staffUser = await this.staffDepartmentScope.resolveActiveStaffUser(req);
+      if (staffUser != null) {
+        staffAllowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
+      }
       const result = await this.medicalSuppliesService.getReturnedItems({
         keyword,
         itemTypeId: itemTypeId ? parseInt(itemTypeId, 10) : undefined,
@@ -539,6 +546,7 @@ export class MedicalSupplyController {
         departmentId,
         cabinetId,
         subDepartmentId,
+        staffAllowedDepartmentIds,
       });
       return {
         success: true,

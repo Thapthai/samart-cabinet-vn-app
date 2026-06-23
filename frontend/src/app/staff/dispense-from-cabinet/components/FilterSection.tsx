@@ -444,6 +444,7 @@ export default function FilterSection({
               value={filters.cabinetId}
               onValueChange={(value) => onFilterChange("cabinetId", value)}
               options={[
+                { value: "", label: "ทั้งหมด" },
                 ...cabinets.map((cabinet) => ({
                   value: cabinet.id.toString(),
                   label: cabinet.cabinet_name || "",
@@ -455,7 +456,7 @@ export default function FilterSection({
                 void resolveCabinets(filters.departmentId, searchKeyword);
               }}
               searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
-              disabled={false}
+              disabled={!canPickAllRoleDepartments && !filters.departmentId?.trim()}
             />
           </div>
 

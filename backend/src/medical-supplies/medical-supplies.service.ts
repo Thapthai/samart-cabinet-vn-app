@@ -3807,6 +3807,7 @@ export class MedicalSuppliesService {
     departmentId?: string;
     cabinetId?: string;
     subDepartmentId?: string;
+    staffAllowedDepartmentIds?: number[] | null;
   }) {
     try {
 
@@ -3844,11 +3845,33 @@ export class MedicalSuppliesService {
       if (filters?.departmentId?.trim()) {
         const deptId = parseInt(filters.departmentId, 10);
         if (!Number.isNaN(deptId)) {
-          sqlConditions.push(Prisma.sql`EXISTS (
+          const staffIds = filters?.staffAllowedDepartmentIds;
+          if (
+            staffIds != null &&
+            Array.isArray(staffIds) &&
+            staffIds.length > 0 &&
+            !staffIds.includes(deptId)
+          ) {
+            sqlConditions.push(Prisma.sql`1 = 0`);
+          } else {
+            sqlConditions.push(Prisma.sql`EXISTS (
             SELECT 1 FROM app_cabinet_departments acd_f
             WHERE acd_f.cabinet_id = app_cabinets.id
               AND acd_f.department_id = ${deptId}
               AND acd_f.status = 'ACTIVE'
+          )`);
+          }
+        }
+      } else {
+        const staffIds = filters?.staffAllowedDepartmentIds;
+        if (staffIds !== undefined && Array.isArray(staffIds) && staffIds.length === 0) {
+          sqlConditions.push(Prisma.sql`1 = 0`);
+        } else if (staffIds != null && Array.isArray(staffIds) && staffIds.length > 0) {
+          sqlConditions.push(Prisma.sql`EXISTS (
+            SELECT 1 FROM app_cabinet_departments acd_sc
+            WHERE acd_sc.cabinet_id = app_cabinets.id
+              AND acd_sc.status = 'ACTIVE'
+              AND acd_sc.department_id IN (${Prisma.join(staffIds.map((id) => Prisma.sql`${id}`))})
           )`);
         }
       }

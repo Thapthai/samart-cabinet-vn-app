@@ -98,7 +98,7 @@ export const staffMenuItems = [
                 icon: Package,
             },
             {
-                name: 'อุปกรณ์ยืม (Borrow)',
+                name: 'อุปกรณ์ยืม',
                 href: '/staff/item-borrow',
                 description: 'รายการยืมจาก slot detail พร้อม Division ที่ยืม/ที่ตั้งตู้',
                 icon: BookMarked,
