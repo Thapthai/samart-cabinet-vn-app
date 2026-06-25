@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { staffCabinetApi } from '@/lib/staffApi/cabinetApi';
 import { toast } from 'sonner';
 import { Package } from 'lucide-react';
@@ -8,7 +8,9 @@ import CreateCabinetDialog from './components/CreateCabinetDialog';
 import EditCabinetDialog from './components/EditCabinetDialog';
 import DeleteCabinetDialog from './components/DeleteCabinetDialog';
 import CabinetsTable from './components/CabinetsTable';
-import CabinetsSearchCard from '../management/cabinets/components/CabinetsSearchCard';
+import CabinetsSearchCard, {
+  type CabinetsSearchFilters,
+} from '../management/cabinets/components/CabinetsSearchCard';
 
 interface Cabinet {
   id: number;
@@ -21,12 +23,17 @@ interface Cabinet {
   updated_at?: string;
 }
 
+const defaultFilters: CabinetsSearchFilters = {
+  keyword: '',
+  departmentId: '',
+};
+
 export default function CabinetsPage() {
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [filteredCabinets, setFilteredCabinets] = useState<Cabinet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [keywordInput, setKeywordInput] = useState('');
-  const [activeKeyword, setActiveKeyword] = useState('');
+  const [activeFilters, setActiveFilters] = useState<CabinetsSearchFilters>(defaultFilters);
+
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -37,63 +44,66 @@ export default function CabinetsPage() {
   const [totalItems, setTotalItems] = useState(0);
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    fetchCabinets();
-  }, [currentPage, activeKeyword]);
+  const fetchCabinets = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      try {
+        if (!opts?.silent) setLoading(true);
+        const params: Record<string, string | number> = {
+          page: currentPage,
+          limit: itemsPerPage,
+        };
 
-  useEffect(() => {
-    filterCabinets();
-  }, [cabinets, activeKeyword]);
+        if (activeFilters.keyword.trim()) {
+          params.keyword = activeFilters.keyword.trim();
+        }
 
-  const fetchCabinets = async (opts?: { silent?: boolean }) => {
-    try {
-      if (!opts?.silent) setLoading(true);
-      const params: Record<string, string | number> = {
-        page: currentPage,
-        limit: itemsPerPage,
-      };
+        const deptNum = activeFilters.departmentId
+          ? parseInt(activeFilters.departmentId, 10)
+          : NaN;
+        if (Number.isFinite(deptNum) && deptNum > 0) {
+          params.department_id = deptNum;
+        }
 
-      if (activeKeyword.trim()) {
-        params.keyword = activeKeyword.trim();
+        const response = await staffCabinetApi.getAll(params);
+        if (response.data) {
+          setCabinets(response.data as Cabinet[]);
+          setTotalItems(response.total || 0);
+          setTotalPages(response.lastPage || 1);
+        }
+      } catch (error: unknown) {
+        console.error('Failed to fetch cabinets:', error);
+        toast.error('ไม่สามารถโหลดข้อมูลตู้ Cabinet ได้');
+      } finally {
+        if (!opts?.silent) setLoading(false);
       }
+    },
+    [currentPage, activeFilters, itemsPerPage],
+  );
 
-      const response = await staffCabinetApi.getAll(params);
-      if (response.data) {
-        setCabinets(response.data as Cabinet[]);
-        setTotalItems(response.total || 0);
-        setTotalPages(response.lastPage || 1);
-      }
-    } catch (error: unknown) {
-      console.error('Failed to fetch cabinets:', error);
-      toast.error('ไม่สามารถโหลดข้อมูลตู้ Cabinet ได้');
-    } finally {
-      if (!opts?.silent) setLoading(false);
-    }
-  };
+  useEffect(() => {
+    void fetchCabinets();
+  }, [fetchCabinets]);
 
-  const filterCabinets = () => {
+  useEffect(() => {
     let filtered = cabinets;
-
-    if (activeKeyword.trim()) {
-      const kw = activeKeyword.trim().toLowerCase();
+    if (activeFilters.keyword.trim()) {
+      const kw = activeFilters.keyword.trim().toLowerCase();
       filtered = filtered.filter(
         (cabinet) =>
           cabinet.cabinet_name?.toLowerCase().includes(kw) ||
           cabinet.cabinet_code?.toLowerCase().includes(kw),
       );
     }
-
     setFilteredCabinets(filtered);
-  };
+  }, [cabinets, activeFilters.keyword]);
 
-  const handleSearch = () => {
-    setActiveKeyword(keywordInput);
+  const handleSearch = (filters: CabinetsSearchFilters) => {
+    setActiveFilters(filters);
     setCurrentPage(1);
   };
 
-  const handleClearFilters = () => {
-    setKeywordInput('');
-    setActiveKeyword('');
+  const handleResetFilters = () => {
+    setActiveFilters(defaultFilters);
     setCurrentPage(1);
   };
 
@@ -121,17 +131,14 @@ export default function CabinetsPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">จัดการตู้ Cabinet</h1>
-            <p className="text-sm text-gray-500">จัดการและดูรายการตู้ทั้งหมด</p>
+            <p className="text-sm text-gray-500">แสดงตู้ตามสิทธิ์ Division ของ role</p>
           </div>
         </div>
 
         <CabinetsSearchCard
-          keywordInput={keywordInput}
-          activeKeyword={activeKeyword}
-          onKeywordInputChange={setKeywordInput}
           onSearch={handleSearch}
-          onClearFilters={handleClearFilters}
-          onRefresh={() => fetchCabinets()}
+          onReset={handleResetFilters}
+          onRefresh={() => void fetchCabinets()}
           loading={loading}
         />
 
