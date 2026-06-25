@@ -109,4 +109,15 @@ export const staffItemsApi = {
         });
         return response.data as { success: boolean; data: unknown[] };
     },
+
+    getCabinetSlotItems: async (query: {
+        page?: number;
+        limit?: number;
+        cabinet_id: number;
+        department_id?: number;
+        keyword?: string;
+    }): Promise<PaginatedResponse<Item>> => {
+        const response = await staffApi.get('/items/cabinet-slot-items', { params: query });
+        return response.data;
+    },
 };

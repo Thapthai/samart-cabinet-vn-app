@@ -1,16 +1,21 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { Search, RefreshCw, X } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import SearchableSelect from "@/app/staff/items/components/SearchableSelect";
-import { staffCabinetApi, staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
-import { staffDepartmentApi } from "@/lib/staffApi/departmentApi";
-import { cn } from "@/lib/utils";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Search, RefreshCw, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import SearchableSelect from '@/app/staff/management/cabinet-departments/components/SearchableSelect';
+import { staffCabinetDepartmentApi } from '@/lib/staffApi/cabinetApi';
+import {
+  clampDepartmentIdString,
+  fetchStaffDepartmentsForFilter,
+  getStaffAllowedDepartmentIds,
+} from '@/lib/staffDepartmentScope';
+import { cn } from '@/lib/utils';
 
-const fieldInputClass = "bg-white";
+const fieldInputClass = 'bg-white';
 
 interface Department {
   ID: number;
@@ -22,12 +27,6 @@ interface Cabinet {
   id: number;
   cabinet_name?: string;
   cabinet_code?: string;
-  cabinet_status?: string;
-  cabinetDepartments?: Array<{
-    id: number;
-    department_id: number;
-    status: string;
-  }>;
 }
 
 interface CabinetDepartmentMapping {
@@ -39,116 +38,111 @@ interface CabinetDepartmentMapping {
     id: number;
     cabinet_name?: string;
     cabinet_code?: string;
-    cabinet_status?: string;
   };
 }
 
-function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping["cabinet"]): Cabinet | null {
-  if (!cabinet || typeof cabinet.id !== "number") return null;
+function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping['cabinet']): Cabinet | null {
+  if (!cabinet || typeof cabinet.id !== 'number') return null;
   return {
     id: cabinet.id,
     cabinet_name: cabinet.cabinet_name,
     cabinet_code: cabinet.cabinet_code,
-    cabinet_status: cabinet.cabinet_status,
   };
 }
 
-export interface CabinetUsersSearchCardProps {
-  keywordInput: string;
-  activeKeyword: string;
-  onKeywordChange: (value: string) => void;
+export type CabinetUsersSearchFilters = {
+  keyword: string;
   departmentId: string;
-  activeDepartmentId: string;
-  onDepartmentIdChange: (value: string) => void;
   cabinetId: string;
-  activeCabinetId: string;
-  onCabinetIdChange: (value: string) => void;
-  onSearch: () => void;
-  onClearFilters: () => void;
-  onRefresh: () => void;
+};
+
+export interface CabinetUsersSearchCardProps {
+  onSearch: (filters: CabinetUsersSearchFilters) => void;
+  onReset?: () => void;
+  onRefresh?: () => void;
   loading?: boolean;
 }
 
 export function CabinetUsersSearchCard({
-  keywordInput,
-  activeKeyword,
-  onKeywordChange,
-  departmentId,
-  activeDepartmentId,
-  onDepartmentIdChange,
-  cabinetId,
-  activeCabinetId,
-  onCabinetIdChange,
   onSearch,
-  onClearFilters,
+  onReset,
   onRefresh,
   loading = false,
 }: CabinetUsersSearchCardProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
-  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
+  const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
+  const initialSearchDoneRef = useRef(false);
 
-  const loadDepartments = async (keyword?: string) => {
+  const [formFilters, setFormFilters] = useState<CabinetUsersSearchFilters>({
+    keyword: '',
+    departmentId: '',
+    cabinetId: '',
+  });
+  const [appliedFilters, setAppliedFilters] = useState<CabinetUsersSearchFilters>({
+    keyword: '',
+    departmentId: '',
+    cabinetId: '',
+  });
+
+  const loadDepartments = useCallback(async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const safeParams: { limit: number; keyword?: string } = { limit: 50 };
-      if (keyword !== undefined && typeof keyword === "string" && keyword.trim()) {
-        safeParams.keyword = keyword;
+      let allowed = allowedDepartmentIdsRef.current;
+      if (allowed === undefined) {
+        allowed = await getStaffAllowedDepartmentIds();
+        allowedDepartmentIdsRef.current = allowed;
       }
-      const response = await staffDepartmentApi.getAll(safeParams);
-      if (response.success && response.data) {
-        setDepartments(response.data as Department[]);
-      }
+      const list = await fetchStaffDepartmentsForFilter({
+        keyword,
+        page: 1,
+        limit: 50,
+        allowedDepartmentIds: allowed,
+      });
+      setDepartments(list as Department[]);
     } catch (error) {
-      console.error("Failed to load departments:", error);
+      console.error('Failed to load departments:', error);
     } finally {
       setLoadingDepartments(false);
     }
-  };
+  }, []);
 
   const resolveCabinets = useCallback(async (departmentIdStr: string, keyword?: string) => {
+    const trimmed = departmentIdStr?.trim() ?? '';
+    if (!trimmed) {
+      setCabinets([]);
+      return;
+    }
     try {
       setLoadingCabinets(true);
-      let next: Cabinet[] = [];
-      if (!departmentIdStr) {
-        const response = await staffCabinetApi.getAll({ page: 1, limit: 50, keyword });
-        if (response.success && response.data) {
-          const allCabinets = response.data as Cabinet[];
-          next = allCabinets.filter((cabinet) => {
-            if (cabinet.cabinetDepartments && cabinet.cabinetDepartments.length > 0) {
-              return cabinet.cabinetDepartments.some((cd) => cd.status === "ACTIVE");
-            }
-            return cabinet.cabinet_status === "ACTIVE";
-          });
-        }
-      } else {
-        const deptId = parseInt(departmentIdStr, 10);
-        if (Number.isNaN(deptId)) {
-          setCabinets([]);
-          return;
-        }
-        const response = await staffCabinetDepartmentApi.getAll({
-          departmentId: deptId,
-          keyword: keyword || undefined,
-        });
-        if (response.success && response.data) {
-          const mappings = response.data as CabinetDepartmentMapping[];
-          const uniqueCabinets = new Map<number, Cabinet>();
-          mappings
-            .filter((mapping) => mapping.status === "ACTIVE")
-            .forEach((mapping) => {
-              const mapped = mapCabinetFromMapping(mapping.cabinet);
-              if (mapped && !uniqueCabinets.has(mapped.id)) {
-                uniqueCabinets.set(mapped.id, mapped);
-              }
-            });
-          next = Array.from(uniqueCabinets.values());
-        }
+      const deptId = parseInt(trimmed, 10);
+      if (Number.isNaN(deptId)) {
+        setCabinets([]);
+        return;
       }
-      setCabinets(next);
+      const response = await staffCabinetDepartmentApi.getAll({
+        departmentId: deptId,
+        keyword: keyword || undefined,
+      });
+      if (response.success && response.data) {
+        const mappings = response.data as CabinetDepartmentMapping[];
+        const uniqueCabinets = new Map<number, Cabinet>();
+        mappings
+          .filter((mapping) => mapping.status === 'ACTIVE')
+          .forEach((mapping) => {
+            const mapped = mapCabinetFromMapping(mapping.cabinet);
+            if (mapped && !uniqueCabinets.has(mapped.id)) {
+              uniqueCabinets.set(mapped.id, mapped);
+            }
+          });
+        setCabinets(Array.from(uniqueCabinets.values()));
+      } else {
+        setCabinets([]);
+      }
     } catch (error) {
-      console.error("Failed to load cabinets:", error);
+      console.error('Failed to load cabinets:', error);
       setCabinets([]);
     } finally {
       setLoadingCabinets(false);
@@ -156,31 +150,112 @@ export function CabinetUsersSearchCard({
   }, []);
 
   useEffect(() => {
-    void loadDepartments();
-  }, []);
+    let cancelled = false;
+    void (async () => {
+      const allowed = await getStaffAllowedDepartmentIds();
+      if (cancelled) return;
+      allowedDepartmentIdsRef.current = allowed;
+
+      setLoadingDepartments(true);
+      try {
+        const list = (await fetchStaffDepartmentsForFilter({
+          page: 1,
+          limit: 50,
+          allowedDepartmentIds: allowed,
+        })) as Department[];
+        if (cancelled) return;
+        setDepartments(list);
+
+        let nextDept = clampDepartmentIdString('', allowed, '');
+        if (!nextDept && list.length === 1) {
+          nextDept = String(list[0].ID);
+        }
+
+        const nextFilters: CabinetUsersSearchFilters = {
+          keyword: '',
+          departmentId: nextDept,
+          cabinetId: '',
+        };
+        setFormFilters(nextFilters);
+
+        if (nextDept && !initialSearchDoneRef.current) {
+          initialSearchDoneRef.current = true;
+          setAppliedFilters(nextFilters);
+          onSearch(nextFilters);
+        }
+      } catch (error) {
+        console.error('Failed to load departments:', error);
+      } finally {
+        if (!cancelled) setLoadingDepartments(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [onSearch]);
 
   useEffect(() => {
-    void resolveCabinets(departmentId);
-  }, [departmentId, resolveCabinets]);
+    void resolveCabinets(formFilters.departmentId);
+  }, [formFilters.departmentId, resolveCabinets]);
 
   useEffect(() => {
-    if (cabinetId && cabinets.length > 0) {
-      const cabinetExists = cabinets.some((c) => c.id.toString() === cabinetId);
-      if (!cabinetExists) {
-        onCabinetIdChange("");
+    if (formFilters.cabinetId && cabinets.length > 0) {
+      const exists = cabinets.some((c) => c.id.toString() === formFilters.cabinetId);
+      if (!exists) {
+        setFormFilters((prev) => ({ ...prev, cabinetId: '' }));
       }
     }
-  }, [cabinets, cabinetId, onCabinetIdChange]);
+  }, [cabinets, formFilters.cabinetId]);
+
+  const divisionSelectOptions = useMemo(
+    () =>
+      departments.map((dept) => ({
+        value: dept.ID.toString(),
+        label: dept.DepName || '',
+        subLabel: dept.DepName2 || '',
+      })),
+    [departments],
+  );
+
+  const cabinetSelectEnabled = Boolean(formFilters.departmentId?.trim());
+
+  const handleSearch = () => {
+    if (!formFilters.departmentId.trim()) {
+      toast.error('กรุณาเลือก Division');
+      return;
+    }
+    setAppliedFilters(formFilters);
+    onSearch(formFilters);
+  };
+
+  const handleReset = () => {
+    const allowed = allowedDepartmentIdsRef.current;
+    let defaultDept = clampDepartmentIdString('', allowed, '');
+    if (!defaultDept && departments.length === 1) {
+      defaultDept = String(departments[0].ID);
+    }
+    const defaultFilters: CabinetUsersSearchFilters = {
+      keyword: '',
+      departmentId: defaultDept,
+      cabinetId: '',
+    };
+    setFormFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
+    onReset?.();
+    if (defaultDept) {
+      onSearch(defaultFilters);
+    }
+  };
 
   const hasActiveFilters =
-    activeKeyword.trim() !== "" || activeDepartmentId !== "" || activeCabinetId !== "";
+    appliedFilters.departmentId !== '' || appliedFilters.cabinetId !== '';
 
-  const appliedDept = departments.find((d) => d.ID.toString() === activeDepartmentId);
-  const appliedCabinet = cabinets.find((c) => c.id.toString() === activeCabinetId);
+  const appliedDept = departments.find((d) => d.ID.toString() === appliedFilters.departmentId);
+  const appliedCabinet = cabinets.find((c) => c.id.toString() === appliedFilters.cabinetId);
 
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardContent>
+    <Card className="mb-6 border-slate-200 shadow-sm">
+      <CardContent className="pt-6">
         <div className="mb-4 flex items-start gap-3">
           <div className="rounded-lg bg-amber-100 p-2">
             <Search className="h-4 w-4 text-amber-700" />
@@ -188,13 +263,58 @@ export function CabinetUsersSearchCard({
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
             <p className="text-xs text-slate-500">
-              ค้นจาก UserName / EmpCode · เลือก Division และตู้ Cabinet
+              เลือก Division และตู้ Cabinet เพื่อกรองรายการผู้ใช้ในตู้ (ตามสิทธิ์ role)
             </p>
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div className="space-y-1.5">
+        <div className="grid gap-4 md:grid-cols-2">
+          <SearchableSelect
+            label="Division"
+            placeholder="เลือก Division (บังคับ)"
+            required
+            value={formFilters.departmentId}
+            onValueChange={(value) => {
+              setFormFilters((prev) => ({ ...prev, departmentId: value, cabinetId: '' }));
+            }}
+            options={divisionSelectOptions}
+            loading={loadingDepartments}
+            onSearch={loadDepartments}
+            searchPlaceholder="ค้นหา Division..."
+          />
+
+          <SearchableSelect
+            label="ตู้ Cabinet"
+            placeholder={
+              cabinetSelectEnabled
+                ? 'ทั้งหมดหรือเลือกตู้ (ในแผนกนี้)'
+                : 'กรุณาเลือก Division ก่อน'
+            }
+            value={formFilters.cabinetId}
+            onValueChange={(value) => {
+              setFormFilters((prev) => ({ ...prev, cabinetId: value }));
+            }}
+            options={[
+              { value: '', label: 'ทั้งหมด' },
+              ...cabinets.map((cabinet) => ({
+                value: cabinet.id.toString(),
+                label: cabinet.cabinet_name || '',
+                subLabel: cabinet.cabinet_code || '',
+              })),
+            ]}
+            loading={loadingCabinets}
+            onSearch={(searchKeyword) => {
+              void resolveCabinets(formFilters.departmentId, searchKeyword);
+            }}
+            searchPlaceholder={
+              cabinetSelectEnabled ? 'ค้นหารหัสหรือชื่อตู้...' : 'กรุณาเลือก Division ก่อน'
+            }
+            disabled={!cabinetSelectEnabled}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1.5 md:col-span-2">
             <label htmlFor="staff-cabinet-user-keyword" className="text-xs font-medium text-slate-600">
               คำค้นหา
             </label>
@@ -203,104 +323,53 @@ export function CabinetUsersSearchCard({
               <Input
                 id="staff-cabinet-user-keyword"
                 placeholder="เช่น UserName, EmpCode..."
-                value={keywordInput}
-                onChange={(e) => onKeywordChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    onSearch();
-                  }
-                }}
-                className={cn("h-10 pl-9 shadow-sm", fieldInputClass)}
+                value={formFilters.keyword}
+                onChange={(e) => setFormFilters((prev) => ({ ...prev, keyword: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className={cn('h-10 pl-9 shadow-sm', fieldInputClass)}
               />
             </div>
           </div>
+        </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <SearchableSelect
-              label="Division"
-              placeholder="— เลือก Division —"
-              value={departmentId}
-              onValueChange={(value) => {
-                onDepartmentIdChange(value);
-                onCabinetIdChange("");
-              }}
-              options={[
-                { value: "", label: "ทั้งหมด" },
-                ...departments.map((dept) => ({
-                  value: dept.ID.toString(),
-                  label: dept.DepName || "",
-                  subLabel: dept.DepName2 || "",
-                })),
-              ]}
-              loading={loadingDepartments}
-              onSearch={loadDepartments}
-              searchPlaceholder="ค้นหา Division..."
-            />
-
-            <SearchableSelect
-              label="ตู้ Cabinet"
-              placeholder={departmentId ? "เลือกตู้ Cabinet" : "กรุณาเลือก Division ก่อน"}
-              value={cabinetId}
-              onValueChange={onCabinetIdChange}
-              options={[
-                { value: "", label: "ทั้งหมด" },
-                ...cabinets.map((cabinet) => ({
-                  value: cabinet.id.toString(),
-                  label: cabinet.cabinet_name || "",
-                  subLabel: cabinet.cabinet_code || "",
-                })),
-              ]}
-              loading={loadingCabinets}
-              onSearch={(searchKeyword) => {
-                void resolveCabinets(departmentId, searchKeyword);
-              }}
-              searchPlaceholder={
-                departmentId ? "ค้นหารหัสหรือชื่อตู้..." : "กรุณาเลือก Division ก่อน"
-              }
-              disabled={!departmentId}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2 justify-end">
-            <Button type="button" onClick={onSearch} className="h-10 gap-2">
-              <Search className="h-4 w-4" />
-              ค้นหา
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 shrink-0"
-              onClick={onRefresh}
-              aria-label="รีเฟรช"
-            >
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-            </Button>
-          </div>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button type="button" onClick={handleSearch} className="h-10 gap-2">
+            <Search className="h-4 w-4" />
+            ค้นหา
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 shrink-0"
+            onClick={onRefresh}
+            aria-label="รีเฟรช"
+          >
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+          </Button>
         </div>
 
         {hasActiveFilters ? (
           <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200/70 pt-4">
             <span className="text-xs font-medium text-slate-500">กำลังกรอง:</span>
-            {activeKeyword.trim() ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
-                คำค้น: {activeKeyword.trim()}
+            {appliedFilters.departmentId ? (
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                Division: {appliedDept?.DepName || appliedFilters.departmentId}
               </span>
             ) : null}
-            {activeDepartmentId ? (
-              <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-900">
-                Division: {appliedDept?.DepName || activeDepartmentId}
-              </span>
-            ) : null}
-            {activeCabinetId ? (
+            {appliedFilters.cabinetId ? (
               <span
                 className={cn(
-                  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
-                  "border-indigo-200 bg-indigo-50 text-indigo-900",
+                  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  'border-indigo-200 bg-indigo-50 text-indigo-900',
                 )}
               >
-                ตู้: {appliedCabinet?.cabinet_name || activeCabinetId}
+                ตู้: {appliedCabinet?.cabinet_name || appliedFilters.cabinetId}
+              </span>
+            ) : null}
+            {appliedFilters.keyword.trim() ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                คำค้น: {appliedFilters.keyword.trim()}
               </span>
             ) : null}
             <Button
@@ -308,7 +377,7 @@ export function CabinetUsersSearchCard({
               variant="ghost"
               size="sm"
               className="h-7 gap-1 px-2 text-xs text-slate-600"
-              onClick={onClearFilters}
+              onClick={handleReset}
             >
               <X className="h-3.5 w-3.5" />
               ล้างตัวกรอง

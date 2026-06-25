@@ -258,7 +258,7 @@ export class DepartmentService {
   }
 
   async getAllCabinets(
-    query?: { page?: number; limit?: number; keyword?: string },
+    query?: { page?: number; limit?: number; keyword?: string; department_id?: number },
     allowedDepartmentIds?: number[] | null,
   ) {
     const page = query?.page || 1;
@@ -271,12 +271,27 @@ export class DepartmentService {
         { cabinet_code: { contains: query.keyword } },
       ];
     }
+
+    let scopeDeptIds: number[] | null = null;
     if (allowedDepartmentIds != null) {
       if (allowedDepartmentIds.length === 0) {
         return { success: true, data: [], total: 0, page, limit, lastPage: 0 };
       }
+      scopeDeptIds = allowedDepartmentIds;
+    }
+    if (query?.department_id != null && query.department_id > 0) {
+      if (scopeDeptIds != null) {
+        if (!scopeDeptIds.includes(query.department_id)) {
+          return { success: true, data: [], total: 0, page, limit, lastPage: 0 };
+        }
+        scopeDeptIds = [query.department_id];
+      } else {
+        scopeDeptIds = [query.department_id];
+      }
+    }
+    if (scopeDeptIds != null) {
       const links = await this.prisma.cabinetDepartment.findMany({
-        where: { department_id: { in: allowedDepartmentIds } },
+        where: { department_id: { in: scopeDeptIds } },
         select: { cabinet_id: true },
       });
       const scopedCabinetIds = [...new Set(links.map((l) => l.cabinet_id))];

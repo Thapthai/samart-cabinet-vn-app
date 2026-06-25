@@ -91,7 +91,7 @@ export default function PermissionUsersTableCard({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-sm font-medium">ID</TableHead>
+                <TableHead className="text-sm font-medium">ลำดับ</TableHead>
                 <TableHead className="text-sm font-medium">ชื่อ-นามสกุล</TableHead>
                 <TableHead className="text-sm font-medium">อีเมล</TableHead>
                 <TableHead className="text-sm font-medium">บทบาท</TableHead>
@@ -100,7 +100,7 @@ export default function PermissionUsersTableCard({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleUsers.map((user) => {
+              {visibleUsers.map((user, index) => {
                 const canEdit = staffPortalCanManageStaffUserRow(
                   viewerRoleCode,
                   viewerUserId,
@@ -109,7 +109,7 @@ export default function PermissionUsersTableCard({
                 );
                 return (
                 <TableRow key={user.id}>
-                  <TableCell className="text-sm text-foreground">{user.id}</TableCell>
+                  <TableCell className="text-sm text-foreground">{index + 1}</TableCell>
                   <TableCell className="text-sm text-foreground">
                     {user.fname} {user.lname}
                   </TableCell>

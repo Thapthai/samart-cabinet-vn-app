@@ -72,12 +72,15 @@ export class CabinetController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('keyword') keyword?: string,
+    @Query('department_id') department_id?: string,
   ) {
     const allowedDepartmentIds = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
+    const deptId = department_id ? parseInt(department_id, 10) : undefined;
     const query = {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       keyword,
+      department_id: deptId != null && Number.isFinite(deptId) && deptId > 0 ? deptId : undefined,
     };
     return this.departmentService.getAllCabinets(query, allowedDepartmentIds);
   }

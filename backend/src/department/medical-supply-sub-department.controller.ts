@@ -7,7 +7,10 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
+import { StaffDepartmentScopeService } from '../staff/staff-department-scope.service';
 import { MedicalSupplySubDepartmentService } from './medical-supply-sub-department.service';
 import {
   CreateMedicalSupplySubDepartmentDto,
@@ -17,11 +20,19 @@ import {
 /** เส้นทางเก่า medical-supply-usage-types ยังรองรับ (bookmark / client เดิม) */
 @Controller(['medical-supply-sub-departments', 'medical-supply-usage-types'])
 export class MedicalSupplySubDepartmentController {
-  constructor(private readonly service: MedicalSupplySubDepartmentService) {}
+  constructor(
+    private readonly service: MedicalSupplySubDepartmentService,
+    private readonly staffDepartmentScope: StaffDepartmentScopeService,
+  ) {}
 
   @Get()
-  list() {
-    return this.service.findAll();
+  async list(@Req() req: Request) {
+    const staff = await this.staffDepartmentScope.resolveActiveStaffUser(req);
+    if (!staff) {
+      return this.service.findAll();
+    }
+    const allowed = await this.staffDepartmentScope.resolveAllowedDepartmentIds(req);
+    return this.service.findAll(allowed);
   }
 
   @Get(':id')

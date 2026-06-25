@@ -158,6 +158,10 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
             JSON.stringify({
               id: Number(uid),
               email: u.email,
+              fname: u.fname,
+              lname: u.lname,
+              role: (u.role as string) || (u.role_code as string) || '',
+              role_id: u.role_id ?? null,
               client_id: (u.client_id as string) || (u.clientId as string) || '',
               client_secret: (u.client_secret as string) || (u.clientSecret as string) || '',
             }),

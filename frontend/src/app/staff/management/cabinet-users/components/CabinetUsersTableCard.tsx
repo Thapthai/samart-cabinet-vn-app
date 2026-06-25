@@ -53,10 +53,7 @@ export function CabinetUsersTableCard({
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
             <p className="text-muted-foreground">ไม่พบรายการ</p>
-            <Button type="button" className="gap-2" onClick={onCreateClick}>
-              <Plus className="h-4 w-4" />
-              เพิ่ม User ในตู้
-            </Button>
+
           </div>
         ) : (
           <div className="overflow-x-auto rounded-md border">

@@ -369,12 +369,12 @@ export default function FilterSection({
     () => [
       ...(canPickAllRoleDepartments
         ? [
-            {
-              value: "",
-              label: "ทั้งหมด (ทุกแผนกที่ role อนุญาต)",
-              ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
-            },
-          ]
+          {
+            value: "",
+            label: "ทั้งหมด (ทุกแผนกที่ role อนุญาต)",
+            ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
+          },
+        ]
         : []),
       ...departments.map((dept) => ({
         value: dept.ID.toString(),
@@ -441,63 +441,63 @@ export default function FilterSection({
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-          <SearchableSelect
-            label="Division"
-            placeholder={
-              canPickAllRoleDepartments
-                ? "เลือก Division หรือทั้งหมด (ตาม role)"
-                : "เลือก Division (บังคับ)"
-            }
-            required={!canPickAllRoleDepartments}
-            value={formFilters.departmentId}
-            initialDisplay={
-              canPickAllRoleDepartments && formFilters.departmentId.trim() === ""
-                ? {
+            <SearchableSelect
+              label="Division"
+              placeholder={
+                canPickAllRoleDepartments
+                  ? "เลือก Division หรือทั้งหมด (ตาม role)"
+                  : "เลือก Division (บังคับ)"
+              }
+              required={!canPickAllRoleDepartments}
+              value={formFilters.departmentId}
+              initialDisplay={
+                canPickAllRoleDepartments && formFilters.departmentId.trim() === ""
+                  ? {
                     label: "ทั้งหมด (ทุกแผนกที่ role อนุญาต)",
                     ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
                   }
-                : undefined
-            }
-            onValueChange={(value) => {
-              if (departmentDisabled) return;
-              setFormFilters({
-                ...formFilters,
-                departmentId: value,
-                cabinetId: "",
-              });
-            }}
-            options={divisionSelectOptions}
-            loading={loadingDepartments}
-            onSearch={loadDepartments}
-            searchPlaceholder="ค้นหาชื่อ Division..."
-            disabled={departmentDisabled}
-          />
+                  : undefined
+              }
+              onValueChange={(value) => {
+                if (departmentDisabled) return;
+                setFormFilters({
+                  ...formFilters,
+                  departmentId: value,
+                  cabinetId: "",
+                });
+              }}
+              options={divisionSelectOptions}
+              loading={loadingDepartments}
+              onSearch={loadDepartments}
+              searchPlaceholder="ค้นหาชื่อ Division..."
+              disabled={departmentDisabled}
+            />
 
-          <SearchableSelect
-            label="ตู้ Cabinet"
-            placeholder={
-              formFilters.departmentId
-                ? "เลือกตู้"
-                : canPickAllRoleDepartments
+            <SearchableSelect
+              label="ตู้ Cabinet"
+              placeholder={
+                formFilters.departmentId
                   ? "เลือกตู้"
-                  : "เลือก Division ก่อน"
-            }
-            value={formFilters.cabinetId}
-            onValueChange={(value) => setFormFilters({ ...formFilters, cabinetId: value })}
-            options={[
-              ...cabinets.map((cabinet) => ({
-                value: cabinet.id.toString(),
-                label: cabinet.cabinet_name || "",
-                subLabel: cabinet.cabinet_code || "",
-              })),
-            ]}
-            loading={loadingCabinets}
-            onSearch={(searchKeyword) => {
-              void resolveCabinets(formFilters.departmentId, searchKeyword);
-            }}
-            searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
-            disabled={false}
-          />
+                  : canPickAllRoleDepartments
+                    ? "เลือกตู้"
+                    : "เลือก Division ก่อน"
+              }
+              value={formFilters.cabinetId}
+              onValueChange={(value) => setFormFilters({ ...formFilters, cabinetId: value })}
+              options={[
+                ...cabinets.map((cabinet) => ({
+                  value: cabinet.id.toString(),
+                  label: cabinet.cabinet_name || "",
+                  subLabel: cabinet.cabinet_code || "",
+                })),
+              ]}
+              loading={loadingCabinets}
+              onSearch={(searchKeyword) => {
+                void resolveCabinets(formFilters.departmentId, searchKeyword);
+              }}
+              searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
+              disabled={false}
+            />
           </div>
         </div>
 

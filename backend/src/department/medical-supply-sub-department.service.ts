@@ -26,13 +26,25 @@ export class MedicalSupplySubDepartmentService {
     return moment().tz('Asia/Bangkok').utc(true).toDate();
   }
 
-  async findAll() {
+  /**
+   * @param allowedDepartmentIds null = ไม่จำกัด (admin หรือ staff role ไม่มีแถว permission)
+   * number[] = เฉพาะแผนกหลักเหล่านี้
+   */
+  async findAll(allowedDepartmentIds?: number[] | null) {
     try {
+      if (allowedDepartmentIds != null && allowedDepartmentIds.length === 0) {
+        return { success: true, data: [] };
+      }
+
       const rows = await this.prisma.medicalSupplySubDepartment.findMany({
+        where:
+          allowedDepartmentIds != null
+            ? { department_id: { in: allowedDepartmentIds } }
+            : undefined,
         orderBy: [{ department_id: 'asc' }, { code: 'asc' }],
         include: {
           department: { select: { ID: true, DepName: true, DepName2: true } },
-          // _count: { select: { medicalSupplyUsages: true } },
+          _count: { select: { medicalSupplyUsages: true } },
         },
       });
       return { success: true, data: rows };

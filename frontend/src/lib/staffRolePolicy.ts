@@ -209,6 +209,16 @@ export function staffPortalCanManageStaffUserRow(
   return sameNormalizedStaffRole(viewerRoleCode, targetUserRoleCode);
 }
 
+/**
+ * พอร์ทัล /staff — แสดงแถว staff user ในตาราง permission-users
+ * เฉพาะผู้ใช้ที่มี role เดียวกับผู้ที่ล็อกอิน
+ */
+export function staffPortalVisibleStaffUserRow(viewerRoleCode: string, targetUserRoleCode: string): boolean {
+  const v = normalizeStaffRoleCode(viewerRoleCode);
+  if (!v) return false;
+  return sameNormalizedStaffRole(viewerRoleCode, targetUserRoleCode);
+}
+
 /** พอร์ทัล /staff — เลือก/มอบ Role นี้เมื่อสร้างหรือแก้ user */
 export function staffPortalCanPickAssignableRole(viewerRoleCode: string, targetRoleCode: string): boolean {
   if (staffRoleCanAssignStaffRole(viewerRoleCode, targetRoleCode)) return true;
@@ -231,10 +241,21 @@ export function readStaffRoleCodeFromStorage(): string {
   try {
     const raw = localStorage.getItem('staff_user');
     if (!raw?.trim()) return '';
-    return normalizeStaffRoleCode(JSON.parse(raw.trim())?.role);
+    const parsed = JSON.parse(raw.trim()) as { role?: unknown; role_code?: unknown };
+    return normalizeStaffRoleCode(parsed?.role ?? parsed?.role_code);
   } catch {
     return '';
   }
+}
+
+/** role ของผู้ใช้ที่ล็อกอิน — อ่านจาก session user ก่อน แล้วค่อย fallback localStorage */
+export function resolveStaffViewerRoleCode(sessionUser?: {
+  role?: unknown;
+  role_code?: unknown;
+} | null): string {
+  const fromSession = normalizeStaffRoleCode(sessionUser?.role ?? sessionUser?.role_code);
+  if (fromSession) return fromSession;
+  return readStaffRoleCodeFromStorage();
 }
 
 const DISPLAY_LABELS: Record<string, string> = {

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Search, X } from "lucide-react";
 import SearchableSelect from "./SearchableSelect";
-import { staffCabinetDepartmentApi, staffCabinetApi } from "@/lib/staffApi/cabinetApi";
+import { staffCabinetDepartmentApi } from "@/lib/staffApi/cabinetApi";
 import {
   clampDepartmentIdString,
   fetchStaffDepartmentsForFilter,
@@ -54,6 +54,13 @@ function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping["cabinet"]): Ca
   };
 }
 
+function buildRoleScopeDivisionSummary(depts: Department[]): string {
+  const names = depts.map((d) => (d.DepName || "").trim()).filter(Boolean);
+  if (names.length === 0) return "";
+  if (names.length <= 5) return names.join(", ");
+  return `${names.slice(0, 5).join(", ")} … (+${names.length - 5})`;
+}
+
 interface FilterSectionProps {
   onSearch: (filters: {
     cabinetId: string;
@@ -74,10 +81,11 @@ export default function FilterSection({
 }: FilterSectionProps) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
-  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
   /** undefined = ยังไม่รู้ scope, null = ไม่จำกัดแผนก, number[] = เฉพาะแผนกที่ role อนุญาต */
   const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
+  const [canPickAllRoleDepartments, setCanPickAllRoleDepartments] = useState(false);
 
   const [formFilters, setFormFilters] = useState({
     cabinetId: "",
@@ -99,11 +107,18 @@ export default function FilterSection({
   const loadDepartments = useCallback(async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
+      let allowed = allowedDepartmentIdsRef.current;
+      if (allowed === undefined) {
+        allowed = await getStaffAllowedDepartmentIds();
+        allowedDepartmentIdsRef.current = allowed;
+      }
+      setCanPickAllRoleDepartments(Array.isArray(allowed) && allowed.length > 0);
       const list = await fetchStaffDepartmentsForFilter({
         keyword,
         page: 1,
         limit: 50,
-        allowedDepartmentIds: allowedDepartmentIdsRef.current,
+        allowedDepartmentIds: allowed,
+        withCabinet: true,
       });
       setDepartments(list as Department[]);
     } catch (error) {
@@ -117,40 +132,58 @@ export default function FilterSection({
     try {
       setLoadingCabinets(true);
       let next: Cabinet[] = [];
-      if (!departmentIdStr?.trim()) {
-        const response = await staffCabinetApi.getAll({ page: 1, limit: 50, keyword });
-        if (response?.data?.length) {
-          const allCabinets = response.data as Cabinet[];
-          next = allCabinets.filter((cabinet) => {
-            if (cabinet.cabinetDepartments && cabinet.cabinetDepartments.length > 0) {
-              return cabinet.cabinetDepartments.some((cd) => cd.status === "ACTIVE");
-            }
-            return cabinet.cabinet_status === "ACTIVE";
-          });
-        }
-      } else {
-        const deptId = parseInt(departmentIdStr, 10);
-        if (Number.isNaN(deptId)) {
-          setCabinets([]);
-          return;
-        }
-        const response = await staffCabinetDepartmentApi.getAll({
-          departmentId: deptId,
-          keyword: keyword || undefined,
-        });
-        if (response.success && response.data) {
-          const mappings = response.data as CabinetDepartmentMapping[];
+      const trimmed = departmentIdStr?.trim() ?? "";
+      if (!trimmed) {
+        const allowed = allowedDepartmentIdsRef.current;
+        if (Array.isArray(allowed) && allowed.length > 0) {
+          const results = await Promise.all(
+            allowed.map((deptId) =>
+              staffCabinetDepartmentApi.getAll({
+                departmentId: deptId,
+                keyword: keyword || undefined,
+              }),
+            ),
+          );
           const uniqueCabinets = new Map<number, Cabinet>();
-          mappings
-            .filter((mapping) => mapping.status === "ACTIVE")
-            .forEach((mapping) => {
-              const mapped = mapCabinetFromMapping(mapping.cabinet);
-              if (mapped && !uniqueCabinets.has(mapped.id)) {
-                uniqueCabinets.set(mapped.id, mapped);
-              }
-            });
+          for (const response of results) {
+            if (response.success && response.data) {
+              const mappings = response.data as CabinetDepartmentMapping[];
+              mappings
+                .filter((mapping) => mapping.status === "ACTIVE")
+                .forEach((mapping) => {
+                  const mapped = mapCabinetFromMapping(mapping.cabinet);
+                  if (mapped && !uniqueCabinets.has(mapped.id)) {
+                    uniqueCabinets.set(mapped.id, mapped);
+                  }
+                });
+            }
+          }
           next = Array.from(uniqueCabinets.values());
         }
+        setCabinets(next);
+        return;
+      }
+      const deptId = parseInt(trimmed, 10);
+      if (Number.isNaN(deptId)) {
+        setCabinets([]);
+        return;
+      }
+      const response = await staffCabinetDepartmentApi.getAll({
+        departmentId: deptId,
+        keyword: keyword || undefined,
+      });
+      if (response.success && response.data) {
+        const mappings = response.data as CabinetDepartmentMapping[];
+        const uniqueCabinets = new Map<number, Cabinet>();
+        mappings
+          .filter((mapping) => mapping.status === "ACTIVE")
+          .forEach((mapping) => {
+            const mapped = mapCabinetFromMapping(mapping.cabinet);
+            if (mapped && !uniqueCabinets.has(mapped.id)) {
+              uniqueCabinets.set(mapped.id, mapped);
+            }
+          });
+        next = Array.from(uniqueCabinets.values());
       }
       setCabinets(next);
     } catch (error) {
@@ -167,6 +200,7 @@ export default function FilterSection({
       const allowed = await getStaffAllowedDepartmentIds();
       if (cancelled) return;
       allowedDepartmentIdsRef.current = allowed;
+      setCanPickAllRoleDepartments(Array.isArray(allowed) && allowed.length > 0);
 
       setLoadingDepartments(true);
       try {
@@ -175,6 +209,7 @@ export default function FilterSection({
           page: 1,
           limit: 50,
           allowedDepartmentIds: allowed,
+          withCabinet: true,
         })) as Department[];
         if (cancelled) return;
         setDepartments(list);
@@ -239,14 +274,33 @@ export default function FilterSection({
   const appliedDept = departments.find((d) => d.ID.toString() === appliedFilters.departmentId);
   const appliedCabinet = cabinets.find((c) => c.id.toString() === appliedFilters.cabinetId);
 
-  const departmentOptions = [
-    { value: "", label: "ทั้งหมด" },
-    ...departments.map((dept) => ({
-      value: dept.ID.toString(),
-      label: dept.DepName || "",
-      subLabel: dept.DepName2 || "",
-    })),
-  ];
+  const roleScopeDivisionSummary = useMemo(
+    () => (canPickAllRoleDepartments ? buildRoleScopeDivisionSummary(departments) : ""),
+    [canPickAllRoleDepartments, departments],
+  );
+
+  const divisionSelectOptions = useMemo(
+    () => [
+      ...(canPickAllRoleDepartments
+        ? [
+            {
+              value: "",
+              label: "ทั้งหมด",
+              ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
+            },
+          ]
+        : []),
+      ...departments.map((dept) => ({
+        value: dept.ID.toString(),
+        label: dept.DepName || "",
+        subLabel: dept.DepName2 || "",
+      })),
+    ],
+    [canPickAllRoleDepartments, departments, roleScopeDivisionSummary],
+  );
+
+  const cabinetSelectEnabled =
+    Boolean(formFilters.departmentId?.trim()) || canPickAllRoleDepartments;
 
   return (
     <Card className="mb-6 border-slate-200 shadow-sm">
@@ -266,8 +320,21 @@ export default function FilterSection({
         <div className="grid gap-4 md:grid-cols-2">
           <SearchableSelect
             label="Division"
-            placeholder="ทั้งหมด (ไม่บังคับ)"
+            placeholder={
+              canPickAllRoleDepartments
+                ? "เลือก Division หรือทั้งหมด (ตาม role)"
+                : "เลือก Division (บังคับ)"
+            }
+            required={!canPickAllRoleDepartments}
             value={formFilters.departmentId}
+            initialDisplay={
+              canPickAllRoleDepartments && !formFilters.departmentId?.trim()
+                ? {
+                    label: "ทั้งหมด (ทุกแผนกที่ role อนุญาต)",
+                    ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
+                  }
+                : undefined
+            }
             onValueChange={(value) => {
               if (departmentDisabled) return;
               setFormFilters({
@@ -276,7 +343,7 @@ export default function FilterSection({
                 cabinetId: "",
               });
             }}
-            options={departmentOptions}
+            options={divisionSelectOptions}
             loading={loadingDepartments}
             onSearch={loadDepartments}
             searchPlaceholder="ค้นหา Division..."
@@ -286,9 +353,11 @@ export default function FilterSection({
           <SearchableSelect
             label="ตู้ Cabinet"
             placeholder={
-              formFilters.departmentId?.trim()
-                ? "ทั้งหมดหรือเลือกตู้ (ในแผนกนี้)"
-                : "ทั้งหมดหรือเลือกตู้ (ทุกตู้ที่ใช้งาน)"
+              cabinetSelectEnabled
+                ? formFilters.departmentId?.trim()
+                  ? "ทั้งหมดหรือเลือกตู้ (ในแผนกนี้)"
+                  : "ทั้งหมดหรือเลือกตู้ (ตาม role)"
+                : "กรุณาเลือก Division ก่อน"
             }
             value={formFilters.cabinetId}
             onValueChange={(value) => setFormFilters({ ...formFilters, cabinetId: value })}
@@ -304,8 +373,10 @@ export default function FilterSection({
             onSearch={(searchKeyword) => {
               void resolveCabinets(formFilters.departmentId, searchKeyword);
             }}
-            searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
-            disabled={false}
+            searchPlaceholder={
+              cabinetSelectEnabled ? "ค้นหารหัสหรือชื่อตู้..." : "กรุณาเลือก Division ก่อน"
+            }
+            disabled={!cabinetSelectEnabled}
           />
         </div>
 

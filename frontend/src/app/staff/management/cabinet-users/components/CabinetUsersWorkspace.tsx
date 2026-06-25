@@ -2,17 +2,28 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { staffCabinetDepartmentApi } from '@/lib/staffApi/cabinetApi';
+import { getStaffAllowedDepartmentIds } from '@/lib/staffDepartmentScope';
 import CabinetUserDialog, {
   type CabinetOption,
   type CreateCabinetUserFormPayload,
   type EditCabinetUserFormPayload,
 } from './CabinetUserDialog';
-import { CabinetUsersSearchCard } from './CabinetUsersSearchCard';
+import {
+  CabinetUsersSearchCard,
+  type CabinetUsersSearchFilters,
+} from './CabinetUsersSearchCard';
 import { CabinetUsersTableCard } from './CabinetUsersTableCard';
 import { CABINET_USERS_PAGE_SIZE } from './pagination';
 import type { CabinetListApiClient, CabinetUserRow, CabinetUsersApiClient } from './types';
 
 export type { CabinetListApiClient, CabinetUsersApiClient } from './types';
+
+const defaultFilters: CabinetUsersSearchFilters = {
+  keyword: '',
+  departmentId: '',
+  cabinetId: '',
+};
 
 /** Staff — โค้ดแยกจาก admin เพื่อให้ปรับพฤติกรรม staff ได้โดยไม่กระทบ admin */
 export default function CabinetUsersWorkspace({
@@ -23,16 +34,10 @@ export default function CabinetUsersWorkspace({
   cabinets: CabinetListApiClient;
 }) {
   const [rows, setRows] = useState<CabinetUserRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [keywordInput, setKeywordInput] = useState('');
-  const [activeKeyword, setActiveKeyword] = useState('');
-  const [departmentIdInput, setDepartmentIdInput] = useState('');
-  const [activeDepartmentId, setActiveDepartmentId] = useState('');
-  const [cabinetIdInput, setCabinetIdInput] = useState('');
-  const [activeCabinetId, setActiveCabinetId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<CabinetUsersSearchFilters>(defaultFilters);
   const [page, setPage] = useState(1);
-  /** เพิ่มทุกครั้งที่กดค้นหา — ให้โหลดรายการซ้ำได้แม้เงื่อนไข active เหมือนเดิม */
-  const [listQueryNonce, setListQueryNonce] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -49,24 +54,73 @@ export default function CabinetUsersWorkspace({
 
   const loadCabinets = useCallback(async () => {
     try {
-      const res = await cabinets.getAll({ page: 1, limit: 500 });
-      if (res.data && Array.isArray(res.data)) {
-        setCabinetOptions(res.data as CabinetOption[]);
+      const allowed = await getStaffAllowedDepartmentIds();
+      const unique = new Map<number, CabinetOption>();
+      const loadFromMappings = (
+        mappings: Array<{
+          status?: string;
+          cabinet?: { id: number; cabinet_name?: string; cabinet_code?: string };
+        }>,
+      ) => {
+        mappings
+          .filter((m) => m.status === 'ACTIVE' && m.cabinet && typeof m.cabinet.id === 'number')
+          .forEach((m) => {
+            const c = m.cabinet!;
+            if (!unique.has(c.id)) {
+              unique.set(c.id, {
+                id: c.id,
+                cabinet_name: c.cabinet_name,
+                cabinet_code: c.cabinet_code,
+              } as CabinetOption);
+            }
+          });
+      };
+
+      if (Array.isArray(allowed) && allowed.length > 0) {
+        const results = await Promise.all(
+          allowed.map((deptId) => staffCabinetDepartmentApi.getAll({ departmentId: deptId })),
+        );
+        for (const res of results) {
+          if (res.success && Array.isArray(res.data)) {
+            loadFromMappings(
+              res.data as Array<{
+                status?: string;
+                cabinet?: { id: number; cabinet_name?: string; cabinet_code?: string };
+              }>,
+            );
+          }
+        }
+      } else if (allowed === null) {
+        const res = await cabinets.getAll({ page: 1, limit: 500 });
+        if (res.data && Array.isArray(res.data)) {
+          (res.data as CabinetOption[]).forEach((c) => {
+            if (c.id != null) unique.set(c.id, c);
+          });
+        }
       }
+
+      setCabinetOptions(Array.from(unique.values()));
     } catch {
       toast.error('โหลดรายการตู้ไม่สำเร็จ');
     }
   }, [cabinets]);
 
   const loadUsers = useCallback(async () => {
+    if (!hasSearched || !activeFilters.departmentId.trim()) {
+      setRows([]);
+      setTotal(0);
+      setTotalPages(1);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const deptNum = activeDepartmentId ? parseInt(activeDepartmentId, 10) : NaN;
-      const cabNum = activeCabinetId ? parseInt(activeCabinetId, 10) : NaN;
+      const deptNum = parseInt(activeFilters.departmentId, 10);
+      const cabNum = activeFilters.cabinetId ? parseInt(activeFilters.cabinetId, 10) : NaN;
       const res = await cabinetUsers.getAll({
         page,
         limit: CABINET_USERS_PAGE_SIZE,
-        keyword: activeKeyword.trim() || undefined,
+        keyword: activeFilters.keyword.trim() || undefined,
         department_id: Number.isFinite(deptNum) && deptNum > 0 ? deptNum : undefined,
         cabinet_id: Number.isFinite(cabNum) && cabNum > 0 ? cabNum : undefined,
       });
@@ -80,15 +134,15 @@ export default function CabinetUsersWorkspace({
     } finally {
       setLoading(false);
     }
-  }, [cabinetUsers, page, activeKeyword, activeDepartmentId, activeCabinetId]);
+  }, [cabinetUsers, page, activeFilters, hasSearched]);
 
   useEffect(() => {
-    loadCabinets();
+    void loadCabinets();
   }, [loadCabinets]);
 
   useEffect(() => {
     void loadUsers();
-  }, [loadUsers, listQueryNonce]);
+  }, [loadUsers]);
 
   const openCreate = () => {
     setDialogMode('create');
@@ -133,7 +187,7 @@ export default function CabinetUsersWorkspace({
           const w = (res as { warnings?: string[] }).warnings;
           if (w?.length) w.forEach((x) => toast.warning(x));
           setDialogOpen(false);
-          loadUsers();
+          void loadUsers();
         } else {
           toast.error((res as { message?: string }).message || 'สร้างไม่สำเร็จ');
         }
@@ -144,7 +198,7 @@ export default function CabinetUsersWorkspace({
           const w = (res as { warnings?: string[] }).warnings;
           if (w?.length) w.forEach((x) => toast.warning(x));
           setDialogOpen(false);
-          loadUsers();
+          void loadUsers();
         } else {
           toast.error((res as { message?: string }).message || 'บันทึกไม่สำเร็จ');
         }
@@ -158,24 +212,20 @@ export default function CabinetUsersWorkspace({
     }
   };
 
-  const handleSearch = () => {
-    setActiveKeyword(keywordInput);
-    setActiveDepartmentId(departmentIdInput);
-    setActiveCabinetId(cabinetIdInput);
+  const handleSearch = useCallback((filters: CabinetUsersSearchFilters) => {
+    setHasSearched(true);
+    setActiveFilters(filters);
     setPage(1);
-    setListQueryNonce((n) => n + 1);
-  };
+  }, []);
 
-  const handleResetFilters = () => {
-    setKeywordInput('');
-    setActiveKeyword('');
-    setDepartmentIdInput('');
-    setActiveDepartmentId('');
-    setCabinetIdInput('');
-    setActiveCabinetId('');
+  const handleResetFilters = useCallback(() => {
+    setHasSearched(false);
+    setActiveFilters(defaultFilters);
+    setRows([]);
+    setTotal(0);
+    setTotalPages(1);
     setPage(1);
-    setListQueryNonce((n) => n + 1);
-  };
+  }, []);
 
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage);
@@ -186,18 +236,9 @@ export default function CabinetUsersWorkspace({
     <>
       <div className="space-y-6">
         <CabinetUsersSearchCard
-          keywordInput={keywordInput}
-          activeKeyword={activeKeyword}
-          onKeywordChange={setKeywordInput}
-          departmentId={departmentIdInput}
-          activeDepartmentId={activeDepartmentId}
-          onDepartmentIdChange={setDepartmentIdInput}
-          cabinetId={cabinetIdInput}
-          activeCabinetId={activeCabinetId}
-          onCabinetIdChange={setCabinetIdInput}
           onSearch={handleSearch}
-          onClearFilters={handleResetFilters}
-          onRefresh={() => loadUsers()}
+          onReset={handleResetFilters}
+          onRefresh={() => void loadUsers()}
           loading={loading}
         />
 

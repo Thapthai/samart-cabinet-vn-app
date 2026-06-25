@@ -56,8 +56,14 @@ export function createCabinetListGetAll(http: AxiosInstance) {
       keyword?: string;
       sort_by?: string;
       sort_order?: string;
+      department_id?: number;
     }): Promise<PaginatedResponse<any>> => {
       const response = await http.get('/cabinets', { params });
+      return response.data;
+    },
+
+    getById: async (id: number): Promise<ApiResponse<any>> => {
+      const response = await http.get(`/cabinets/${id}`);
       return response.data;
     },
   };

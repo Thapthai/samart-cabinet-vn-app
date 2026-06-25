@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { staffItemsApi } from '@/lib/staffApi/itemsApi';
-import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
+import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 import type { Item } from '@/types/item';
 import { toast } from 'sonner';
 import { Boxes } from 'lucide-react';
@@ -48,10 +48,8 @@ export default function StaffItemMasterManagementPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await staffDepartmentApi.getAll({ limit: 500 });
-        if (res.success && Array.isArray(res.data)) {
-          setDepartments(res.data as DeptRow[]);
-        }
+        const list = await fetchStaffDepartmentsForFilter({ limit: 500 });
+        setDepartments(list as DeptRow[]);
       } catch {
         setDepartments([]);
       }

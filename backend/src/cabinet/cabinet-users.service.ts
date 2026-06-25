@@ -61,14 +61,54 @@ export class CabinetUsersService {
    * สร้างเงื่อนไข `user_cabinet` — เปรียบเทียบกับ `user_cabinet.cabinet_id` (= `app_cabinets.stock_id`)
    * ทุกกรณี resolve `stock_id` ผ่าน `app_cabinet_departments` + `app_cabinets` (ไม่ดึงตู้ตรงๆ โดยตัด mapping)
    */
+  private async stockIdsFromDepartmentMappings(deptFilter: {
+    department_id?: number;
+    department_ids?: number[];
+  }): Promise<number[] | 'empty'> {
+    const deptId = deptFilter.department_id;
+    const deptIds = deptFilter.department_ids;
+    const departmentWhere =
+      deptId != null
+        ? { department_id: deptId }
+        : deptIds != null && deptIds.length > 0
+          ? { department_id: { in: deptIds } }
+          : null;
+    if (!departmentWhere) return 'empty';
+
+    const mappingRows = await this.prisma.cabinetDepartment.findMany({
+      where: {
+        ...departmentWhere,
+        status: 'ACTIVE',
+        cabinet_id: { not: null },
+      },
+      select: { cabinet_id: true },
+    });
+    if (mappingRows.length === 0) return 'empty';
+    const cabinetPkIds = [
+      ...new Set(
+        mappingRows.map((r) => r.cabinet_id).filter((id): id is number => typeof id === 'number'),
+      ),
+    ];
+    const cabs = await this.prisma.cabinet.findMany({
+      where: { id: { in: cabinetPkIds }, stock_id: { not: null } },
+      select: { stock_id: true },
+    });
+    const fingerStockIds = cabs.map((c) => c.stock_id!).filter((n) => typeof n === 'number');
+    return fingerStockIds.length === 0 ? 'empty' : fingerStockIds;
+  }
+
   private async resolveUserCabinetSomeFilter(params: {
     department_id?: number;
+    department_ids?: number[];
     cabinet_id?: number;
   }): Promise<'none' | 'empty' | Prisma.UserCabinetWhereInput> {
     const deptId = params.department_id;
+    const deptIds = params.department_ids;
     const cabinetPk = params.cabinet_id;
 
-    if (deptId == null && cabinetPk == null) return 'none';
+    if (deptId == null && cabinetPk == null && (deptIds == null || deptIds.length === 0)) {
+      return 'none';
+    }
 
     if (cabinetPk != null && deptId != null) {
       const stockId = await this.stockIdFromActiveCabinetDepartment({
@@ -80,58 +120,71 @@ export class CabinetUsersService {
       return { cabinet_id: stockId };
     }
 
-    if (deptId != null) {
-      const mappingRows = await this.prisma.cabinetDepartment.findMany({
-        where: {
-          department_id: deptId,
-          status: 'ACTIVE',
-          cabinet_id: { not: null },
-        },
-        select: {
-          cabinet_id: true,
-        },
+    if (cabinetPk != null && deptId == null) {
+      const mappingWhere: {
+        cabinet_id: number;
+        status: string;
+        department_id?: { in: number[] };
+      } = {
+        cabinet_id: cabinetPk,
+        status: 'ACTIVE',
+      };
+      if (deptIds != null && deptIds.length > 0) {
+        mappingWhere.department_id = { in: deptIds };
+      }
+      const mapping = await this.prisma.cabinetDepartment.findFirst({
+        where: mappingWhere,
+        include: { cabinet: { select: { stock_id: true } } },
       });
-      if (mappingRows.length === 0) return 'empty';
-      const cabinetPkIds = [
-        ...new Set(
-          mappingRows
-            .map((r) => r.cabinet_id)
-            .filter((id): id is number => typeof id === 'number'),
-        ),
-      ];
-      const cabs = await this.prisma.cabinet.findMany({
-        where: {
-          id: { in: cabinetPkIds },
-          stock_id: { not: null },
-        },
-        select: { stock_id: true },
-      });
+      const stock = mapping?.cabinet?.stock_id;
+      if (stock == null) return 'empty';
+      return { cabinet_id: stock };
+    }
 
-      const fingerStockIds = cabs
-        .map((c) => c.stock_id!)
-        .filter((n) => typeof n === 'number');
-      if (fingerStockIds.length === 0) return 'empty';
-      return { cabinet_id: { in: fingerStockIds } };
+    if (deptId != null || (deptIds != null && deptIds.length > 0)) {
+      const stockIds = await this.stockIdsFromDepartmentMappings({
+        department_id: deptId,
+        department_ids: deptId == null ? deptIds : undefined,
+      });
+      if (stockIds === 'empty') return 'empty';
+      return { cabinet_id: { in: stockIds } };
     }
 
     return 'none';
   }
 
-  async findAll(params?: {
-    page?: number;
-    limit?: number;
-    keyword?: string;
-    department_id?: number;
-    /** `app_cabinets.id` — แปลงเป็น `stock_id` ก่อนเทียบกับ `user_cabinet.cabinet_id` */
-    cabinet_id?: number;
-  }) {
+  async findAll(
+    params?: {
+      page?: number;
+      limit?: number;
+      keyword?: string;
+      department_id?: number;
+      /** `app_cabinets.id` — แปลงเป็น `stock_id` ก่อนเทียบกับ `user_cabinet.cabinet_id` */
+      cabinet_id?: number;
+    },
+    allowedDepartmentIds?: number[] | null,
+  ) {
     const page = Math.max(1, params?.page ?? 1);
     const limit = Math.min(100, Math.max(1, params?.limit ?? 20));
     const skip = (page - 1) * limit;
     const kw = params?.keyword?.trim();
 
+    if (allowedDepartmentIds != null && allowedDepartmentIds.length === 0) {
+      return { success: true, data: [], total: 0, page, limit, lastPage: 1 };
+    }
+
+    const deptId = params?.department_id;
+    if (allowedDepartmentIds != null && deptId != null && !allowedDepartmentIds.includes(deptId)) {
+      return { success: true, data: [], total: 0, page, limit, lastPage: 1 };
+    }
+
+    /** Staff ที่ role จำกัดแผนก — ต้องเลือก Division ก่อน (ไม่ดึงทั้ง role อัตโนมัติ) */
+    if (allowedDepartmentIds != null && allowedDepartmentIds.length > 0 && deptId == null) {
+      return { success: true, data: [], total: 0, page, limit, lastPage: 1 };
+    }
+
     const ucSome = await this.resolveUserCabinetSomeFilter({
-      department_id: params?.department_id,
+      department_id: deptId,
       cabinet_id: params?.cabinet_id,
     });
 

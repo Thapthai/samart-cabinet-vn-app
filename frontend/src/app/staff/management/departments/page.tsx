@@ -1,9 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { staffMedicalSupplySubDepartmentsApi } from '@/lib/staffApi/medicalSupplySubDepartmentsApi';
 import { staffDepartmentApi } from '@/lib/staffApi/departmentApi';
-import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
+import {
+  fetchStaffDepartmentsForFilter,
+  getStaffAllowedDepartmentIds,
+} from '@/lib/staffDepartmentScope';
 import { toast } from 'sonner';
 import { Building2, Plus, RefreshCw, RotateCcw, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,17 +19,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import SubDepartmentFormDialog from '@/app/admin/management/departments/components/SubDepartmentFormDialog';
-import SubDepartmentDeleteDialog from '@/app/admin/management/departments/components/SubDepartmentDeleteDialog';
+import SubDepartmentFormDialog from './components/SubDepartmentFormDialog';
+import SubDepartmentDeleteDialog from './components/SubDepartmentDeleteDialog';
 import DepartmentFormDialog, {
   type DepartmentFormPayload,
-} from '@/app/admin/management/departments/components/DepartmentFormDialog';
-import DepartmentMasterTable from '@/app/admin/management/departments/components/DepartmentMasterTable';
-import DepartmentDetailsCard from '@/app/admin/management/departments/components/DepartmentDetailsCard';
-import type { DeptRow, StatusFilter, SubDepartmentRow } from '@/app/admin/management/departments/types';
+} from './components/DepartmentFormDialog';
+import DepartmentMasterTable from './components/DepartmentMasterTable';
+import DepartmentDetailsCard from './components/DepartmentDetailsCard';
+import type { DeptRow, StatusFilter, SubDepartmentRow } from './types';
+import { buildRoleDivisionSummary, filterSubRowsInDepartmentScope } from './utils';
 import { cn } from '@/lib/utils';
-
 const fieldInputClass = 'bg-white';
+const DEPTS_PER_PAGE = 10;
 
 export default function StaffDepartmentManagementPage() {
   const [rows, setRows] = useState<SubDepartmentRow[]>([]);
@@ -37,13 +41,12 @@ export default function StaffDepartmentManagementPage() {
   const [activeDeptKw, setActiveDeptKw] = useState('');
   const [activeSubKw, setActiveSubKw] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchVersion, setSearchVersion] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const [filterDepartments, setFilterDepartments] = useState<DeptRow[]>([]);
-  const [filterDeptLoading, setFilterDeptLoading] = useState(false);
+  const [roleDepartments, setRoleDepartments] = useState<DeptRow[]>([]);
+  const [scopeLoading, setScopeLoading] = useState(true);
 
   const [selectedDept, setSelectedDept] = useState<DeptRow | null>(null);
-
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SubDepartmentRow | null>(null);
   const [formCode, setFormCode] = useState('');
@@ -63,7 +66,52 @@ export default function StaffDepartmentManagementPage() {
   const [deptMainEditDept, setDeptMainEditDept] = useState<DeptRow | null>(null);
   const [creatingDept, setCreatingDept] = useState(false);
 
+  /** undefined = ยังไม่รู้ scope, null = ไม่จำกัด, number[] = เฉพาะแผนกที่ role อนุญาต */
+  const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
+
+  const roleDeptIdSet = useMemo(
+    () => new Set(roleDepartments.map((d) => d.ID)),
+    [roleDepartments],
+  );
+
+  const roleDivisionSummary = useMemo(
+    () => buildRoleDivisionSummary(roleDepartments),
+    [roleDepartments],
+  );
+
+  const rowsInRoleScope = useMemo(
+    () => filterSubRowsInDepartmentScope(rows, roleDeptIdSet),
+    [rows, roleDeptIdSet],
+  );
+
+  const loadRoleDepartments = useCallback(async () => {
+    try {
+      setScopeLoading(true);
+      let allowed = allowedDepartmentIdsRef.current;
+      if (allowed === undefined) {
+        allowed = await getStaffAllowedDepartmentIds();
+        allowedDepartmentIdsRef.current = allowed;
+      }
+      const list = (await fetchStaffDepartmentsForFilter({
+        page: 1,
+        limit: 500,
+        allowedDepartmentIds: allowed,
+      })) as DeptRow[];
+      setRoleDepartments(
+        list.slice().sort((a, b) =>
+          (a.DepName || a.DepName2 || '').localeCompare(b.DepName || b.DepName2 || ''),
+        ),
+      );
+    } catch {
+      toast.error('โหลดรายการแผนกตามสิทธิ์ไม่สำเร็จ');
+      setRoleDepartments([]);
+    } finally {
+      setScopeLoading(false);
+    }
+  }, []);
+
   const loadSubs = useCallback(async () => {
+    if (scopeLoading) return;
     try {
       setLoadingSubs(true);
       const res = await staffMedicalSupplySubDepartmentsApi.getAll();
@@ -72,40 +120,30 @@ export default function StaffDepartmentManagementPage() {
         setRows([]);
         return;
       }
-      setRows(res.data as SubDepartmentRow[]);
+      const scoped = filterSubRowsInDepartmentScope(
+        res.data as SubDepartmentRow[],
+        roleDeptIdSet,
+      );
+      setRows(scoped);
     } catch {
       toast.error('โหลดรายการไม่สำเร็จ');
       setRows([]);
     } finally {
       setLoadingSubs(false);
     }
-  }, []);
+  }, [scopeLoading, roleDeptIdSet]);
 
   useEffect(() => {
-    loadSubs();
-  }, [loadSubs]);
+    void loadRoleDepartments();
+  }, [loadRoleDepartments]);
 
-  const loadFilterDepartments = useCallback(async () => {
-    try {
-      setFilterDeptLoading(true);
-      const raw = await fetchStaffDepartmentsForFilter({ limit: 500 });
-      const list = (raw as DeptRow[]).slice().sort((a, b) =>
-        (a.DepName || a.DepName2 || '').localeCompare(b.DepName || b.DepName2 || ''),
-      );
-      setFilterDepartments(list);
-    } catch {
-      toast.error('โหลดรายการแผนกไม่สำเร็จ');
-    } finally {
-      setFilterDeptLoading(false);
+  useEffect(() => {
+    if (!scopeLoading) {
+      void loadSubs();
     }
-  }, []);
-
-  useEffect(() => {
-    loadFilterDepartments();
-  }, [loadFilterDepartments]);
-
+  }, [scopeLoading, loadSubs]);
   const subRowsFiltered = useMemo(() => {
-    let list = rows;
+    let list = rowsInRoleScope;
     const q = activeSubKw.trim().toLowerCase();
     if (q) {
       list = list.filter((r) => {
@@ -118,27 +156,37 @@ export default function StaffDepartmentManagementPage() {
     if (statusFilter === 'active') list = list.filter((r) => r.status);
     if (statusFilter === 'inactive') list = list.filter((r) => !r.status);
     return list;
-  }, [rows, activeSubKw, statusFilter]);
+  }, [rowsInRoleScope, activeSubKw, statusFilter]);
 
   const departmentsForTable = useMemo(() => {
+    let base = roleDepartments;
     const qd = activeDeptKw.trim().toLowerCase();
-    let base = filterDepartments.filter((d) => {
-      if (!qd) return true;
-      const idStr = String(d.ID);
-      return (
-        idStr.includes(qd) ||
-        (d.DepName || '').toLowerCase().includes(qd) ||
-        (d.DepName2 || '').toLowerCase().includes(qd) ||
-        (d.RefDepID || '').toLowerCase().includes(qd)
-      );
-    });
+    if (qd) {
+      base = base.filter((d) => {
+        const idStr = String(d.ID);
+        return (
+          idStr.includes(qd) ||
+          (d.DepName || '').toLowerCase().includes(qd) ||
+          (d.DepName2 || '').toLowerCase().includes(qd) ||
+          (d.RefDepID || '').toLowerCase().includes(qd)
+        );
+      });
+    }
     const hasSubFilters = activeSubKw.trim().length > 0 || statusFilter !== 'all';
     if (hasSubFilters) {
       const ids = new Set(subRowsFiltered.map((r) => r.department_id));
       base = base.filter((d) => ids.has(d.ID));
     }
     return base;
-  }, [filterDepartments, activeDeptKw, activeSubKw, statusFilter, subRowsFiltered]);
+  }, [roleDepartments, activeDeptKw, activeSubKw, statusFilter, subRowsFiltered]);
+  const totalPages = useMemo(
+    () => (departmentsForTable.length > 0 ? Math.ceil(departmentsForTable.length / DEPTS_PER_PAGE) : 1),
+    [departmentsForTable.length],
+  );
+
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
+  }, [totalPages]);
 
   useEffect(() => {
     if (selectedDept && !departmentsForTable.some((d) => d.ID === selectedDept.ID)) {
@@ -146,10 +194,15 @@ export default function StaffDepartmentManagementPage() {
     }
   }, [departmentsForTable, selectedDept]);
 
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const applySearch = () => {
     setActiveDeptKw(deptKwInput);
     setActiveSubKw(subKwInput);
-    setSearchVersion((v) => v + 1);
+    setCurrentPage(1);
   };
 
   const resetFilters = () => {
@@ -158,7 +211,7 @@ export default function StaffDepartmentManagementPage() {
     setActiveDeptKw('');
     setActiveSubKw('');
     setStatusFilter('all');
-    setSearchVersion((v) => v + 1);
+    setCurrentPage(1);
   };
 
   const openDeptMainCreate = () => {
@@ -190,7 +243,7 @@ export default function StaffDepartmentManagementPage() {
         toast.success(res.message || 'อัปเดตแผนกหลักแล้ว');
         setDeptMainOpen(false);
         setDeptMainEditDept(null);
-        await loadFilterDepartments();
+        await loadRoleDepartments();
         const row = res.data as DeptRow | undefined;
         if (row?.ID != null) setSelectedDept(row);
         return;
@@ -206,7 +259,7 @@ export default function StaffDepartmentManagementPage() {
       }
       toast.success(res.message || 'สร้างแผนกหลักแล้ว');
       setDeptMainOpen(false);
-      await loadFilterDepartments();
+      await loadRoleDepartments();
       const row = res.data as DeptRow | undefined;
       if (row?.ID != null) setSelectedDept(row);
     } catch (e: unknown) {
@@ -223,7 +276,17 @@ export default function StaffDepartmentManagementPage() {
   const loadDepartments = async (keyword?: string) => {
     try {
       setFormDeptLoading(true);
-      const list = await fetchStaffDepartmentsForFilter({ keyword, limit: 50 });
+      let allowed = allowedDepartmentIdsRef.current;
+      if (allowed === undefined) {
+        allowed = await getStaffAllowedDepartmentIds();
+        allowedDepartmentIdsRef.current = allowed;
+      }
+      const list = await fetchStaffDepartmentsForFilter({
+        keyword,
+        page: 1,
+        limit: 50,
+        allowedDepartmentIds: allowed,
+      });
       setDepartments(list as DeptRow[]);
     } catch {
       toast.error('โหลดรายการแผนกไม่สำเร็จ');
@@ -234,7 +297,7 @@ export default function StaffDepartmentManagementPage() {
   };
 
   const openCreateForDepartmentId = (departmentId: number) => {
-    const d = filterDepartments.find((x) => x.ID === departmentId);
+    const d = roleDepartments.find((x) => x.ID === departmentId);
     setEditing(null);
     setFormCode('');
     setFormLabel('');
@@ -256,10 +319,9 @@ export default function StaffDepartmentManagementPage() {
     setFormDescription('');
     setFormDepartmentId(null);
     setFormActive(true);
-    setDepartments([]);
+    setDepartments(roleDepartments);
     setFormOpen(true);
   };
-
   const openEdit = (r: SubDepartmentRow) => {
     setEditing(r);
     setFormCode(r.code);
@@ -279,6 +341,10 @@ export default function StaffDepartmentManagementPage() {
     }
     if (formDepartmentId == null) {
       toast.error('กรุณาเลือกแผนกหลัก');
+      return;
+    }
+    if (!roleDeptIdSet.has(formDepartmentId)) {
+      toast.error('ไม่มีสิทธิ์จัดการแผนกนี้');
       return;
     }
     setSaving(true);
@@ -344,7 +410,7 @@ export default function StaffDepartmentManagementPage() {
 
   const detailSubs =
     selectedDept != null
-      ? rows
+      ? rowsInRoleScope
         .filter((r) => r.department_id === selectedDept.ID)
         .slice()
         .sort((a, b) => a.code.localeCompare(b.code))
@@ -359,11 +425,11 @@ export default function StaffDepartmentManagementPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">จัดการแผนก</h1>
-
+            <p className="text-sm text-slate-500">แสดงเฉพาะแผนกตามสิทธิ์ role</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={() => loadSubs()} disabled={loadingSubs}>
+          <Button variant="outline" size="sm" onClick={() => { void loadRoleDepartments().then(() => loadSubs()); }} disabled={loadingSubs || scopeLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loadingSubs ? 'animate-spin' : ''}`} />
             รีเฟรช
           </Button>
@@ -393,11 +459,20 @@ export default function StaffDepartmentManagementPage() {
               <Building2 className="h-5 w-5 text-cyan-600" />
               กรองข้อมูล
             </CardTitle>
-
+            {!scopeLoading && roleDivisionSummary ? (
+              <p className="text-xs text-muted-foreground mt-1">
+                Division ตามสิทธิ์: {roleDivisionSummary}
+              </p>
+            ) : null}
+            {!scopeLoading && roleDepartments.length === 0 ? (
+              <p className="text-xs text-amber-700 mt-1">
+                ไม่พบแผนกที่ role นี้ได้รับอนุญาต — ติดต่อผู้ดูแลระบบเพื่อกำหนดสิทธิ์แผนก
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
             <div className="flex min-w-[180px] flex-1 flex-col gap-1.5">
-              <span className="text-xs text-muted-foreground">ค้นหาแผนก</span>
+            <p className="text-xs text-muted-foreground">ค้นหาใน Division ตามสิทธิ์ role</p>
               <Input
                 placeholder="ชื่อ, ชื่อย่อ, ID, RefDepID..."
                 value={deptKwInput}
@@ -446,21 +521,14 @@ export default function StaffDepartmentManagementPage() {
       <DepartmentMasterTable
         departments={departmentsForTable}
         subRows={subRowsFiltered}
-        loadingDepartments={filterDeptLoading}
+        loadingDepartments={scopeLoading}
         loadingSubRows={loadingSubs}
-        deptKeywordInput={deptKwInput}
-        onDeptKeywordInputChange={setDeptKwInput}
-        subKeywordInput={subKwInput}
-        onSubKeywordInputChange={setSubKwInput}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        onSearch={applySearch}
-        onResetFilters={resetFilters}
-        searchVersion={searchVersion}
         selectedDepartmentId={selectedDept?.ID ?? null}
         onSelectDepartment={(d) => setSelectedDept(d)}
-        showFilterToolbar={false}
         onEditMainDepartment={openDeptMainEdit}
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        itemsPerPage={DEPTS_PER_PAGE}
       />
 
       {selectedDept && (

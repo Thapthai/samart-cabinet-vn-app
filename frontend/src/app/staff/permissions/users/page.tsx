@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { staffUserApi, staffRoleApi } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 import {
   staffRoleDisplayLabel,
   staffPortalCanPickAssignableRole,
   staffPortalCanManageStaffUserRow,
-  readStaffRoleCodeFromStorage,
+  staffPortalVisibleStaffUserRow,
+  resolveStaffViewerRoleCode,
   readStaffUserIdFromStorage,
 } from '@/lib/staffRolePolicy';
 import { toast } from 'sonner';
@@ -23,6 +25,7 @@ import EditStaffUserDialog, {
 import PermissionUsersTableCard from '@/app/staff/management/permission-users/components/PermissionUsersTableCard';
 
 export default function ManageUsersPage() {
+  const { user: authUser } = useAuth();
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<StaffUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,18 +67,26 @@ export default function ManageUsersPage() {
     fetchStaffUsers();
   }, []);
 
-  const viewerRoleCode = readStaffRoleCodeFromStorage();
+  const viewerRoleCode = useMemo(
+    () => resolveStaffViewerRoleCode(authUser as { role?: string; role_code?: string } | null),
+    [authUser],
+  );
   const assignableRoles = useMemo(
     () => rolesCatalog.filter((r) => staffPortalCanPickAssignableRole(viewerRoleCode, r.code)),
     [rolesCatalog, viewerRoleCode],
   );
 
+  const roleScopedUsers = useMemo(
+    () => staffUsers.filter((u) => staffPortalVisibleStaffUserRow(viewerRoleCode, u.role ?? '')),
+    [staffUsers, viewerRoleCode],
+  );
+
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setFilteredUsers(staffUsers);
+      setFilteredUsers(roleScopedUsers);
     } else {
       const query = searchQuery.toLowerCase();
-      const filtered = staffUsers.filter(
+      const filtered = roleScopedUsers.filter(
         (user) =>
           user.email.toLowerCase().includes(query) ||
           user.fname.toLowerCase().includes(query) ||
@@ -85,7 +96,7 @@ export default function ManageUsersPage() {
       );
       setFilteredUsers(filtered);
     }
-  }, [searchQuery, staffUsers]);
+  }, [searchQuery, roleScopedUsers]);
 
   const fetchStaffUsers = async () => {
     try {
@@ -93,7 +104,6 @@ export default function ManageUsersPage() {
       const response = await staffUserApi.getAllStaffUsers();
       if (response.success) {
         setStaffUsers((response.data as StaffUser[]) || []);
-        setFilteredUsers((response.data as StaffUser[]) || []);
       } else {
         toast.error(response.message || 'ไม่สามารถโหลดข้อมูลได้');
       }
@@ -111,7 +121,7 @@ export default function ManageUsersPage() {
       return;
     }
     const chosen = rolesCatalog.find((r) => r.code === formData.role);
-    if (!chosen || !staffPortalCanPickAssignableRole(readStaffRoleCodeFromStorage(), chosen.code)) {
+    if (!chosen || !staffPortalCanPickAssignableRole(viewerRoleCode, chosen.code)) {
       toast.error('ไม่มีสิทธิ์สร้างผู้ใช้ด้วย Role นี้');
       return;
     }
@@ -133,7 +143,7 @@ export default function ManageUsersPage() {
   const handleEditRole = (user: StaffUser) => {
     if (
       !staffPortalCanManageStaffUserRow(
-        readStaffRoleCodeFromStorage(),
+        viewerRoleCode,
         readStaffUserIdFromStorage(),
         user.id,
         user.role,
@@ -156,7 +166,7 @@ export default function ManageUsersPage() {
     }
     if (
       !staffPortalCanManageStaffUserRow(
-        readStaffRoleCodeFromStorage(),
+        viewerRoleCode,
         readStaffUserIdFromStorage(),
         selectedStaff.id,
         selectedStaff.role,
@@ -165,7 +175,7 @@ export default function ManageUsersPage() {
       toast.error('ไม่มีสิทธิ์แก้ไขผู้ใช้รายนี้');
       return;
     }
-    if (!staffPortalCanPickAssignableRole(readStaffRoleCodeFromStorage(), editRoleData.role)) {
+    if (!staffPortalCanPickAssignableRole(viewerRoleCode, editRoleData.role)) {
       toast.error('ไม่มีสิทธิ์มอบ Role นี้');
       return;
     }
