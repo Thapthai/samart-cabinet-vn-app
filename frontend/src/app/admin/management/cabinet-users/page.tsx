@@ -1,15 +1,14 @@
 'use client';
 
-import { cabinetApi, cabinetUsersApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
-import CabinetUsersWorkspace from './components/CabinetUsersWorkspace';
+import CabinetUsersTab from '@/app/admin/management/staff-users/components/cabinet-users-tab/CabinetUsersTab';
 
 export default function AdminCabinetUsersPage() {
   return (
     <ProtectedRoute>
       <AppLayout fullWidth>
-        <CabinetUsersWorkspace cabinetUsers={cabinetUsersApi} cabinets={cabinetApi} />
+        <CabinetUsersTab />
       </AppLayout>
     </ProtectedRoute>
   );

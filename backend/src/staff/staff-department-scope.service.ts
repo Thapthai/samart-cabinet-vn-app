@@ -31,8 +31,8 @@ export class StaffDepartmentScopeService {
     const staff = await this.resolveStaffFromRequest(req);
     if (!staff) return null;
 
-    const rows = await this.prisma.staffRolePermissionDepartment.findMany({
-      where: { role_id: staff.role_id },
+    const rows = await this.prisma.staffPermissionDepartment.findMany({
+      where: { user_id: staff.id },
       select: { department_id: true },
     });
     if (rows.length === 0) return null;

@@ -1,10 +1,7 @@
 'use client';
 
-import { staffCabinetApi, staffCabinetUsersApi } from '@/lib/staffApi/cabinetApi';
-import CabinetUsersWorkspace from './components/CabinetUsersWorkspace';
+import CabinetUsersTab from '@/app/staff/management/staff-users/components/cabinet-users-tab/CabinetUsersTab';
 
 export default function StaffCabinetUsersPage() {
-  return (
-    <CabinetUsersWorkspace cabinetUsers={staffCabinetUsersApi} cabinets={staffCabinetApi} />
-  );
+  return <CabinetUsersTab />;
 }

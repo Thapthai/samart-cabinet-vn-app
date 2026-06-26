@@ -11,6 +11,7 @@ import {
   resolveStaffViewerRoleCode,
   readStaffUserIdFromStorage,
 } from '@/lib/staffRolePolicy';
+import { Users } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   emptyCreateStaffUserForm,
@@ -25,7 +26,7 @@ import EditStaffUserDialog, {
 import PermissionUsersTableCard from '@/app/staff/management/permission-users/components/PermissionUsersTableCard';
 import StaffUserDepartmentDialog from '@/app/staff/management/permission-users/components/StaffUserDepartmentDialog';
 
-export default function ManageUsersPage() {
+export default function StaffUsersTab() {
   const { user: authUser } = useAuth();
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<StaffUser[]>([]);
@@ -218,10 +219,15 @@ export default function ManageUsersPage() {
   };
 
   return (
-    <>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">จัดการ User</h2>
-        <p className="mt-1 text-gray-600">จัดการข้อมูลผู้ใช้งานในระบบ</p>
+    <div className="space-y-6">
+      <div className="flex items-center space-x-3">
+        <div className="p-2 bg-indigo-100 rounded-lg">
+          <Users className="h-6 w-6 text-indigo-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">จัดการ User</h2>
+          <p className="text-sm text-gray-600">จัดการข้อมูลผู้ใช้งานในระบบ</p>
+        </div>
       </div>
 
       <PermissionUsersTableCard
@@ -260,6 +266,6 @@ export default function ManageUsersPage() {
         onOpenChange={setIsDeptDialogOpen}
         user={deptDialogUser}
       />
-    </>
+    </div>
   );
 }

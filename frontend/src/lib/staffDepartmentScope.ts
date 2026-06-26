@@ -74,7 +74,7 @@ async function ensureMeScopeLoaded(): Promise<MeScopeCache | null> {
 
 /**
  * null = ไม่จำกัดแผนก
- * number[] = เฉพาะ ID เหล่านี้ (จาก StaffRolePermissionDepartment)
+ * number[] = เฉพาะ ID เหล่านี้ (จาก StaffPermissionDepartment ต่อผู้ใช้)
  * undefined = ยังไม่รู้ / ไม่มี session / เรียก API ไม่สำเร็จ
  */
 export async function getStaffAllowedDepartmentIds(): Promise<number[] | null | undefined> {
@@ -85,7 +85,7 @@ export async function getStaffAllowedDepartmentIds(): Promise<number[] | null | 
 }
 
 /**
- * รายการแผนกจาก GET /staff/me/departments (StaffRole → StaffRolePermissionDepartment)
+ * รายการแผนกจาก GET /staff/me/departments (user → StaffPermissionDepartment)
  */
 export async function getStaffRestrictedDepartmentsFromMe(): Promise<StaffMeDepartmentRow[] | null> {
   const c = await ensureMeScopeLoaded();
@@ -96,7 +96,7 @@ export async function getStaffRestrictedDepartmentsFromMe(): Promise<StaffMeDepa
 
 /**
  * รายการ Division สำหรับ dropdown/filter ทุกหน้า Staff
- * อิงจาก GET /staff/me/departments เท่านั้น (role → app_staff_role_permission_departments)
+ * อิงจาก GET /staff/me/departments เท่านั้น (user → app_staff_permission_departments)
  * ไม่ดึง GET /departments ทั้งโรงพยาบาล
  */
 export async function fetchStaffDepartmentsForFilter(opts?: {

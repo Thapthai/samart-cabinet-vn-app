@@ -153,50 +153,7 @@ export const adminMenuItems: StaffMenuItem[] = [
         description: 'จัดการตู้ Cabinet',
       },
       {
-        name: 'จัดการ Division',
-        href: '/admin/management/departments',
-        icon: Building2,
-        description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
-      },
-      {
-        name: 'Cabinet - Division',
-        href: '/admin/management/cabinet-departments',
-        icon: Network,
-        description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division',
-      },
-      {
-        name: 'พิมพ์สติ๊กเกอร์',
-        href: '/admin/management/print-sticker',
-        icon: Printer,
-        description: 'พิมพ์สติ๊กเกอร์ผ่านเครื่อง SATO (SBPL)',
-      },
-      {
-        name: 'จัดการ Item (Master)',
-        href: '/admin/management/items',
-        icon: Boxes,
-        description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
-      },
-      {
-        name: 'จัดการหน่วยนับ (Unit)',
-        href: '/admin/management/units',
-        icon: Ruler,
-        description: 'หน่วยนับสำหรับผูกกับรายการ Item',
-      },
-
-      {
         name: 'จัดการพนักงาน',
-        href: '/admin/management/employee',
-        icon: IdCard,
-        description: 'จัดการพนักงาน',
-      },
-      {
-        name: 'ผู้ใช้งานในตู้ Cabinet',
-        href: '/admin/management/cabinet-users',
-        icon: ContactRound,
-        description: 'จัดการ User ในตู้ Cabinet',
-      },
-      {
-        name: 'จัดการ ผู้ใช้งาน Staff',
         href: '/admin/management/staff-users',
         icon: Users,
         description: 'จัดการ Staff Users และ Client Credentials',
@@ -213,12 +170,51 @@ export const adminMenuItems: StaffMenuItem[] = [
         icon: Shield,
         description: 'จัดการ Roles Staff',
       },
+      // {
+      //   name: 'จัดการ Division',
+      //   href: '/admin/management/departments',
+      //   icon: Building2,
+      //   description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
+      // },
+      // {
+      //   name: 'Cabinet - Division',
+      //   href: '/admin/management/cabinet-departments',
+      //   icon: Network,
+      //   description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division',
+      // },
+
       {
-        name: 'Division หลักตาม Staff Role',
-        href: '/admin/management/staff-role-permission-department',
-        icon: Layers,
-        description: 'จำกัด Division หลักที่แต่ละ Role เห็นได้ (ว่าง = เห็นทุก Division)',
+        name: 'จัดการ Item (Master)',
+        href: '/admin/management/items',
+        icon: Boxes,
+        description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
       },
+      {
+        name: 'จัดการหน่วยนับ (Unit)',
+        href: '/admin/management/units',
+        icon: Ruler,
+        description: 'หน่วยนับสำหรับผูกกับรายการ Item',
+      },
+      {
+        name: 'พิมพ์สติ๊กเกอร์',
+        href: '/admin/management/print-sticker',
+        icon: Printer,
+        description: 'พิมพ์สติ๊กเกอร์ผ่านเครื่อง SATO (SBPL)',
+      },
+
+      // {
+      //   name: 'จัดการพนักงาน',
+      //   href: '/admin/management/employee',
+      //   icon: IdCard,
+      //   description: 'จัดการพนักงาน',
+      // },
+      // {
+      //   name: 'ผู้ใช้งานในตู้ Cabinet',
+      //   href: '/admin/management/cabinet-users',
+      //   icon: ContactRound,
+      //   description: 'จัดการ User ในตู้ Cabinet',
+      // },
+
     ],
   },
   {

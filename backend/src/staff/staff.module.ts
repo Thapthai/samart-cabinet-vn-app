@@ -10,7 +10,7 @@ import {
   StaffUsersController,
   StaffRolesController,
   StaffRolePermissionsController,
-  StaffRolePermissionDepartmentsController,
+  StaffPermissionDepartmentsController,
 } from './staff.controller';
 import { StaffMeController } from './staff-me.controller';
 import { StaffItemsController } from './staff-items.controller';
@@ -30,7 +30,7 @@ import { StaffItemStocksController } from './staff-item-stocks.controller';
     StaffUsersController,
     StaffRolesController,
     StaffRolePermissionsController,
-    StaffRolePermissionDepartmentsController,
+    StaffPermissionDepartmentsController,
     StaffMeController,
     StaffItemsController,
     StaffItemStocksController,

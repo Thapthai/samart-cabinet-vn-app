@@ -78,7 +78,7 @@ function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping["cabinet"]): Ca
   };
 }
 
-function buildRoleScopeDivisionSummary(depts: Department[]): string {
+function buildScopedDivisionSummary(depts: Department[]): string {
   const names = depts.map((d) => (d.DepName || "").trim()).filter(Boolean);
   if (names.length === 0) return "";
   if (names.length <= 5) return names.join(", ");
@@ -114,21 +114,21 @@ export default function FilterSection({
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
   const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
-  const [canPickAllRoleDepartments, setCanPickAllRoleDepartments] = useState(false);
+  const [canPickAllScopedDepartments, setCanPickAllScopedDepartments] = useState(false);
 
-  const roleScopeDivisionSummary = useMemo(
-    () => (canPickAllRoleDepartments ? buildRoleScopeDivisionSummary(departments) : ""),
-    [canPickAllRoleDepartments, departments],
+  const scopedDivisionSummary = useMemo(
+    () => (canPickAllScopedDepartments ? buildScopedDivisionSummary(departments) : ""),
+    [canPickAllScopedDepartments, departments],
   );
 
   const divisionSelectOptions = useMemo(
     () => [
-      ...(canPickAllRoleDepartments
+      ...(canPickAllScopedDepartments
         ? [
             {
               value: "",
               label: "ทั้งหมด",
-              ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
+              ...(scopedDivisionSummary ? { subLabel: scopedDivisionSummary } : {}),
             },
           ]
         : []),
@@ -138,7 +138,7 @@ export default function FilterSection({
         subLabel: dept.DepName2 || "",
       })),
     ],
-    [canPickAllRoleDepartments, departments, roleScopeDivisionSummary],
+    [canPickAllScopedDepartments, departments, scopedDivisionSummary],
   );
 
   const subDepartmentOptions = useMemo(() => {
@@ -165,7 +165,7 @@ export default function FilterSection({
         allowed = await getStaffAllowedDepartmentIds();
         allowedDepartmentIdsRef.current = allowed;
       }
-      setCanPickAllRoleDepartments(Array.isArray(allowed) && allowed.length > 0);
+      setCanPickAllScopedDepartments(Array.isArray(allowed) && allowed.length > 0);
       const list = await fetchStaffDepartmentsForFilter({
         keyword,
         page: 1,
@@ -253,7 +253,7 @@ export default function FilterSection({
       const allowed = await getStaffAllowedDepartmentIds();
       if (cancelled) return;
       allowedDepartmentIdsRef.current = allowed;
-      setCanPickAllRoleDepartments(Array.isArray(allowed) && allowed.length > 0);
+      setCanPickAllScopedDepartments(Array.isArray(allowed) && allowed.length > 0);
       try {
         setLoadingDepartments(true);
         const list = await fetchStaffDepartmentsForFilter({
@@ -318,10 +318,10 @@ export default function FilterSection({
   const handleSearchClick = () => {
     if (!departmentDisabled) {
       const allowed = allowedDepartmentIdsRef.current;
-      const roleScopeAll =
+      const scopeAll =
         Array.isArray(allowed) && allowed.length > 0 && !filters.departmentId?.trim();
-      if (!filters.departmentId?.trim() && !roleScopeAll) {
-        toast.error("กรุณาเลือก Division ก่อนค้นหา (หรือเลือกทั้งหมดเฉพาะเมื่อ role จำกัดแผนก)");
+      if (!filters.departmentId?.trim() && !scopeAll) {
+        toast.error("กรุณาเลือก Division ก่อนค้นหา (หรือเลือกทั้งหมดเฉพาะเมื่อมีการจำกัดแผนกให้คุณ)");
         return;
       }
     }
@@ -405,17 +405,17 @@ export default function FilterSection({
             <SearchableSelect
               label="Division"
               placeholder={
-                canPickAllRoleDepartments
-                  ? "เลือก Division หรือทั้งหมด (ตาม role)"
+                canPickAllScopedDepartments
+                  ? "เลือก Division หรือทั้งหมด (ตามสิทธิ์ของคุณ)"
                   : "เลือก Division (บังคับ)"
               }
-              required={!canPickAllRoleDepartments}
+              required={!canPickAllScopedDepartments}
               value={filters.departmentId}
               initialDisplay={
-                canPickAllRoleDepartments && !filters.departmentId?.trim()
+                canPickAllScopedDepartments && !filters.departmentId?.trim()
                   ? {
-                      label: "ทั้งหมด (ทุกแผนกที่ role อนุญาต)",
-                      ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
+                      label: "ทั้งหมด (ทุกแผนกที่คุณเข้าถึงได้)",
+                      ...(scopedDivisionSummary ? { subLabel: scopedDivisionSummary } : {}),
                     }
                   : undefined
               }
@@ -450,7 +450,7 @@ export default function FilterSection({
               placeholder={
                 filters.departmentId
                   ? "เลือกตู้ Cabinet (ไม่บังคับ — ว่าง = ทั้งหมด)"
-                  : canPickAllRoleDepartments
+                  : canPickAllScopedDepartments
                     ? "เลือกตู้"
                     : "เลือก Division ก่อน"
               }
@@ -469,7 +469,7 @@ export default function FilterSection({
                 void resolveCabinets(filters.departmentId, searchKeyword);
               }}
               searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
-              disabled={!canPickAllRoleDepartments && !filters.departmentId?.trim()}
+              disabled={!canPickAllScopedDepartments && !filters.departmentId?.trim()}
             />
           </div>
         </div>

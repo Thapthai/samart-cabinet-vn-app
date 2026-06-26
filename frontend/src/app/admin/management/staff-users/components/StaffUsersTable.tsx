@@ -4,7 +4,7 @@ import { formatUtcDateTime } from '@/lib/formatThaiDateTime';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Pencil, Trash2, Key, Loader2, Plus } from 'lucide-react';
+import { Building2, Pencil, Trash2, Key, Loader2, Plus } from 'lucide-react';
 import type { StaffUser, StaffRoleOption } from './types';
 import { StaffUserStatusBadge } from '@/app/admin/management/employee/components/employeeUserStatus';
 import { CreateStaffUserDialog } from './CreateStaffUserDialog';
@@ -27,6 +27,7 @@ interface StaffUsersTableProps {
   onCopy: (text: string, label: string) => void;
   onUserCreated: () => void;
   onEdit: (staff: StaffUser) => void;
+  onManageDepartments: (staff: StaffUser) => void;
   onDelete: (id: number) => void;
   onRegenerateSecret: (id: number) => void;
 }
@@ -43,6 +44,7 @@ export function StaffUsersTable({
   onCopy,
   onUserCreated,
   onEdit,
+  onManageDepartments,
   onDelete,
   onRegenerateSecret,
 }: StaffUsersTableProps) {
@@ -82,7 +84,7 @@ export function StaffUsersTable({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+                  <TableHead>ลำดับ</TableHead>
                   <TableHead>ชื่อ-นามสกุล</TableHead>
                   <TableHead>รหัสพนักงาน</TableHead>
                   <TableHead>อีเมล</TableHead>
@@ -94,9 +96,9 @@ export function StaffUsersTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((staff) => (
+                {users.map((staff, index) => (
                   <TableRow key={staff.id}>
-                    <TableCell className="font-medium">{staff.id}</TableCell>
+                    <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell>{`${staff.fname} ${staff.lname}`}</TableCell>
                     <TableCell className="text-sm">
                       {staff.emp_code ? (
@@ -123,6 +125,9 @@ export function StaffUsersTable({
                       <div className="flex gap-2 justify-end">
                         <Button size="icon" variant="outline" onClick={() => onEdit(staff)} title="แก้ไข">
                           <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="outline" onClick={() => onManageDepartments(staff)} title="จัดการสิทธิ์ Division หลัก">
+                          <Building2 className="h-4 w-4" />
                         </Button>
                         <Button size="icon" variant="outline" onClick={() => onRegenerateSecret(staff.id)} title="สร้าง Client Secret ใหม่">
                           <Key className="h-4 w-4" />

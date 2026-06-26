@@ -1,48 +1,48 @@
 'use client';
 
 import { useState } from 'react';
-import { Package, Building2, Network } from 'lucide-react';
+import { Users, Boxes, IdCard } from 'lucide-react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import CabinetTab from './components/cabinet-tab/CabinetTab';
-import DivisionTab from './components/division-tab/DivisionTab';
-import CabinetDivisionTab from './components/cabinet-division-tab/CabinetDivisionTab';
+import EmployeeTab from './components/employee-tab/EmployeeTab';
+import StaffUsersTab from './components/staff-users-tab/StaffUsersTab';
+import CabinetUsersTab from './components/cabinet-users-tab/CabinetUsersTab';
 
 const TABS = [
   {
-    value: 'cabinet',
-    label: 'จัดการตู้ Cabinet',
-    icon: Package,
+    value: 'employee',
+    label: 'จัดการพนักงาน',
+    icon: IdCard,
+    iconClass: 'bg-teal-100 text-teal-700',
+  },
+  {
+    value: 'cabinet-users',
+    label: 'ผู้ใช้งานในตู้ Cabinet',
+    icon: Boxes,
     iconClass: 'bg-blue-100 text-blue-700',
   },
   {
-    value: 'division',
-    label: 'จัดการ Division',
-    icon: Building2,
-    iconClass: 'bg-cyan-100 text-cyan-700',
-  },
-  {
-    value: 'cabinet-division',
-    label: 'จัดการตู้ Cabinet - Division',
-    icon: Network,
-    iconClass: 'bg-purple-100 text-purple-700',
+    value: 'staff-users',
+    label: 'จัดการผู้ใช้งาน Staff',
+    icon: Users,
+    iconClass: 'bg-indigo-100 text-indigo-700',
   },
 ] as const;
 
-export default function CabinetsPage() {
-  const [activeTab, setActiveTab] = useState<string>('cabinet');
+export default function StaffUsersPage() {
+  const [activeTab, setActiveTab] = useState<string>('employee');
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center space-x-3">
-        <div className="p-2 bg-blue-100 rounded-lg">
-          <Package className="h-6 w-6 text-blue-600" />
+        <div className="p-2 bg-indigo-100 rounded-lg">
+          <Users className="h-6 w-6 text-indigo-600" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">จัดการ Cabinet และ Division</h1>
-          <p className="text-sm text-gray-500">จัดการตู้ Cabinet, Division และการเชื่อมโยง</p>
+          <h1 className="text-2xl font-bold text-gray-900">จัดการพนักงาน</h1>
+          <p className="text-sm text-gray-500">จัดการผู้ใช้งาน Staff และผู้ใช้งานในตู้ Cabinet</p>
         </div>
       </div>
 
@@ -85,16 +85,16 @@ export default function CabinetsPage() {
           </CardContent>
         </Card>
 
-        <TabsContent value="cabinet">
-          <CabinetTab />
+        <TabsContent value="employee">
+          <EmployeeTab />
         </TabsContent>
 
-        <TabsContent value="division">
-          <DivisionTab />
+        <TabsContent value="cabinet-users">
+          <CabinetUsersTab />
         </TabsContent>
 
-        <TabsContent value="cabinet-division">
-          <CabinetDivisionTab />
+        <TabsContent value="staff-users">
+          <StaffUsersTab />
         </TabsContent>
       </Tabs>
     </div>

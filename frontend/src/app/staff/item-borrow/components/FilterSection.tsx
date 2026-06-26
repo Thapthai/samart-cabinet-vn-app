@@ -1,14 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, RefreshCw, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { DatePickerBE } from '@/components/ui/date-picker-be';
 import SearchableSelect from '@/app/admin/items/components/SearchableSelect';
-import { cabinetApi, cabinetDepartmentApi } from '@/lib/api';
-import { fetchStaffDepartmentsForFilter, getStaffAllowedDepartmentIds } from '@/lib/staffDepartmentScope';
+import {
+  clampDepartmentIdString,
+  fetchStaffDepartmentsForFilter,
+  getStaffAllowedDepartmentIds,
+} from '@/lib/staffDepartmentScope';
+import { staffCabinetDepartmentApi } from '@/lib/staffApi/cabinetApi';
 import { cn } from '@/lib/utils';
 
 const fieldInputClass = 'bg-white';
@@ -67,6 +72,13 @@ function mapCabinetFromMapping(cabinet: CabinetDepartmentMapping['cabinet']): Ca
   };
 }
 
+function buildScopedDivisionSummary(depts: Department[]): string {
+  const names = depts.map((d) => (d.DepName || '').trim()).filter(Boolean);
+  if (names.length === 0) return '';
+  if (names.length <= 5) return names.join(', ');
+  return `${names.slice(0, 5).join(', ')} … (+${names.length - 5})`;
+}
+
 type Props = {
   filters: BorrowFilterState;
   appliedFilters: BorrowFilterState;
@@ -75,6 +87,7 @@ type Props = {
   onClear: () => void;
   onRefresh: () => void;
   loading: boolean;
+  departmentDisabled?: boolean;
 };
 
 export default function FilterSection({
@@ -85,16 +98,50 @@ export default function FilterSection({
   onClear,
   onRefresh,
   loading,
+  departmentDisabled,
 }: Props) {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
-  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [loadingCabinets, setLoadingCabinets] = useState(false);
+  const allowedDepartmentIdsRef = useRef<number[] | null | undefined>(undefined);
+  const [canPickAllScopedDepartments, setCanPickAllScopedDepartments] = useState(false);
 
-  const loadDepartments = async (keyword?: string) => {
+  const scopedDivisionSummary = useMemo(
+    () => (canPickAllScopedDepartments ? buildScopedDivisionSummary(departments) : ''),
+    [canPickAllScopedDepartments, departments],
+  );
+
+  const divisionSelectOptions = useMemo(
+    () => [
+      ...(canPickAllScopedDepartments
+        ? [
+            {
+              value: '',
+              label: 'ทั้งหมด',
+              ...(scopedDivisionSummary ? { subLabel: scopedDivisionSummary } : {}),
+            },
+          ]
+        : []),
+      ...departments.map((dept) => ({
+        value: dept.ID.toString(),
+        label: dept.DepName || '',
+        subLabel: dept.DepName2 || '',
+      })),
+    ],
+    [canPickAllScopedDepartments, departments, scopedDivisionSummary],
+  );
+
+  const loadDepartments = useCallback(async (keyword?: string) => {
     try {
       setLoadingDepartments(true);
-      const allowed = await getStaffAllowedDepartmentIds();
+      /** ref ยังเป็น undefined ได้ถ้า user เปิดค้นหา Division ก่อน effect แรกเสร็จ — โหลด scope ก่อน */
+      let allowed = allowedDepartmentIdsRef.current;
+      if (allowed === undefined) {
+        allowed = await getStaffAllowedDepartmentIds();
+        allowedDepartmentIdsRef.current = allowed;
+      }
+      setCanPickAllScopedDepartments(Array.isArray(allowed) && allowed.length > 0);
       const list = await fetchStaffDepartmentsForFilter({
         keyword,
         page: 1,
@@ -108,46 +155,64 @@ export default function FilterSection({
     } finally {
       setLoadingDepartments(false);
     }
-  };
+  }, []);
 
   const resolveCabinets = useCallback(async (departmentIdStr: string, keyword?: string) => {
     try {
       setLoadingCabinets(true);
       let next: Cabinet[] = [];
-      if (!departmentIdStr) {
-        const response = await cabinetApi.getAll({ page: 1, limit: 50, keyword });
-        if (response.success && response.data) {
-          const allCabinets = response.data as Cabinet[];
-          next = allCabinets.filter((cabinet) => {
-            if (cabinet.cabinetDepartments && cabinet.cabinetDepartments.length > 0) {
-              return cabinet.cabinetDepartments.some((cd) => cd.status === 'ACTIVE');
-            }
-            return cabinet.cabinet_status === 'ACTIVE';
-          });
-        }
-      } else {
-        const deptId = parseInt(departmentIdStr, 10);
-        if (Number.isNaN(deptId)) {
-          setCabinets([]);
-          return;
-        }
-        const response = await cabinetDepartmentApi.getAll({
-          departmentId: deptId,
-          keyword: keyword || undefined,
-        });
-        if (response.success && response.data) {
-          const mappings = response.data as CabinetDepartmentMapping[];
+      const trimmed = departmentIdStr?.trim() ?? '';
+      if (!trimmed) {
+        const allowed = allowedDepartmentIdsRef.current;
+        if (Array.isArray(allowed) && allowed.length > 0) {
+          const results = await Promise.all(
+            allowed.map((deptId) =>
+              staffCabinetDepartmentApi.getAll({
+                departmentId: deptId,
+                keyword: keyword || undefined,
+              }),
+            ),
+          );
           const uniqueCabinets = new Map<number, Cabinet>();
-          mappings
-            .filter((mapping) => mapping.status === 'ACTIVE')
-            .forEach((mapping) => {
-              const mapped = mapCabinetFromMapping(mapping.cabinet);
-              if (mapped && !uniqueCabinets.has(mapped.id)) {
-                uniqueCabinets.set(mapped.id, mapped);
-              }
-            });
+          for (const response of results) {
+            if (response.success && response.data) {
+              const mappings = response.data as CabinetDepartmentMapping[];
+              mappings
+                .filter((mapping) => mapping.status === 'ACTIVE')
+                .forEach((mapping) => {
+                  const mapped = mapCabinetFromMapping(mapping.cabinet);
+                  if (mapped && !uniqueCabinets.has(mapped.id)) {
+                    uniqueCabinets.set(mapped.id, mapped);
+                  }
+                });
+            }
+          }
           next = Array.from(uniqueCabinets.values());
         }
+        setCabinets(next);
+        return;
+      }
+      const deptId = parseInt(trimmed, 10);
+      if (Number.isNaN(deptId)) {
+        setCabinets([]);
+        return;
+      }
+      const response = await staffCabinetDepartmentApi.getAll({
+        departmentId: deptId,
+        keyword: keyword || undefined,
+      });
+      if (response.success && response.data) {
+        const mappings = response.data as CabinetDepartmentMapping[];
+        const uniqueCabinets = new Map<number, Cabinet>();
+        mappings
+          .filter((mapping) => mapping.status === 'ACTIVE')
+          .forEach((mapping) => {
+            const mapped = mapCabinetFromMapping(mapping.cabinet);
+            if (mapped && !uniqueCabinets.has(mapped.id)) {
+              uniqueCabinets.set(mapped.id, mapped);
+            }
+          });
+        next = Array.from(uniqueCabinets.values());
       }
       setCabinets(next);
     } catch (error) {
@@ -159,8 +224,39 @@ export default function FilterSection({
   }, []);
 
   useEffect(() => {
-    void loadDepartments();
-  }, []);
+    let cancelled = false;
+    (async () => {
+      const allowed = await getStaffAllowedDepartmentIds();
+      if (cancelled) return;
+      allowedDepartmentIdsRef.current = allowed;
+      setCanPickAllScopedDepartments(Array.isArray(allowed) && allowed.length > 0);
+      try {
+        setLoadingDepartments(true);
+        const list = await fetchStaffDepartmentsForFilter({
+          page: 1,
+          limit: 200,
+          allowedDepartmentIds: allowed,
+          withCabinet: true,
+        });
+        if (cancelled) return;
+        setDepartments(list as Department[]);
+      } catch (error) {
+        console.error('Failed to load departments:', error);
+      } finally {
+        if (!cancelled) setLoadingDepartments(false);
+      }
+      if (cancelled || departmentDisabled) return;
+      const nextDept = clampDepartmentIdString(filters.departmentId, allowed, '');
+      if (nextDept !== filters.departmentId) {
+        onFilterChange('departmentId', nextDept);
+        onFilterChange('cabinetId', '');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- โหลด scope ครั้งแรก + clamp ค่าเริ่มต้น
+  }, [departmentDisabled]);
 
   useEffect(() => {
     void resolveCabinets(filters.departmentId);
@@ -172,6 +268,19 @@ export default function FilterSection({
       if (!exists) onFilterChange('cabinetId', '');
     }
   }, [cabinets, filters.cabinetId, onFilterChange]);
+
+  const handleSearchClick = () => {
+    if (!departmentDisabled) {
+      const allowed = allowedDepartmentIdsRef.current;
+      const scopeAll =
+        Array.isArray(allowed) && allowed.length > 0 && !filters.departmentId?.trim();
+      if (!filters.departmentId?.trim() && !scopeAll) {
+        toast.error('กรุณาเลือก Division ก่อนค้นหา (หรือเลือกทั้งหมดเฉพาะเมื่อมีการจำกัดแผนกให้คุณ)');
+        return;
+      }
+    }
+    onSearch();
+  };
 
   const today = getTodayDate();
   const appliedDept = departments.find((d) => d.ID.toString() === appliedFilters.departmentId);
@@ -195,7 +304,7 @@ export default function FilterSection({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-slate-900">ค้นหาและกรอง</p>
-            <p className="text-xs text-slate-500">ค้นหาและกรองรายการยืมอุปกรณ์</p>
+            <p className="text-xs text-slate-500">ค้นหาและกรองรายการยืมอุปกรณ์ (ตามสิทธิ์ของคุณ)</p>
           </div>
         </div>
 
@@ -211,7 +320,7 @@ export default function FilterSection({
                 placeholder="ค้นหา..."
                 value={filters.searchItemCode}
                 onChange={(e) => onFilterChange('searchItemCode', e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchClick()}
                 className={cn('h-10 pl-9 shadow-sm', fieldInputClass)}
               />
             </div>
@@ -247,27 +356,41 @@ export default function FilterSection({
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <SearchableSelect
               label="Division (ที่ตั้งตู้)"
-              placeholder="เลือก Division"
+              placeholder={
+                canPickAllScopedDepartments
+                  ? 'เลือก Division หรือทั้งหมด (ตามสิทธิ์ของคุณ)'
+                  : 'เลือก Division (บังคับ)'
+              }
+              required={!canPickAllScopedDepartments}
               value={filters.departmentId}
+              initialDisplay={
+                canPickAllScopedDepartments && !filters.departmentId?.trim()
+                  ? {
+                      label: 'ทั้งหมด (ทุกแผนกที่คุณเข้าถึงได้)',
+                      ...(scopedDivisionSummary ? { subLabel: scopedDivisionSummary } : {}),
+                    }
+                  : undefined
+              }
               onValueChange={(value) => {
+                if (departmentDisabled) return;
                 onFilterChange('departmentId', value);
                 onFilterChange('cabinetId', '');
               }}
-              options={[
-                { value: '', label: 'ทั้งหมด' },
-                ...departments.map((dept) => ({
-                  value: dept.ID.toString(),
-                  label: dept.DepName || '',
-                  subLabel: dept.DepName2 || '',
-                })),
-              ]}
+              options={divisionSelectOptions}
               loading={loadingDepartments}
               onSearch={loadDepartments}
               searchPlaceholder="ค้นหาชื่อ Division..."
+              disabled={departmentDisabled}
             />
             <SearchableSelect
               label="ตู้ Cabinet"
-              placeholder={filters.departmentId ? 'เลือกตู้ Cabinet' : 'เลือกตู้ (ทุก Division ที่มีการเชื่อม)'}
+              placeholder={
+                filters.departmentId
+                  ? 'เลือกตู้'
+                  : canPickAllScopedDepartments
+                    ? 'เลือกตู้'
+                    : 'เลือก Division ก่อน'
+              }
               value={filters.cabinetId}
               onValueChange={(value) => onFilterChange('cabinetId', value)}
               options={[
@@ -283,6 +406,7 @@ export default function FilterSection({
                 void resolveCabinets(filters.departmentId, searchKeyword);
               }}
               searchPlaceholder="ค้นหารหัสหรือชื่อตู้..."
+              disabled={!canPickAllScopedDepartments && !filters.departmentId?.trim()}
             />
           </div>
 
@@ -308,7 +432,7 @@ export default function FilterSection({
         </div>
 
         <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <Button type="button" onClick={onSearch} disabled={loading} className="h-10 gap-2">
+          <Button type="button" onClick={handleSearchClick} disabled={loading} className="h-10 gap-2">
             <Search className="h-4 w-4" />
             ค้นหา
           </Button>
@@ -374,4 +498,3 @@ export default function FilterSection({
     </Card>
   );
 }
-

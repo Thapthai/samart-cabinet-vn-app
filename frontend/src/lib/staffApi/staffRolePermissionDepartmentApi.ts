@@ -1,6 +1,6 @@
 import staffApi from './index';
 
-export type StaffRolePermissionDepartmentsResponse = {
+export type StaffPermissionDepartmentsResponse = {
   success?: boolean;
   data?: {
     unrestricted?: boolean;
@@ -9,13 +9,13 @@ export type StaffRolePermissionDepartmentsResponse = {
   message?: string;
 };
 
-/** แผนกหลักที่ Staff Role อนุญาต — unrestricted = เห็นทุกแผนก */
-export async function fetchStaffRolePermissionDepartments(
-  roleId: number,
-): Promise<StaffRolePermissionDepartmentsResponse> {
-  const response = await staffApi.get<StaffRolePermissionDepartmentsResponse>(
-    '/staff-role-permission-departments',
-    { params: { role_id: roleId } },
+/** แผนกหลักที่ผู้ใช้ Staff เข้าถึงได้ — unrestricted = เห็นทุกแผนก */
+export async function fetchStaffPermissionDepartments(
+  userId: number,
+): Promise<StaffPermissionDepartmentsResponse> {
+  const response = await staffApi.get<StaffPermissionDepartmentsResponse>(
+    '/staff-permission-departments',
+    { params: { user_id: userId } },
   );
   return response.data;
 }

@@ -36,15 +36,16 @@ model User {
   updated_at DateTime @updatedAt @map("updated_at")
 
   // Relations
-  oauth_accounts     OAuthAccount[]
-  api_keys           ApiKey[]
-  client_credentials ClientCredential[]
-  refreshTokens      RefreshToken[]
-  two_factor_tokens  TwoFactorToken[]
-  role               StaffRole?         @relation(fields: [role_id], references: [id])
-  department         Department?        @relation(fields: [department_id], references: [ID])
+  oauth_accounts             OAuthAccount[]
+  api_keys                   ApiKey[]
+  client_credentials         ClientCredential[]
+  refreshTokens              RefreshToken[]
+  two_factor_tokens          TwoFactorToken[]
+  role                       StaffRole?                  @relation(fields: [role_id], references: [id])
+  department                 Department?                 @relation(fields: [department_id], references: [ID])
   /// ผูกกับ employee.EmpCode — ว่างได้ถ้ายังไม่ map พนักงานในระบบ HR
-  employee           Employee?          @relation(fields: [emp_code], references: [EmpCode])
+  employee                   Employee?                   @relation(fields: [emp_code], references: [EmpCode])
+  staffPermissionDepartments StaffPermissionDepartment[]
 
   @@map("app_users")
 }
@@ -59,10 +60,9 @@ model StaffRole {
   updated_at  DateTime @updatedAt @map("updated_at")
 
   // Relations
-  rolePermissions       StaffRolePermission[]
+  rolePermissions StaffRolePermission[]
   /// ว่าง = role นี้เห็นข้อมูลทุกแผนกหลัก; มีแถว = เห็นเฉพาะแผนกหลักที่ระบุ (หลายแถวได้)
-  permissionDepartments StaffRolePermissionDepartment[]
-  users                 User[]
+  users           User[]
 
   @@index([code], name: "idx_code")
   @@index([is_active], name: "idx_is_active")
@@ -86,21 +86,19 @@ model StaffRolePermission {
   @@map("app_staff_role_permissions")
 }
 
-/// จำกัดแผนกหลักที่ Staff (ผ่าน StaffRole) ใช้ดูข้อมูล — ไม่มีแถวสำหรับ role = ไม่จำกัด (เห็นทุกแผนก)
-/// มีแถว = เห็นเฉพาะแผนกหลัก (department.ID) ที่ระบุ; role เดียวเลือกได้หลายแผนกหลัก
-model StaffRolePermissionDepartment {
+model StaffPermissionDepartment {
   id            Int      @id @default(autoincrement())
-  role_id       Int      @map("role_id")
+  user_id       Int      @map("user_id")
   department_id Int      @map("department_id")
   created_at    DateTime @default(dbgenerated("NOW()")) @map("created_at")
   updated_at    DateTime @updatedAt @map("updated_at")
 
-  role       StaffRole  @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
   department Department @relation(fields: [department_id], references: [ID], onDelete: Cascade)
 
-  @@unique([role_id, department_id], name: "uniq_role_department")
-  @@index([role_id], name: "idx_srpd_role_id")
-  @@map("app_staff_role_permission_departments")
+  @@unique([user_id, department_id], name: "uniq_user_department")
+  @@index([user_id], name: "idx_spd_user_id")
+  @@map("app_staff_permission_departments")
 }
 
 model OAuthAccount {
@@ -631,12 +629,12 @@ model Department {
   RefDepID          String? @map("RefDepID") @db.VarChar(50)
 
   // Relations
-  cabinetDepartments             cabinetDepartment[]
-  medicalSupplySubDepartments    MedicalSupplySubDepartment[]
-  medicalSupplyUsages            MedicalSupplyUsage[]            @relation("MedicalSupplyUsageMainDepartment")
-  staffRolePermissionDepartments StaffRolePermissionDepartment[]
-  users                          User[]
-  itemSlotBorrowDetails          ItemSlotInCabinetDetail[]       @relation("ItemSlotDetailBorrowDepartment")
+  cabinetDepartments          cabinetDepartment[]
+  medicalSupplySubDepartments MedicalSupplySubDepartment[]
+  medicalSupplyUsages         MedicalSupplyUsage[]         @relation("MedicalSupplyUsageMainDepartment")
+  users                       User[]
+  itemSlotBorrowDetails       ItemSlotInCabinetDetail[]    @relation("ItemSlotDetailBorrowDepartment")
+  staffPermissionDepartments  StaffPermissionDepartment[]
 
   @@map("department")
 }

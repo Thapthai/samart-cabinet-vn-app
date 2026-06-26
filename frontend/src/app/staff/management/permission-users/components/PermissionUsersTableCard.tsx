@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit, Search, X } from 'lucide-react';
+import { Building2, Edit, Search, X } from 'lucide-react';
 import {
   staffRoleDisplayLabel,
   staffPortalCanManageStaffUserRow,
@@ -25,6 +25,7 @@ export interface PermissionUsersTableCardProps {
   searchQuery: string;
   onSearchQueryChange: (q: string) => void;
   onEditUser: (user: StaffUser) => void;
+  onManageDepartments: (user: StaffUser) => void;
   createDialog: ReactNode;
 }
 
@@ -41,6 +42,7 @@ export default function PermissionUsersTableCard({
   searchQuery,
   onSearchQueryChange,
   onEditUser,
+  onManageDepartments,
   createDialog,
 }: PermissionUsersTableCardProps) {
   const viewerRoleCode = readStaffRoleCodeFromStorage();
@@ -123,20 +125,36 @@ export default function PermissionUsersTableCard({
                     {user.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      type="button"
-                      onClick={() => onEditUser(user)}
-                      disabled={!canEdit}
-                      title={
-                        canEdit
-                          ? 'แก้ไข Role และสถานะใช้งาน'
-                          : 'ไม่มีสิทธิ์แก้ไขผู้ใช้รายนี้ (หัวหน้าสายจัดการลูกสาย หรือผู้ที่มี Role เดียวกับแถว)'
-                      }
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        type="button"
+                        onClick={() => onManageDepartments(user)}
+                        disabled={!canEdit}
+                        title={
+                          canEdit
+                            ? 'จัดการสิทธิ์ Division หลักของผู้ใช้รายนี้'
+                            : 'ไม่มีสิทธิ์จัดการผู้ใช้รายนี้'
+                        }
+                      >
+                        <Building2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        type="button"
+                        onClick={() => onEditUser(user)}
+                        disabled={!canEdit}
+                        title={
+                          canEdit
+                            ? 'แก้ไข Role และสถานะใช้งาน'
+                            : 'ไม่มีสิทธิ์แก้ไขผู้ใช้รายนี้ (หัวหน้าสายจัดการลูกสาย หรือผู้ที่มี Role เดียวกับแถว)'
+                        }
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
                 );

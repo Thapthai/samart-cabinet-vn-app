@@ -1,127 +1,39 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { cabinetApi } from '@/lib/api';
+import { useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
-import { toast } from 'sonner';
-import { Package } from 'lucide-react';
-import CreateCabinetDialog from './components/CreateCabinetDialog';
-import EditCabinetDialog from './components/EditCabinetDialog';
-import DeleteCabinetDialog from './components/DeleteCabinetDialog';
-import CabinetsTable from './components/CabinetsTable';
-import CabinetsSearchCard from './components/CabinetsSearchCard';
+import { Package, Building2, Network } from 'lucide-react';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import CabinetTab from './components/cabinet-tab/CabinetTab';
+import DivisionTab from './components/division-tab/DivisionTab';
+import CabinetDivisionTab from './components/cabinet-division-tab/CabinetDivisionTab';
 
-interface Cabinet {
-  id: number;
-  cabinet_name?: string;
-  cabinet_code?: string;
-  cabinet_type?: string;
-  stock_id?: number;
-  cabinet_status?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+const TABS = [
+  {
+    value: 'cabinet',
+    label: 'จัดการตู้ Cabinet',
+    icon: Package,
+    iconClass: 'bg-blue-100 text-blue-700',
+  },
+  {
+    value: 'division',
+    label: 'จัดการ Division',
+    icon: Building2,
+    iconClass: 'bg-cyan-100 text-cyan-700',
+  },
+  {
+    value: 'cabinet-division',
+    label: 'จัดการตู้ Cabinet - Division',
+    icon: Network,
+    iconClass: 'bg-purple-100 text-purple-700',
+  },
+] as const;
 
 export default function CabinetsPage() {
-  const [cabinets, setCabinets] = useState<Cabinet[]>([]);
-  const [filteredCabinets, setFilteredCabinets] = useState<Cabinet[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [keywordInput, setKeywordInput] = useState('');
-  const [activeKeyword, setActiveKeyword] = useState('');
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedCabinet, setSelectedCabinet] = useState<Cabinet | null>(null);
-  
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const itemsPerPage = 10;
-
-  useEffect(() => {
-    fetchCabinets();
-  }, [currentPage, activeKeyword]);
-
-  useEffect(() => {
-    filterCabinets();
-  }, [cabinets, activeKeyword]);
-
-  const fetchCabinets = async () => {
-    try {
-      setLoading(true);
-      const params: any = {
-        page: currentPage,
-        limit: itemsPerPage,
-      };
-      
-      if (activeKeyword.trim()) {
-        params.keyword = activeKeyword.trim();
-      }
-      
-      const response = await cabinetApi.getAll(params) as { success?: boolean; data?: any[]; total?: number; lastPage?: number; message?: string };
-      if (response?.success === false) {
-        toast.error(response.message || 'โหลดข้อมูลตู้ไม่สำเร็จ');
-        setCabinets([]);
-        setTotalItems(0);
-        setTotalPages(1);
-        return;
-      }
-      if (response?.data) {
-        setCabinets(response.data);
-        setTotalItems(response.total ?? 0);
-        setTotalPages(response.lastPage ?? 1);
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch cabinets:', error);
-      toast.error('ไม่สามารถโหลดข้อมูลตู้ได้');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterCabinets = () => {
-    let filtered = cabinets;
-
-    // Filter by search term (client-side for instant feedback)
-    if (activeKeyword.trim()) {
-      const kw = activeKeyword.trim().toLowerCase();
-      filtered = filtered.filter(
-        (cabinet) =>
-          cabinet.cabinet_name?.toLowerCase().includes(kw) ||
-          cabinet.cabinet_code?.toLowerCase().includes(kw),
-      );
-    }
-
-    setFilteredCabinets(filtered);
-  };
-
-  const handleSearch = () => {
-    setActiveKeyword(keywordInput);
-    setCurrentPage(1);
-  };
-
-  const handleClearFilters = () => {
-    setKeywordInput('');
-    setActiveKeyword('');
-    setCurrentPage(1);
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleEdit = (cabinet: Cabinet) => {
-    setSelectedCabinet(cabinet);
-    setShowEditDialog(true);
-  };
-
-  const handleDelete = (cabinet: Cabinet) => {
-    setSelectedCabinet(cabinet);
-    setShowDeleteDialog(true);
-  };
+  const [activeTab, setActiveTab] = useState<string>('cabinet');
 
   return (
     <ProtectedRoute>
@@ -133,56 +45,63 @@ export default function CabinetsPage() {
               <Package className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">จัดการตู้ Cabinet</h1>
-              <p className="text-sm text-gray-500">จัดการและดูรายการตู้ทั้งหมด</p>
+              <h1 className="text-2xl font-bold text-gray-900">จัดการ Cabinet และ Division</h1>
+              <p className="text-sm text-gray-500">จัดการตู้ Cabinet, Division และการเชื่อมโยง</p>
             </div>
           </div>
 
-          <CabinetsSearchCard
-            keywordInput={keywordInput}
-            activeKeyword={activeKeyword}
-            onKeywordInputChange={setKeywordInput}
-            onSearch={handleSearch}
-            onClearFilters={handleClearFilters}
-            onRefresh={fetchCabinets}
-            loading={loading}
-          />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <Card className="border-slate-200 shadow-sm">
+              <CardContent className="pt-6">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.value;
+                    return (
+                      <button
+                        key={tab.value}
+                        type="button"
+                        onClick={() => setActiveTab(tab.value)}
+                        className={cn(
+                          'flex gap-3 rounded-xl border bg-background p-3.5 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          active
+                            ? 'border-primary bg-primary/[0.06] shadow-sm ring-2 ring-primary/15'
+                            : 'border-slate-200 hover:bg-muted/40',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                            tab.iconClass,
+                          )}
+                        >
+                          <Icon className="h-4 w-4" aria-hidden />
+                        </span>
+                        <span className="min-w-0 space-y-0.5">
+                          <span className="block text-base font-medium text-slate-900 sm:text-lg">
+                            {tab.label}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Table Section */}
-          <CabinetsTable
-            cabinets={filteredCabinets}
-            loading={loading}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onPageChange={handlePageChange}
-            onCreateClick={() => setShowCreateDialog(true)}
-          />
+            <TabsContent value="cabinet">
+              <CabinetTab />
+            </TabsContent>
+
+            <TabsContent value="division">
+              <DivisionTab />
+            </TabsContent>
+
+            <TabsContent value="cabinet-division">
+              <CabinetDivisionTab />
+            </TabsContent>
+          </Tabs>
         </div>
-
-        {/* Dialogs */}
-        <CreateCabinetDialog
-          open={showCreateDialog}
-          onOpenChange={setShowCreateDialog}
-          onSuccess={fetchCabinets}
-        />
-
-        <EditCabinetDialog
-          open={showEditDialog}
-          onOpenChange={setShowEditDialog}
-          cabinet={selectedCabinet}
-          onSuccess={fetchCabinets}
-        />
-
-        <DeleteCabinetDialog
-          open={showDeleteDialog}
-          onOpenChange={setShowDeleteDialog}
-          cabinet={selectedCabinet}
-          onSuccess={fetchCabinets}
-        />
       </AppLayout>
     </ProtectedRoute>
   );

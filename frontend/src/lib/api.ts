@@ -1755,14 +1755,16 @@ export const staffRolePermissionApi = {
   },
 };
 
-/** จำกัดแผนกหลักต่อ Staff Role — ไม่มีแถว = ไม่จำกัด */
-export const staffRolePermissionDepartmentApi = {
-  getByRole: async (params: { role_id?: number; role_code?: string }): Promise<{
+/** จำกัดแผนกหลักต่อผู้ใช้ Staff — ไม่มีแถว = ไม่จำกัด */
+export const staffPermissionDepartmentApi = {
+  getByUser: async (params: { user_id: number }): Promise<{
     success?: boolean;
     data?: {
-      role_id: number;
-      role_code: string;
-      role_name: string;
+      user_id: number;
+      email: string;
+      user_name: string;
+      role_code: string | null;
+      role_name: string | null;
       unrestricted: boolean;
       departments: Array<{
         id: number;
@@ -1771,16 +1773,15 @@ export const staffRolePermissionDepartmentApi = {
     };
     message?: string;
   }> => {
-    const response = await api.get('/staff-role-permission-departments', { params });
+    const response = await api.get('/staff-permission-departments', { params });
     return response.data;
   },
 
   set: async (body: {
-    role_id?: number;
-    role_code?: string;
+    user_id: number;
     department_ids: number[];
   }): Promise<{ success?: boolean; message?: string; data?: unknown }> => {
-    const response = await api.put('/staff-role-permission-departments', body);
+    const response = await api.put('/staff-permission-departments', body);
     return response.data;
   },
 };

@@ -13,7 +13,6 @@ import {
     ClipboardList,
     Building2,
     Boxes,
-    Layers,
     Printer,
     Ruler,
     BookMarked,
@@ -144,37 +143,6 @@ export const staffMenuItems = [
         description: 'ตั้งค่าระบบ',
         noHref: true,
         submenu: [
-            
-            {
-                name: 'Cabinet - Division',
-                href: '/staff/management/cabinet-departments',
-                icon: Network,
-                description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division — กรอง Division เริ่มที่ทั้งหมด',
-            },
-            {
-                name: 'พิมพ์สติ๊กเกอร์',
-                href: '/staff/management/print-sticker',
-                icon: Printer,
-                description: 'พิมพ์สติ๊กเกอร์ผ่านเครื่อง SATO (SBPL)',
-            },
-            {
-                name: 'จัดการ Item (Master)',
-                href: '/staff/management/items',
-                icon: Boxes,
-                description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
-            },
-            {
-                name: 'จัดการหน่วยนับ (Unit)',
-                href: '/staff/management/units',
-                icon: Ruler,
-                description: 'หน่วยนับสำหรับผูกกับรายการ Item',
-            },
-            {
-                name: 'จัดการ Division',
-                href: '/staff/management/departments',
-                icon: Building2,
-                description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
-            },
             {
                 name: 'จัดการตู้ Cabinet',
                 href: '/staff/management/cabinets',
@@ -182,16 +150,10 @@ export const staffMenuItems = [
                 description: 'จัดการตู้ Cabinet',
             },
             {
-                name: 'จัดการ User ในตู้',
-                href: '/staff/management/cabinet-users',
-                icon: ContactRound,
-                description: 'ชื่อผู้ใช้ตู้เชื่อมกับตู้ (Legacy stock_id / finger)',
-            },
-            {
-                name: 'จัดการ ผู้ใช้งาน Staff',
-                href: '/staff/management/permission-users',
+                name: 'จัดการพนักงาน',
+                href: '/staff/management/staff-users',
                 icon: Users,
-                description: 'จัดการ User',
+                description: 'จัดการ Staff Users และ Client Credentials',
             },
             {
                 name: 'จัดการ Staff Role',
@@ -205,12 +167,51 @@ export const staffMenuItems = [
                 icon: Shield,
                 description: 'กำหนดสิทธิ์การเข้าถึงเมนู Roles Staff',
             },
+            // {
+            //     name: 'Cabinet - Division',
+            //     href: '/staff/management/cabinet-departments',
+            //     icon: Network,
+            //     description: 'จัดการตู้ Cabinet และเชื่อมโยงกับ Division — กรอง Division เริ่มที่ทั้งหมด',
+            // },
+
             {
-                name: 'Division หลักตาม Staff Role',
-                href: '/staff/management/staff-role-permission-department',
-                icon: Layers,
-                description: 'จำกัด Division หลักที่แต่ละ Role เห็นได้ (ว่าง = เห็นทุก Division)',
+                name: 'จัดการ Item (Master)',
+                href: '/staff/management/items',
+                icon: Boxes,
+                description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
             },
+            {
+                name: 'จัดการหน่วยนับ (Unit)',
+                href: '/staff/management/units',
+                icon: Ruler,
+                description: 'หน่วยนับสำหรับผูกกับรายการ Item',
+            },
+            {
+                name: 'พิมพ์สติ๊กเกอร์',
+                href: '/staff/management/print-sticker',
+                icon: Printer,
+                description: 'พิมพ์สติ๊กเกอร์ผ่านเครื่อง SATO (SBPL)',
+            },
+            // {
+            //     name: 'จัดการ Division',
+            //     href: '/staff/management/departments',
+            //     icon: Building2,
+            //     description: 'ดู Division หลักและตั้งรหัส Division ย่อยจับคู่ Location คนไข้',
+            // },
+
+            // {
+            //     name: 'จัดการ User ในตู้',
+            //     href: '/staff/management/cabinet-users',
+            //     icon: ContactRound,
+            //     description: 'ชื่อผู้ใช้ตู้เชื่อมกับตู้ (Legacy stock_id / finger)',
+            // },
+            // {
+            //     name: 'จัดการ ผู้ใช้งาน Staff',
+            //     href: '/staff/management/permission-users',
+            //     icon: Users,
+            //     description: 'จัดการ User',
+            // },
+
         ],
     },
     {

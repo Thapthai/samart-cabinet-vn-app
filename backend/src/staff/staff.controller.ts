@@ -22,7 +22,7 @@ import {
 } from '../auth/dto/staff-user.dto';
 import { CreateStaffRoleDto, UpdateStaffRoleDto } from '../auth/dto/staff-role.dto';
 import { BulkUpdateStaffRolePermissionsDto } from '../auth/dto/staff-role-permission.dto';
-import { SetStaffRolePermissionDepartmentsDto } from '../auth/dto/staff-role-permission-department.dto';
+import { SetStaffPermissionDepartmentsDto } from '../auth/dto/staff-permission-department.dto';
 
 @Controller('staff-users')
 export class StaffUsersController {
@@ -179,25 +179,22 @@ export class StaffRolePermissionsController {
   }
 }
 
-/** จำกัดแผนกหลักต่อ StaffRole — ไม่มีแถว = ไม่จำกัด */
-@Controller('staff-role-permission-departments')
-export class StaffRolePermissionDepartmentsController {
+/** จำกัดแผนกหลักต่อผู้ใช้ Staff — ไม่มีแถว = ไม่จำกัด */
+@Controller('staff-permission-departments')
+export class StaffPermissionDepartmentsController {
   constructor(private readonly staffService: StaffService) {}
 
   @Get()
-  async find(
-    @Query('role_id') roleIdStr?: string,
-    @Query('role_code') role_code?: string,
-  ) {
-    const role_id =
-      roleIdStr != null && roleIdStr !== '' && !Number.isNaN(parseInt(roleIdStr, 10))
-        ? parseInt(roleIdStr, 10)
+  async find(@Query('user_id') userIdStr?: string) {
+    const user_id =
+      userIdStr != null && userIdStr !== '' && !Number.isNaN(parseInt(userIdStr, 10))
+        ? parseInt(userIdStr, 10)
         : undefined;
-    return this.staffService.findStaffRolePermissionDepartments(role_code, role_id);
+    return this.staffService.findStaffPermissionDepartments(user_id);
   }
 
   @Put()
-  async set(@Body() dto: SetStaffRolePermissionDepartmentsDto) {
-    return this.staffService.setStaffRolePermissionDepartments(dto);
+  async set(@Body() dto: SetStaffPermissionDepartmentsDto) {
+    return this.staffService.setStaffPermissionDepartments(dto);
   }
 }

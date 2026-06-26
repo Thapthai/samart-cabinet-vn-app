@@ -9,7 +9,7 @@ import {
   RegenerateClientSecretDto,
 } from '../auth/dto/staff-user.dto';
 import { CreateStaffRoleDto, UpdateStaffRoleDto } from '../auth/dto/staff-role.dto';
-import { SetStaffRolePermissionDepartmentsDto } from '../auth/dto/staff-role-permission-department.dto';
+import { SetStaffPermissionDepartmentsDto } from '../auth/dto/staff-permission-department.dto';
 import { StaffDepartmentScopeService } from './staff-department-scope.service';
 
 /** เมนูเริ่มต้นหลังสร้าง role — บันทึกใน app_staff_role_permissions */
@@ -419,7 +419,7 @@ export class StaffService {
       code = await this.allocateNextStfRoleCode();
     }
     const existing = await this.prisma.staffRole.findUnique({ where: { code } });
-    if (existing) throw new BadRequestException('Role code already exists');
+    if (existing) throw new BadRequestException('รหัส Role นี้มีอยู่แล้ว');
     const role = await this.prisma.staffRole.create({
       data: {
         code,
@@ -511,20 +511,22 @@ export class StaffService {
       });
       updated++;
     }
-    return { success: true, message: 'Permissions updated', updatedCount: updated };
+    return { success: true, message: 'อัพเดตสิทธิ์แล้ว', updatedCount: updated };
   }
 
-  /** ไม่มีแถว = role นั้นไม่จำกัดแผนกหลัก (เห็นทุกแผนก) */
-  async findStaffRolePermissionDepartments(role_code?: string, role_id?: number) {
-    const roleId = await this.resolveRoleId(role_code, role_id);
-    if (roleId == null) {
-      throw new BadRequestException('role_code or role_id is required and must match an existing role');
+  /** ไม่มีแถว = ผู้ใช้คนนั้นไม่จำกัดแผนกหลัก (เห็นทุกแผนก) */
+  async findStaffPermissionDepartments(userId?: number) {
+    if (userId == null || !Number.isInteger(userId) || userId < 1) {
+      throw new BadRequestException('รหัสผู้ใช้งานต้องเป็นตัวเลขบวก');
     }
-    const role = await this.prisma.staffRole.findUnique({ where: { id: roleId }, select: { id: true, code: true, name: true } });
-    if (!role) throw new BadRequestException('Staff role not found');
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, is_admin: false },
+      select: { id: true, email: true, fname: true, lname: true, role: { select: { code: true, name: true } } },
+    });
+    if (!user) throw new BadRequestException('ไม่พบผู้ใช้งาน');
 
-    const rows = await this.prisma.staffRolePermissionDepartment.findMany({
-      where: { role_id: roleId },
+    const rows = await this.prisma.staffPermissionDepartment.findMany({
+      where: { user_id: userId },
       include: {
         department: { select: { ID: true, DepName: true, DepName2: true } },
       },
@@ -535,9 +537,11 @@ export class StaffService {
     return {
       success: true,
       data: {
-        role_id: role.id,
-        role_code: role.code,
-        role_name: role.name,
+        user_id: user.id,
+        email: user.email,
+        user_name: [user.fname, user.lname].filter(Boolean).join(' ').trim() || user.email,
+        role_code: user.role?.code ?? null,
+        role_name: user.role?.name ?? null,
         unrestricted,
         departments: rows.map((r) => ({
           id: r.department.ID,
@@ -547,20 +551,23 @@ export class StaffService {
     };
   }
 
-  /** แทนที่รายการแผนกหลักทั้งชุด — ส่งว่างหรือลบทั้งหมด = ไม่จำกัดแผนก */
-  async setStaffRolePermissionDepartments(dto: SetStaffRolePermissionDepartmentsDto) {
-    const roleId = await this.resolveRoleId(dto.role_code, dto.role_id);
-    if (roleId == null) {
-      throw new BadRequestException('role_code or role_id is required and must match an existing role');
+  /** แทนที่รายการแผนกหลักทั้งชุดของผู้ใช้ — ส่งว่างหรือลบทั้งหมด = ไม่จำกัดแผนก */
+  async setStaffPermissionDepartments(dto: SetStaffPermissionDepartmentsDto) {
+    const userId = dto.user_id;
+    if (userId == null || !Number.isInteger(userId) || userId < 1) {
+      throw new BadRequestException('รหัสผู้ใช้งานต้องเป็นตัวเลขบวก');
     }
-    const role = await this.prisma.staffRole.findUnique({ where: { id: roleId }, select: { id: true } });
-    if (!role) throw new BadRequestException('Staff role not found');
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, is_admin: false },
+      select: { id: true },
+    });
+    if (!user) throw new BadRequestException('Staff user not found');
 
     const raw = dto.department_ids ?? [];
     for (const n of raw) {
       const v = Number(n);
       if (!Number.isInteger(v) || v < 1) {
-        throw new BadRequestException('department_ids must be positive integers');
+        throw new BadRequestException('รหัส Division หลักต้องเป็นตัวเลขบวก');
       }
     }
     const ids = [...new Set(raw.map((n) => Number(n)))];
@@ -571,16 +578,16 @@ export class StaffService {
         select: { ID: true },
       });
       if (found.length !== ids.length) {
-        throw new BadRequestException('One or more department_id not found');
+        throw new BadRequestException('ไม่พบ Division หลักที่ระบุ');
       }
     }
 
     await this.prisma.$transaction([
-      this.prisma.staffRolePermissionDepartment.deleteMany({ where: { role_id: roleId } }),
+      this.prisma.staffPermissionDepartment.deleteMany({ where: { user_id: userId } }),
       ...(ids.length > 0
         ? [
-            this.prisma.staffRolePermissionDepartment.createMany({
-              data: ids.map((department_id) => ({ role_id: roleId, department_id })),
+            this.prisma.staffPermissionDepartment.createMany({
+              data: ids.map((department_id) => ({ user_id: userId, department_id })),
             }),
           ]
         : []),
@@ -588,14 +595,14 @@ export class StaffService {
 
     return {
       success: true,
-      message: 'Department permissions updated',
-      data: { role_id: roleId, unrestricted: ids.length === 0, department_ids: ids },
+      message: 'เพิ่มสิทธิ์ Division หลักแล้ว',
+      data: { user_id: userId, unrestricted: ids.length === 0, department_ids: ids },
     };
   }
 
   /**
-   * Staff ปัจจุบัน → role → app_staff_role_permission_departments → department
-   * มีแถวใน permission_departments = รายการแผนกใน dropdown ตาม role เท่านั้น
+   * Staff ปัจจุบัน → app_staff_permission_departments (user_id) → department
+   * มีแถวใน permission_departments = รายการแผนกใน dropdown ตามที่ผู้ใช้ได้รับสิทธิ์เท่านั้น
    * ไม่มีแถว = unrestricted (API ข้อมูลไม่กรองแผนก); dropdown ใช้ with_cabinet → ทุกแผนกที่มีตู้ ACTIVE
    * ไม่ใช้ app_users.department_id สำหรับรายการ Division
    */
@@ -622,8 +629,8 @@ export class StaffService {
       RefDepID: string | null;
     };
 
-    const rows = await this.prisma.staffRolePermissionDepartment.findMany({
-      where: { role_id: staff.role_id },
+    const rows = await this.prisma.staffPermissionDepartment.findMany({
+      where: { user_id: staff.id },
       include: {
         department: {
           select: departmentSelect,

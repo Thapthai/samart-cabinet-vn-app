@@ -1,217 +1,107 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { staffUserApi, staffRoleApi } from '@/lib/api';
+import { useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppLayout from '@/components/AppLayout';
-import { toast } from 'sonner';
-import { Users } from 'lucide-react';
-import type { StaffUser, StaffRoleOption } from './components/types';
-import { EditStaffUserDialog } from './components/EditStaffUserDialog';
-import { StaffUsersSearchCard } from './components/StaffUsersSearchCard';
-import { StaffUsersTable } from './components/StaffUsersTable';
-import { RegeneratedCredentialsDialog } from './components/RegeneratedCredentialsDialog';
+import { IdCard, Boxes, Users } from 'lucide-react';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import EmployeeTab from './components/employee-tab/EmployeeTab';
+import CabinetUsersTab from './components/cabinet-users-tab/CabinetUsersTab';
+import StaffUsersTab from './components/staff-users-tab/StaffUsersTab';
+
+const TABS = [
+  {
+    value: 'employee',
+    label: 'จัดการพนักงาน',
+    icon: IdCard,
+    iconClass: 'bg-teal-100 text-teal-700',
+  },
+  {
+    value: 'cabinet-users',
+    label: 'ผู้ใช้งานในตู้ Cabinet',
+    icon: Boxes,
+    iconClass: 'bg-blue-100 text-blue-700',
+  },
+  {
+    value: 'staff-users',
+    label: 'จัดการผู้ใช้งาน Staff',
+    icon: Users,
+    iconClass: 'bg-indigo-100 text-indigo-700',
+  },
+] as const;
 
 export default function StaffUsersPage() {
-  const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
-  const [staffRoles, setStaffRoles] = useState<StaffRoleOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [keywordInput, setKeywordInput] = useState('');
-  const [activeKeyword, setActiveKeyword] = useState('');
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState<StaffUser | null>(null);
-  const [clientCredentials, setClientCredentials] = useState<{ client_id: string; client_secret: string } | null>(null);
-  const [showSecret, setShowSecret] = useState(false);
-
-  useEffect(() => {
-    fetchStaffUsers();
-    fetchStaffRoles();
-  }, []);
-
-  const fetchStaffRoles = async () => {
-    try {
-      const response = (await staffRoleApi.getAll({ active_only: true })) as {
-        success?: boolean;
-        data?: StaffRoleOption[];
-        message?: string;
-      };
-      if (response?.success === false) {
-        toast.error((response as { message?: string }).message || 'โหลดบทบาทไม่สำเร็จ');
-        setStaffRoles([]);
-        return;
-      }
-      setStaffRoles(Array.isArray(response?.data) ? response.data : []);
-    } catch (error: unknown) {
-      console.error('Failed to fetch staff roles:', error);
-      const err = error as { message?: string };
-      toast.error(err?.message || 'โหลดบทบาทไม่สำเร็จ');
-      setStaffRoles([]);
-    }
-  };
-
-  const fetchStaffUsers = async () => {
-    try {
-      setLoading(true);
-      const response = (await staffUserApi.getAllStaffUsers()) as { success?: boolean; data?: StaffUser[]; message?: string };
-      if (response?.success === false) {
-        toast.error((response as { message?: string }).message || 'โหลดข้อมูล Staff User ไม่สำเร็จ');
-        setStaffUsers([]);
-        return;
-      }
-      setStaffUsers(Array.isArray(response?.data) ? response.data : []);
-    } catch (error: unknown) {
-      const err = error as { message?: string };
-      toast.error(err?.message || 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์');
-      setStaffUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('ต้องการปิดการใช้งาน Staff User นี้หรือไม่? (บัญชียังอยู่ในระบบแต่ใช้งานไม่ได้)')) return;
-    try {
-      const response = (await staffUserApi.deleteStaffUser(id)) as { success?: boolean; message?: string };
-      if (response?.success) {
-        toast.success('ปิดการใช้งาน Staff User เรียบร้อยแล้ว');
-        fetchStaffUsers();
-      } else {
-        toast.error((response as { message?: string }).message || 'ไม่สามารถปิดการใช้งานได้');
-      }
-    } catch (error: unknown) {
-      const err = error as { message?: string };
-      toast.error(err?.message || 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์');
-    }
-  };
-
-  const handleRegenerateSecret = async (id: number) => {
-    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการสร้าง Client Secret ใหม่? Secret เก่าจะใช้งานไม่ได้อีก')) return;
-    try {
-      const response = (await staffUserApi.regenerateClientSecret(id)) as {
-        success?: boolean;
-        data?: { client_id?: string; client_secret?: string };
-        message?: string;
-      };
-      if (response?.success && response?.data) {
-        toast.success('สร้าง Client Secret ใหม่เรียบร้อยแล้ว');
-        setClientCredentials({
-          client_id: response.data.client_id ?? '',
-          client_secret: response.data.client_secret ?? '',
-        });
-        setShowSecret(false);
-      } else {
-        toast.error((response as { message?: string }).message || 'ไม่สามารถสร้าง Client Secret ใหม่ได้');
-      }
-    } catch (error: unknown) {
-      const err = error as { message?: string };
-      toast.error(err?.message || 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์');
-    }
-  };
-
-  const openEditDialog = (staff: StaffUser) => {
-    setSelectedStaff(staff);
-    setIsEditDialogOpen(true);
-  };
-
-  const copyToClipboard = useCallback((text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success(`คัดลอก ${label} เรียบร้อยแล้ว`);
-  }, []);
-
-  const handleSearch = () => {
-    setActiveKeyword(keywordInput);
-  };
-
-  const handleClearFilters = () => {
-    setKeywordInput('');
-    setActiveKeyword('');
-  };
-
-  const q = activeKeyword.trim().toLowerCase();
-  const filteredUsers = q
-    ? staffUsers.filter(
-        (u) =>
-          `${u.fname} ${u.lname}`.toLowerCase().includes(q) ||
-          u.email?.toLowerCase().includes(q) ||
-          u.client_id?.toLowerCase().includes(q) ||
-          u.role?.toLowerCase().includes(q) ||
-          (u.role_name?.trim().toLowerCase().includes(q) ?? false) ||
-          (u.emp_code?.toLowerCase().includes(q) ?? false) ||
-          (u.employee_display?.toLowerCase().includes(q) ?? false),
-      )
-    : staffUsers;
+  const [activeTab, setActiveTab] = useState<string>('employee');
 
   return (
     <ProtectedRoute>
       <AppLayout fullWidth>
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-indigo-100 rounded-lg">
-                <Users className="h-6 w-6 text-indigo-600" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">จัดการ Staff Users</h1>
-                <p className="text-sm text-gray-500 mt-1">จัดการบัญชี Staff และ Client Credentials สำหรับ API</p>
-              </div>
+          {/* Header */}
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <Users className="h-6 w-6 text-indigo-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">จัดการผู้ใช้งานและพนักงาน</h1>
+              <p className="text-sm text-gray-500">จัดการพนักงาน, ผู้ใช้งานในตู้ Cabinet และ Staff Users</p>
             </div>
           </div>
 
-          <StaffUsersSearchCard
-            keywordInput={keywordInput}
-            activeKeyword={activeKeyword}
-            onKeywordInputChange={setKeywordInput}
-            onSearch={handleSearch}
-            onClearFilters={handleClearFilters}
-            onRefresh={fetchStaffUsers}
-            loading={loading}
-          />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <Card className="border-slate-200 shadow-sm">
+              <CardContent className="pt-6">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.value;
+                    return (
+                      <button
+                        key={tab.value}
+                        type="button"
+                        onClick={() => setActiveTab(tab.value)}
+                        className={cn(
+                          'flex gap-3 rounded-xl border bg-background p-3.5 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          active
+                            ? 'border-primary bg-primary/[0.06] shadow-sm ring-2 ring-primary/15'
+                            : 'border-slate-200 hover:bg-muted/40',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                            tab.iconClass,
+                          )}
+                        >
+                          <Icon className="h-4 w-4" aria-hidden />
+                        </span>
+                        <span className="min-w-0 space-y-0.5">
+                          <span className="block text-base font-medium text-slate-900 sm:text-lg">
+                            {tab.label}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
 
-          <StaffUsersTable
-            loading={loading}
-            users={filteredUsers}
-            searchTerm={activeKeyword}
-            staffRoles={staffRoles}
-            isCreateDialogOpen={isCreateDialogOpen}
-            onCreateDialogOpenChange={setIsCreateDialogOpen}
-            showSecret={showSecret}
-            onShowSecretChange={setShowSecret}
-            onCopy={copyToClipboard}
-            onUserCreated={fetchStaffUsers}
-            onEdit={openEditDialog}
-            onDelete={handleDelete}
-            onRegenerateSecret={handleRegenerateSecret}
-          />
+            <TabsContent value="employee">
+              <EmployeeTab />
+            </TabsContent>
+
+            <TabsContent value="cabinet-users">
+              <CabinetUsersTab />
+            </TabsContent>
+
+            <TabsContent value="staff-users">
+              <StaffUsersTab />
+            </TabsContent>
+          </Tabs>
         </div>
-
-        <EditStaffUserDialog
-          open={isEditDialogOpen}
-          onOpenChange={(open) => {
-            setIsEditDialogOpen(open);
-            if (!open) setSelectedStaff(null);
-          }}
-          staff={selectedStaff}
-          staffRoles={staffRoles}
-          onSuccess={fetchStaffUsers}
-        />
-
-        {clientCredentials && !isCreateDialogOpen && (
-          <RegeneratedCredentialsDialog
-            open
-            onOpenChange={(open) => {
-              if (!open) {
-                setClientCredentials(null);
-                setShowSecret(false);
-              }
-            }}
-            clientId={clientCredentials.client_id}
-            clientSecret={clientCredentials.client_secret}
-            showSecret={showSecret}
-            onShowSecretChange={setShowSecret}
-            onCopy={copyToClipboard}
-          />
-        )}
       </AppLayout>
     </ProtectedRoute>
   );
