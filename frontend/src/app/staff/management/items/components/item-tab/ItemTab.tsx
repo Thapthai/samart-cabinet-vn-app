@@ -1,0 +1,253 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { staffItemsApi } from '@/lib/staffApi/itemsApi';
+import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
+import type { Item } from '@/types/item';
+import { toast } from 'sonner';
+import { Boxes } from 'lucide-react';
+import CreateItemDialog from '@/app/admin/management/items/components/CreateItemDialog';
+import EditItemDialog from '@/app/admin/items/components/EditItemDialog';
+import DeleteItemDialog from '@/app/admin/items/components/DeleteItemDialog';
+import ItemsSearchCard, { type ItemStatusFilter } from '../ItemsSearchCard';
+import ItemsMasterTableCard from '../ItemsMasterTableCard';
+import { ITEMS_PAGE_SIZE } from '../itemPagination';
+import type { DeptRow } from '@/app/admin/management/items/components/itemHelpers';
+
+const FETCH_BATCH_LIMIT = 5000;
+
+type AppliedFilters = {
+  keyword: string;
+  statusFilter: ItemStatusFilter;
+};
+
+export default function ItemTab() {
+  const [allItems, setAllItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [keywordInput, setKeywordInput] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ItemStatusFilter>('all');
+  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
+    keyword: '',
+    statusFilter: 'all',
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selected, setSelected] = useState<Item | null>(null);
+  const [departments, setDepartments] = useState<DeptRow[]>([]);
+
+  const totalPages = useMemo(
+    () => (allItems.length > 0 ? Math.ceil(allItems.length / ITEMS_PAGE_SIZE) : 1),
+    [allItems.length],
+  );
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const list = await fetchStaffDepartmentsForFilter({ limit: 500 });
+        setDepartments(list as DeptRow[]);
+      } catch {
+        setDepartments([]);
+      }
+    })();
+  }, []);
+
+  const deptMap = useMemo(() => {
+    const m = new Map<number, DeptRow>();
+    departments.forEach((d) => m.set(d.ID, d));
+    return m;
+  }, [departments]);
+
+  const fetchList = useCallback(
+    async (overrideFilters?: AppliedFilters, opts?: { resetPage?: boolean; silent?: boolean }) => {
+      const active = overrideFilters ?? appliedFilters;
+      try {
+        setLoading(true);
+        const baseParams: Record<string, string | number> = {
+          sort_by: 'itemcode',
+          sort_order: 'asc',
+        };
+        if (active.keyword.trim()) baseParams.keyword = active.keyword.trim();
+        if (active.statusFilter !== 'all') baseParams.item_status_filter = active.statusFilter;
+
+        const aggregated: Item[] = [];
+        let reportedTotal = 0;
+        let fetchPage = 1;
+
+        while (true) {
+          const res = (await staffItemsApi.getMasterList({
+            ...baseParams,
+            page: fetchPage,
+            limit: FETCH_BATCH_LIMIT,
+          })) as {
+            success?: boolean;
+            data?: Item[] | { data?: Item[] };
+            total?: number;
+            message?: string;
+          };
+
+          if (res?.success === false) {
+            toast.error((res as { message?: string }).message || 'โหลดรายการไม่สำเร็จ');
+            setAllItems([]);
+            setTotal(0);
+            break;
+          }
+
+          const raw = res?.data;
+          const batch = Array.isArray(raw)
+            ? raw
+            : raw != null && typeof raw === 'object' && Array.isArray(raw.data)
+              ? raw.data
+              : [];
+
+          reportedTotal =
+            typeof res.total === 'number' ? res.total : aggregated.length + batch.length;
+          aggregated.push(...batch);
+
+          if (batch.length < FETCH_BATCH_LIMIT || aggregated.length >= reportedTotal) {
+            break;
+          }
+          fetchPage += 1;
+          if (fetchPage > 500) {
+            console.warn('staff items master: stopped batch fetch after 500 pages');
+            break;
+          }
+        }
+
+        setAllItems(aggregated);
+        setTotal(reportedTotal);
+        if (opts?.resetPage !== false) {
+          setCurrentPage(1);
+        }
+
+        if (!opts?.silent && aggregated.length === 0) {
+          toast.info('ไม่พบรายการ Item ตามเงื่อนไขที่เลือก');
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error('โหลดรายการไม่สำเร็จ');
+        setAllItems([]);
+        setTotal(0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [appliedFilters],
+  );
+
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
+  }, [totalPages]);
+
+  const initialFetchDone = useRef(false);
+  useEffect(() => {
+    if (initialFetchDone.current) return;
+    initialFetchDone.current = true;
+    void fetchList(undefined, { resetPage: true, silent: true });
+  }, [fetchList]);
+
+  const handleSearch = () => {
+    const next: AppliedFilters = { keyword: keywordInput, statusFilter };
+    setAppliedFilters(next);
+    setCurrentPage(1);
+    void fetchList(next, { resetPage: true });
+  };
+
+  const handleClearFilters = () => {
+    const cleared: AppliedFilters = { keyword: '', statusFilter: 'all' };
+    setKeywordInput('');
+    setStatusFilter('all');
+    setAppliedFilters(cleared);
+    setCurrentPage(1);
+    void fetchList(cleared, { resetPage: true, silent: true });
+  };
+
+  const handleStatusFilterChange = (value: ItemStatusFilter) => {
+    setStatusFilter(value);
+  };
+
+  const handlePageChange = useCallback((nextPage: number) => {
+    setCurrentPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const handleEdit = (item: Item) => {
+    setSelected(item);
+    setEditOpen(true);
+  };
+
+  const handleDelete = (item: Item) => {
+    setSelected(item);
+    setDeleteOpen(true);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start gap-3">
+        <div className="rounded-lg bg-amber-100 p-2.5">
+          <Boxes className="h-7 w-7 text-amber-700" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">จัดการ Item (Master)</h2>
+          <p className="mt-0.5 text-sm text-slate-600">
+            รายการรหัสเวชภัณฑ์ในฐานข้อมูล รวมรายการที่ยังไม่มีในตู้ ·{' '}
+            <Link
+              href="/staff/items"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              ไปหน้าสต๊อกในตู้
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      <ItemsSearchCard
+        keywordInput={keywordInput}
+        activeKeyword={appliedFilters.keyword}
+        statusFilter={statusFilter}
+        onKeywordInputChange={setKeywordInput}
+        onStatusFilterChange={handleStatusFilterChange}
+        onSearch={handleSearch}
+        onClearFilters={handleClearFilters}
+        onRefresh={() => fetchList(undefined, { resetPage: false, silent: true })}
+        loading={loading}
+      />
+
+      <ItemsMasterTableCard
+        items={allItems}
+        loading={loading}
+        currentPage={currentPage}
+        itemsPerPage={ITEMS_PAGE_SIZE}
+        total={total}
+        totalPages={totalPages}
+        deptMap={deptMap}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onCreateClick={() => setCreateOpen(true)}
+        onPageChange={handlePageChange}
+      />
+
+      <CreateItemDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={() => fetchList(undefined, { resetPage: false, silent: true })}
+      />
+      <EditItemDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        item={selected}
+        onSuccess={() => fetchList(undefined, { resetPage: false, silent: true })}
+      />
+      <DeleteItemDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        item={selected}
+        onSuccess={() => fetchList(undefined, { resetPage: false, silent: true })}
+      />
+    </div>
+  );
+}

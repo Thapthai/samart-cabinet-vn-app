@@ -175,23 +175,23 @@ export const staffMenuItems = [
             // },
 
             {
-                name: 'จัดการ Item (Master)',
+                name: 'จัดการ อุปกรณ์',
                 href: '/staff/management/items',
                 icon: Boxes,
                 description: 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล',
             },
-            {
-                name: 'จัดการหน่วยนับ (Unit)',
-                href: '/staff/management/units',
-                icon: Ruler,
-                description: 'หน่วยนับสำหรับผูกกับรายการ Item',
-            },
-            {
-                name: 'พิมพ์สติ๊กเกอร์',
-                href: '/staff/management/print-sticker',
-                icon: Printer,
-                description: 'พิมพ์สติ๊กเกอร์ผ่านเครื่อง SATO (SBPL)',
-            },
+            // {
+            //     name: 'จัดการหน่วยนับ (Unit)',
+            //     href: '/staff/management/units',
+            //     icon: Ruler,
+            //     description: 'หน่วยนับสำหรับผูกกับรายการ Item',
+            // },
+            // {
+            //     name: 'พิมพ์สติ๊กเกอร์',
+            //     href: '/staff/management/print-sticker',
+            //     icon: Printer,
+            //     description: 'พิมพ์สติ๊กเกอร์ผ่านเครื่อง SATO (SBPL)',
+            // },
             // {
             //     name: 'จัดการ Division',
             //     href: '/staff/management/departments',
