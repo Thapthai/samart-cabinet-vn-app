@@ -263,6 +263,21 @@ export interface UpdateItemDto {
   SuplierName?: string;
 }
 
+/** ผลลัพธ์การอัปโหลด Item Master จากไฟล์ Excel */
+export interface ItemMasterUploadRowError {
+  row: number;
+  itemcode?: string;
+  message: string;
+}
+
+export interface ItemMasterUploadResult {
+  total: number;
+  created: number;
+  updated: number;
+  failed: number;
+  errors: ItemMasterUploadRowError[];
+}
+
 export interface GetItemsQuery {
   page?: number;
   limit?: number;

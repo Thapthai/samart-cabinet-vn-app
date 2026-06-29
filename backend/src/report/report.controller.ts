@@ -1,6 +1,7 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { ReportServiceService } from './report-service.service';
 import { DailyCabinetStockArchiveService } from './daily-cabinet-stock-archive.service';
+import { ItemMasterUploadService } from './services/item-master-upload.service';
 
 const EXCEL_CONTENT = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const PDF_CONTENT = 'application/pdf';
@@ -21,7 +22,19 @@ export class ReportServiceController {
   constructor(
     private readonly reportServiceService: ReportServiceService,
     private readonly dailyCabinetStockArchiveService: DailyCabinetStockArchiveService,
+    private readonly itemMasterUploadService: ItemMasterUploadService,
   ) {}
+
+  /** ดาวน์โหลด template Excel สำหรับเพิ่ม/อัปเดต Item Master (พร้อม dropdown หน่วย/แผนกจากระบบ) */
+  @Post('item-master/template')
+  async downloadItemMasterTemplate() {
+    try {
+      const { buffer, filename } = await this.itemMasterUploadService.buildTemplate();
+      return toFileResponse(buffer, filename, EXCEL_CONTENT);
+    } catch (error: any) {
+      return { success: false, error: error?.message };
+    }
+  }
 
   @Post('comparison/excel')
   async generateComparisonExcel(@Body() data: { usageId: number }) {

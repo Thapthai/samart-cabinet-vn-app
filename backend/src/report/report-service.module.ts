@@ -40,6 +40,7 @@ import { DispensedItemsForPatientsExcelService } from './services/dispensed-item
 import { DispensedItemsForPatientsPdfService } from './services/dispensed-items-for-patients-pdf.service';
 import { ItemBorrowReportExcelService } from './services/item-borrow-report-excel.service';
 import { ItemBorrowReportPdfService } from './services/item-borrow-report-pdf.service';
+import { ItemMasterUploadService } from './services/item-master-upload.service';
 @Module({
   imports: [PrismaModule, ItemModule, MedicalSuppliesModule, WeighingModule],
   controllers: [ReportServiceController],
@@ -80,7 +81,8 @@ import { ItemBorrowReportPdfService } from './services/item-borrow-report-pdf.se
     DispensedItemsForPatientsPdfService,
     ItemBorrowReportExcelService,
     ItemBorrowReportPdfService,
+    ItemMasterUploadService,
   ],
-  exports: [ReportServiceService],
+  exports: [ReportServiceService, ItemMasterUploadService],
 })
 export class ReportServiceModule {}

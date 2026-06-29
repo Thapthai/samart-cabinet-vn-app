@@ -9,6 +9,7 @@ import { Boxes } from 'lucide-react';
 import CreateItemDialog from './components/CreateItemDialog';
 import EditItemDialog from '@/app/admin/management/items/components/item-tab/components/EditItemDialog';
 import DeleteItemDialog from '@/app/admin/management/items/components/item-tab/components/DeleteItemDialog';
+import ItemUploadDialog from './components/ItemUploadDialog';
 import ItemsSearchCard, { type ItemStatusFilter } from './components/ItemsSearchCard';
 import ItemsMasterTableCard from './components/ItemsMasterTableCard';
 import { ITEMS_PAGE_SIZE } from './components/itemPagination';
@@ -40,6 +41,7 @@ export default function ItemTab() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [selected, setSelected] = useState<Item | null>(null);
   const [departments, setDepartments] = useState<DeptRow[]>([]);
 
@@ -249,7 +251,14 @@ export default function ItemTab() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onCreateClick={() => setCreateOpen(true)}
+        onUploadClick={() => setUploadOpen(true)}
         onPageChange={handlePageChange}
+      />
+
+      <ItemUploadDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        onSuccess={() => fetchList(undefined, { resetPage: false, silent: true })}
       />
 
       <CreateItemDialog

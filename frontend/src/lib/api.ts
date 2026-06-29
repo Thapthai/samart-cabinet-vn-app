@@ -3,7 +3,7 @@ import { getSession } from 'next-auth/react';
 import { createCabinetListGetAll, createCabinetUsersApi } from '@/lib/cabinet-http-clients';
 import type { ApiResponse, PaginatedResponse, ItemsStats } from '@/types/common';
 import type { AuthResponse, User, RegisterDto, LoginDto } from '@/types/auth';
-import type { Item, CreateItemDto, UpdateItemDto, GetItemsQuery } from '@/types/item';
+import type { Item, CreateItemDto, UpdateItemDto, GetItemsQuery, ItemMasterUploadResult } from '@/types/item';
 
 // Server-side ใช้ BACKEND_API_URL (เช่น host.docker.internal:4000 ใน Docker), client ใช้ NEXT_PUBLIC_API_URL (localhost:4000)
 function getApiBaseUrl(): string {
@@ -312,6 +312,35 @@ export const itemsApi = {
       ? { ...data, cabinet_id: cabinetId }
       : data;
     const response = await api.patch(`/items/${itemcode}/minmax`, body);
+    return response.data;
+  },
+
+  /** ดาวน์โหลดไฟล์ template Excel สำหรับเพิ่ม/อัปเดต Item Master */
+  downloadUploadTemplate: async (): Promise<void> => {
+    const response = await api.post('/reports/item-master/template');
+    const res = response.data as { success?: boolean; error?: string; data?: { buffer?: string; filename?: string; contentType?: string } };
+    if (!res?.success || !res?.data?.buffer) throw new Error(res?.error || 'ไม่สามารถสร้างไฟล์ได้');
+    const binary = atob(res.data.buffer);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: res.data.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', res.data.filename || `item_master_template_${new Date().toISOString().split('T')[0]}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  /** อัปโหลดไฟล์ Excel เพื่อเพิ่ม/อัปเดต Item Master หลายรายการ */
+  bulkUpload: async (file: File): Promise<ApiResponse<ItemMasterUploadResult>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/items/items-master-upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 };

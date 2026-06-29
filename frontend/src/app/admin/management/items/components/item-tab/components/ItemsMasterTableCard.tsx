@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import type { Item } from '@/types/item';
-import { Plus, Trash2, RefreshCw, Edit, Boxes } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, Edit, Boxes, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -23,6 +23,7 @@ export interface ItemsMasterTableCardProps {
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
   onCreateClick: () => void;
+  onUploadClick: () => void;
   onPageChange: (page: number) => void;
 }
 
@@ -36,6 +37,7 @@ export default function ItemsMasterTableCard({
   onEdit,
   onDelete,
   onCreateClick,
+  onUploadClick,
   onPageChange,
 }: ItemsMasterTableCardProps) {
   // เลือก Division เจาะจง → แสดงเฉพาะ item ของ Division นั้น (รวม "ทุกแผนก" ที่ไม่ระบุแผนก)
@@ -93,10 +95,16 @@ export default function ItemsMasterTableCard({
               : 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล รวมรายการที่ยังไม่มีในตู้'}
           </CardDescription>
         </div>
-        <Button type="button" onClick={onCreateClick} className="shrink-0 gap-2">
-          <Plus className="h-4 w-4" />
-          เพิ่ม Item
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          <Button type="button" variant="outline" onClick={onUploadClick} className="gap-2">
+            <Upload className="h-4 w-4" />
+            Upload Excel
+          </Button>
+          <Button type="button" onClick={onCreateClick} className="gap-2">
+            <Plus className="h-4 w-4" />
+            เพิ่ม Item
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="px-4 py-4">
         {loading ? (

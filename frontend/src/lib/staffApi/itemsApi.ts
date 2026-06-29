@@ -1,6 +1,34 @@
 import staffApi from './index';
-import type { Item, CreateItemDto, UpdateItemDto, GetItemsQuery } from '@/types/item';
+import type {
+  Item,
+  CreateItemDto,
+  UpdateItemDto,
+  GetItemsQuery,
+  ItemMasterUploadResult,
+} from '@/types/item';
 import type { ApiResponse, PaginatedResponse, ItemsStats } from '@/types/common';
+
+type NestedFileResponse = {
+  success?: boolean;
+  data?: { buffer?: string; filename?: string; contentType?: string };
+  error?: string;
+};
+
+function triggerNestedDownload(res: NestedFileResponse, fallbackFilename: string): void {
+  if (!res?.success || !res?.data?.buffer) throw new Error(res?.error || 'ไม่สามารถสร้างไฟล์ได้');
+  const binary = atob(res.data.buffer);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: res.data.contentType || 'application/octet-stream' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', res.data.filename || fallbackFilename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
 
 export const staffItemsApi = {
     create: async (data: CreateItemDto): Promise<ApiResponse<Item>> => {
@@ -124,6 +152,25 @@ export const staffItemsApi = {
         keyword?: string;
     }): Promise<PaginatedResponse<Item>> => {
         const response = await staffApi.get('/items/cabinet-slot-items', { params: query });
+        return response.data;
+    },
+
+    /** ดาวน์โหลดไฟล์ template Excel สำหรับเพิ่ม/อัปเดต Item Master */
+    downloadUploadTemplate: async (): Promise<void> => {
+        const response = await staffApi.post('/reports/item-master/template');
+        triggerNestedDownload(
+            response.data,
+            `item_master_template_${new Date().toISOString().split('T')[0]}.xlsx`,
+        );
+    },
+
+    /** อัปโหลดไฟล์ Excel เพื่อเพิ่ม/อัปเดต Item Master หลายรายการ */
+    bulkUpload: async (file: File): Promise<ApiResponse<ItemMasterUploadResult>> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await staffApi.post('/items/items-master-upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
         return response.data;
     },
 };

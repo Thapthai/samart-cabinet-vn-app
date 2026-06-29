@@ -12,11 +12,13 @@ import {
   ParseIntPipe,
   UseInterceptors,
   UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { extname } from 'path';
 import { ItemService } from './item.service';
+import { ItemMasterUploadService } from './item-master-upload.service';
 import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { UpdateItemMinMaxDto } from './dto/update-item-minmax.dto';
@@ -45,11 +47,41 @@ const fileInterceptorOptions = {
 
 @Controller('items')
 export class ItemController {
-  constructor(private readonly itemService: ItemService) { }
+  constructor(
+    private readonly itemService: ItemService,
+    private readonly itemMasterUploadService: ItemMasterUploadService,
+  ) { }
 
   @Post()
   async create(@Body() body: CreateItemDto) {
     return this.itemService.createItem(body);
+  }
+
+  /** อัปโหลดไฟล์ Excel เพื่อเพิ่ม/อัปเดต Item Master หลายรายการ (ซ้ำ = update, ไม่ซ้ำ = insert) */
+  @Post('items-master-upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!/\.(xlsx|xls)$/i.test(file.originalname)) {
+          cb(new BadRequestException('รองรับเฉพาะไฟล์ Excel (.xlsx, .xls)'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadItemMaster(@UploadedFile() file: { buffer?: Buffer } | undefined) {
+    try {
+      if (!file?.buffer) {
+        return { success: false, error: 'ไม่พบไฟล์ที่อัปโหลด' };
+      }
+      const result = await this.itemMasterUploadService.parseAndCreate(file.buffer);
+      return { success: true, data: result };
+    } catch (error: any) {
+      return { success: false, error: error?.message };
+    }
   }
 
   @Post('upload')
