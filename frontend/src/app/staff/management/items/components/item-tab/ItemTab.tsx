@@ -7,19 +7,20 @@ import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 import type { Item } from '@/types/item';
 import { toast } from 'sonner';
 import { Boxes } from 'lucide-react';
-import CreateItemDialog from '@/app/admin/management/items/components/CreateItemDialog';
-import EditItemDialog from '@/app/admin/items/components/EditItemDialog';
-import DeleteItemDialog from '@/app/admin/items/components/DeleteItemDialog';
-import ItemsSearchCard, { type ItemStatusFilter } from '../ItemsSearchCard';
-import ItemsMasterTableCard from '../ItemsMasterTableCard';
-import { ITEMS_PAGE_SIZE } from '../itemPagination';
-import type { DeptRow } from '@/app/admin/management/items/components/itemHelpers';
+import CreateItemDialog from './components/CreateItemDialog';
+import EditItemDialog from './components/EditItemDialog';
+import DeleteItemDialog from './components/DeleteItemDialog';
+import ItemsSearchCard, { type ItemStatusFilter } from './components/ItemsSearchCard';
+import ItemsMasterTableCard from './components/ItemsMasterTableCard';
+import { ITEMS_PAGE_SIZE } from './components/itemPagination';
+import type { DeptRow } from './components/itemHelpers';
 
 const FETCH_BATCH_LIMIT = 5000;
 
 type AppliedFilters = {
   keyword: string;
   statusFilter: ItemStatusFilter;
+  departmentFilter: string;
 };
 
 export default function ItemTab() {
@@ -27,9 +28,11 @@ export default function ItemTab() {
   const [loading, setLoading] = useState(true);
   const [keywordInput, setKeywordInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<ItemStatusFilter>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
     keyword: '',
     statusFilter: 'all',
+    departmentFilter: 'all',
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -61,6 +64,23 @@ export default function ItemTab() {
     departments.forEach((d) => m.set(d.ID, d));
     return m;
   }, [departments]);
+
+  const departmentOptions = useMemo(
+    () => [
+      { value: 'all', label: 'ทุก Division' },
+      ...departments.map((d) => ({
+        value: String(d.ID),
+        label: (d.DepName || d.DepName2 || `แผนก #${d.ID}`).trim(),
+      })),
+    ],
+    [departments],
+  );
+
+  const appliedDepartmentId = useMemo(() => {
+    if (appliedFilters.departmentFilter === 'all') return undefined;
+    const n = parseInt(appliedFilters.departmentFilter, 10);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [appliedFilters.departmentFilter]);
 
   const fetchList = useCallback(
     async (overrideFilters?: AppliedFilters, opts?: { resetPage?: boolean; silent?: boolean }) => {
@@ -151,16 +171,17 @@ export default function ItemTab() {
   }, [fetchList]);
 
   const handleSearch = () => {
-    const next: AppliedFilters = { keyword: keywordInput, statusFilter };
+    const next: AppliedFilters = { keyword: keywordInput, statusFilter, departmentFilter };
     setAppliedFilters(next);
     setCurrentPage(1);
     void fetchList(next, { resetPage: true });
   };
 
   const handleClearFilters = () => {
-    const cleared: AppliedFilters = { keyword: '', statusFilter: 'all' };
+    const cleared: AppliedFilters = { keyword: '', statusFilter: 'all', departmentFilter: 'all' };
     setKeywordInput('');
     setStatusFilter('all');
+    setDepartmentFilter('all');
     setAppliedFilters(cleared);
     setCurrentPage(1);
     void fetchList(cleared, { resetPage: true, silent: true });
@@ -209,8 +230,11 @@ export default function ItemTab() {
         keywordInput={keywordInput}
         activeKeyword={appliedFilters.keyword}
         statusFilter={statusFilter}
+        departmentFilter={departmentFilter}
+        departmentOptions={departmentOptions}
         onKeywordInputChange={setKeywordInput}
         onStatusFilterChange={handleStatusFilterChange}
+        onDepartmentFilterChange={setDepartmentFilter}
         onSearch={handleSearch}
         onClearFilters={handleClearFilters}
         onRefresh={() => fetchList(undefined, { resetPage: false, silent: true })}
@@ -225,6 +249,7 @@ export default function ItemTab() {
         total={total}
         totalPages={totalPages}
         deptMap={deptMap}
+        departmentFilter={appliedDepartmentId}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onCreateClick={() => setCreateOpen(true)}

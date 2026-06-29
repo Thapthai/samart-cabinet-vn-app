@@ -11,13 +11,12 @@ import { Package, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { reportsApi } from '@/lib/api';
 import { getCabinetQty } from '@/lib/itemUnitDisplay';
-
-import EditItemDialog from './components/EditItemDialog';
-import DeleteItemDialog from './components/DeleteItemDialog';
+import EditItemDialog from '../management/items/components/item-tab/components/EditItemDialog';
+import DeleteItemDialog from '../management/items/components/item-tab/components/DeleteItemDialog';
 import UpdateMinMaxDialog from './components/UpdateMinMaxDialog';
 import FilterSection from './components/FilterSection';
 import ItemsTable from './components/ItemsTable';
-import RefillPreviewCard from './components/RefillPreviewCard';
+ 
 
 function isItemVisible(item: Item): boolean {
   const qty = getCabinetQty(item);

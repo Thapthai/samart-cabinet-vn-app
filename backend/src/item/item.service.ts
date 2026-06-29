@@ -29,14 +29,69 @@ export class ItemService {
     return Math.max(0, max - inCabinet);
   }
 
+  /** แปลง input ใด ๆ ให้เป็นรายการ DepartmentID ที่ถูกต้อง ไม่ซ้ำ และสูงสุด 3 แผนก */
+  private normalizeDeptIds(input: unknown): number[] {
+    const arr = Array.isArray(input)
+      ? input
+      : typeof input === 'string' && input.trim() !== ''
+        ? input.split(',')
+        : [];
+    const ids = arr
+      .map((v) => (typeof v === 'string' ? parseInt(v.trim(), 10) : Number(v)))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return [...new Set(ids)].slice(0, 3);
+  }
+
+  /** ตั้งค่าแผนกที่ใช้ Item นี้ใน ItemDepartments (แทนที่ของเดิมทั้งหมด) */
+  private async syncItemDepartments(itemcode: string, departmentIds: number[]) {
+    await this.prisma.itemDepartments.deleteMany({ where: { itemcode } });
+    if (departmentIds.length > 0) {
+      await this.prisma.itemDepartments.createMany({
+        data: departmentIds.map((DeptID) => ({ itemcode, DeptID, IsCancel: 0 })),
+      });
+    }
+  }
+
+  /** รายการ DepartmentID ที่ใช้ Item นี้ (เฉพาะที่ยังไม่ถูกยกเลิก) */
+  async getItemDepartments(itemcode: string) {
+    try {
+      const rows = await this.prisma.itemDepartments.findMany({
+        where: { itemcode, NOT: { IsCancel: 1 } },
+        select: { DeptID: true },
+        orderBy: { ID: 'asc' },
+      });
+      const data = rows
+        .map((r) => r.DeptID)
+        .filter((x): x is number => x != null && x > 0);
+      return { success: true, data };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to fetch item departments',
+        error: error.message,
+        data: [] as number[],
+      };
+    }
+  }
+
   async createItem(createItemDto: CreateItemDto) {
     try {
+      // department_ids ไม่ใช่คอลัมน์ของตาราง Item — เก็บแยกลง ItemDepartments
+      const hasDeptIds = createItemDto.department_ids !== undefined;
+      const deptIds = this.normalizeDeptIds(createItemDto.department_ids);
+
       // Remove undefined/null values from the DTO
       const cleanData = Object.fromEntries(
         Object.entries(createItemDto).filter(
           ([_, value]) => value !== undefined && value !== null,
         ),
       ) as any;
+      delete cleanData.department_ids;
+
+      // ใช้แผนกแรกที่เลือกเป็น DepartmentID หลัก (เพื่อ backward-compat กับฟิลเตอร์เดิม)
+      if (hasDeptIds) {
+        cleanData.DepartmentID = deptIds[0] ?? 0;
+      }
 
       // Add timestamp if not provided
       if (!cleanData.CreateDate) {
@@ -70,6 +125,10 @@ export class ItemService {
       const item = await this.prisma.item.create({
         data: cleanData,
       });
+
+      if (hasDeptIds) {
+        await this.syncItemDepartments(item.itemcode, deptIds);
+      }
 
       return {
         success: true,
@@ -1108,13 +1167,38 @@ export class ItemService {
             Note: true,
             unit: { select: { ID: true, UnitName: true } },
             subUnit: { select: { ID: true, UnitName: true } },
+            itemDepartments: {
+              where: { NOT: { IsCancel: 1 } },
+              orderBy: { ID: 'asc' },
+              select: {
+                DeptID: true,
+                department: { select: { ID: true, DepName: true, DepName2: true } },
+              },
+            },
           },
         }),
       ]);
 
+      // แผนกที่ใช้ Item นี้มาจาก ItemDepartments (ไม่ใช้ Item.DepartmentID แล้ว)
+      const mapped = data.map((it: any) => {
+        const rows = (it.itemDepartments ?? []).filter(
+          (r: any) => r?.DeptID != null && r.DeptID > 0,
+        );
+        const department_ids = rows.map((r: any) => r.DeptID as number);
+        const department_names = rows.map((r: any) =>
+          (
+            r.department?.DepName ||
+            r.department?.DepName2 ||
+            `แผนก #${r.DeptID}`
+          ).trim(),
+        );
+        const { itemDepartments, ...rest } = it;
+        return { ...rest, department_ids, department_names };
+      });
+
       return {
         success: true,
-        data,
+        data: mapped,
         total,
         page,
         limit: take,
@@ -1123,7 +1207,7 @@ export class ItemService {
     } catch (error) {
       return {
         success: false,
-        message: 'Failed to fetch master items',
+        message: 'ไม่สามารถดึงข้อมูลได้',
         error: (error as Error).message,
       };
     }
@@ -1362,10 +1446,20 @@ export class ItemService {
         return { success: false, message: 'Item not found' };
       }
 
+      // department_ids ไม่ใช่คอลัมน์ของตาราง Item — เก็บแยกลง ItemDepartments
+      const hasDeptIds = updateItemDto.department_ids !== undefined;
+      const deptIds = this.normalizeDeptIds(updateItemDto.department_ids);
+
       // Keep null to clear nullable FK/columns (e.g. SubUnitID)
       const cleanData = Object.fromEntries(
         Object.entries(updateItemDto).filter(([_, value]) => value !== undefined),
       ) as any;
+      delete cleanData.department_ids;
+
+      // ใช้แผนกแรกที่เลือกเป็น DepartmentID หลัก (เพื่อ backward-compat กับฟิลเตอร์เดิม)
+      if (hasDeptIds) {
+        cleanData.DepartmentID = deptIds[0] ?? 0;
+      }
 
       // ถ้ายังไม่มี itemcode2 ใน DB และผู้ใช้ไม่ส่งมาใน DTO — เติมจาก itemcode (คอลัมน์ VarChar(20))
       const hasExistingCode2 =
@@ -1385,6 +1479,10 @@ export class ItemService {
         where: { itemcode },
         data: cleanData,
       });
+
+      if (hasDeptIds) {
+        await this.syncItemDepartments(itemcode, deptIds);
+      }
 
       return {
         success: true,

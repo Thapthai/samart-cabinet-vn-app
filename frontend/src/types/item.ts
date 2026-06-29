@@ -57,7 +57,12 @@ export interface Item {
   SubUnitID?: number;
   /** เช่น 18 = เม็ดต่อ 1 หน่วย — ไม่ใช้คูณ stock */
   SubUnitQty?: number;
+  /** @deprecated ใช้ department_ids (ItemDepartments) แทน */
   DepartmentID?: number;
+  /** แผนกที่ใช้ Item นี้ (จาก ItemDepartments) */
+  department_ids?: number[];
+  /** ชื่อแผนกที่ใช้ Item นี้ (จาก ItemDepartments) */
+  department_names?: string[];
   SupllierID?: number;
   warehouseID?: number;
   procedureID?: number;
@@ -188,6 +193,8 @@ export interface CreateItemDto {
   SubUnitID?: number;
   SubUnitQty?: number;
   DepartmentID?: number;
+  /** แผนกที่ใช้ Item นี้ (เก็บลง ItemDepartments) — สูงสุด 3 แผนก */
+  department_ids?: number[];
   SupllierID?: number;
   warehouseID?: number;
   
@@ -238,6 +245,8 @@ export interface UpdateItemDto {
   SubUnitID?: number | null;
   SubUnitQty?: number | null;
   DepartmentID?: number;
+  /** แผนกที่ใช้ Item นี้ (เก็บลง ItemDepartments) — สูงสุด 3 แผนก */
+  department_ids?: number[];
   SupllierID?: number;
   warehouseID?: number;
   

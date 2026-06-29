@@ -23,13 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  buildDepartmentSelectOptions,
-  departmentInitialDisplay,
-  departmentIdToSelectValue,
-  selectValueToDepartmentId,
-  type DeptRow,
-} from '@/app/admin/management/items/components/itemHelpers';
+import { type DeptRow } from './itemHelpers';
+import ItemDepartmentsPicker from '@/app/admin/management/items/components/item-tab/components/ItemDepartmentsPicker';
 import { cn } from '@/lib/utils';
 
 const fieldInputClass = 'bg-white';
@@ -55,11 +50,8 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
   );
   const [error, setError] = useState('');
   const [isCancel, setIsCancel] = useState('0');
-  const [departmentIdStr, setDepartmentIdStr] = useState('0');
+  const [deptValues, setDeptValues] = useState<string[]>(['', '', '']);
   const [departments, setDepartments] = useState<DeptRow[]>([]);
-  const [deptInitialDisplay, setDeptInitialDisplay] = useState<
-    { label: string; subLabel?: string } | undefined
-  >(undefined);
   const [unitRows, setUnitRows] = useState<UnitRow[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [loadingDepts, setLoadingDepts] = useState(false);
@@ -111,15 +103,23 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
     setItemname(item.itemname || '');
     setError('');
     setIsCancel(item.IsCancel === 1 ? '1' : '0');
-    const deptId = item.DepartmentID ?? 0;
-    setDepartmentIdStr(departmentIdToSelectValue(deptId));
-    setDeptInitialDisplay(departmentInitialDisplay(deptId, departments));
     setUnitIdStr(item.UnitID != null && item.UnitID > 0 ? String(item.UnitID) : '');
     setSubUnitIdStr(item.SubUnitID != null && item.SubUnitID > 0 ? String(item.SubUnitID) : '');
     setSubUnitQtyStr(item.SubUnitQty != null && item.SubUnitQty > 0 ? String(item.SubUnitQty) : '');
+    setDeptValues(['', '', '']);
 
     let cancelled = false;
     void (async () => {
+      try {
+        const dres = await itemsApi.getDepartments(item.itemcode);
+        if (!cancelled && dres.success && Array.isArray(dres.data)) {
+          const ids = dres.data.filter((n) => n != null && n > 0).slice(0, 3);
+          setDeptValues([0, 1, 2].map((i) => (ids[i] != null ? String(ids[i]) : '')));
+        }
+      } catch {
+        /* keep empty */
+      }
+
       const uid = item.UnitID;
       if (uid != null && uid > 0) {
         try {
@@ -164,7 +164,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
     return () => {
       cancelled = true;
     };
-  }, [open, item, departments]);
+  }, [open, item]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,10 +192,18 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
     try {
       setLoading(true);
       setError('');
+      const department_ids = [
+        ...new Set(
+          deptValues
+            .map((v) => parseInt(v, 10))
+            .filter((n) => Number.isFinite(n) && n > 0),
+        ),
+      ].slice(0, 3);
       const payload: UpdateItemDto = {
         itemname: itemname.trim(),
         IsCancel: isCancel === '1' ? 1 : 0,
-        DepartmentID: selectValueToDepartmentId(departmentIdStr),
+        DepartmentID: department_ids[0] ?? 0,
+        department_ids,
       };
       if (unitIdStr.trim()) {
         const n = parseInt(unitIdStr, 10);
@@ -283,25 +291,19 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
               </Select>
             </div>
 
-            <SearchableSelect
-              positionMode="floating"
-              label="แผนกที่ใช้ Item นี้"
-              placeholder="เลือกแผนก"
-              value={departmentIdStr}
-              onValueChange={(value) => {
-                setDepartmentIdStr(value);
-                const id = selectValueToDepartmentId(value);
-                setDeptInitialDisplay(departmentInitialDisplay(id, departments));
-              }}
-              options={buildDepartmentSelectOptions(departments)}
+            <ItemDepartmentsPicker
+              departments={departments}
               loading={loadingDepts}
               onSearch={loadDepartments}
-              searchPlaceholder="ค้นหาชื่อแผนก..."
-              initialDisplay={deptInitialDisplay}
+              values={deptValues}
+              onChange={(index, value) =>
+                setDeptValues((prev) => {
+                  const next = [...prev];
+                  next[index] = value;
+                  return next;
+                })
+              }
             />
-            <p className="-mt-2 text-xs text-muted-foreground">
-              เลือก &quot;ทุกแผนก&quot; (DepartmentID = 0) = ใช้ได้ทุกแผนก
-            </p>
 
             <div>
               <Label htmlFor="edit-item-itemname">

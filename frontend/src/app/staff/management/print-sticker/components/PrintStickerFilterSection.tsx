@@ -263,7 +263,7 @@ export default function PrintStickerFilterSection({
           initialDisplay={
             canPickAllRoleDepartments && !departmentId?.trim()
               ? {
-                  label: 'ทั้งหมด (ทุกแผนกที่ role อนุญาต)',
+                  label: 'ทั้งหมด',
                   ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
                 }
               : undefined

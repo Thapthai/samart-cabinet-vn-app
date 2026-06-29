@@ -262,6 +262,12 @@ export const itemsApi = {
     return response.data;
   },
 
+  /** รายการ DepartmentID ที่ใช้ Item นี้ (จาก ItemDepartments) */
+  getDepartments: async (itemcode: string): Promise<ApiResponse<number[]>> => {
+    const response = await api.get(`/items/${encodeURIComponent(itemcode)}/departments`);
+    return response.data;
+  },
+
   update: async (itemcode: string, data: UpdateItemDto): Promise<ApiResponse<Item>> => {
     const { picture, ...restData } = data;
 

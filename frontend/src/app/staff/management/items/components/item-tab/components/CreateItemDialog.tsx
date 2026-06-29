@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { itemsApi, unitsApi, departmentApi, type UnitRow } from '@/lib/api';
+import { unitsApi, type UnitRow } from '@/lib/api';
+import { staffItemsApi } from '@/lib/staffApi/itemsApi';
+import { fetchStaffDepartmentsForFilter } from '@/lib/staffDepartmentScope';
 import { itemSchema, type ItemFormData } from '@/lib/validations';
 import {
   Dialog,
@@ -25,13 +27,9 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import SearchableSelect from '@/app/admin/management/cabinet-departments/components/SearchableSelect';
-import {
-  buildDepartmentSelectOptions,
-  departmentInitialDisplay,
-  selectValueToDepartmentId,
-  type DeptRow,
-} from './itemHelpers';
+import SearchableSelect from './SearchableSelect';
+import { type DeptRow } from './itemHelpers';
+import ItemDepartmentsPicker from './ItemDepartmentsPicker';
 
 /** พื้นหลังขาวชัด — ไม่ใช้ bg-transparent ของ Input เริ่มต้น */
 const fieldInputClass = 'bg-white';
@@ -46,7 +44,6 @@ interface CreateItemDialogProps {
 export default function CreateItemDialog({
   open,
   onOpenChange,
-  userId,
   onSuccess,
 }: CreateItemDialogProps) {
   const [loading, setLoading] = useState(false);
@@ -60,9 +57,7 @@ export default function CreateItemDialog({
   >(undefined);
   const [departments, setDepartments] = useState<DeptRow[]>([]);
   const [loadingDepts, setLoadingDepts] = useState(false);
-  const [deptInitialDisplay, setDeptInitialDisplay] = useState<
-    { label: string; subLabel?: string } | undefined
-  >({ label: 'ทุกแผนก', subLabel: 'DepartmentID = 0' });
+  const [deptValues, setDeptValues] = useState<string[]>(['', '', '']);
   const unitRequestSeq = useRef(0);
 
   const loadUnits = useCallback(async (keyword?: string) => {
@@ -102,13 +97,15 @@ export default function CreateItemDialog({
     },
   });
 
+  // โหลดเฉพาะแผนกที่ผู้ใช้ Staff สังกัด (GET /staff/me/departments)
   const loadDepartments = useCallback(async (keyword?: string) => {
     setLoadingDepts(true);
     try {
-      const res = await departmentApi.getAll({ limit: 100, keyword: keyword?.trim() || undefined });
-      if (res.success && Array.isArray(res.data)) {
-        setDepartments(res.data as DeptRow[]);
-      }
+      const list = await fetchStaffDepartmentsForFilter({
+        keyword: keyword?.trim() || undefined,
+        limit: 500,
+      });
+      setDepartments(list as DeptRow[]);
     } catch {
       setDepartments([]);
     } finally {
@@ -129,7 +126,7 @@ export default function CreateItemDialog({
       form.reset();
       setUnitInitialDisplay(undefined);
       setSubUnitInitialDisplay(undefined);
-      setDeptInitialDisplay({ label: 'ทุกแผนก', subLabel: 'DepartmentID = 0' });
+      setDeptValues(['', '', '']);
     }
   }, [open, form]);
 
@@ -137,7 +134,14 @@ export default function CreateItemDialog({
     try {
       setLoading(true);
       const { UnitID, SubUnitID, SubUnitQty, IsCancel, DepartmentID, ...rest } = data;
-      const response = await itemsApi.create({
+      const department_ids = [
+        ...new Set(
+          deptValues
+            .map((v) => parseInt(v, 10))
+            .filter((n) => Number.isFinite(n) && n > 0),
+        ),
+      ].slice(0, 3);
+      const response = await staffItemsApi.create({
         ...rest,
         ...(UnitID != null && UnitID > 0 ? { UnitID } : {}),
         ...(SubUnitID != null && SubUnitID > 0 ? { SubUnitID } : {}),
@@ -145,7 +149,8 @@ export default function CreateItemDialog({
         IsNormal: '1',
         IsStock: true,
         IsCancel: IsCancel ?? 0,
-        DepartmentID: DepartmentID ?? 0,
+        DepartmentID: department_ids[0] ?? 0,
+        department_ids,
         item_status: (IsCancel ?? 0) === 1 ? 1 : 0,
       });
 
@@ -243,35 +248,18 @@ export default function CreateItemDialog({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="DepartmentID"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <SearchableSelect
-                      positionMode="floating"
-                      label="แผนกที่ใช้ Item นี้"
-                      placeholder="เลือกแผนก"
-                      value={field.value != null && field.value > 0 ? String(field.value) : '0'}
-                      onValueChange={(value) => {
-                        const id = selectValueToDepartmentId(value);
-                        field.onChange(id);
-                        setDeptInitialDisplay(departmentInitialDisplay(id, departments));
-                      }}
-                      options={buildDepartmentSelectOptions(departments)}
-                      loading={loadingDepts}
-                      onSearch={loadDepartments}
-                      searchPlaceholder="ค้นหาชื่อแผนก..."
-                      initialDisplay={deptInitialDisplay}
-                    />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    &quot;ทุกแผนก&quot; (DepartmentID = 0) = ใช้ได้ทุกแผนก
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
+            <ItemDepartmentsPicker
+              departments={departments}
+              loading={loadingDepts}
+              onSearch={loadDepartments}
+              values={deptValues}
+              onChange={(index, value) =>
+                setDeptValues((prev) => {
+                  const next = [...prev];
+                  next[index] = value;
+                  return next;
+                })
+              }
             />
 
             {/* Barcode */}
@@ -450,4 +438,3 @@ export default function CreateItemDialog({
     </Dialog>
   );
 }
-

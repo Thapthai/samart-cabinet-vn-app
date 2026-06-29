@@ -326,10 +326,33 @@ model Item {
   itemSlotInCabinetDetail ItemSlotInCabinetDetail[] @relation("DetailToItem")
   unit                    Unit?                     @relation("ItemMainUnit", fields: [UnitID], references: [ID], onDelete: SetNull)
   subUnit                 Unit?                     @relation("ItemSubUnit", fields: [SubUnitID], references: [ID], onDelete: SetNull)
+  itemDepartments         ItemDepartments[]
 
   @@index([itemtypeID])
   @@index([SubUnitID], map: "idx_item_sub_unit_id")
   @@map("item")
+}
+
+model ItemDepartments {
+  ID               Int       @id @default(autoincrement())
+  itemcode         String    @db.VarChar(25)
+  DeptID           Int?
+  IsCancel         Int?      @default(0)
+  AdminCheck       String?   @db.VarChar(50)
+  DateAdminCheck   DateTime? @db.DateTime(0)
+  UnAdminCheck     String?   @db.VarChar(50)
+  UnDateAdminCheck DateTime? @db.DateTime(0)
+  UsedCount        Int?      @default(0)
+  B_ID             Int?
+
+  // Relations
+  item Item? @relation(fields: [itemcode], references: [itemcode])
+  department Department? @relation(fields: [DeptID], references: [ID])
+
+  @@index([itemcode])
+  @@index([DeptID])
+  @@index([IsCancel])
+  @@map("itemdepartment")
 }
 
 /// แผนกย่อยภายใต้แผนกหลัก (เช่น emergency-opd, emergency-ipd) — `code` ไม่ซ้ำทั้งระบบ
@@ -635,7 +658,7 @@ model Department {
   users                       User[]
   itemSlotBorrowDetails       ItemSlotInCabinetDetail[]    @relation("ItemSlotDetailBorrowDepartment")
   staffPermissionDepartments  StaffPermissionDepartment[]
-
+  itemDepartments             ItemDepartments[]
   @@map("department")
 }
 

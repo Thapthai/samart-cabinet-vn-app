@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import ItemNameWithUnit from '@/components/ItemNameWithUnit';
 import ItemStatusBadge from './ItemStatusBadge';
-import { formatItemDepartmentLabel, type DeptRow } from './itemHelpers';
+import { type DeptRow } from './itemHelpers';
+import { generateItemPageNumbers } from './itemPagination';
 
 export interface ItemsMasterTableCardProps {
   items: Item[];
@@ -18,6 +19,8 @@ export interface ItemsMasterTableCardProps {
   total: number;
   totalPages: number;
   deptMap: Map<number, DeptRow>;
+  /** กรองเฉพาะ Division ที่เลือก (undefined = ทุก Division ที่สังกัด) */
+  departmentFilter?: number;
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
   onCreateClick: () => void;
@@ -29,43 +32,48 @@ export default function ItemsMasterTableCard({
   loading,
   currentPage,
   itemsPerPage,
-  total,
-  totalPages,
   deptMap,
+  departmentFilter,
   onEdit,
   onDelete,
   onCreateClick,
   onPageChange,
 }: ItemsMasterTableCardProps) {
-  const paginatedItems = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return items.slice(start, start + itemsPerPage);
-  }, [items, currentPage, itemsPerPage]);
+  // แสดงเฉพาะ "ทุกแผนก" (ไม่มีแผนกระบุ) และแผนกที่ผู้ใช้สังกัด (deptMap = แผนกที่ scope มาแล้ว)
+  // ถ้าเลือก Division เจาะจง → แสดงเฉพาะ item ของ Division นั้น (รวม "ทุกแผนก")
+  const visibleItems = useMemo(() => {
+    const allowedIds = new Set(deptMap.keys());
+    return items.filter((it) => {
+      const ids = (it.department_ids ?? []).filter((n) => n != null && n > 0);
+      if (ids.length === 0) return true; // ทุกแผนก — ใช้ได้ทุก Division
+      if (!ids.some((id) => allowedIds.has(id))) return false;
+      if (departmentFilter != null) return ids.includes(departmentFilter);
+      return true;
+    });
+  }, [items, deptMap, departmentFilter]);
 
-  const rowOffset = (currentPage - 1) * itemsPerPage;
+  const visibleTotal = visibleItems.length;
+  const visibleTotalPages = Math.max(1, Math.ceil(visibleTotal / itemsPerPage));
+  const effectivePage = Math.min(Math.max(1, currentPage), visibleTotalPages);
 
-  const generatePageNumbers = () => {
-    const pages: (number | string)[] = [];
-    const maxVisible = 5;
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else if (currentPage <= 3) {
-      for (let i = 1; i <= 4; i++) pages.push(i);
-      pages.push('...');
-      pages.push(totalPages);
-    } else if (currentPage >= totalPages - 2) {
-      pages.push(1);
-      pages.push('...');
-      for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      pages.push('...');
-      for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
-      pages.push('...');
-      pages.push(totalPages);
-    }
-    return pages;
+  // แสดงเฉพาะ Division ที่ผู้ใช้สังกัด (ตัดแผนกอื่นที่ item ผูกไว้ออก)
+  const renderDivisionLabel = (it: Item): string => {
+    const ids = (it.department_ids ?? []).filter((n) => n != null && n > 0);
+    if (ids.length === 0) return 'ทุกแผนก';
+    const names = it.department_names ?? [];
+    const labels = ids
+      .map((id, idx) => ({ id, name: names[idx] }))
+      .filter((x) => deptMap.has(x.id))
+      .map((x) => x.name || deptMap.get(x.id)?.DepName || deptMap.get(x.id)?.DepName2 || `แผนก #${x.id}`);
+    return labels.length > 0 ? labels.join(', ') : '—';
   };
+
+  const paginatedItems = useMemo(() => {
+    const start = (effectivePage - 1) * itemsPerPage;
+    return visibleItems.slice(start, start + itemsPerPage);
+  }, [visibleItems, effectivePage, itemsPerPage]);
+
+  const rowOffset = (effectivePage - 1) * itemsPerPage;
 
   return (
     <Card>
@@ -73,8 +81,8 @@ export default function ItemsMasterTableCard({
         <div className="space-y-1.5">
           <CardTitle>รายการ Item</CardTitle>
           <CardDescription>
-            {items.length > 0
-              ? `แสดง ${paginatedItems.length} รายการในหน้านี้ (สูงสุด ${itemsPerPage} รายการต่อหน้า) · รวม ${total} รายการ`
+            {visibleTotal > 0
+              ? `แสดง ${paginatedItems.length} รายการในหน้านี้ (สูงสุด ${itemsPerPage} รายการต่อหน้า) · รวม ${visibleTotal} รายการ`
               : 'รายการรหัสเวชภัณฑ์ในฐานข้อมูล รวมรายการที่ยังไม่มีในตู้'}
           </CardDescription>
         </div>
@@ -91,7 +99,7 @@ export default function ItemsMasterTableCard({
               <p className="text-sm text-gray-500">กำลังโหลดข้อมูล...</p>
             </div>
           </div>
-        ) : items.length === 0 ? (
+        ) : visibleTotal === 0 ? (
           <div className="py-12 text-center">
             <Boxes className="mx-auto mb-3 h-12 w-12 text-gray-300" />
             <p className="text-gray-500">ไม่พบรายการ</p>
@@ -111,7 +119,7 @@ export default function ItemsMasterTableCard({
                     <TableHead>รหัส Item</TableHead>
                     <TableHead className="min-w-[200px]">ชื่ออุปกรณ์</TableHead>
                     <TableHead>บาร์โค้ด</TableHead>
-                    <TableHead>แผนก</TableHead>
+                    <TableHead>Division</TableHead>
                     <TableHead>สถานะ</TableHead>
                     <TableHead>หน่วย</TableHead>
                     <TableHead>หน่วยการเบิก</TableHead>
@@ -130,7 +138,7 @@ export default function ItemsMasterTableCard({
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{it.Barcode || '—'}</TableCell>
                       <TableCell className="text-sm">
-                        {formatItemDepartmentLabel(it.DepartmentID, deptMap)}
+                        {renderDivisionLabel(it)}
                       </TableCell>
                       <TableCell>
                         <ItemStatusBadge item={it} />
@@ -161,10 +169,10 @@ export default function ItemsMasterTableCard({
               </Table>
             </div>
 
-            {totalPages > 1 && (
+            {visibleTotalPages > 1 && (
               <div className="mt-6 flex items-center justify-between border-t pt-4">
                 <div className="text-sm text-gray-500">
-                  หน้า {currentPage} จาก {totalPages} ({total} รายการ)
+                  หน้า {effectivePage} จาก {visibleTotalPages} ({visibleTotal} รายการ)
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button
@@ -172,7 +180,7 @@ export default function ItemsMasterTableCard({
                     variant="outline"
                     size="sm"
                     onClick={() => onPageChange(1)}
-                    disabled={currentPage === 1}
+                    disabled={effectivePage === 1}
                   >
                     แรกสุด
                   </Button>
@@ -180,12 +188,12 @@ export default function ItemsMasterTableCard({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => onPageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
+                    onClick={() => onPageChange(effectivePage - 1)}
+                    disabled={effectivePage === 1}
                   >
                     ก่อนหน้า
                   </Button>
-                  {generatePageNumbers().map((pNum, idx) =>
+                  {generateItemPageNumbers(effectivePage, visibleTotalPages).map((pNum, idx) =>
                     pNum === '...' ? (
                       <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">
                         ...
@@ -194,7 +202,7 @@ export default function ItemsMasterTableCard({
                       <Button
                         key={pNum}
                         type="button"
-                        variant={currentPage === pNum ? 'default' : 'outline'}
+                        variant={effectivePage === pNum ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => onPageChange(pNum as number)}
                       >
@@ -206,8 +214,8 @@ export default function ItemsMasterTableCard({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => onPageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
+                    onClick={() => onPageChange(effectivePage + 1)}
+                    disabled={effectivePage === visibleTotalPages}
                   >
                     ถัดไป
                   </Button>
@@ -215,8 +223,8 @@ export default function ItemsMasterTableCard({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => onPageChange(totalPages)}
-                    disabled={currentPage === totalPages}
+                    onClick={() => onPageChange(visibleTotalPages)}
+                    disabled={effectivePage === visibleTotalPages}
                   >
                     สุดท้าย
                   </Button>

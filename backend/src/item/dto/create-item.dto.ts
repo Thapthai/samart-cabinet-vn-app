@@ -1,9 +1,16 @@
 import { Type } from 'class-transformer';
-import { IsString, IsInt, IsBoolean, IsNumber, IsOptional, IsNotEmpty, IsDecimal, Min } from 'class-validator';
+import { IsString, IsInt, IsBoolean, IsNumber, IsOptional, IsNotEmpty, IsDecimal, Min, IsArray } from 'class-validator';
 
 export class CreateItemDto {
   @IsString()
   itemcode: string;
+
+  /** แผนกที่ใช้ Item นี้ (เก็บลง ItemDepartments) — สูงสุด 3 แผนก */
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Type(() => Number)
+  department_ids?: number[];
 
   @IsOptional()
   @IsString()

@@ -366,7 +366,7 @@ export default function FilterSection({
               initialDisplay={
                 canPickAllScopedDepartments && !filters.departmentId?.trim()
                   ? {
-                      label: 'ทั้งหมด (ทุกแผนกที่คุณเข้าถึงได้)',
+                      label: 'ทั้งหมด',
                       ...(scopedDivisionSummary ? { subLabel: scopedDivisionSummary } : {}),
                     }
                   : undefined

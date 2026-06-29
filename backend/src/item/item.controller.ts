@@ -45,7 +45,7 @@ const fileInterceptorOptions = {
 
 @Controller('items')
 export class ItemController {
-  constructor(private readonly itemService: ItemService) {}
+  constructor(private readonly itemService: ItemService) { }
 
   @Post()
   async create(@Body() body: CreateItemDto) {
@@ -165,6 +165,11 @@ export class ItemController {
     );
   }
 
+  @Get(':itemcode/departments')
+  async findItemDepartments(@Param('itemcode') itemcode: string) {
+    return this.itemService.getItemDepartments(itemcode);
+  }
+
   @Get(':itemcode')
   async findOne(@Param('itemcode') itemcode: string) {
     return this.itemService.findOneItem(itemcode);
@@ -195,6 +200,18 @@ export class ItemController {
       item_status: cleanBody.item_status !== undefined ? parseInt(cleanBody.item_status, 10) : undefined,
       IsCancel: cleanBody.IsCancel !== undefined ? parseInt(String(cleanBody.IsCancel), 10) : undefined,
     };
+
+    if (cleanBody.department_ids !== undefined) {
+      const raw = cleanBody.department_ids;
+      const arr = Array.isArray(raw)
+        ? raw
+        : typeof raw === 'string' && raw.trim() !== ''
+          ? raw.split(',')
+          : [];
+      updateItemDto.department_ids = arr
+        .map((v: any) => parseInt(String(v), 10))
+        .filter((n: number) => !Number.isNaN(n));
+    }
     if (cleanBody.UnitID !== undefined && cleanBody.UnitID !== null && String(cleanBody.UnitID).trim() !== '') {
       const uid = parseInt(String(cleanBody.UnitID), 10);
       if (!Number.isNaN(uid)) {
@@ -244,7 +261,7 @@ export class ItemController {
 
 @Controller('item-stocks')
 export class ItemStockController {
-  constructor(private readonly itemService: ItemService) {}
+  constructor(private readonly itemService: ItemService) { }
 
   /** สร้าง itemstock + RFID เฮกซ์ 24 ตัว (สุ่ม) ตามจำนวนแผ่น — ใช้ก่อนพิมพ์สติ๊กเกอร์ */
   @Post('for-print')

@@ -330,7 +330,7 @@ export default function FilterSection({
             initialDisplay={
               canPickAllRoleDepartments && !formFilters.departmentId?.trim()
                 ? {
-                    label: "ทั้งหมด (ทุกแผนกที่ role อนุญาต)",
+                    label: "ทั้งหมด",
                     ...(roleScopeDivisionSummary ? { subLabel: roleScopeDivisionSummary } : {}),
                   }
                 : undefined

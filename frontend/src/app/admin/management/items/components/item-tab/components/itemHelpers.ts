@@ -26,6 +26,20 @@ export function formatItemDepartmentLabel(
   return (d.DepName || d.DepName2 || `แผนก #${departmentId}`).trim();
 }
 
+/** ป้ายแผนกที่ใช้ Item นี้ (หลายแผนกจาก ItemDepartments) */
+export function formatItemDepartmentsLabel(
+  item: { department_names?: string[] | null; department_ids?: number[] | null },
+  deptMap?: Map<number, { DepName?: string | null; DepName2?: string | null }>,
+): string {
+  const names = (item.department_names ?? []).filter((n) => n && n.trim() !== '');
+  if (names.length > 0) return names.join(', ');
+  const ids = (item.department_ids ?? []).filter((n) => n != null && n > 0);
+  if (ids.length > 0) {
+    return ids.map((id) => formatItemDepartmentLabel(id, deptMap)).join(', ');
+  }
+  return 'ทุกแผนก';
+}
+
 export type DeptRow = { ID: number; DepName?: string | null; DepName2?: string | null };
 
 export function buildDepartmentSelectOptions(
