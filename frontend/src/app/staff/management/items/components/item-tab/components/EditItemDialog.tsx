@@ -256,16 +256,16 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
-      <DialogContent className="sm:max-w-2xl min-w-0">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[80vh] flex-col overflow-hidden sm:max-w-2xl min-w-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle>แก้ไขสินค้า (Master)</DialogTitle>
           <DialogDescription>
             แก้ไขชื่อ สถานะ แผนก หน่วย และหน่วยการเบิก: {item?.itemcode || ''}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="relative grid min-w-0 gap-4 overflow-x-hidden py-4">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="relative grid min-h-0 min-w-0 flex-1 gap-4 overflow-y-auto overflow-x-hidden py-4 pr-1">
             <div className="rounded-lg bg-blue-50 p-3">
               <div className="text-sm">
                 <span className="text-gray-600">รหัส: </span>
@@ -409,7 +409,7 @@ export default function EditItemDialog({ open, onOpenChange, item, onSuccess }: 
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-2 shrink-0 border-t pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               ยกเลิก
             </Button>

@@ -169,8 +169,8 @@ export default function CreateItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
-      <DialogContent className="sm:max-w-2xl min-w-0">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[80vh] flex-col overflow-hidden sm:max-w-2xl min-w-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle>เพิ่มอุปกรณ์ใหม่</DialogTitle>
           <DialogDescription>
             เพิ่มเวชภัณฑ์หรืออุปกรณ์ใหม่เข้าสู่ระบบ
@@ -178,8 +178,8 @@ export default function CreateItemDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="relative grid min-w-0 gap-4 overflow-x-hidden py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+            <div className="relative grid min-h-0 min-w-0 flex-1 gap-4 overflow-y-auto overflow-x-hidden py-4 pr-1">
             {/* รหัสสินค้า */}
             <FormField
               control={form.control}
@@ -416,7 +416,7 @@ export default function CreateItemDialog({
             />
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="mt-2 shrink-0 border-t pt-4">
               <Button
                 variant="outline"
                 type="button"
