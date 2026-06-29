@@ -8,6 +8,19 @@ interface RefRow {
   name: string;
 }
 
+/** ข้อมูล Item ที่ดึงมาเติมในไฟล์ template (1 แถวต่อ 1 Item) */
+interface ItemRow {
+  itemcode: string;
+  itemname: string;
+  barcode: string;
+  unit: string;
+  subUnit: string;
+  subUnitQty: string;
+  /** ชื่อแผนกที่ใช้ Item นี้ สูงสุด 3 แผนก */
+  departments: string[];
+  status: string;
+}
+
 /** นิยามคอลัมน์ในชีตกรอกข้อมูล */
 interface TemplateColumn {
   /** คีย์ภายใน (ใช้กับ logic ฝั่ง upload) */
@@ -29,6 +42,9 @@ const SHEET_DATA = 'Item Master';
 /** จำนวนแถวที่เปิดให้กรอก (ใส่ data validation ครอบไว้ล่วงหน้า) */
 const DATA_ROWS = 1000;
 
+/** จำนวนแถวว่างที่เพิ่มต่อท้ายรายการ Item เดิม เพื่อให้เพิ่ม Item ใหม่ได้ */
+const EXTRA_BLANK_ROWS = 200;
+
 /** คอลัมน์ helper (ซ่อนไว้) สำหรับเก็บค่า dropdown หน่วย/แผนก บนชีตเดียวกัน */
 const HELPER_UNIT_COL = 20; // คอลัมน์ T
 const HELPER_DEPT_COL = 21; // คอลัมน์ U
@@ -39,14 +55,14 @@ const COLUMNS: TemplateColumn[] = [
   {
     key: 'itemcode',
     header: 'รหัส Item *',
-    width: 22,
+    width: 30,
     required: true,
     note: 'รหัสเวชภัณฑ์ — บังคับกรอก เช่น MED2024001 (ถ้ามีอยู่แล้วจะอัปเดต ถ้าไม่มีจะเพิ่มใหม่)',
   },
   {
     key: 'itemname',
     header: 'ชื่ออุปกรณ์ *',
-    width: 38,
+    width: 100,
     required: true,
     note: 'ชื่อเวชภัณฑ์/อุปกรณ์ — บังคับกรอก',
   },
@@ -127,11 +143,31 @@ const COLOR = {
  */
 @Injectable()
 export class ItemMasterUploadService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
-  /** ดึง units + departments จาก DB แล้วสร้างไฟล์ template */
-  async buildTemplate(): Promise<{ buffer: Buffer; filename: string }> {
-    const [units, departments] = await Promise.all([
+  /**
+   * ดึง units + departments + items ทั้งหมดจาก DB แล้วสร้างไฟล์ template (เติมรายการเดิมมาด้วย)
+   * @param opts.departmentScope รายการ DepartmentID ที่ผู้ใช้เข้าถึงได้ (ฝั่ง staff)
+   *   - ถ้ากำหนด: แสดงเฉพาะ Item ที่ "ทุกแผนก" หรือมีแผนกอยู่ใน scope และจำกัดคอลัมน์แผนกเฉพาะที่อยู่ใน scope
+   *     (ให้ตรงกับที่แสดงในหน้าเว็บ staff)
+   *   - ถ้าไม่กำหนด (admin): แสดงทุก Item และทุกแผนก
+   */
+  async buildTemplate(opts?: {
+    departmentScope?: number[];
+  }): Promise<{ buffer: Buffer; filename: string }> {
+    // หมายเหตุ: ไม่ select คอลัมน์ IsCancel ของ unit/department ออกมา
+    // เพราะค่าจริงใน DB ไม่ตรงชนิดที่ schema ประกาศ (Prisma แปลงไม่ได้) — ใช้ where กรองแทน
+    const [unitsAll, deptsAll, unitsActive, deptsActive, items, itemDepts] = await Promise.all([
+      // ทั้งหมด (รวมที่ยกเลิก) สำหรับแปลง id → ชื่อ ของ Item เดิมให้ครบ
+      this.prisma.unit.findMany({
+        orderBy: { UnitName: 'asc' },
+        select: { ID: true, UnitName: true },
+      }),
+      this.prisma.department.findMany({
+        orderBy: { DepName: 'asc' },
+        select: { ID: true, DepName: true, DepName2: true },
+      }),
+      // เฉพาะที่ active สำหรับเป็นตัวเลือก dropdown
       this.prisma.unit.findMany({
         where: { OR: [{ IsCancel: false }, { IsCancel: null }] },
         orderBy: { UnitName: 'asc' },
@@ -142,22 +178,133 @@ export class ItemMasterUploadService {
         orderBy: { DepName: 'asc' },
         select: { ID: true, DepName: true, DepName2: true },
       }),
+      this.prisma.item.findMany({
+        orderBy: { itemcode: 'asc' },
+        select: {
+          itemcode: true,
+          itemname: true,
+          Barcode: true,
+          UnitID: true,
+          SubUnitID: true,
+          SubUnitQty: true,
+          IsCancel: true,
+        },
+      }),
+      this.prisma.itemDepartments.findMany({
+        where: { NOT: { IsCancel: 1 } },
+        orderBy: { ID: 'asc' },
+        select: { itemcode: true, DeptID: true },
+      }),
     ]);
 
-    const unitRows: RefRow[] = units
+    // map id → ชื่อ (ครบทุกตัว เพื่อแสดงค่าของ Item เดิมที่อาจอ้างถึงหน่วย/แผนกที่ถูกยกเลิก)
+    const unitNameById = new Map<number, string>();
+    unitsAll.forEach((u) => {
+      const name = (u.UnitName ?? '').trim();
+      if (name) unitNameById.set(u.ID, name);
+    });
+    const deptNameById = new Map<number, string>();
+    deptsAll.forEach((d) => {
+      const name = (d.DepName || d.DepName2 || '').trim();
+      if (name) deptNameById.set(d.ID, name);
+    });
+
+    // รายการ dropdown ใช้เฉพาะที่ยัง active
+    const unitRows: RefRow[] = unitsActive
       .filter((u) => (u.UnitName ?? '').trim() !== '')
       .map((u) => ({ id: u.ID, name: (u.UnitName ?? '').trim() }));
-    const deptRows: RefRow[] = departments
+    const deptRows: RefRow[] = deptsActive
       .map((d) => ({ id: d.ID, name: (d.DepName || d.DepName2 || '').trim() }))
       .filter((d) => d.name !== '');
 
-    const buffer = await this.generateTemplate(unitRows, deptRows);
+    // รวม DepartmentID ของแต่ละ Item (สูงสุด 3 แผนก ไม่ซ้ำ)
+    const deptIdsByItem = new Map<string, number[]>();
+    itemDepts.forEach((r) => {
+      if (r.DeptID == null) return;
+      const arr = deptIdsByItem.get(r.itemcode) ?? [];
+      if (arr.length < 3 && !arr.includes(r.DeptID)) arr.push(r.DeptID);
+      deptIdsByItem.set(r.itemcode, arr);
+    });
+
+    // scope แผนกของผู้ใช้ (ฝั่ง staff) — ถ้ากำหนดมาให้กรองตามที่หน้าเว็บแสดง
+    const scope = opts?.departmentScope;
+    const hasScope = Array.isArray(scope);
+    const scopeSet = hasScope
+      ? new Set(scope.filter((n) => n != null && n > 0))
+      : null;
+
+    const itemRows: ItemRow[] = [];
+    for (const it of items) {
+      const ids = deptIdsByItem.get(it.itemcode) ?? [];
+      let displayIds = ids;
+
+      if (hasScope && scopeSet) {
+        if (ids.length > 0) {
+          const inScope = ids.filter((id) => scopeSet.has(id));
+          // มีแผนกระบุไว้แต่ไม่มีแผนกใดอยู่ใน scope → ไม่แสดง (เหมือนหน้าเว็บ)
+          if (inScope.length === 0) continue;
+          displayIds = inScope; // แสดงเฉพาะแผนกที่ผู้ใช้สังกัด
+        } else {
+          displayIds = []; // ทุกแผนก — แสดงได้
+        }
+      }
+
+      const departments = displayIds
+        .map((id) => deptNameById.get(id))
+        .filter((n): n is string => !!n)
+        .slice(0, 3);
+
+      itemRows.push({
+        itemcode: it.itemcode,
+        itemname: (it.itemname ?? '').trim(),
+        barcode: (it.Barcode ?? '').trim(),
+        unit: it.UnitID && it.UnitID > 0 ? (unitNameById.get(it.UnitID) ?? '') : '',
+        subUnit: it.SubUnitID && it.SubUnitID > 0 ? (unitNameById.get(it.SubUnitID) ?? '') : '',
+        subUnitQty: it.SubUnitQty && it.SubUnitQty > 0 ? String(it.SubUnitQty) : '',
+        departments,
+        status: it.IsCancel === 1 ? 'ปิดการใช้งาน' : 'ใช้งาน',
+      });
+    }
+
+    const buffer = await this.generateTemplate(unitRows, deptRows, itemRows);
     const date = new Date().toISOString().split('T')[0];
-    return { buffer, filename: `item_master_template_${date}.xlsx` };
+    return { buffer, filename: `item_master_${date}.xlsx` };
   }
 
-  /** สร้างไฟล์ Excel template (ชีตเดียว) */
-  private async generateTemplate(units: RefRow[], departments: RefRow[]): Promise<Buffer> {
+  /** ค่าในแต่ละคอลัมน์ของแถว Item ตาม key */
+  private valueForColumn(row: ItemRow, key: string): string {
+    switch (key) {
+      case 'itemcode':
+        return row.itemcode;
+      case 'itemname':
+        return row.itemname;
+      case 'barcode':
+        return row.barcode;
+      case 'unit':
+        return row.unit;
+      case 'subUnit':
+        return row.subUnit;
+      case 'subUnitQty':
+        return row.subUnitQty;
+      case 'department1':
+        return row.departments[0] ?? '';
+      case 'department2':
+        return row.departments[1] ?? '';
+      case 'department3':
+        return row.departments[2] ?? '';
+      case 'status':
+        return row.status;
+      default:
+        return '';
+    }
+  }
+
+  /** สร้างไฟล์ Excel template (ชีตเดียว) พร้อมเติมรายการ Item เดิม */
+  private async generateTemplate(
+    units: RefRow[],
+    departments: RefRow[],
+    itemRows: ItemRow[] = [],
+  ): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Samart Cabinet';
     workbook.created = new Date();
@@ -194,6 +341,26 @@ export class ItemMasterUploadService {
     });
     headerRow.height = 32;
 
+    const firstDataRow = 2;
+
+    // เติมรายการ Item เดิมลงในแต่ละแถว
+    itemRows.forEach((row, i) => {
+      const excelRow = sheet.getRow(firstDataRow + i);
+      COLUMNS.forEach((col, idx) => {
+        const cell = excelRow.getCell(idx + 1);
+        const v = this.valueForColumn(row, col.key);
+        if (v !== '') cell.value = v;
+        cell.font = { name: 'Tahoma', size: 11 };
+        cell.alignment = { vertical: 'middle', wrapText: false };
+        cell.border = {
+          top: { style: 'thin', color: { argb: COLOR.border } },
+          left: { style: 'thin', color: { argb: COLOR.border } },
+          bottom: { style: 'thin', color: { argb: COLOR.border } },
+          right: { style: 'thin', color: { argb: COLOR.border } },
+        };
+      });
+    });
+
     // เก็บค่า dropdown (หน่วย/แผนก) ไว้ในคอลัมน์ helper ที่ซ่อนไว้บนชีตเดียวกัน
     units.forEach((u, i) => {
       sheet.getCell(i + 1, HELPER_UNIT_COL).value = u.name;
@@ -204,9 +371,9 @@ export class ItemMasterUploadService {
     sheet.getColumn(HELPER_UNIT_COL).hidden = true;
     sheet.getColumn(HELPER_DEPT_COL).hidden = true;
 
-    // ใส่ data validation (dropdown) ครอบทุกแถวที่เปิดให้กรอก
-    const firstDataRow = 2;
-    const lastDataRow = firstDataRow + DATA_ROWS - 1;
+    // ใส่ data validation (dropdown) ครอบทั้งรายการเดิม + แถวว่างสำหรับเพิ่มใหม่
+    const dataRowCount = Math.max(DATA_ROWS, itemRows.length + EXTRA_BLANK_ROWS);
+    const lastDataRow = firstDataRow + dataRowCount - 1;
     const unitColLetter = sheet.getColumn(HELPER_UNIT_COL).letter;
     const deptColLetter = sheet.getColumn(HELPER_DEPT_COL).letter;
     const unitRange =

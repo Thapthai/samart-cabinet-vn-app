@@ -25,11 +25,22 @@ export class ReportServiceController {
     private readonly itemMasterUploadService: ItemMasterUploadService,
   ) {}
 
-  /** ดาวน์โหลด template Excel สำหรับเพิ่ม/อัปเดต Item Master (พร้อม dropdown หน่วย/แผนกจากระบบ) */
+  /**
+   * ดาวน์โหลด template Excel สำหรับเพิ่ม/อัปเดต Item Master (พร้อม dropdown หน่วย/แผนกจากระบบ)
+   * — ส่ง department_ids (scope แผนกของผู้ใช้ฝั่ง staff) เพื่อให้ข้อมูลตรงกับที่หน้าเว็บแสดง
+   *   ถ้าไม่ส่ง (admin) จะได้ Item ทั้งหมด
+   */
   @Post('item-master/template')
-  async downloadItemMasterTemplate() {
+  async downloadItemMasterTemplate(@Body() body?: { department_ids?: number[] }) {
     try {
-      const { buffer, filename } = await this.itemMasterUploadService.buildTemplate();
+      const scope = Array.isArray(body?.department_ids)
+        ? body!.department_ids
+            .map((n) => Number(n))
+            .filter((n) => Number.isFinite(n) && n > 0)
+        : undefined;
+      const { buffer, filename } = await this.itemMasterUploadService.buildTemplate(
+        scope ? { departmentScope: scope } : undefined,
+      );
       return toFileResponse(buffer, filename, EXCEL_CONTENT);
     } catch (error: any) {
       return { success: false, error: error?.message };

@@ -155,12 +155,16 @@ export const staffItemsApi = {
         return response.data;
     },
 
-    /** ดาวน์โหลดไฟล์ template Excel สำหรับเพิ่ม/อัปเดต Item Master */
-    downloadUploadTemplate: async (): Promise<void> => {
-        const response = await staffApi.post('/reports/item-master/template');
+    /**
+     * ดาวน์โหลดไฟล์ template Excel สำหรับเพิ่ม/อัปเดต Item Master
+     * @param departmentIds scope แผนกที่ผู้ใช้สังกัด — ให้ข้อมูลใน template ตรงกับที่หน้าเว็บแสดง
+     */
+    downloadUploadTemplate: async (departmentIds?: number[]): Promise<void> => {
+        const body = Array.isArray(departmentIds) ? { department_ids: departmentIds } : undefined;
+        const response = await staffApi.post('/reports/item-master/template', body);
         triggerNestedDownload(
             response.data,
-            `item_master_template_${new Date().toISOString().split('T')[0]}.xlsx`,
+            `item_master_${new Date().toISOString().split('T')[0]}.xlsx`,
         );
     },
 

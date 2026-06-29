@@ -263,6 +263,7 @@ export default function ItemTab() {
         open={uploadOpen}
         onOpenChange={setUploadOpen}
         onSuccess={() => fetchList(undefined, { resetPage: false, silent: true })}
+        allowedDepartmentIds={[...deptMap.keys()]}
       />
 
       <CreateItemDialog
