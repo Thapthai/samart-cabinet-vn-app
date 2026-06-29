@@ -281,19 +281,16 @@ export default function SearchableSelect({
     : filteredOptions;
 
   // แสดงรายการที่เลือกใน trigger: จาก options → initialDisplay → อย่างน้อยแสดงค่า value
-  const displayValue =
-    selectedOption ||
-    lastSelectedRef.current ||
-    (trimmedValue
-      ? (initialDisplay?.label || initialDisplay?.subLabel) && initialDisplay
-        ? initialDisplay
-        : { label: trimmedValue }
-      : null) ||
-    (disabled && !trimmedValue && disabledDisplay
-      ? (disabledDisplay.label || disabledDisplay.subLabel) && disabledDisplay
-        ? disabledDisplay
-        : null
-      : null);
+  // เมื่อค่าว่าง (ถูกล้าง) ต้องไม่ค้างค่าที่เคยเลือกไว้ (lastSelectedRef) — ให้แสดง placeholder
+  const displayValue = trimmedValue
+    ? selectedOption ||
+      (lastSelectedRef.current && lastSelectedRef.current.value === trimmedValue
+        ? lastSelectedRef.current
+        : null) ||
+      ((initialDisplay?.label || initialDisplay?.subLabel) ? initialDisplay : { label: trimmedValue })
+    : disabled && disabledDisplay && (disabledDisplay.label || disabledDisplay.subLabel)
+      ? disabledDisplay
+      : null;
 
   const panelMaxHeight = position?.maxHeight ?? 300;
   const listMaxHeight =
