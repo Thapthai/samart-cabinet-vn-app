@@ -1441,7 +1441,7 @@ export class MedicalSuppliesService {
       const staffIds = staffScope?.staffAllowedDepartmentIds;
 
       console.log('staffIds', staffIds);
-      
+
       if (staffIds !== undefined && Array.isArray(staffIds) && staffIds.length === 0) {
         return {
           data: [],
@@ -1980,27 +1980,30 @@ export class MedicalSuppliesService {
     const conditions: string[] = ['1=1'];
     const params: (string | number | Date)[] = [];
 
-    if (query.startDate) {
-      conditions.push(`created_at >= ?`);
-      params.push(new Date(query.startDate + 'T00:00:00.000Z'));
-    }
-    if (query.endDate) {
-      conditions.push(`created_at <= ?`);
-      params.push(new Date(query.endDate + 'T23:59:59.999Z'));
-    }
     const hnTrim = query.patient_hn?.trim();
-    if (hnTrim) {
-      conditions.push(
-        `(patient_hn = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.patient_hn')) = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.HN')) = ?)`,
-      );
-      params.push(hnTrim, hnTrim, hnTrim);
-    }
     const enTrim = query.en?.trim();
+    // เมื่อค้นหาด้วย HN/EN ให้ค้นข้ามทุกวัน (ไม่จำกัดด้วยช่วงวันที่ default = วันนี้)
+    const hasIdentitySearch = !!(hnTrim || enTrim);
+
+    if (!hasIdentitySearch) {
+      if (query.startDate) {
+        conditions.push(`created_at >= ?`);
+        params.push(new Date(query.startDate + 'T00:00:00.000Z'));
+      }
+      if (query.endDate) {
+        conditions.push(`created_at <= ?`);
+        params.push(new Date(query.endDate + 'T23:59:59.999Z'));
+      }
+    }
+
+    // ค้นเฉพาะคอลัมน์ patient_hn / en (มี index) แบบตรงตัว → ใช้ index ได้ เร็วสุด
+    if (hnTrim) {
+      conditions.push(`patient_hn = ?`);
+      params.push(hnTrim);
+    }
     if (enTrim) {
-      conditions.push(
-        `(en = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.en')) = ? OR JSON_UNQUOTE(JSON_EXTRACT(action, '$.EN')) = ?)`,
-      );
-      params.push(enTrim, enTrim, enTrim);
+      conditions.push(`en = ?`);
+      params.push(enTrim);
     }
     const typeTrim = query.log_type?.trim();
     if (typeTrim) {
@@ -2131,26 +2134,10 @@ export class MedicalSuppliesService {
         },
       });
 
-      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
-      // await this.createLog(null, {
-      //   type: 'QUERY',
-      //   status: 'SUCCESS',
-      //   action: 'findByHN',
-      //   patient_hn: hn,
-      //   results_count: usages.length,
-      // });
 
       return usages as unknown as MedicalSupplyUsageResponse[];
     } catch (error) {
-      // ไม่เก็บ log การดึงข้อมูล (ปิดไว้)
-      // await this.createLog(null, {
-      //   type: 'QUERY',
-      //   status: 'ERROR',
-      //   action: 'findByHN',
-      //   patient_hn: hn,
-      //   error_message: error.message,
-      //   error_code: error.code,
-      // });
+
       throw error;
     }
   }
