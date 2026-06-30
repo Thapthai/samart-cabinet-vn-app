@@ -159,15 +159,10 @@ export class ItemMasterUploadService {
 
       result.total++;
 
-      // ตรวจสอบช่องบังคับ (เฉพาะ รหัส Item และ ชื่ออุปกรณ์)
+      // ตรวจสอบรหัส Item (บังคับเสมอ)
       if (itemcode === '') {
         result.failed++;
         result.errors.push({ row: r, message: 'ไม่ได้กรอกรหัส Item' });
-        continue;
-      }
-      if (itemname === '') {
-        result.failed++;
-        result.errors.push({ row: r, itemcode, message: 'ไม่ได้กรอกชื่ออุปกรณ์' });
         continue;
       }
 
@@ -185,6 +180,13 @@ export class ItemMasterUploadService {
         where: { itemcode },
         select: { itemcode: true },
       });
+
+      // ชื่ออุปกรณ์บังคับเฉพาะตอนเพิ่มใหม่ (insert) — ตอนอัปเดตจะไม่นำชื่อไปทับของเดิม
+      if (!existing && itemname === '') {
+        result.failed++;
+        result.errors.push({ row: r, itemcode, message: 'ไม่ได้กรอกชื่ออุปกรณ์' });
+        continue;
+      }
 
       // หน่วย
       let unitId: number | undefined;
@@ -239,24 +241,27 @@ export class ItemMasterUploadService {
       const subUnitQty = cellToInt(getCell(colSubUnitQty));
       const barcode = cellToString(getCell(colBarcode));
 
-      const dto = {
-        itemcode,
-        itemname,
+      const baseDto = {
         ...(barcode !== '' ? { Barcode: barcode } : {}),
         ...(unitId != null ? { UnitID: unitId } : {}),
         ...(subUnitId != null ? { SubUnitID: subUnitId } : {}),
         ...(subUnitQty != null && subUnitQty >= 1 ? { SubUnitQty: subUnitQty } : {}),
         ...(description !== '' ? { Description: description } : {}),
         department_ids: departmentIds,
-        IsCancel: isCancel,
-        item_status: isCancel === 1 ? 1 : 0,
-        IsNormal: '1',
-        IsStock: true,
       };
 
       const opRes = existing
-        ? await this.itemService.updateItem(itemcode, dto as any)
-        : await this.itemService.createItem(dto as any);
+        ? // อัปเดต: ไม่นำชื่อ/สถานะไปทับของเดิม — ปรับเฉพาะข้อมูลที่อยู่ใน template (แผนก ฯลฯ)
+          await this.itemService.updateItem(itemcode, { itemcode, ...baseDto } as any)
+        : await this.itemService.createItem({
+            itemcode,
+            itemname,
+            ...baseDto,
+            IsCancel: isCancel,
+            item_status: isCancel === 1 ? 1 : 0,
+            IsNormal: '1',
+            IsStock: true,
+          } as any);
 
       if (opRes?.success) {
         if (existing) result.updated++;

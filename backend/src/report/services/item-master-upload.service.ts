@@ -62,7 +62,7 @@ const COLUMNS: TemplateColumn[] = [
   {
     key: 'itemname',
     header: 'ชื่ออุปกรณ์ *',
-    width: 100,
+    width: 70,
     required: true,
     note: 'ชื่อเวชภัณฑ์/อุปกรณ์ — บังคับกรอก',
   },
