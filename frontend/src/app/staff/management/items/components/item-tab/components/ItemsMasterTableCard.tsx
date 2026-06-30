@@ -58,15 +58,15 @@ export default function ItemsMasterTableCard({
   const visibleTotalPages = Math.max(1, Math.ceil(visibleTotal / itemsPerPage));
   const effectivePage = Math.min(Math.max(1, currentPage), visibleTotalPages);
 
-  // แสดงเฉพาะ Division ที่ผู้ใช้สังกัด (ตัดแผนกอื่นที่ item ผูกไว้ออก)
+  // แสดงทุก Division ที่ item นั้นสังกัด (เพื่อให้ทราบว่า item อยู่แผนกไหนบ้าง)
   const renderDivisionLabel = (it: Item): string => {
     const ids = (it.department_ids ?? []).filter((n) => n != null && n > 0);
     if (ids.length === 0) return 'ทุกแผนก';
     const names = it.department_names ?? [];
-    const labels = ids
-      .map((id, idx) => ({ id, name: names[idx] }))
-      .filter((x) => deptMap.has(x.id))
-      .map((x) => x.name || deptMap.get(x.id)?.DepName || deptMap.get(x.id)?.DepName2 || `แผนก #${x.id}`);
+    const labels = ids.map(
+      (id, idx) =>
+        names[idx] || deptMap.get(id)?.DepName || deptMap.get(id)?.DepName2 || `แผนก #${id}`,
+    );
     return labels.length > 0 ? labels.join(', ') : '—';
   };
 

@@ -67,32 +67,6 @@ const COLUMNS: TemplateColumn[] = [
     note: 'ชื่อเวชภัณฑ์/อุปกรณ์ — บังคับกรอก',
   },
   {
-    key: 'barcode',
-    header: 'บาร์โค้ด',
-    width: 22,
-    note: 'บาร์โค้ด (ถ้ามี)',
-  },
-  {
-    key: 'unit',
-    header: 'หน่วย (Stock)',
-    width: 20,
-    dropdown: 'unit',
-    note: 'หน่วยนับหลักสำหรับ stock — เลือกจากรายการ',
-  },
-  {
-    key: 'subUnit',
-    header: 'หน่วยการเบิก',
-    width: 20,
-    dropdown: 'unit',
-    note: 'หน่วยการเบิก (แสดงผลเท่านั้น ไม่ใช้คำนวณ stock) — เลือกจากรายการ',
-  },
-  {
-    key: 'subUnitQty',
-    header: 'จำนวนหน่วยการเบิกต่อ 1 หน่วย',
-    width: 26,
-    note: 'ตัวเลข เช่น 18 (เม็ดต่อกล่อง) — ใช้แสดงผลเท่านั้น',
-  },
-  {
     key: 'department1',
     header: 'แผนกที่ใช้ 1',
     width: 24,
@@ -112,19 +86,6 @@ const COLUMNS: TemplateColumn[] = [
     width: 24,
     dropdown: 'department',
     note: 'แผนกเพิ่มเติม (ไม่บังคับ) — สูงสุด 3 แผนกต่อ Item',
-  },
-  {
-    key: 'description',
-    header: 'คำอธิบาย',
-    width: 40,
-    note: 'รายละเอียดเพิ่มเติม (ถ้ามี)',
-  },
-  {
-    key: 'status',
-    header: 'สถานะ',
-    width: 16,
-    dropdown: 'status',
-    note: 'ใช้งาน / ปิดการใช้งาน (เว้นว่าง = ใช้งาน)',
   },
 ];
 
@@ -236,20 +197,15 @@ export class ItemMasterUploadService {
     const itemRows: ItemRow[] = [];
     for (const it of items) {
       const ids = deptIdsByItem.get(it.itemcode) ?? [];
-      let displayIds = ids;
 
-      if (hasScope && scopeSet) {
-        if (ids.length > 0) {
-          const inScope = ids.filter((id) => scopeSet.has(id));
-          // มีแผนกระบุไว้แต่ไม่มีแผนกใดอยู่ใน scope → ไม่แสดง (เหมือนหน้าเว็บ)
-          if (inScope.length === 0) continue;
-          displayIds = inScope; // แสดงเฉพาะแผนกที่ผู้ใช้สังกัด
-        } else {
-          displayIds = []; // ทุกแผนก — แสดงได้
-        }
+      // กรองแถวตาม scope (เหมือนหน้าเว็บ): แสดงเฉพาะ "ทุกแผนก" หรือมีแผนกอยู่ใน scope
+      if (hasScope && scopeSet && ids.length > 0) {
+        const inScope = ids.some((id) => scopeSet.has(id));
+        if (!inScope) continue;
       }
 
-      const departments = displayIds
+      // แสดงทุกแผนกที่ item นั้นสังกัด (ให้ตรงกับคอลัมน์ Division บนหน้าเว็บ)
+      const departments = ids
         .map((id) => deptNameById.get(id))
         .filter((n): n is string => !!n)
         .slice(0, 3);
